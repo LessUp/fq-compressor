@@ -21,7 +21,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 | 并发框架 | **Intel oneTBB** | `parallel_pipeline`, `task_group` |
 | CLI 解析 | **CLI11** | 现代化、功能丰富的命令行库 |
 | 日志系统 | **Quill** | 极低延迟异步日志 (Low Latency Logging) |
-| 压缩库 | **Spring (Core)**, fqzcomp5-style (Quality), libdeflate, libbz2, liblzma | 混合压缩策略 |
+| 压缩库 | **Spring (Core)**, fqzcomp5-style (Quality), libdeflate, libbz2, liblzma, zstd | 混合压缩策略 |
 | 测试框架 | Google Test + RapidCheck | 单元测试 + 属性测试 |
 | 依赖管理 | Conan 2.x | 依赖包管理 |
 
@@ -108,6 +108,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 
 ### 2. Global Header
 包含全局元数据：
+- `GlobalHeaderSize` (uint32): Global Header 总长度（bytes，包含自身字段），用于前向兼容跳过未知扩展字段。
 - `Flags` (uint32):
     - bit 0: `IS_PAIRED`: 配对端数据
     - bit 1: `PRESERVE_ORDER`: 是否保留原始 Reads 顺序 (0=Reordered, 1=Original)
@@ -122,9 +123,14 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
         - 01: Tokenized/Reconstruct (Split static/dynamic parts)
         - 10: Discard/Indexed (Replace with 1,2,3...)
 - `CompressionAlgo` (uint8): 主要策略族 ID（用于兼容/快速识别；具体以每个 BlockHeader 的 codec_* 为准）
+- `ChecksumType` (uint8): 校验算法（默认：xxhash64；预留升级空间）
 - `OriginalFilenameLength` (uint16)
 - `OriginalFilename` (string)
 - `Timestamp` (uint64)
+
+**Forward Compatibility**:
+- Reader 读取 `GlobalHeaderSize` 后，若发现未知字段，可按长度跳过；不理解的 `Flags` 位应忽略。
+- `Version` 仅用于格式重大变更；字段扩展优先通过 `GlobalHeaderSize` + 预留字段/新增字段实现。
 
 ### 3. Block Structure
 为了支持 "Scheme A" (Random Access)，数据被分割为独立的块。每个块可以独立解压（除了可能的共享静态字典）。
@@ -140,7 +146,9 @@ struct Block {
 };
 
 struct BlockHeader {
+    uint32_t header_size;         // BlockHeader total size (bytes), for forward compatibility
     uint32_t block_id;
+    uint8_t checksum_type;        // Same domain as GlobalHeader.ChecksumType
     uint64_t block_xxhash64;
     uint32_t uncompressed_count; // Number of reads
     
@@ -151,15 +159,19 @@ struct BlockHeader {
     uint32_t offset_aux; // Optional (e.g., Read lengths if variable)
     
     // Stream Codecs (Compression Strategy Flags)
-    uint8_t codec_id;   // e.g., Delta + LZMA
-    uint8_t codec_seq;  // e.g., Spring ABC + Arithmetic
-    uint8_t codec_qual; // e.g., SCM (Fqzcomp5-style) + Arithmetic
+    uint8_t codec_id;   // e.g., (family,version) for Delta + (LZMA/Zstd)
+    uint8_t codec_seq;  // e.g., (family,version) for Spring ABC + Arithmetic
+    uint8_t codec_qual; // e.g., (family,version) for SCM (Fqzcomp5-style) + Arithmetic
 };
 ```
 
+**Codec Versioning Convention**:
+- `codec_*` 采用 `(family, version)` 的注册表语义（例如高 4bit 为 family，低 4bit 为 version；或以枚举表定义），便于算法升级与兼容判断。
+- 解析到未知 family：应报错并返回“不支持的算法/codec”。解析到同 family 的更高 version：可尝试降级/拒绝，策略由实现决定。
+
 **Stream Definitions**:
 1.  **Identifier Stream**:
-    -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA).
+    -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA/Zstd).
     -   *Why*: IDs (e.g., `@Illumina...:1:1:1:1`) often differ only by last integer. Delta encoding handles this efficiently.
 2.  **Sequence Stream**:
     -   *Strategy*: **Assembly-based Compression (ABC)** (State-of-the-Art).
