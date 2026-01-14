@@ -1,0 +1,106 @@
+# =============================================================================
+# fq-compressor .gitignore
+# =============================================================================
+
+# 忽略所有的对象文件和库文件
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+
+# 忽略所有的编译输出目录
+/cmake-build-debug/
+/cmake-build-*/
+/build/
+/bin/
+/obj/
+/out/
+
+# 忽略所有的临时文件
+*.tmp
+*.log
+*.swp
+*.bak
+
+# 忽略所有的 IDE 配置文件
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# 忽略所有的 CMake 生成文件
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# 忽略所有的自动生成的文档
+docs/generated/
+
+# 忽略所有的覆盖率报告
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# 忽略所有的 Conan 生成文件
+conaninfo.txt
+conanbuildinfo.*
+conan.lock
+conan_toolchain.cmake
+
+# 忽略 vcpkg 安装目录
+vcpkg_installed/
+
+# 用户特定的 CMake 预设
+CMakeUserPresets.json
+
+# OS 特定文件
+.DS_Store
+Thumbs.db
+
+# 通用构建与安装输出
+build-clang-debug/
+build-clang-release/
+build-gcc-debug/
+build-gcc-release/
+build-logs/
+build*/
+install/
+install-*/
+
+# 工具与分析报告
+clang-tidy-fixes.yml
+*.sarif
+benchmark-*.json
+benchmark-*.csv
+
+# 覆盖率与分析数据
+*.profraw
+*.profdata
+
+# Benchmark 结果（保留目录结构，排除临时结果）
+benchmark_results/results/*.json
+benchmark_results/reports/*.md
+benchmark_results/reports/charts/*.svg
+benchmark_results/reports/charts/*.png
+benchmark_results/data/*.fastq
+benchmark_results/data/*.fastq.gz
+!benchmark_results/baselines/*.json
+
+# Python 相关
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+
+# 压缩测试数据
+*.fqc
+*.fqc.idx

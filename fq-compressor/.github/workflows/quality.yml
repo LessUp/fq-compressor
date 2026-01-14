@@ -1,0 +1,232 @@
+# .github/workflows/quality.yml
+#
+# Code Quality Checks for fq-compressor
+# Runs on every PR and push to main branch
+
+name: Code Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Debug
+  CONAN_HOME: ${{ github.workspace }}/.conan2
+
+jobs:
+  # ===========================================================================
+  # Code Formatting Check
+  # ===========================================================================
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-17
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-17 100
+      
+      - name: Check formatting
+        run: |
+          ./scripts/core/lint format-check
+  
+  # ===========================================================================
+  # Static Analysis
+  # ===========================================================================
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-17 \
+            clang-tidy-17 \
+            cppcheck \
+            ninja-build \
+            python3-pip
+          
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-17 100
+          
+          pip3 install conan
+      
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONAN_HOME }}
+          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-
+      
+      - name: Setup Conan
+        run: |
+          conan profile detect --force
+      
+      - name: Build for analysis
+        run: |
+          ./scripts/core/build -c clang -t Debug
+      
+      - name: Run clang-tidy
+        run: |
+          ./scripts/core/lint tidy -b build-clang-debug
+      
+      - name: Run Cppcheck
+        run: |
+          ./scripts/core/lint cppcheck -b build-clang-debug
+  
+  # ===========================================================================
+  # AddressSanitizer Tests
+  # ===========================================================================
+  asan-tests:
+    name: ASan Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-17 \
+            ninja-build \
+            python3-pip
+          
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100
+          
+          pip3 install conan
+      
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONAN_HOME }}
+          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-
+      
+      - name: Setup Conan
+        run: |
+          conan profile detect --force
+      
+      - name: Build with ASan
+        run: |
+          ./scripts/core/build -c clang -t Debug --sanitizer asan
+      
+      - name: Run tests with ASan
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1:print_stats=1
+        run: |
+          ./scripts/core/test -b build-clang-debug
+  
+  # ===========================================================================
+  # Code Coverage
+  # ===========================================================================
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang-17 \
+            ninja-build \
+            lcov \
+            python3-pip
+          
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100
+          
+          pip3 install conan gcovr
+      
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONAN_HOME }}
+          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-
+      
+      - name: Setup Conan
+        run: |
+          conan profile detect --force
+      
+      - name: Build with coverage
+        run: |
+          ./scripts/core/build -c clang --coverage
+      
+      - name: Run tests
+        run: |
+          ./scripts/core/test -b build-clang-coverage
+      
+      - name: Generate coverage report
+        run: |
+          ./scripts/tools/coverage-report -b build-clang-coverage --xml
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage_report/coverage.xml
+          fail_ci_if_error: false
+          verbose: true
+      
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage_report/
+          retention-days: 7
+  
+  # ===========================================================================
+  # Quality Gate
+  # ===========================================================================
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [format-check, static-analysis, asan-tests, coverage]
+    if: always()
+    
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.format-check.result }}" != "success" ]]; then
+            echo "Format check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.static-analysis.result }}" != "success" ]]; then
+            echo "Static analysis failed"
+            exit 1
+          fi
+          if [[ "${{ needs.asan-tests.result }}" != "success" ]]; then
+            echo "ASan tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.coverage.result }}" != "success" ]]; then
+            echo "Coverage generation failed"
+            exit 1
+          fi
+          echo "All quality checks passed!"

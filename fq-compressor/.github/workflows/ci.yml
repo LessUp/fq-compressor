@@ -1,0 +1,251 @@
+# .github/workflows/ci.yml
+name: fq-compressor CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+env:
+  CONAN_VERSION: 2.24.0
+
+jobs:
+  lint:
+    name: Code Quality and Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cache Conan
+        uses: actions/cache@v3
+        with:
+          path: ~/.conan2
+          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.py') }}
+          restore-keys: ${{ runner.os }}-conan-
+
+      - name: Cache ccache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-lint-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential wget ninja-build ccache tar xz-utils
+
+          CMAKE_VERSION=4.2.1
+          CMAKE_ARCH=x86_64
+          sudo wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.tar.gz" -O /tmp/cmake.tar.gz
+          sudo mkdir -p /opt
+          sudo tar -C /opt -xzf /tmp/cmake.tar.gz
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cmake" /usr/local/bin/cmake
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/ctest" /usr/local/bin/ctest
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack
+          sudo rm -f /tmp/cmake.tar.gz
+
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-21 clang-tidy-21 clang-format-21 lld-21 llvm-21
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 100
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      - name: Build project for code analysis
+        run: |
+          ./scripts/build.sh clang Release
+
+      - name: Run linting script
+        run: |
+          ./scripts/lint.sh --build-dir build-clang-release
+
+      - name: Install Node.js for commitlint
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and run commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+          commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        compiler:
+          - { name: gcc, cc: gcc, cxx: g++ }
+          - { name: clang, cc: clang, cxx: clang++ }
+        build_type: [Debug, Release]
+        exclude:
+          - compiler: gcc
+            build_type: Debug
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cache Conan
+        uses: actions/cache@v3
+        with:
+          path: ~/.conan2
+          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.py') }}
+          restore-keys: ${{ runner.os }}-conan-
+
+      - name: Cache ccache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.compiler.name }}-${{ matrix.build_type }}-${{ github.ref }}
+          restore-keys: ${{ runner.os }}-ccache-
+      
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential wget ninja-build ccache tar xz-utils
+
+          CMAKE_VERSION=4.2.1
+          CMAKE_ARCH=x86_64
+          sudo wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.tar.gz" -O /tmp/cmake.tar.gz
+          sudo mkdir -p /opt
+          sudo tar -C /opt -xzf /tmp/cmake.tar.gz
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cmake" /usr/local/bin/cmake
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/ctest" /usr/local/bin/ctest
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack
+          sudo rm -f /tmp/cmake.tar.gz
+
+      - name: Install Clang/LLVM
+        if: matrix.compiler.name == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-21 clang-tidy-21 clang-format-21 lld-21
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100
+
+      - name: Set up Python for Conan
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      - name: Build via script
+        run: |
+          ./scripts/build.sh ${{ matrix.compiler.name }} ${{ matrix.build_type }}
+
+      - name: Run tests via script
+        if: matrix.build_type == 'Release'
+        run: |
+          ./scripts/test.sh -c ${{ matrix.compiler.name }} -t ${{ matrix.build_type }} -j 2
+
+      - name: Upload build artifacts
+        if: matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v3
+        with:
+          name: fqcompressor-${{ matrix.compiler.name }}-${{ matrix.build_type,, }}
+          path: build-${{ matrix.compiler.name }}-${{ matrix.build_type,, }}/fqcomp
+          retention-days: 7
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build development Docker image
+        run: |
+          docker build -f docker/Dockerfile.dev -t fqcompressor:dev .
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cache Conan
+        uses: actions/cache@v3
+        with:
+          path: ~/.conan2
+          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.py') }}
+          restore-keys: ${{ runner.os }}-conan-
+
+      - name: Cache ccache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-coverage-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lcov ninja-build ccache wget tar xz-utils
+
+          CMAKE_VERSION=4.2.1
+          CMAKE_ARCH=x86_64
+          sudo wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.tar.gz" -O /tmp/cmake.tar.gz
+          sudo mkdir -p /opt
+          sudo tar -C /opt -xzf /tmp/cmake.tar.gz
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cmake" /usr/local/bin/cmake
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/ctest" /usr/local/bin/ctest
+          sudo ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack
+          sudo rm -f /tmp/cmake.tar.gz
+
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-21 clang-tidy-21 clang-format-21 llvm-21 lld-21
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 100
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+
+      - name: Set up Python for Conan
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      - name: Run coverage
+        run: |
+          ./scripts/test.sh -c clang -t Coverage -C -j 2
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: build-clang-coverage/coverage/coverage-filtered.info
+          retention-days: 7

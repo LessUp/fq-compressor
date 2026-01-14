@@ -1,0 +1,179 @@
+# =============================================================================
+# fq-compressor Development Environment
+# =============================================================================
+# 支持双编译器工具链：GCC 15 + Clang 21
+# - GCC 15 + libstdc++：生产编译首选，最新 C++23 支持
+# - Clang 21 + libc++：开发调试首选，配合 LLVM 工具链
+#
+# 使用方法：
+#   GCC 编译：   cmake --preset gcc-debug && cmake --build --preset gcc-debug
+#   Clang 编译： cmake --preset clang-debug && cmake --build --preset clang-debug
+# =============================================================================
+
+FROM gcc:15.2-bookworm AS base
+
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG ALL_PROXY
+ARG NO_PROXY
+
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV ALL_PROXY=${ALL_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+ENV http_proxy=${HTTP_PROXY}
+ENV https_proxy=${HTTPS_PROXY}
+ENV all_proxy=${ALL_PROXY}
+ENV no_proxy=${NO_PROXY}
+
+RUN set -eux; \
+    if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then \
+        : > /etc/apt/apt.conf.d/99proxy; \
+        if [ -n "${HTTP_PROXY:-}" ]; then echo "Acquire::http::Proxy \"${HTTP_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+        if [ -n "${HTTPS_PROXY:-}" ]; then echo "Acquire::https::Proxy \"${HTTPS_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+    fi
+
+# =============================================================================
+# 基础工具
+# =============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ninja-build \
+    pkg-config \
+    git \
+    wget \
+    curl \
+    ca-certificates \
+    tar \
+    xz-utils \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ccache \
+    openssh-server \
+    openssh-client \
+    procps \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN touch /tmp/host-gitconfig
+
+# =============================================================================
+# CMake 4.x (最新版本)
+# =============================================================================
+RUN CMAKE_VERSION=4.0.2 && \
+    ARCH="$(dpkg --print-architecture)" && \
+    case "$ARCH" in \
+        amd64) CMAKE_ARCH="x86_64" ;; \
+        arm64) CMAKE_ARCH="aarch64" ;; \
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
+    esac && \
+    wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.tar.gz" -O /tmp/cmake.tar.gz && \
+    mkdir -p /opt && \
+    tar -C /opt -xzf /tmp/cmake.tar.gz && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cmake" /usr/local/bin/cmake && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/ctest" /usr/local/bin/ctest && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
+    rm -f /tmp/cmake.tar.gz
+
+# =============================================================================
+# LLVM/Clang 21 工具链 (开发调试)
+# =============================================================================
+RUN wget -q https://apt.llvm.org/llvm.sh && \
+    chmod +x llvm.sh && \
+    ./llvm.sh 21 && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    clang-21 \
+    clangd-21 \
+    clang-tidy-21 \
+    clang-format-21 \
+    lld-21 \
+    lldb-21 \
+    llvm-21 \
+    libc++-21-dev \
+    libc++abi-21-dev \
+    && rm -f llvm.sh && \
+    rm -rf /var/lib/apt/lists/* \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
+    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-21 100 \
+    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 100 \
+    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100 \
+    && update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-21 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
+
+# =============================================================================
+# 项目依赖库
+# =============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libdeflate-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libtbb-dev \
+    libzstd-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Conan 2.x 包管理器 (最新版本)
+# =============================================================================
+RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+
+# =============================================================================
+# 开发阶段 - 添加调试和分析工具
+# =============================================================================
+FROM base AS development
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gdb \
+    valgrind \
+    lcov \
+    gcovr \
+    doxygen \
+    graphviz \
+    cppcheck \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# 非 root 用户
+# =============================================================================
+ARG USERNAME=developer
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME && \
+    useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN rm -rf /home/$USERNAME/.gitconfig && \
+    touch /home/$USERNAME/.gitconfig && \
+    chown $USERNAME:$USERNAME /home/$USERNAME/.gitconfig
+
+# =============================================================================
+# 环境配置
+# =============================================================================
+ENV CONAN_HOME=/home/$USERNAME/.conan2
+ENV CCACHE_DIR=/home/$USERNAME/.ccache
+ENV PATH=/usr/lib/ccache:$PATH
+
+# 默认使用 GCC（可通过 CMake Preset 切换）
+ENV CC=gcc
+ENV CXX=g++
+
+# 工作目录
+RUN mkdir -p /workspace && chown $USERNAME:$USERNAME /workspace
+RUN git config --system --add safe.directory /workspace
+WORKDIR /workspace
+
+USER $USERNAME
+
+# =============================================================================
+# 初始化 Conan
+# =============================================================================
+RUN conan profile detect --force
+
+CMD ["/bin/bash"]

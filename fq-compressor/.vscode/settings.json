@@ -1,0 +1,18 @@
+{
+    "git.useEditorAsCommitInput": true,
+    "git.postCommitCommand": "none",
+    "git.enableCommitSigning": false,
+    "cmake.generator": "Ninja",
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": false,
+    "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
+    "cmake.configureSettings": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+    },
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--header-insertion=never"
+    ]
+}
