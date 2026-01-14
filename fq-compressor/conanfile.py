@@ -27,7 +27,7 @@ class FQCompressorConan(ConanFile):
         # CLI 解析
         self.requires("cli11/2.4.2")
         # 日志
-        self.requires("spdlog/1.17.0")
+        self.requires("quill/11.0.2")
         self.requires("fmt/12.1.0")
         # 压缩库
         self.requires("zlib-ng/2.3.2")

@@ -21,7 +21,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 | 并发框架 | **Intel oneTBB** | `parallel_pipeline`, `task_group` |
 | CLI 解析 | **CLI11** | 现代化、功能丰富的命令行库 |
 | 日志系统 | **Quill** | 极低延迟异步日志 (Low Latency Logging) |
-| 压缩库 | **Spring (Core)**, libdeflate, bzip2, xz | 混合压缩策略 |
+| 压缩库 | **Spring (Core)**, fqzcomp5-style (Quality), libdeflate, libbz2, liblzma | 混合压缩策略 |
 | 测试框架 | Google Test + RapidCheck | 单元测试 + 属性测试 |
 | 依赖管理 | Conan 2.x | 依赖包管理 |
 
@@ -35,19 +35,24 @@ graph TD
         A[main.cpp] --> B[CompressCommand]
         A --> C[DecompressCommand]
         A --> D[InfoCommand]
+        A --> V[VerifyCommand]
     end
 
     subgraph Core["Core Layer"]
         B --> E[CompressionEngine]
         C --> F[DecompressionEngine]
+        V --> G[VerifyEngine]
         
-        E --> H[Preprocessor]
-        E --> I[SpringReorder]
+        E --> H[FastqParser]
+        E --> I[SequenceCompressor (SpringABC)]
+        E --> N[IDCompressor]
+        E --> K[QualityCompressor (SCM)]
         E --> J[BlockEncoder]
-        E --> K[QualityCompressor]
         
         F --> L[BlockDecoder]
-        F --> M[SpringRestore]
+        F --> M[SequenceDecompressor (SpringABC)]
+        F --> O[IDDecompressor]
+        F --> P[QualityDecompressor (SCM)]
     end
 
     subgraph Pipeline["Pipeline Layer (TBB)"]
@@ -58,8 +63,8 @@ graph TD
     end
 
     subgraph Storage["Storage Layer"]
-        J --> S[FQCFormatWriter]
-        L --> T[FQCFormatReader]
+        J --> S[FQCWriter]
+        L --> T[FQCReader]
         S --> U[BlockIndex]
     end
 ```
@@ -78,7 +83,7 @@ graph TD
 
 ```
 +----------------+
-|  Magic Header  |  (8 bytes)
+|  Magic Header  |  (9 bytes)
 +----------------+
 | Global Header  |  (Variable Length)
 +----------------+
@@ -97,6 +102,7 @@ graph TD
 ```
 
 ### 1. Magic Header
+Magic Header = Magic (8 bytes) + Version (1 byte)
 - `Magic`: `0x89 'F' 'Q' 'C' 0x0D 0x0A 0x1A 0x0A` (参考 PNG/XZ 风格魔法数)
 - `Version`: 1 byte (e.g., 0x01)
 
@@ -115,7 +121,7 @@ graph TD
         - 00: Preserve Exact (Default)
         - 01: Tokenized/Reconstruct (Split static/dynamic parts)
         - 10: Discard/Indexed (Replace with 1,2,3...)
-- `CompressionAlgo` (uint8): 主要算法 ID (Spring, LZMA, etc.)
+- `CompressionAlgo` (uint8): 主要策略族 ID（用于兼容/快速识别；具体以每个 BlockHeader 的 codec_* 为准）
 - `OriginalFilenameLength` (uint16)
 - `OriginalFilename` (string)
 - `Timestamp` (uint64)
@@ -146,14 +152,14 @@ struct BlockHeader {
     
     // Stream Codecs (Compression Strategy Flags)
     uint8_t codec_id;   // e.g., Delta + LZMA
-    uint8_t codec_seq;  // e.g., Spring Reorder + Arithmetic
-    uint8_t codec_qual; // e.g., QVZ + Range
+    uint8_t codec_seq;  // e.g., Spring ABC + Arithmetic
+    uint8_t codec_qual; // e.g., SCM (Fqzcomp5-style) + Arithmetic
 };
 ```
 
 **Stream Definitions**:
 1.  **Identifier Stream**:
-    -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA/Zstd).
+    -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA).
     -   *Why*: IDs (e.g., `@Illumina...:1:1:1:1`) often differ only by last integer. Delta encoding handles this efficiently.
 2.  **Sequence Stream**:
     -   *Strategy*: **Assembly-based Compression (ABC)** (State-of-the-Art).
@@ -231,8 +237,8 @@ namespace fqc::format {
 class CompressionPipeline {
 public:
     // TBB Filter Design
-    // 1. ReaderFitler (Serial) -> Produces Chunks of Reads
-    // 2. CompressFilter (Parallel) -> Compresses Chunks to Blocks (Spring Algo)
+    // 1. ReaderFilter (Serial) -> Produces Chunks of Reads
+    // 2. CompressFilter (Parallel) -> Compresses Chunks to Blocks (ABC/SCM/ID)
     // 3. WriterFilter (Serial) -> Writes Blocks to Disk
     void run();
 };

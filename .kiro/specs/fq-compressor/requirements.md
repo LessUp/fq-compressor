@@ -60,88 +60,92 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 **User Story:** 追求极致压缩率，采用学术界最前沿的 **Assembly-based Compression (ABC)** 路线，并以 **Spring Core Integration** 作为工程落地方式。
 
 #### Acceptance Criteria
-1.  **流分离 (Stream Separation)**:
-    -   必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
-2.  **核心算法路线 (State-of-the-Art)**:
+1.  **Requirement 1.1.1: I/O 支持**
+    -   支持 `.fastq`, `.fq`, `.gz` 输入（Phase 1: plain/gzip）。
+    -   支持 `.bz2`, `.xz` 输入（Phase 2: bz2/xz）。
+    -   支持输出 `.fqc`；可选支持外层 gzip 封装输出为 `.fqc.gz`（Phase 4: Optional）。
+2.  **Requirement 1.1.2: 流分离与核心算法路线 (State-of-the-Art)**
+    -   **流分离 (Stream Separation)**: 必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
     -   **Sequence**: 采用 **ABC 策略** (Minimizer Bucketing -> Local Consensus -> Delta Encoding -> Arithmetic Coding；桶内可选 Reordering)。
         -   *Implementation*: **Vendor/Fork Spring Core**（encoder/decoder）。直接集成修改版的 **Spring** 核心算法库，而非从零重写，以确保正确性和性能。
     -   **Quality**: 采用 **Statistical Context Mixing (SCM)** (参考 Fqzcomp5)。
         -   使用 Order-1 或 Order-2 上下文算术编码。
         -   *Non-goal*: SCM 仅用于质量值；Sequence 不采用 fqzcomp5 的纯统计模型作为主路线。
     -   **IDs**: 采用 **Delta + Tokenization**。
-3.  **技术落地**:
-    -   必须处理 Spring 代码的模块化封装，使其适配 Block-based 架构。
-    -   必须解决 Spring 的 license (Non-commercial) 兼容性问题（仅供自用学习/非商用发布）。
-4.  **风险与约束 (Risks/Constraints)**:
-    -   ABC 属于高复杂度路线，CPU/内存开销显著高于纯统计模型；必须以 Block 分治控制内存峰值与端到端延迟。
-    -   必须保证 Round-trip Lossless，并提供与原始 Spring 的对照验证以降低正确性风险。
-
-1.  **输入支持**: 支持 `.fastq`, `.fq`, `.gz`, `.bz2`, `.xz` 输入（Phase 1: plain/gzip; Phase 2: bz2/xz）。
-2.  **压缩模式**:
+    -   **技术落地**:
+        -   必须处理 Spring 代码的模块化封装，使其适配 Block-based 架构。
+        -   必须解决 Spring 的 license (Non-commercial) 兼容性问题（仅供自用学习/非商用发布）。
+    -   **风险与约束 (Risks/Constraints)**:
+        -   ABC 属于高复杂度路线，CPU/内存开销显著高于纯统计模型；必须以 Block 分治控制内存峰值与端到端延迟。
+        -   必须保证 Round-trip Lossless，并提供与原始 Spring 的对照验证以降低正确性风险。
+3.  **Requirement 1.1.3: 压缩模式与数据类型**
     -   **Reorder (Default)**: 允许重排序 reads 以获得最高压缩比（参考 Spring/Repaq）。
     -   **Order-Preserving**: 强制保留原始 reads 顺序（压缩比略低）。
-3.  **数据类型**:
     -   支持 **Short Reads** (Illumina, length < 512bp)。
     -   支持 **Long Reads** (Nanopore/PacBio, 任意长度，自动禁用重排序或使用专有算法)。
     -   支持 **SE (Single-End)** 和 **PE (Paired-End)**。
-4.  **断点续压**: **不支持**断点续压（No Resume），简化设计。
+    -   **断点续压**: **不支持**断点续压（No Resume），简化设计。
 
 ### Requirement 2: 解压缩与随机访问
 **User Story:** 用户希望快速解压，并能随机访问文件的特定部分。
 
 #### Acceptance Criteria
-1.  **随机访问 (Scheme A)**:
+1.  **Requirement 2.1: 随机访问 (Scheme A)**:
     -   压缩文件必须按 **Block** 组织。
     -   支持通过 Block Index 快速定位并解压指定范围的 reads。
     -   解压语义："第 X 到 Y 条 Reads" 的编号以归档存储顺序为准（开启重排时按重排后的顺序）。
-2.  **输出格式**: 支持解压为 `.fastq` 或直接流式输出到标准输出。
-3.  **单条/多条解压**: 支持仅解压 header 或特定 ID 的 reads（依赖索引）。
+2.  **Requirement 2.2: 输出格式**: 支持解压为 `.fastq` 或直接流式输出到标准输出。
+3.  **Requirement 2.3: 部分解压 (Header-only / Column-selective)**:
+    -   支持仅解压 header（Identifier Stream），用于快速预览/统计。
+    -   支持只解压 Sequence 或 Quality 子流（依赖列式子流拆分与索引），避免无关子流解码开销。
 
 ### Requirement 3: 质量值处理 (Quality Scores)
 **User Story:** 用户希望在文件大小和数据精度之间做权衡。
 
 #### Acceptance Criteria
-1.  **Lossless (Default)**: 无损保留所有质量值。
-2.  **QVZ Lossy**: 支持 **QVZ** 算法进行有损压缩，提供 configurable compression ratio。
-3.  **Illumina Binning**: 支持标准的 8-level binning。
-4.  **No Quality**: 选项丢弃质量值（仅保留序列和 ID）。
+1.  **Requirement 3.1: Lossless (Default)**: 无损保留所有质量值。
+2.  **Requirement 3.2: QVZ Lossy**: 支持 **QVZ** 算法进行有损压缩，提供 configurable compression ratio。
+3.  **Requirement 3.3: Illumina Binning**: 支持标准的 8-level binning。
+4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID）。
 
 ### Requirement 4: 高性能架构
 **User Story:** 用户希望充分利用多核 CPU，加速处理 massive datasets。
 
 #### Acceptance Criteria
-1.  **并行模型**: 使用 **Intel TBB**。
+1.  **Requirement 4.1: 并行模型**: 使用 **Intel TBB**。
     -   支持 `pipeline` 模式（IO bound 场景）。
     -   支持 `parallel_for` / 任务图模式（Compute bound 场景）。
-2.  **日志系统**: 使用 **Quill** 异步日志库，确保日志记录不阻塞关键路径。
-3.  **内存管理**: 显式控制内存使用上限，避免 OOM（特别是 Spring 算法内存消耗较大）。
+2.  **Requirement 4.2: 日志系统**: 使用 **Quill** 异步日志库，确保日志记录不阻塞关键路径。
+3.  **Requirement 4.3: 内存管理**: 显式控制内存使用上限，避免 OOM（特别是 Spring 算法内存消耗较大）。
 
 ### Requirement 5: 数据完整性
 **User Story:** 数据安全第一，必须能检测损坏。
 
 #### Acceptance Criteria
-1.  **Global Checksum**: 文件尾部包含全局 `xxhash64`。
-2.  **Block Checksum**: 每个 Block 包含独立的 `xxhash64`，支持定位损坏块。
-3.  **Verify Mode**: 提供单独的 `verify` 命令，不解压落盘即可验证文件完整性。
+1.  **Requirement 5.1: Global Checksum**: 文件尾部包含全局 `xxhash64`。
+2.  **Requirement 5.2: Block Checksum**: 每个 Block 包含独立的 `xxhash64`，支持定位损坏块。
+3.  **Requirement 5.3: Verify Mode**: 提供单独的 `verify` 命令，不解压落盘即可验证文件完整性。
 
 ### Requirement 6: CLI 与易用性
 **User Story:** 命令行接口应符合现有 Linux 工具习惯。
 
 #### Acceptance Criteria
-1.  **库选型**: 使用 **CLI11**。
-2.  **参数**:
+1.  **Requirement 6.1: 库选型**: 使用 **CLI11**。
+2.  **Requirement 6.2: 参数**:
     -   `-t/--threads`: 线程数。
     -   `-i/--input`: 输入文件。
     -   `-o/--output`: 输出文件。
     -   `-l/--level`: 压缩等级 (1-9)。
+    -   `--range`: (decompress) 仅解压指定 reads 范围。
+    -   `--header-only`: (decompress) 仅输出 header（不解码 Sequence/Quality）。
     -   `--reorder / --no-reorder`: 重排序开关。
     -   `--lossy-quality`: 有损模式及参数。
-3.  **帮助**: 提供详细的 `--help` 信息。
+3.  **Requirement 6.3: 帮助**: 提供详细的 `--help` 信息。
 
 ### Requirement 7: 开发与构建
 **User Story:** 项目应易于构建和维护。
 
 #### Acceptance Criteria
-1.  **构建系统**: CMake 3.20+。
-2.  **依赖管理**: 使用 Conan 或 Git Submodules (vendor)。
-3.  **代码风格**: 严格遵循 C++20 标准和 fastq-tools 代码风格。
+1.  **Requirement 7.1: 构建系统**: CMake 3.20+。
+2.  **Requirement 7.2: 依赖管理**: 使用 Conan 或 Git Submodules (vendor)。
+3.  **Requirement 7.3: 代码风格**: 严格遵循 C++20 标准和 fastq-tools 代码风格。
