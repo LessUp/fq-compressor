@@ -62,8 +62,9 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 #### Acceptance Criteria
 1.  **Requirement 1.1.1: I/O 支持**
     -   支持 `.fastq`, `.fq`, `.gz` 输入（Phase 1: plain/gzip）。
-    -   支持 `.bz2`, `.xz` 输入（Phase 2: bz2/xz）。
-    -   支持输出 `.fqc`；可选支持外层 gzip 封装输出为 `.fqc.gz`（Phase 4: Optional）。
+    -   支持 `.bz2`, `.xz` 输入。
+    -   支持输出 `.fqc`。
+    -   不提供外层封装输出（例如 `.fqc.gz`）：外层压缩对压缩率提升有限、会增加耗时且会破坏随机访问语义；如确有分发需求可由用户在归档外部自行二次压缩（使用前需先解包）。
 2.  **Requirement 1.1.2: 流分离与核心算法路线 (State-of-the-Art)**
     -   **流分离 (Stream Separation)**: 必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
     -   **Sequence**: 采用 **ABC 策略** (Minimizer Bucketing -> Local Consensus -> Delta Encoding -> Arithmetic Coding；桶内可选 Reordering)。
@@ -131,16 +132,69 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 
 #### Acceptance Criteria
 1.  **Requirement 6.1: 库选型**: 使用 **CLI11**。
-2.  **Requirement 6.2: 参数**:
-    -   `-t/--threads`: 线程数。
-    -   `-i/--input`: 输入文件。
-    -   `-o/--output`: 输出文件。
-    -   `-l/--level`: 压缩等级 (1-9)。
-    -   `--range`: (decompress) 仅解压指定 reads 范围。
-    -   `--header-only`: (decompress) 仅输出 header（不解码 Sequence/Quality）。
-    -   `--reorder / --no-reorder`: 重排序开关。
-    -   `--lossy-quality`: 有损模式及参数。
+2.  **Requirement 6.2: 命令与参数设计**:
+
+    **命令结构**:
+    - `fqc <subcommand> [options]`
+    - 子命令：`compress`, `decompress`, `info`, `verify`
+
+    **I/O 约定**:
+    - `-i -` 表示从 `stdin` 读取（支持管道）。
+    - `-o -` 表示输出到 `stdout`。
+    - 若未指定 `-o/--output`：
+        - `compress`: 默认输出到 `<input>.fqc`（input 为 `-` 时要求显式指定 `-o`）。
+        - `decompress`: 默认输出到 `stdout`。
+
+    **全局选项（对所有子命令生效）**:
+    - `-t, --threads <N>`: 线程数（默认：物理核数或 `std::thread::hardware_concurrency()`）。
+    - `-v, --verbose`: 增加日志详细程度（可重复）。
+    - `--log-file <path>`: 写入日志文件（默认：stderr）。
+    - `--log-level <trace|debug|info|warning|error>`: 日志等级（默认：info）。
+    - `--no-progress`: 关闭进度显示。
+    - `--json`: 将 `info/verify` 输出切换为 JSON（默认：人类可读）。
+    - `--version`: 打印版本并退出。
+
+    **compress 子命令**:
+    - `-i, --input <path>`: 输入 FASTQ（支持 `.fastq/.fq/.gz`；也支持 `-`）。
+    - `-o, --output <path>`: 输出 `.fqc` 文件。
+    - `-l, --level <1-9>`: 压缩等级（默认：5）。
+    - `--block-reads <N>`: 每个 Block 的 reads 数（默认：10000）。
+    - `--reorder / --no-reorder`: 是否重排 reads（默认：`--reorder`）。
+    - `--preserve-order`: 强制保留原始顺序（等价于 `--no-reorder`，二者互斥）。
+    - `--id-mode <exact|tokenize|discard>`: ID 处理模式（默认：exact）。
+    - `--quality-mode <lossless|illumina8|qvz|discard>`: 质量值模式（默认：lossless）。
+    - `--lossy-quality <spec>`: 有损质量参数（仅当 `--quality-mode` 为 `illumina8` 或 `qvz` 时允许）。
+    - `--paired`: 输入为 Paired-End（仅作为语义开关；具体输入方式见后续扩展）。
+    - `--long-read-mode <auto|on|off>`: 长读模式（默认：auto）。
+    - `--checksum <xxh64>`: 校验算法（默认：xxh64）。
+
+    **decompress 子命令**:
+    - `-i, --input <path>`: 输入 `.fqc`。
+    - `-o, --output <path>`: 输出 FASTQ（默认：stdout）。
+    - `--range <start:end>`: 仅解压指定 reads 范围（闭区间；以归档存储顺序计数；`end` 可省略表示直到文件末尾）。
+    - `--header-only`: 仅输出 header（Identifier Stream），不解码 Sequence/Quality。
+    - `--streams <id|seq|qual|all>`: 子流选择性解码（默认：all；与 `--header-only` 互斥）。
+    - `--verify / --no-verify`: 解压时是否校验 checksum（默认：`--verify`）。
+
+    **info 子命令**:
+    - `-i, --input <path>`: 输入 `.fqc`。
+    - `--show-index`: 输出索引摘要（Block 数、范围、偏移）。
+    - `--show-codecs`: 输出各子流 codec 统计与分布。
+
+    **verify 子命令**:
+    - `-i, --input <path>`: 输入 `.fqc`。
+    - `--mode <quick|full>`: quick 仅验证元数据/索引一致性；full 逐块校验（默认：full）。
+    - `--fail-fast`: 一旦发现损坏立即退出。
 3.  **Requirement 6.3: 帮助**: 提供详细的 `--help` 信息。
+
+#### 退出码约定
+
+- `0`: 成功
+- `1`: 参数/用法错误
+- `2`: I/O 错误（文件不存在、读写失败等）
+- `3`: 格式错误或版本不兼容
+- `4`: 校验失败（checksum mismatch）
+- `5`: 不支持的算法/codec
 
 ### Requirement 7: 开发与构建
 **User Story:** 项目应易于构建和维护。
@@ -149,3 +203,10 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **Requirement 7.1: 构建系统**: CMake 3.20+。
 2.  **Requirement 7.2: 依赖管理**: 使用 Conan 或 Git Submodules (vendor)。
 3.  **Requirement 7.3: 代码风格**: 严格遵循 C++20 标准和 fastq-tools 代码风格。
+
+#### 推荐开发环境（容器）
+
+- GCC 15 + libstdc++（生产编译首选）
+- Clang 21 + libc++（开发调试首选）
+- CMake 4.x
+- Conan 2.x
