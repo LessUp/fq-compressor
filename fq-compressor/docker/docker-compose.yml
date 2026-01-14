@@ -1,0 +1,72 @@
+services:
+  # 开发环境
+  dev:
+    image: fqcompressor-dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      target: development
+    container_name: fqcompressor-dev
+    volumes:
+      - ..:/workspace:cached
+      - conan_cache:/home/developer/.conan2:cached
+      - ccache_cache:/home/developer/.ccache:cached
+    ports:
+      - "${FQCOMPRESSOR_SSH_BIND:-127.0.0.1}:${FQCOMPRESSOR_SSH_PORT:-2222}:2222"
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    working_dir: /workspace
+
+  # 生产环境
+  prod:
+    image: fqcompressor-prod
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: production
+    container_name: fqcompressor-prod
+    volumes:
+      - ./data:/app/data:ro
+      - ./output:/app/output
+    environment:
+      - FQCOMPRESSOR_DATA_DIR=/app/data
+      - FQCOMPRESSOR_OUTPUT_DIR=/app/output
+    restart: unless-stopped
+
+  # 测试环境
+  test:
+    image: fqcompressor-test
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      target: development
+    container_name: fqcompressor-test
+    volumes:
+      - ..:/workspace:cached
+      - conan_cache:/home/developer/.conan2:cached
+      - ccache_cache:/home/developer/.ccache:cached
+    environment:
+      - BUILD_TYPE=Debug
+      - ENABLE_COVERAGE=ON
+    command: /workspace/scripts/test.sh
+    working_dir: /workspace
+
+  # 构建服务
+  build:
+    image: fqcompressor-build
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: build
+    container_name: fqcompressor-build
+    volumes:
+      - ..:/workspace:cached
+      - conan_cache:/root/.conan2:cached
+      - ccache_cache:/root/.ccache:cached
+    command: /workspace/scripts/build.sh --release
+    working_dir: /workspace
+
+volumes:
+  conan_cache:
+  ccache_cache:

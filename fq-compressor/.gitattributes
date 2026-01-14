@@ -1,0 +1,52 @@
+* text=auto eol=lf
+
+# Scripts
+*.sh text eol=lf
+
+# CMake / configs
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# C/C++
+*.c text eol=lf
+*.cc text eol=lf
+*.cpp text eol=lf
+*.cxx text eol=lf
+*.h text eol=lf
+*.hh text eol=lf
+*.hpp text eol=lf
+*.inl text eol=lf
+
+# Archives / binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.tgz binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.a binary
+*.so binary
+*.dylib binary
+*.exe binary
+*.dll binary
+*.o binary
+*.obj binary
+*.bin binary
+
+# FASTQ data files
+*.fastq binary
+*.fq binary
+*.fastq.gz binary
+*.fq.gz binary
+*.fqc binary

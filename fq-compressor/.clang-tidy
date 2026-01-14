@@ -1,0 +1,55 @@
+Checks:          '-*,
+                   clang-diagnostic-*,
+                   bugprone-*,
+                   performance-*,
+                   modernize-*,
+                   readability-*,
+                   misc-unused-parameters,
+                   -readability-function-cognitive-complexity,
+                   -readability-identifier-length,
+                   -readability-magic-numbers,
+                   '
+HeaderFilterRegex: '^(.*[/\\])?(src|include|tests)/.*\.(h|hh|hpp|hxx|ipp|inl|c|cc|cpp|cxx)$'
+CheckOptions:
+  - key:             readability-identifier-naming.ClassCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.StructCase
+    value:           PascalCase
+  - key:             readability-identifier-naming.FunctionCase
+    value:           camelCase
+  - key:             readability-identifier-naming.MethodCase
+    value:           camelCase
+  - key:             readability-identifier-naming.VariableCase
+    value:           camelCase
+  - key:             readability-identifier-naming.ParameterCase
+    value:           camelCase
+  - key:             readability-identifier-naming.PrivateMemberCase
+    value:           camelCase
+  - key:             readability-identifier-naming.PrivateMemberSuffix
+    value:           _
+  - key:             readability-identifier-naming.ProtectedMemberCase
+    value:           camelCase
+  - key:             readability-identifier-naming.ProtectedMemberSuffix
+    value:           _
+  - key:             readability-identifier-naming.ConstantCase
+    value:           camelCase
+  - key:             readability-identifier-naming.ConstantPrefix
+    value:           k
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           lower_case
+  - key:             bugprone-assert-side-effect.AssertMacros
+    value:           assert
+  - key:             bugprone-assert-side-effect.CheckFunctionCalls
+    value:           '0'
+  - key:             bugprone-dangling-handle.HandleClasses
+    value:           'std::basic_string_view;std::experimental::basic_string_view'
+  - key:             bugprone-string-constructor.WarnOnLargeLength
+    value:           '0'
+  - key:             bugprone-suspicious-enum-usage.StrictMode
+    value:           '0'
+  - key:             bugprone-unused-return-value.AllowCastToVoid
+    value:           true
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             modernize-replace-random-shuffle.IncludeStyle
+    value:           llvm

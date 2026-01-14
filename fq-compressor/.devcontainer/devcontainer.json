@@ -1,0 +1,63 @@
+{
+    "name": "fq-compressor Dev",
+    "dockerComposeFile": [
+        "../docker/docker-compose.yml"
+    ],
+    "service": "dev",
+    "runServices": [
+        "dev"
+    ],
+    "workspaceFolder": "/workspace",
+    "shutdownAction": "stopCompose",
+    "remoteUser": "developer",
+    "initializeCommand": "bash -lc \"H=\\\"${HOME:-}\\\"; if [ -z \\\"$H\\\" ] && command -v getent >/dev/null 2>&1; then H=\\\"$(getent passwd $(id -un) | cut -d: -f6)\\\"; fi; if [ -n \\\"$H\\\" ]; then if [ -d \\\"$H/.gitconfig\\\" ]; then echo 'ERROR: ~/.gitconfig 是目录，会导致 devcontainer bind mount 失败，请删除该目录并改为文件。' >&2; exit 1; fi; if [ ! -e \\\"$H/.gitconfig\\\" ]; then touch \\\"$H/.gitconfig\\\"; fi; cp -f \\\"$H/.gitconfig\\\" /tmp/fqcompressor-host-gitconfig; fi; if [ ! -e /tmp/fqcompressor-host-gitconfig ]; then touch /tmp/fqcompressor-host-gitconfig; fi; true\"",
+    "overrideCommand": true,
+    "mounts": [
+        "type=bind,source=${localEnv:HOME}/.ssh,target=/home/developer/.ssh,readonly",
+        "type=bind,source=/tmp/fqcompressor-host-gitconfig,target=/tmp/host-gitconfig,readonly",
+        "type=bind,source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent"
+    ],
+    "remoteEnv": {
+        "SSH_AUTH_SOCK": "/ssh-agent",
+        "WSL_DISTRO_NAME": "${localEnv:WSL_DISTRO_NAME}"
+    },
+    "forwardPorts": [
+        8080
+    ],
+    "postCreateCommand": "bash -lc \"cd /workspace || exit 0; if [ -z \\\"${WSL_DISTRO_NAME:-}\\\" ]; then echo 'WARNING: 建议使用 VS Code Remote - WSL 在 WSL2 中打开仓库，再执行 Reopen in Container（更稳定/更快/更一致）。' >&2; fi; if [ ! -S /ssh-agent ]; then echo 'WARNING: 未检测到 SSH agent 注入（/ssh-agent 不存在）。若需要访问私有仓库，请在 WSL 中执行：eval \\\"$(ssh-agent -s)\\\" && ssh-add，然后 Rebuild/Reopen。' >&2; fi; if [ -d /home/developer/.gitconfig ]; then rm -rf /home/developer/.gitconfig; fi; if [ ! -e /home/developer/.gitconfig ]; then touch /home/developer/.gitconfig; fi; if [ -f /tmp/host-gitconfig ]; then cp -f /tmp/host-gitconfig /home/developer/.gitconfig; fi; if command -v git >/dev/null 2>&1; then if ! git config --global --get-all safe.directory 2>/dev/null | grep -Fxq /workspace; then git config --global --add safe.directory /workspace; fi; fi; if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git config commit.template .gitmessage.txt || true; else echo 'WARNING: /workspace 不是 Git 仓库，跳过 git config commit.template。' >&2; fi; conan profile detect --force >/dev/null 2>&1 || true; bash /workspace/.devcontainer/setup-sshd.sh || true; true\"",
+    "postStartCommand": "bash -lc \"if [ -d /home/developer/.gitconfig ]; then rm -rf /home/developer/.gitconfig; fi; if [ ! -e /home/developer/.gitconfig ]; then touch /home/developer/.gitconfig; fi; if [ -f /tmp/host-gitconfig ]; then cp -f /tmp/host-gitconfig /home/developer/.gitconfig; fi; if command -v git >/dev/null 2>&1; then if ! git config --global --get-all safe.directory 2>/dev/null | grep -Fxq /workspace; then git config --global --add safe.directory /workspace; fi; fi; bash /workspace/.devcontainer/start-sshd.sh || true; true\"",
+    "postAttachCommand": "bash -lc \"if [ -d /home/developer/.gitconfig ]; then rm -rf /home/developer/.gitconfig; fi; if [ ! -e /home/developer/.gitconfig ]; then touch /home/developer/.gitconfig; fi; if [ -f /tmp/host-gitconfig ]; then cp -f /tmp/host-gitconfig /home/developer/.gitconfig; fi; if command -v git >/dev/null 2>&1; then if ! git config --global --get-all safe.directory 2>/dev/null | grep -Fxq /workspace; then git config --global --add safe.directory /workspace; fi; fi; bash /workspace/.devcontainer/start-sshd.sh || true; true\"",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "remote.containers.copyGitConfig": false,
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash"
+                    }
+                },
+                "cmake.generator": "Ninja",
+                "cmake.useCMakePresets": "always",
+                "cmake.configureOnOpen": false,
+                "cmake.copyCompileCommands": "/workspace/compile_commands.json",
+                "cmake.configureSettings": {
+                    "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                },
+                "clangd.path": "/usr/bin/clangd",
+                "clangd.arguments": [
+                    "--background-index",
+                    "--clang-tidy",
+                    "--completion-style=detailed",
+                    "--header-insertion=never",
+                    "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/clang++,/usr/bin/clang"
+                ]
+            },
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "vadimcn.vscode-lldb"
+            ]
+        }
+    }
+}

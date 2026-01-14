@@ -1,0 +1,36 @@
+# Doxyfile 1.9.1
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "fq-compressor"
+PROJECT_BRIEF          = "High-performance FASTQ compressor with random access support"
+OUTPUT_DIRECTORY       = docs/api
+CREATE_SUBDIRS         = YES
+#---------------------------------------------------------------------------
+# Build related configuration options
+#---------------------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+#---------------------------------------------------------------------------
+# Input files related configuration options
+#---------------------------------------------------------------------------
+INPUT                  = src include README.md
+RECURSIVE              = YES
+#---------------------------------------------------------------------------
+# Graphviz-related options
+#---------------------------------------------------------------------------
+HAVE_DOT               = YES
+DOT_GRAPH_MAX_NODES    = 100
+UML_LOOK               = YES
+UML_LIMIT_NUM_FIELDS   = 10
+#---------------------------------------------------------------------------
+# HTML related configuration options
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+#---------------------------------------------------------------------------
+# LaTeX related configuration options
+#---------------------------------------------------------------------------
+GENERATE_LATEX         = NO
