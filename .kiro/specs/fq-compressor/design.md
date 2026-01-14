@@ -123,24 +123,47 @@ graph TD
 ### 3. Block Structure
 为了支持 "Scheme A" (Random Access)，数据被分割为独立的块。每个块可以独立解压（除了可能的共享静态字典）。
 
-```
+### 3. Block Structure (Columnar Storage)
+采用**列式存储** (Columnar Storage) 思想，将 Block Payload 划分为独立的子流 (Sub-streams)，每个子流单独压缩。
+
+```cpp
 struct Block {
     BlockHeader header;
-    uint8_t payload[];
+    // Concat of compressed streams:
+    // [Stream ID][Stream Seq][Stream Qual][Stream Aux]
 };
 
 struct BlockHeader {
-    uint32_t raw_crc32;      // 原始数据校验
-    uint32_t comp_crc32;     // 压缩数据校验
-    uint32_t raw_size;       // 解压后大小 (bytes)
-    uint32_t comp_size;      // 压缩后大小 (bytes)
-    uint32_t read_count;     // 该块包含的 Reads 数量
-    uint64_t start_read_id;  // 该块第一条 Read 的全局 ID
+    uint32_t block_id;
+    uint32_t raw_crc32;
+    uint32_t uncompressed_count; // Number of reads
+    
+    // Stream Offsets (Relative to Payload Start)
+    uint32_t offset_id;
+    uint32_t offset_seq;
+    uint32_t offset_qual;
+    uint32_t offset_aux; // Optional (e.g., Read lengths if variable)
+    
+    // Stream Codecs (Compression Strategy Flags)
+    uint8_t codec_id;   // e.g., Delta + LZMA
+    uint8_t codec_seq;  // e.g., Spring Reorder + Arithmetic
+    uint8_t codec_qual; // e.g., QVZ + Range
 };
 ```
-**Payload 内容**:
-- 包含序列流、质量流、ID流。
-- 内部使用 Spring 算法编码。为了独立性，Spring 的 Context 在每个 Block 开始时重置（或者继承自一个全局静态字典，但不依赖前一个动态 Block）。
+
+**Stream Definitions**:
+1.  **Identifier Stream**:
+    -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA/Zstd).
+    -   *Why*: IDs (e.g., `@Illumina...:1:1:1:1`) often differ only by last integer. Delta encoding handles this efficiently.
+2.  **Sequence Stream**:
+    -   *Strategy*: **Sub-stream Split (2-bit + N-mask)**.
+        -   **Main Stream (2-bit)**: 将序列强制映射为 2-bit (A=00, C=01, G=10, T=11)，'N' 暂时视为 'A'。重排后进行算术编码。
+        -   **N-Mask Stream**: 单独记录 'N' 的位置 (Positional Delta)。使用 RLE 压缩。
+    -   *Why*: 2-bit 编码将字母表大小从 5 (ACGTN) 降为 4，移除 'N' 噪声后，Spring 的上下文模型预测准确率显著提高，从而获得更高的压缩比。直接 4-bit 编码虽然简单，但对于追求极致压缩比的项目，分离 N 值的 2-bit 方案更优。
+3.  **Quality Stream**:
+    -   *Strategy*: (Optional Binning) -> Context Models (Order-1) -> Arithmetic Coding.
+    -   *Why*: Quality scores have high entropy but local correlations.
+
 
 ### 4. Block Index (At End)
 支持快速定位。
