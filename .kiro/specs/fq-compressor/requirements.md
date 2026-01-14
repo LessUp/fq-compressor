@@ -25,7 +25,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 | **C++ 标准** | C++20 | 现代特性（Concepts, Ranges），符合 fastq-tools 风格 |
 | **并行框架** | Intel oneTBB | 强大的任务图和流水线支持（Pipeline/Task Graph） |
 | **CLI 库** | **CLI11** | Header-only，功能丰富，优于 Boost.PO 的重型依赖 |
-| **日志库** | **spdlog / Quill** | 默认复用 spdlog（可选 async），评估 Quill 作为可替换后端 |
+| **日志库** | **Quill** | 极低延迟异步日志，适合高性能 IO 密集型应用 |
 | **压缩算法** | Spring (核心) + External | Spring 用于重排序/编码，外部库 (libdeflate/lzma) 用于通用流 |
 | **随机访问** | **Scheme A** | 分块独立压缩 (Block-based)，支持 O(1) 随机访问 |
 
@@ -109,15 +109,15 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **并行模型**: 使用 **Intel TBB**。
     -   支持 `pipeline` 模式（IO bound 场景）。
     -   支持 `parallel_for` / 任务图模式（Compute bound 场景）。
-2.  **日志系统**: 默认复用 **spdlog**（可选 async），确保日志记录不阻塞关键路径；评估 **Quill** 作为可替换的低延迟异步日志后端。
+2.  **日志系统**: 使用 **Quill** 异步日志库，确保日志记录不阻塞关键路径。
 3.  **内存管理**: 显式控制内存使用上限，避免 OOM（特别是 Spring 算法内存消耗较大）。
 
 ### Requirement 5: 数据完整性
 **User Story:** 数据安全第一，必须能检测损坏。
 
 #### Acceptance Criteria
-1.  **Global Checksum**: 文件尾部包含全局 `xxhash64` 或 `crc32c`。
-2.  **Block Checksum**: 每个 Block 包含独立的 Checksum，支持定位损坏块。
+1.  **Global Checksum**: 文件尾部包含全局 `xxhash64`。
+2.  **Block Checksum**: 每个 Block 包含独立的 `xxhash64`，支持定位损坏块。
 3.  **Verify Mode**: 提供单独的 `verify` 命令，不解压落盘即可验证文件完整性。
 
 ### Requirement 6: CLI 与易用性

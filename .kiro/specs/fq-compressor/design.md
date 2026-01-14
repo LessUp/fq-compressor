@@ -20,7 +20,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 | 构建系统 | **CMake 3.20+** | Modern CMake 最佳实践 |
 | 并发框架 | **Intel oneTBB** | `parallel_pipeline`, `task_group` |
 | CLI 解析 | **CLI11** | 现代化、功能丰富的命令行库 |
-| 日志系统 | **spdlog** / Quill | 默认复用 spdlog（可选 async），评估 Quill 作为可替换后端 |
+| 日志系统 | **Quill** | 极低延迟异步日志 (Low Latency Logging) |
 | 压缩库 | **Spring (Core)**, libdeflate, bzip2, xz | 混合压缩策略 |
 | 测试框架 | Google Test + RapidCheck | 单元测试 + 属性测试 |
 | 依赖管理 | Conan 2.x | 依赖包管理 |
@@ -135,7 +135,7 @@ struct Block {
 
 struct BlockHeader {
     uint32_t block_id;
-    uint32_t raw_crc32;
+    uint64_t block_xxhash64;
     uint32_t uncompressed_count; // Number of reads
     
     // Stream Offsets (Relative to Payload Start)
@@ -193,14 +193,15 @@ app.add_option("-t,--threads", threads, "Number of threads");
 ```
 
 ### 2. Logger 模块
-默认使用 **spdlog**（与 fastq-tools 一致，可选 async）；评估 **Quill** 作为可替换的低延迟异步日志后端。
+使用 **Quill**。
 
 ```cpp
 // include/fqc/common/logger.h
 #include <string_view>
+#include <quill/Quill.h>
 
 namespace fqc::log {
-    void init(std::string_view level);
+    void init(std::string_view log_file, quill::LogLevel level);
     // 全局 Logger 实例
 }
 ```
@@ -241,13 +242,13 @@ public:
 
 ### 完整性校验设计
 1.  **输入完整性**: 读取 FASTQ 时校验基本格式。
-2.  **块校验**: 每个 Block 解压后对比 `raw_crc32`。
+2.  **块校验**: 每个 Block 解压后对比 `block_xxhash64`。
 3.  **全局校验**: 整个文件流对比 `GlobalChecksum`。
 4.  **Reference Verification**: `ref-projects/Spring` 的算法输出应与本工具核心算法输出一致（在由本工具适配 Block 接口后）。
 
 ## Development Phases
 
-1.  **Phase 1: Skeleton & Format**: 搭建 CMake, 引入 CLI11/spdlog（可选 Quill）, 定义文件格式读写器。
+1.  **Phase 1: Skeleton & Format**: 搭建 CMake, 引入 CLI11/Quill, 定义文件格式读写器。
 2.  **Phase 2: Integration**: 移植/适配 Spring 核心算法，使其支持 Block 模式。
 3.  **Phase 3: Pipeline**: 实现 TBB 流水线。
 4.  **Phase 4: Optimization**: 引入 pigz 思想优化 IO，引入 Repaq 思想优化重排。
