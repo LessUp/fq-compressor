@@ -68,6 +68,8 @@
     - 创建 `include/fqc/format/fqc_reader.h` 和 `src/format/fqc_reader.cpp`
     - 实现 `read_global_header()`, `read_block()`, `read_index()`
     - 实现随机访问：`seek_to_block()`, `get_reads_range()`
+    - 实现 Header-only 读取：仅解码 Identifier Stream
+    - 预留子流选择性解码接口：可只解码 Sequence 或 Quality 子流
     - 实现校验和验证
     - _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2_
 
@@ -109,7 +111,7 @@
 
   - [ ] 5.3 实现 DecompressCommand 框架
     - 创建 `src/commands/decompress_command.h/cpp`
-    - 解析解压选项：`-i`, `-o`, `--range`
+    - 解析解压选项：`-i`, `-o`, `--range`, `--header-only`
     - 预留解压引擎调用接口
     - _Requirements: 6.2_
 
@@ -133,7 +135,7 @@
 - [ ] 7. Spring 代码分析与提取
   - [ ] 7.1 分析 Spring 源码结构
     - 研究 `ref-projects/Spring/src/` 目录结构
-    - 识别核心模块：Minimizer Bucketing, Reordering（可选）, Consensus/Delta, Arithmetic Coding, Quality Compression
+    - 识别核心模块：Minimizer Bucketing, Reordering（可选）, Consensus/Delta, Arithmetic Coding（Quality Compression 仅作对照参考）
     - 记录依赖关系和接口边界
     - _Requirements: 1.1.2_
 
@@ -203,7 +205,7 @@
 
   - [ ] 10.2 实现 Delta 编码
     - 实现整数部分的 Delta 编码
-    - 集成通用压缩器 (LZMA/Zstd)
+    - 集成通用压缩器 (LZMA)
     - _Requirements: 1.1.2_
 
   - [ ] 10.3 编写 ID 压缩属性测试
@@ -274,6 +276,8 @@
     - 创建 `src/engine/decompression_engine.cpp`
     - 实现全文件解压
     - 实现范围解压 (随机访问)
+    - 实现 Header-only 解压：跳过 Sequence/Quality 解码
+    - 实现子流选择性解码：可只解码 Sequence 或 Quality 子流
     - _Requirements: 2.1, 2.2, 2.3_
 
   - [ ] 14.2 实现并行解压
@@ -362,7 +366,7 @@
     - 测试完整压缩-解压流程
     - 测试各种选项组合
     - 测试边界条件
-    - _Requirements: 1.1, 2, 3_
+    - _Requirements: 1.1, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4_
 
   - [ ] 22.2 编写性能测试
     - 测试不同文件大小
