@@ -118,6 +118,10 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   支持 `parallel_for` / 任务图模式（Compute bound 场景）。
 2.  **Requirement 4.2: 日志系统**: 使用 **Quill** 异步日志库，确保日志记录不阻塞关键路径。
 3.  **Requirement 4.3: 内存管理**: 显式控制内存使用上限，避免 OOM（特别是 Spring 算法内存消耗较大）。
+    -   提供 `--memory-limit <MB>` 参数控制内存上限（默认：8192MB）。
+    -   Phase 1 (全局分析) 内存估算：~24 bytes/read（Minimizer 索引 + Reorder Map）。
+    -   Phase 2 (分块压缩) 内存估算：~50 bytes/read × block_size。
+    -   超大文件自动启用分治模式（Chunk-wise Compression）。
 
 ### Requirement 5: 数据完整性
 **User Story:** 数据安全第一，必须能检测损坏。
@@ -126,6 +130,11 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **Requirement 5.1: Global Checksum**: 文件尾部包含全局 `xxhash64`。
 2.  **Requirement 5.2: Block Checksum**: 每个 Block 包含独立的 `xxhash64`，支持定位损坏块。
 3.  **Requirement 5.3: Verify Mode**: 提供单独的 `verify` 命令，不解压落盘即可验证文件完整性。
+4.  **Requirement 5.4: 校验顺序**: 推荐校验流程：
+    1. 读取 Footer，验证 `magic_end`（快速检测格式）
+    2. 验证 `global_checksum`（快速检测文件截断/损坏）
+    3. 读取 Block Index
+    4. 逐 Block 验证 `block_xxhash64`（完整模式）
 
 ### Requirement 6: CLI 与易用性
 **User Story:** 命令行接口应符合现有 Linux 工具习惯。
@@ -158,23 +167,36 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     - `-i, --input <path>`: 输入 FASTQ（支持 `.fastq/.fq/.gz`；也支持 `-`）。
     - `-o, --output <path>`: 输出 `.fqc` 文件。
     - `-l, --level <1-9>`: 压缩等级（默认：5）。
-    - `--block-reads <N>`: 每个 Block 的 reads 数（默认：10000）。
+    - `--block-reads <N>`: 每个 Block 的 reads 数（默认：100000；Long Read 模式默认：10000）。
     - `--reorder / --no-reorder`: 是否重排 reads（默认：`--reorder`）。
     - `--preserve-order`: 强制保留原始顺序（等价于 `--no-reorder`，二者互斥）。
+    - `--save-reorder-map / --no-save-reorder-map`: 是否保存 Reorder Map 用于原始顺序回溯（默认：`--save-reorder-map`）。
     - `--id-mode <exact|tokenize|discard>`: ID 处理模式（默认：exact）。
     - `--quality-mode <lossless|illumina8|qvz|discard>`: 质量值模式（默认：lossless）。
     - `--lossy-quality <spec>`: 有损质量参数（仅当 `--quality-mode` 为 `illumina8` 或 `qvz` 时允许）。
-    - `--paired`: 输入为 Paired-End（仅作为语义开关；具体输入方式见后续扩展）。
-    - `--long-read-mode <auto|on|off>`: 长读模式（默认：auto）。
+    - `--memory-limit <MB>`: 内存使用上限（默认：8192MB）。
     - `--checksum <xxh64>`: 校验算法（默认：xxh64）。
+    
+    **Paired-End 选项**:
+    - `--paired`: 输入为 Paired-End。
+    - `-1, --read1 <path>`: PE 模式下的 R1 文件。
+    - `-2, --read2 <path>`: PE 模式下的 R2 文件。
+    - `--interleaved`: PE 输入为交错格式（R1, R2 在同一文件中交替出现）。
+    - `--pe-layout <interleaved|consecutive>`: PE 存储布局（默认：interleaved）。
+    
+    **Long Read 选项**:
+    - `--long-read-mode <auto|on|off>`: 长读模式（默认：auto）。
+    - 自动检测：采样前 1000 条 Reads，若 median length > 10KB 则启用。
 
     **decompress 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。
     - `-o, --output <path>`: 输出 FASTQ（默认：stdout）。
     - `--range <start:end>`: 仅解压指定 reads 范围（闭区间；以归档存储顺序计数；`end` 可省略表示直到文件末尾）。
+    - `--original-order`: 按原始顺序输出（需要归档包含 Reorder Map；若不存在则报错）。
     - `--header-only`: 仅输出 header（Identifier Stream），不解码 Sequence/Quality。
     - `--streams <id|seq|qual|all>`: 子流选择性解码（默认：all；与 `--header-only` 互斥）。
     - `--verify / --no-verify`: 解压时是否校验 checksum（默认：`--verify`）。
+    - `--split-pe`: PE 模式下分别输出 R1/R2 到两个文件（需配合 `-o` 指定前缀）。
 
     **info 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。

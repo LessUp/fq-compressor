@@ -8,6 +8,18 @@
 构建系统：**CMake 3.20+**
 依赖管理：**Conan 2.x**
 
+### 时间估算与风险评估
+
+| Phase | 预估时间 | 风险等级 | 关键依赖 |
+|-------|----------|----------|----------|
+| Phase 1: Skeleton & Format | 2-3 周 | 低 | CLI11, Quill, xxHash |
+| Phase 2: Spring 集成 | 4-6 周 | **高** | Spring 源码理解、两阶段策略实现 |
+| Phase 3: TBB 流水线 | 2-3 周 | 中 | TBB API 熟练度 |
+| Phase 4: 优化与扩展 | 2-3 周 | 中 | PE/Long Read 策略验证 |
+| Phase 5: 验证与发布 | 2 周 | 低 | 测试覆盖率 |
+
+**总计**: 12-17 周（约 3-4 个月）
+
 ---
 
 ## Phase 1: Skeleton & Format (项目骨架与格式定义)
@@ -130,13 +142,14 @@
 
 ---
 
-## Phase 2: Spring 核心算法集成
+## Phase 2: Spring 核心算法集成 (**高风险阶段**)
 
 - [ ] 7. Spring 代码分析与提取
   - [ ] 7.1 分析 Spring 源码结构
     - 研究 `ref-projects/Spring/src/` 目录结构
-    - 识别核心模块：Minimizer Bucketing, Reordering（可选）, Consensus/Delta, Arithmetic Coding（Quality Compression 仅作对照参考）
+    - 识别核心模块：Minimizer Bucketing, Reordering, Consensus/Delta, Arithmetic Coding
     - 记录依赖关系和接口边界
+    - **重点关注**: 全局状态依赖、内存分配模式
     - _Requirements: 1.1.2_
 
   - [ ] 7.2 提取 Spring 核心算法
@@ -148,31 +161,44 @@
     - 审核并记录 Spring License 约束，确保与项目发布目标一致（非商用/自用学习）
     - _Requirements: 1.1.2, 1.1.3_
 
-- [ ] 8. Spring 算法适配层
-  - [ ] 8.1 设计 Block-aware 接口
-    - 创建 `include/fqc/algo/spring_adapter.h`
-    - 定义 `ISequenceCompressor` 接口 (Concept)
-    - 设计 `ResetContext()` 方法支持 Block 边界重置
+- [ ] 8. 两阶段压缩策略实现 (**核心任务**)
+  - [ ] 8.1 实现 Phase 1: 全局分析模块
+    - 创建 `include/fqc/algo/global_analyzer.h`
+    - 实现 Minimizer 提取与索引构建
+    - 实现全局 Bucketing
+    - 实现全局 Reordering (Approximate Hamiltonian Path)
+    - 生成 Reorder Map: `original_id -> archive_id`
+    - 内存估算: ~24 bytes/read
+    - _Requirements: 1.1.2, 4.3_
+
+  - [ ] 8.2 实现 Reorder Map 存储
+    - 创建 `include/fqc/format/reorder_map.h`
+    - 实现 Delta + Varint 压缩编码
+    - 实现 Reorder Map 读写
+    - 目标压缩率: ~2 bytes/read
+    - _Requirements: 2.1_
+
+  - [ ] 8.3 实现 Phase 2: 分块压缩模块
+    - 创建 `include/fqc/algo/block_compressor.h`
+    - 实现 Block 内 Consensus 生成
+    - 实现 Block 内 Delta 编码
+    - 集成算术编码器
+    - 确保 Block 状态完全隔离（支持独立解压）
     - _Requirements: 1.1.2, 2.1_
 
-  - [ ] 8.2 实现 SpringABC Bucketing/Reordering 适配器
-    - 创建 `src/algo/spring_reorder.cpp`
-    - 封装 Minimizer Bucketing
-    - 封装 Approximate Hamiltonian Path 重排序
-    - 实现 Block 级别的状态重置
-    - _Requirements: 1.1.2_
+  - [ ] 8.4 实现内存管理模块
+    - 创建 `include/fqc/common/memory_budget.h`
+    - 实现内存预算计算与监控
+    - 实现超大文件分治策略 (Chunk-wise)
+    - 提供 `--memory-limit` 参数支持
+    - _Requirements: 4.3_
 
-  - [ ] 8.3 实现 SpringABC Encoder 适配器
-    - 创建 `src/algo/spring_encoder.cpp`
-    - 封装 Consensus 生成
-    - 封装 Delta 编码
-    - 集成算术编码器
-    - _Requirements: 1.1.2_
-
-  - [ ] 8.4 编写序列压缩属性测试
+  - [ ] 8.5 编写两阶段压缩属性测试
     - **Property 3: 序列压缩往返一致性**
     - *For any* 有效的 DNA 序列集合，压缩后解压应产生等价序列
-    - **Validates: Requirements 1.1.2**
+    - **Property 3.1: Reorder Map 往返一致性**
+    - *For any* 重排序映射，存储后读取应产生等价映射
+    - **Validates: Requirements 1.1.2, 2.1**
 
 - [ ] 9. 质量值压缩实现
   - [ ] 9.1 实现无损质量压缩
@@ -318,25 +344,43 @@
 
 - [ ] 18. 长读支持
   - [ ] 18.1 实现长读检测
-    - 自动检测 read 长度分布
-    - 切换压缩策略
+    - 采样前 1000 条 Reads 计算 median length
+    - 阈值: median > 10KB 则启用 Long Read 模式
+    - 支持 `--long-read-mode <auto|on|off>` 参数覆盖
     - _Requirements: 1.1.3_
 
   - [ ] 18.2 实现长读压缩策略
-    - 禁用重排序或使用专有算法
-    - 优化质量值压缩
+    - Sequence: 禁用 Reordering，使用 Overlap-based 或 Zstd
+    - Quality: 使用 SCM Order-1（降低内存）
+    - Block Size: 默认 10K reads（单条更大）
     - _Requirements: 1.1.3_
+
+  - [ ] 18.3 编写长读属性测试
+    - **Property 7: 长读压缩往返一致性**
+    - *For any* 有效的长读序列，压缩后解压应产生等价数据
+    - **Validates: Requirements 1.1.3**
 
 - [ ] 19. Paired-End 支持
   - [ ] 19.1 实现 PE 文件处理
-    - 支持双文件输入 (-1, -2)
-    - 支持交错格式
+    - 支持双文件输入 (`-1, -2`)
+    - 支持交错格式输入 (`--interleaved`)
+    - 实现 PE 布局选择 (`--pe-layout <interleaved|consecutive>`)
     - _Requirements: 1.1.3_
 
   - [ ] 19.2 实现 PE 压缩优化
-    - 利用配对信息优化压缩
-    - 保持配对关系
+    - 利用 R1/R2 互补性：存储 R2 与 R1 反向互补的差异
+    - Reordering 时保持配对关系：同时移动 (R1_i, R2_i)
     - _Requirements: 1.1.3_
+
+  - [ ] 19.3 实现 PE 解压功能
+    - 支持 `--split-pe` 分离输出 R1/R2
+    - 支持交错格式输出
+    - _Requirements: 2.2_
+
+  - [ ] 19.4 编写 PE 属性测试
+    - **Property 8: PE 压缩往返一致性**
+    - *For any* 有效的 PE 数据，压缩后解压应产生等价配对数据
+    - **Validates: Requirements 1.1.3**
 
 - [ ] 20. Checkpoint - Phase 4 验证
   - 确保扩展功能测试通过
