@@ -6,7 +6,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 
 ### 设计目标
 
-1.  **高压缩比**: 复用 **Spring** 的 reads 重排序和编码算法，参考 **Repaq** 的紧凑设计。
+1.  **高压缩比**: 复用 **Spring/Mincom** 的 **Assembly-based Compression (ABC)** 核心（minimizer bucketing / local consensus / delta / arithmetic），参考 **Repaq** 的紧凑设计。
 2.  **高性能**: 基于 **Intel TBB** 的并行流水线处理 (参考 **Pigz** 的 Producer-Consumer 模型)。
 3.  **模块化**: 清晰的接口设计，支持多种压缩后端。
 4.  **现代化**: C++20 标准，RAII 内存管理，Concepts 约束。
@@ -66,7 +66,7 @@ graph TD
 
 ### 关键参考项目架构借鉴
 
-1.  **Spring**: 采用其 "Reads Reordering" 和 "Quality Lossy Compression" 算法核心。在 fq-compressor 中，我们将 Spring 的全局上下文改为 **Block Context**，以便每 N 条 Reads 重置一次状态，实现随机访问。
+1.  **Spring / Mincom**: 复用其 **ABC (Assembly-based Compression)** 核心（minimizer bucketing / local consensus / delta / arithmetic），并通过 vendor/fork 集成其 encoder/decoder。在 fq-compressor 中，我们将 Spring 的全局上下文改为 **Block Context**，以便每 N 条 Reads 重置一次状态，实现随机访问。
 2.  **Pigz**: 借鉴其并行设计。主线程读文件 -> 分块提交给 TBB 线程池压缩 -> 输出线程按顺序写入文件。
 3.  **Repaq / FQZComp5**: 参考其算术编码和上下文模型优化，特别是对 metadata (IDs) 的压缩处理。
 
@@ -158,14 +158,14 @@ struct BlockHeader {
 2.  **Sequence Stream**:
     -   *Strategy*: **Assembly-based Compression (ABC)** (State-of-the-Art).
     -   *Implementation Path*: **Spring Core Fork**.
-        -   **Stage 1: Minimizer Bucketing**: 使用 K-mer Minimizers 将 Reads 分桶。
+        -   **Stage 1: Minimizer Bucketing**: 使用 K-mer Minimizers 将 Reads 分桶（分治，控制内存峰值）。
         -   **Stage 2: Reordering**: 桶内重排序 (Approximate Hamiltonian Path)。
         -   **Stage 3: Consensus & Delta**: 生成局部共识，编码差异 (Subs/Indels)。
-        -   **Stage 4: Quantization**: 差异数据送入 BSC 或 Arithmetic Coder。
-    -   *Why*: 这是 Spring/Mincom 证明过的最优解。我们将 fork Spring 的核心算法 (`RefGen` / `Encoder`) 并改造为支持 `ResetContext(Block)` 的接口，从而在保持高压缩率的同时获得随机访问能力。
+        -   **Stage 4: Arithmetic Coding**: 对差异数据进行算术编码。
+    -   *Why*: 核心思想：Don't just compress reads, compress the edits。我们将 fork Spring 的核心算法 (`RefGen` / `Encoder`) 并改造为支持 `ResetContext(Block)` 的接口，从而在保持高压缩率的同时获得随机访问能力。
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
-    -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1 预测模型。
+    -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
 
 
 ### 4. Block Index (At End)

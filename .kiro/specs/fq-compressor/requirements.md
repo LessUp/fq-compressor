@@ -4,13 +4,13 @@
 
 fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的先进压缩算法和 fastq-tools 的现代化高性能框架。该项目旨在提供：
 
-- **核心算法**: 借鉴 **Spring** (reads 重排序, 有损/无损) 和 **Repaq** (紧凑重排) 的设计。
+- **核心算法**: **Sequence** 采用 **Assembly-based Compression (ABC)**（Spring/Mincom：compress the edits），**Quality** 采用 **fqzcomp5 风格 SCM**（上下文算术编码），**IDs** 采用 **Tokenization + Delta**。
 - **高性能框架**: 基于 **fastq-tools** (C++20, Modern CMake) 和 **Intel TBB** (并行流水线)。
 - **借鉴项目**:
-    - **@Spring**: 核心压缩算法（重排序、编码）。
+    - **@Spring / @Mincom**: ABC 核心算法（minimizer bucketing / local consensus / delta）。
     - **@fastq-tools**: 基础框架、IO、代码风格。
     - **@repaq**: 极致压缩比设计参考。
-    - **@fqzcomp5 / @DSRC**: 高性能压缩和算术编码参考。
+    - **@fqzcomp5 / @DSRC**: 算术编码、容器格式与质量值压缩参考。
     - **@pigz**: 并行压缩模型（Producer-Consumer）参考。
     - **@HARC**: 参考其架构设计。
 - **支持场景**: 二代测序 (Illumina) 和 三代测序 (Nanopore/PacBio)。
@@ -26,7 +26,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 | **并行框架** | Intel oneTBB | 强大的任务图和流水线支持（Pipeline/Task Graph） |
 | **CLI 库** | **CLI11** | Header-only，功能丰富，优于 Boost.PO 的重型依赖 |
 | **日志库** | **Quill** | 极低延迟异步日志，适合高性能 IO 密集型应用 |
-| **压缩算法** | Spring (核心) + External | Spring 用于重排序/编码，外部库 (libdeflate/lzma) 用于通用流 |
+| **压缩算法** | Spring Core (ABC) + fqzcomp5-style (Quality) + External | Sequence: Spring/Mincom ABC；Quality: SCM；External (libdeflate/lzma/...) 用于通用子流 |
 | **随机访问** | **Scheme A** | 分块独立压缩 (Block-based)，支持 O(1) 随机访问 |
 
 ### 核心策略选型评估 (Strategy Evaluation)
@@ -57,20 +57,24 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 ## Requirements
 
 ### Requirement 1.1: 混合压缩策略 (Hybrid Compression Strategy - Strategy B)
-**User Story:** 追求极致压缩率，采用学术界最前沿的 **Assembly-based Compression (ABC)** 策略。
+**User Story:** 追求极致压缩率，采用学术界最前沿的 **Assembly-based Compression (ABC)** 路线，并以 **Spring Core Integration** 作为工程落地方式。
 
 #### Acceptance Criteria
 1.  **流分离 (Stream Separation)**:
     -   必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
 2.  **核心算法路线 (State-of-the-Art)**:
-    -   **Sequence**: 采用 **ABC 策略** (Minimizer Bucketing -> Reordering -> Consensus -> Delta)。
-        -   *Implementation*: **Vendor Integration**。直接集成修改版的 **Spring** 核心算法库，而非从零重写，以确保正确性和性能。
+    -   **Sequence**: 采用 **ABC 策略** (Minimizer Bucketing -> Local Consensus -> Delta Encoding -> Arithmetic Coding；桶内可选 Reordering)。
+        -   *Implementation*: **Vendor/Fork Spring Core**（encoder/decoder）。直接集成修改版的 **Spring** 核心算法库，而非从零重写，以确保正确性和性能。
     -   **Quality**: 采用 **Statistical Context Mixing (SCM)** (参考 Fqzcomp5)。
         -   使用 Order-1 或 Order-2 上下文算术编码。
+        -   *Non-goal*: SCM 仅用于质量值；Sequence 不采用 fqzcomp5 的纯统计模型作为主路线。
     -   **IDs**: 采用 **Delta + Tokenization**。
 3.  **技术落地**:
     -   必须处理 Spring 代码的模块化封装，使其适配 Block-based 架构。
     -   必须解决 Spring 的 license (Non-commercial) 兼容性问题（仅供自用学习/非商用发布）。
+4.  **风险与约束 (Risks/Constraints)**:
+    -   ABC 属于高复杂度路线，CPU/内存开销显著高于纯统计模型；必须以 Block 分治控制内存峰值与端到端延迟。
+    -   必须保证 Round-trip Lossless，并提供与原始 Spring 的对照验证以降低正确性风险。
 
 1.  **输入支持**: 支持 `.fastq`, `.fq`, `.gz`, `.bz2`, `.xz` 输入（Phase 1: plain/gzip; Phase 2: bz2/xz）。
 2.  **压缩模式**:
