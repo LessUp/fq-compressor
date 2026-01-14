@@ -20,7 +20,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 | 构建系统 | **CMake 3.20+** | Modern CMake 最佳实践 |
 | 并发框架 | **Intel oneTBB** | `parallel_pipeline`, `task_group` |
 | CLI 解析 | **CLI11** | 现代化、功能丰富的命令行库 |
-| 日志系统 | **Quill** | 极低延迟异步日志 (Low Latency Logging) |
+| 日志系统 | **spdlog** / Quill | 默认复用 spdlog（可选 async），评估 Quill 作为可替换后端 |
 | 压缩库 | **Spring (Core)**, libdeflate, bzip2, xz | 混合压缩策略 |
 | 测试框架 | Google Test + RapidCheck | 单元测试 + 属性测试 |
 | 依赖管理 | Conan 2.x | 依赖包管理 |
@@ -156,22 +156,22 @@ struct BlockHeader {
     -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA/Zstd).
     -   *Why*: IDs (e.g., `@Illumina...:1:1:1:1`) often differ only by last integer. Delta encoding handles this efficiently.
 2.  **Sequence Stream**:
-    -   *Strategy*: **Assembly-based Compression (ABC)**.
-        -   **Stage 1: Minimizer Bucketing**: 使用 K-mer Minimizers 将 Reads 粗粒度分桶，确保相似序列在物理上相邻。
-        -   **Stage 2: Fine Reordering**: 桶内使用 Hamming Distance 或 Spring 算法进一步细化排序。
-        -   **Stage 3: Consensus Generation**: 针对每个 Block 生成局部共识序列 (Local Consensus)。
-        -   **Stage 4: Delta Encoding**: 将 Reads 编码为相对于共识序列的差异 (Pos / Match / Mismatch / Indel)。
-        -   **Stage 5**: 对差异流进行算术编码 (Arithmetic Coding)。
-    -   *Why*: 这是目前已知最高压缩率的策略 (参考 Spring / Mincom)，远优于单纯排序。通过构建"内部参考"，将序列压缩转化为极稀疏的差异压缩。
+    -   *Strategy*: **Assembly-based Compression (ABC)** (State-of-the-Art).
+    -   *Implementation Path*: **Spring Core Fork**.
+        -   **Stage 1: Minimizer Bucketing**: 使用 K-mer Minimizers 将 Reads 分桶。
+        -   **Stage 2: Reordering**: 桶内重排序 (Approximate Hamiltonian Path)。
+        -   **Stage 3: Consensus & Delta**: 生成局部共识，编码差异 (Subs/Indels)。
+        -   **Stage 4: Quantization**: 差异数据送入 BSC 或 Arithmetic Coder。
+    -   *Why*: 这是 Spring/Mincom 证明过的最优解。我们将 fork Spring 的核心算法 (`RefGen` / `Encoder`) 并改造为支持 `ResetContext(Block)` 的接口，从而在保持高压缩率的同时获得随机访问能力。
 3.  **Quality Stream**:
-    -   *Strategy*: (Optional Binning) -> Context Models (Order-1) -> Arithmetic Coding.
-    -   *Why*: Quality scores have high entropy but local correlations.
+    -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
+    -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1 预测模型。
 
 
 ### 4. Block Index (At End)
 支持快速定位。
 - `NumBlocks` (uint64)
-- `IndexEntries`: Array of `struct { uint64_t offset; uint64_t read_id_start; }`
+- `IndexEntries`: Array of `struct { uint64_t offset; uint64_t read_id_start; }`，其中 `read_id_start` 以归档存储顺序计数（若 `PRESERVE_ORDER=0` 则为重排后顺序）
 
 ### 5. File Footer
 - `IndexOffset` (uint64): 索引开始的位置。
@@ -193,19 +193,21 @@ app.add_option("-t,--threads", threads, "Number of threads");
 ```
 
 ### 2. Logger 模块
-使用 **Quill**。
+默认使用 **spdlog**（与 fastq-tools 一致，可选 async）；评估 **Quill** 作为可替换的低延迟异步日志后端。
 
 ```cpp
 // include/fqc/common/logger.h
-#include "quill/Quill.h"
+#include <string_view>
 
 namespace fqc::log {
-    void init(const std::string& log_file, quill::LogLevel level);
+    void init(std::string_view level);
     // 全局 Logger 实例
 }
 ```
 
 ### 3. IO 与格式处理
+
+- I/O 压缩格式分阶段支持：Phase 1（plain/gzip），Phase 2（bzip2/xz）。
 
 ```cpp
 // include/fqc/format/fqc_writer.h
@@ -245,7 +247,7 @@ public:
 
 ## Development Phases
 
-1.  **Phase 1: Skeleton & Format**: 搭建 CMake, 引入 CLI11/Quill, 定义文件格式读写器。
+1.  **Phase 1: Skeleton & Format**: 搭建 CMake, 引入 CLI11/spdlog（可选 Quill）, 定义文件格式读写器。
 2.  **Phase 2: Integration**: 移植/适配 Spring 核心算法，使其支持 Block 模式。
 3.  **Phase 3: Pipeline**: 实现 TBB 流水线。
 4.  **Phase 4: Optimization**: 引入 pigz 思想优化 IO，引入 Repaq 思想优化重排。

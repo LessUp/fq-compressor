@@ -25,7 +25,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 | **C++ 标准** | C++20 | 现代特性（Concepts, Ranges），符合 fastq-tools 风格 |
 | **并行框架** | Intel oneTBB | 强大的任务图和流水线支持（Pipeline/Task Graph） |
 | **CLI 库** | **CLI11** | Header-only，功能丰富，优于 Boost.PO 的重型依赖 |
-| **日志库** | **Quill** | 极低延迟异步日志，适合高性能 IO 密集型应用 |
+| **日志库** | **spdlog / Quill** | 默认复用 spdlog（可选 async），评估 Quill 作为可替换后端 |
 | **压缩算法** | Spring (核心) + External | Spring 用于重排序/编码，外部库 (libdeflate/lzma) 用于通用流 |
 | **随机访问** | **Scheme A** | 分块独立压缩 (Block-based)，支持 O(1) 随机访问 |
 
@@ -56,22 +56,21 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 
 ## Requirements
 
-### Requirement 1.1: 混合压缩策略 (Hybrid Compression Strategy)
-**User Story:** 针对 FASTQ 四行数据的不同特征，采用针对性的算法组合以最大化效果。
+### Requirement 1.1: 混合压缩策略 (Hybrid Compression Strategy - Strategy B)
+**User Story:** 追求极致压缩率，采用学术界最前沿的 **Assembly-based Compression (ABC)** 策略。
 
 #### Acceptance Criteria
 1.  **流分离 (Stream Separation)**:
     -   必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
-    -   允许对不同流采用不同的压缩管线 (Pipeline)。
-2.  **组合压缩 (Combined Algorithms)**:
-    -   **Pre-encoding (变换层)**: 对原始数据进行预处理。
-        -   *IDs*: Tokenization (拆分静态/动态部分) + Delta Encoding (数字增量)。
-        -   *Sequences*: **Spring Reordering** (保序/重排) + Bit-packing/Mappping。
-        -   *Qualities*: RLE (Run-Length Encoding) 或 Binning。
-    -   **Entropy Coding (编码层)**: 对变换后的数据进行熵编码。
-        -   *IDs*: 通用压缩 (zstd/lzma/bsc)。
-        -   *Sequences*: 算术编码 (Arithmetic Coding) 或区间编码 (Range Coding)。
-        -   *Qualities*: 基于上下文的算术编码 (Context-Based Arithmetic Coding)。
+2.  **核心算法路线 (State-of-the-Art)**:
+    -   **Sequence**: 采用 **ABC 策略** (Minimizer Bucketing -> Reordering -> Consensus -> Delta)。
+        -   *Implementation*: **Vendor Integration**。直接集成修改版的 **Spring** 核心算法库，而非从零重写，以确保正确性和性能。
+    -   **Quality**: 采用 **Statistical Context Mixing (SCM)** (参考 Fqzcomp5)。
+        -   使用 Order-1 或 Order-2 上下文算术编码。
+    -   **IDs**: 采用 **Delta + Tokenization**。
+3.  **技术落地**:
+    -   必须处理 Spring 代码的模块化封装，使其适配 Block-based 架构。
+    -   必须解决 Spring 的 license (Non-commercial) 兼容性问题（仅供自用学习/非商用发布）。
 
 1.  **输入支持**: 支持 `.fastq`, `.fq`, `.gz`, `.bz2`, `.xz` 输入（Phase 1: plain/gzip; Phase 2: bz2/xz）。
 2.  **压缩模式**:
@@ -90,7 +89,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **随机访问 (Scheme A)**:
     -   压缩文件必须按 **Block** 组织。
     -   支持通过 Block Index 快速定位并解压指定范围的 reads。
-    -   解压语义：提供 "第 N 个 Block" 或 "第 X 到 Y 条 Reads" 的解压能力。
+    -   解压语义："第 X 到 Y 条 Reads" 的编号以归档存储顺序为准（开启重排时按重排后的顺序）。
 2.  **输出格式**: 支持解压为 `.fastq` 或直接流式输出到标准输出。
 3.  **单条/多条解压**: 支持仅解压 header 或特定 ID 的 reads（依赖索引）。
 
@@ -110,7 +109,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **并行模型**: 使用 **Intel TBB**。
     -   支持 `pipeline` 模式（IO bound 场景）。
     -   支持 `parallel_for` / 任务图模式（Compute bound 场景）。
-2.  **日志系统**: 使用 **Quill** 异步日志库，确保日志记录不阻塞关键路径。
+2.  **日志系统**: 默认复用 **spdlog**（可选 async），确保日志记录不阻塞关键路径；评估 **Quill** 作为可替换的低延迟异步日志后端。
 3.  **内存管理**: 显式控制内存使用上限，避免 OOM（特别是 Spring 算法内存消耗较大）。
 
 ### Requirement 5: 数据完整性
