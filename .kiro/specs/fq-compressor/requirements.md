@@ -56,10 +56,23 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 
 ## Requirements
 
-### Requirement 1: 核心功能与压缩
-**User Story:** 用户希望获得极高的压缩比，且能灵活选择保序或重排。
+### Requirement 1.1: 混合压缩策略 (Hybrid Compression Strategy)
+**User Story:** 针对 FASTQ 四行数据的不同特征，采用针对性的算法组合以最大化效果。
 
 #### Acceptance Criteria
+1.  **流分离 (Stream Separation)**:
+    -   必须将 FASTQ 数据拆分为独立的逻辑流：**Identifier Stream**, **Sequence Stream**, **Quality Stream**。
+    -   允许对不同流采用不同的压缩管线 (Pipeline)。
+2.  **组合压缩 (Combined Algorithms)**:
+    -   **Pre-encoding (变换层)**: 对原始数据进行预处理。
+        -   *IDs*: Tokenization (拆分静态/动态部分) + Delta Encoding (数字增量)。
+        -   *Sequences*: **Spring Reordering** (保序/重排) + Bit-packing/Mappping。
+        -   *Qualities*: RLE (Run-Length Encoding) 或 Binning。
+    -   **Entropy Coding (编码层)**: 对变换后的数据进行熵编码。
+        -   *IDs*: 通用压缩 (zstd/lzma/bsc)。
+        -   *Sequences*: 算术编码 (Arithmetic Coding) 或区间编码 (Range Coding)。
+        -   *Qualities*: 基于上下文的算术编码 (Context-Based Arithmetic Coding)。
+
 1.  **输入支持**: 支持 `.fastq`, `.fq`, `.gz`, `.bz2`, `.xz` 输入（Phase 1: plain/gzip; Phase 2: bz2/xz）。
 2.  **压缩模式**:
     -   **Reorder (Default)**: 允许重排序 reads 以获得最高压缩比（参考 Spring/Repaq）。
