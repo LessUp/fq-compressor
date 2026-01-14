@@ -29,6 +29,24 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 | **压缩算法** | Spring (核心) + External | Spring 用于重排序/编码，外部库 (libdeflate/lzma) 用于通用流 |
 | **随机访问** | **Scheme A** | 分块独立压缩 (Block-based)，支持 O(1) 随机访问 |
 
+### 核心策略选型评估 (Strategy Evaluation)
+
+针对 **有/无参考序列** 和 **有损/无损** 的深度评估与决策：
+
+#### 1. 参考序列依赖 (Reference-based vs Reference-free)
+| 模式 | 优势 | 劣势 | **本项目决策** |
+|-----|-----|-----|---------------|
+| **有参考 (Ref-based)**<br>(类 CRAM) | 极高压缩比 (只需存变异) | 依赖外部 Reference 文件，管理困难（Reference丢失=数据丢失）；压缩速度受比对限制；不适用 De novo 或宏基因组。 | **不采用 (或作为远期扩展)**<br>理由：作为通用归档工具，自包含性 (Self-contained) 至关重要。 |
+| **无参考 (Ref-free)**<br>(类 Spring/Mincom) | **自包含**，无依赖，适用任何数据；管理简单。 | 理论上限略低于 Ref-based。 | **✅ 采用 (Primary)**<br>理由：Spring 算法本身通过 **Reads重排序** 构建"内部参考"，已能达到近乎 Ref-based 的压缩率，且无外部依赖。 |
+
+#### 2. 有损 vs 无损 (Lossy vs Lossless)
+| 数据类型 | 策略选型 | 方案详情 |
+|---------|----------|----------|
+| **序列 (Sequence)** | **必须无损 (Mandatory Lossless)** | 序列包含核心生物学信息，除用户显式要求 Trim/Filter 外，压缩过程严禁修改碱基。 |
+| **质量值 (Quality)** | **混合模式 (Hybrid)** | **默认无损**：用于高精度变异检测。<br>**可选有损**：<br>1. **Illumina 8-bin**: 官方推荐的有损，几乎不影响下游。<br>2. **QVZ/Spring-Lossy**: 基于模型的有损，压缩比极高。 |
+| **ID (Headers)** | **可配置 (Configurable)** | **默认无损**：保留原始 Header。<br>**结构化重建**：对于标准 Illumina Header，仅存元数据，解压时重建（无损但压缩率高）。<br>**丢弃/索引化**：仅保留顺序 ID (1, 2, 3...)，用于极度压缩。 |
+
+
 ### 架构兼容性
 
 1.  **IO 层**: 复用 fastq-tools 的设计，增加块级 (Block-level) 读写支持。
