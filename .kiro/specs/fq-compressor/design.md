@@ -103,10 +103,18 @@ graph TD
 ### 2. Global Header
 包含全局元数据：
 - `Flags` (uint32):
-    - bit 0: `IS_PAIRED`
-    - bit 1: `PRESERVE_ORDER`
-    - bit 2: `HAS_QUALITY`
-    - bit 3: `LONG_READ_MODE`
+    - bit 0: `IS_PAIRED`: 配对端数据
+    - bit 1: `PRESERVE_ORDER`: 是否保留原始 Reads 顺序 (0=Reordered, 1=Original)
+    - bit 2: `LONG_READ_MODE`: 长读模式
+    - bit 3-4: `QUALITY_MODE`:
+        - 00: Lossless (Default)
+        - 01: Illumina Binning 8
+        - 10: QVZ Lossy
+        - 11: Discard Quality
+    - bit 5-6: `ID_MODE`:
+        - 00: Preserve Exact (Default)
+        - 01: Tokenized/Reconstruct (Split static/dynamic parts)
+        - 10: Discard/Indexed (Replace with 1,2,3...)
 - `CompressionAlgo` (uint8): 主要算法 ID (Spring, LZMA, etc.)
 - `OriginalFilenameLength` (uint16)
 - `OriginalFilename` (string)
