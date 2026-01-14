@@ -133,7 +133,7 @@
 - [ ] 7. Spring 代码分析与提取
   - [ ] 7.1 分析 Spring 源码结构
     - 研究 `ref-projects/Spring/src/` 目录结构
-    - 识别核心模块：Reordering, Encoding, Quality Compression
+    - 识别核心模块：Minimizer Bucketing, Reordering（可选）, Consensus/Delta, Arithmetic Coding, Quality Compression
     - 记录依赖关系和接口边界
     - _Requirements: 1.1.2_
 
@@ -143,6 +143,7 @@
     - 提取 Reordering 算法代码
     - 提取 Consensus/Delta 编码代码
     - 移除不需要的依赖 (Boost 等)
+    - 审核并记录 Spring License 约束，确保与项目发布目标一致（非商用/自用学习）
     - _Requirements: 1.1.2, 1.1.3_
 
 - [ ] 8. Spring 算法适配层
@@ -152,14 +153,14 @@
     - 设计 `ResetContext()` 方法支持 Block 边界重置
     - _Requirements: 1.1.2, 2.1_
 
-  - [ ] 8.2 实现 SpringReorder 适配器
+  - [ ] 8.2 实现 SpringABC Bucketing/Reordering 适配器
     - 创建 `src/algo/spring_reorder.cpp`
     - 封装 Minimizer Bucketing
     - 封装 Approximate Hamiltonian Path 重排序
     - 实现 Block 级别的状态重置
     - _Requirements: 1.1.2_
 
-  - [ ] 8.3 实现 SpringEncoder 适配器
+  - [ ] 8.3 实现 SpringABC Encoder 适配器
     - 创建 `src/algo/spring_encoder.cpp`
     - 封装 Consensus 生成
     - 封装 Delta 编码
@@ -174,7 +175,7 @@
 - [ ] 9. 质量值压缩实现
   - [ ] 9.1 实现无损质量压缩
     - 创建 `include/fqc/algo/quality_compressor.h`
-    - 实现 Order-1 上下文模型 (参考 Fqzcomp5)
+    - 实现 SCM 上下文模型 (参考 Fqzcomp5，Order-1/Order-2)
     - 集成算术编码器
     - _Requirements: 3.1_
 
