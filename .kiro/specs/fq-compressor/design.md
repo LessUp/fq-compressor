@@ -156,10 +156,13 @@ struct BlockHeader {
     -   *Strategy*: Tokenization -> Delta Encoding -> General Compressor (LZMA/Zstd).
     -   *Why*: IDs (e.g., `@Illumina...:1:1:1:1`) often differ only by last integer. Delta encoding handles this efficiently.
 2.  **Sequence Stream**:
-    -   *Strategy*: **Sub-stream Split (2-bit + N-mask)**.
-        -   **Main Stream (2-bit)**: 将序列强制映射为 2-bit (A=00, C=01, G=10, T=11)，'N' 暂时视为 'A'。重排后进行算术编码。
-        -   **N-Mask Stream**: 单独记录 'N' 的位置 (Positional Delta)。使用 RLE 压缩。
-    -   *Why*: 2-bit 编码将字母表大小从 5 (ACGTN) 降为 4，移除 'N' 噪声后，Spring 的上下文模型预测准确率显著提高，从而获得更高的压缩比。直接 4-bit 编码虽然简单，但对于追求极致压缩比的项目，分离 N 值的 2-bit 方案更优。
+    -   *Strategy*: **Assembly-based Compression (ABC)**.
+        -   **Stage 1: Minimizer Bucketing**: 使用 K-mer Minimizers 将 Reads 粗粒度分桶，确保相似序列在物理上相邻。
+        -   **Stage 2: Fine Reordering**: 桶内使用 Hamming Distance 或 Spring 算法进一步细化排序。
+        -   **Stage 3: Consensus Generation**: 针对每个 Block 生成局部共识序列 (Local Consensus)。
+        -   **Stage 4: Delta Encoding**: 将 Reads 编码为相对于共识序列的差异 (Pos / Match / Mismatch / Indel)。
+        -   **Stage 5**: 对差异流进行算术编码 (Arithmetic Coding)。
+    -   *Why*: 这是目前已知最高压缩率的策略 (参考 Spring / Mincom)，远优于单纯排序。通过构建"内部参考"，将序列压缩转化为极稀疏的差异压缩。
 3.  **Quality Stream**:
     -   *Strategy*: (Optional Binning) -> Context Models (Order-1) -> Arithmetic Coding.
     -   *Why*: Quality scores have high entropy but local correlations.
