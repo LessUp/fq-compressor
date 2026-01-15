@@ -359,10 +359,11 @@
   - [ ] 18.1 实现长读检测
     - 采样前 1000 条 Reads 计算 median 和 max length
     - 三级分类阈值 (优先级从高到低):
-        1. max_length >= 10KB → LONG
-        2. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
-        3. median >= 1KB → MEDIUM
-        4. 其余 → SHORT
+        1. max_length >= 100KB → LONG (Ultra-long)
+        2. max_length >= 10KB → LONG
+        3. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
+        4. median >= 1KB → MEDIUM
+        5. 其余 → SHORT
     - 支持 `--long-read-mode <auto|short|medium|long>` 参数覆盖
     - _Requirements: 1.1.3_
 
@@ -370,9 +371,11 @@
     - **Short (max <= 511)**: ABC + 全局 Reordering，Block Size 100K
     - **Medium (max > 511 或 1KB <= median < 10KB)**: Zstd fallback (推荐)，禁用 Reordering，Block Size 50K
     - **Long (median >= 10KB)**: **Zstd (推荐首选)**，禁用 Reordering，Block Size 10K
+    - **Ultra-long (max >= 100KB)**: 强制 Zstd，Block Size 10K，并启用 `max_block_bases` 上限
     - Quality: Long Read 使用 SCM Order-1（降低内存）
     - **关键约束**: Spring ABC 仅用于 max_length <= 511 的数据，超过则必须使用 Zstd
     - **可选优化**: Overlap-based 压缩可作为 Phase 5+ 优化项
+    - **边界控制**: 对 Long/Ultra-long 追加 `max_block_bases` 上限（默认 200MB/50MB）
     - _Requirements: 1.1.3_
 
   - [ ] 18.3 编写长读属性测试
@@ -621,6 +624,8 @@ Streaming Mode Compression:
 | Short | < 1KB 且 max <= 511 | Illumina (50-300bp) |
 | Medium | 1KB - 10KB 或 max > 511 | PacBio HiFi, Illumina Long |
 | Long | >= 10KB | Nanopore, PacBio CLR |
+
+> Ultra-long: max >= 100KB，仍归类为 Long，但需要更保守的块大小与 Zstd 策略。
 
 ### D.2 各分类压缩策略
 ```cpp
