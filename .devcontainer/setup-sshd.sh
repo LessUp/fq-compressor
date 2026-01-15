@@ -46,9 +46,10 @@ fi
 TMP_KEYS="$(mktemp)"
 trap 'rm -f "${TMP_KEYS}"' EXIT
 
+# 优先从挂载的 .ssh 目录读取公钥
 if test -s /home/developer/.ssh/authorized_keys; then
   cat /home/developer/.ssh/authorized_keys >"${TMP_KEYS}"
-else
+elif test -d /home/developer/.ssh; then
   for candidate in /home/developer/.ssh/id_ed25519.pub /home/developer/.ssh/id_rsa.pub /home/developer/.ssh/id_ecdsa.pub /home/developer/.ssh/id_dsa.pub; do
     if test -s "${candidate}"; then
       cat "${candidate}" >>"${TMP_KEYS}"

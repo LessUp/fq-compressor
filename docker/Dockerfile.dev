@@ -176,4 +176,29 @@ USER $USERNAME
 # =============================================================================
 RUN conan profile detect --force
 
+# =============================================================================
+# SSH 配置
+# =============================================================================
+RUN sudo mkdir -p /var/run/sshd && \
+    sudo ssh-keygen -A
+
+# 创建启动脚本
+COPY .devcontainer/setup-sshd.sh /usr/local/bin/setup-sshd.sh
+COPY .devcontainer/start-sshd.sh /usr/local/bin/start-sshd.sh
+RUN sudo chmod +x /usr/local/bin/setup-sshd.sh /usr/local/bin/start-sshd.sh
+
+# 创建入口脚本
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# 启动 SSH\n\
+bash /usr/local/bin/setup-sshd.sh || true\n\
+bash /usr/local/bin/start-sshd.sh || true\n\
+\n\
+# 执行传入的命令或默认 bash\n\
+exec "$@"\n\
+' | sudo tee /usr/local/bin/docker-entrypoint.sh > /dev/null && \
+    sudo chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]
