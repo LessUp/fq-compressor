@@ -29,8 +29,8 @@ graph TD
     E --> E2["日志 (quill)"];
     E --> E3["构建 (CMake+Conan)"];
 
-    click B1 "./fq-compressor/docs/03_algorithm_selection.md" "查看序列压缩设计"
-    click C1 "./fq-compressor/docs/02_strategy_evaluation.md" "查看格式设计"
+    click B1 "./fq-compressor/fq-compressor/docs/03_algorithm_selection.md" "查看序列压缩设计"
+    click C1 "./fq-compressor/fq-compressor/docs/02_strategy_evaluation.md" "查看格式设计"
 ```
 
 ## 模块索引
@@ -105,10 +105,11 @@ graph TD
 
 当前项目处于**设计阶段**，尚未开始编码实现。主要产出包括：
 
-1. **可行性分析** (`docs/01_feasibility_analysis.md`)
-2. **策略评估** (`docs/02_strategy_evaluation.md`)
-3. **算法选择** (`docs/03_algorithm_selection.md`)
-4. **设计评审** (`docs/reivew/`)
+1. **可行性分析** (`fq-compressor/docs/01_feasibility_analysis.md`)
+2. **策略评估** (`fq-compressor/docs/02_strategy_evaluation.md`)
+3. **算法选择** (`fq-compressor/docs/03_algorithm_selection.md`)
+4. **设计评审** (`fq-compressor/docs/reivew/`)
+5. **CI/CD 配置** (`fq-compressor/.github/workflows/`)
 
 ### 推荐的开发路线图
 
