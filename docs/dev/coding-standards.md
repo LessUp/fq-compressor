@@ -15,9 +15,9 @@
 | 项目 | 规范 |
 |------|------|
 | **语言标准** | C++20 |
-| **编译器** | GCC 14+ 或 Clang 19+（推荐） |
-| **格式化工具** | clang-format 19+ |
-| **静态分析** | clang-tidy 19+ |
+| **编译器** | GCC 14+ 或 Clang 19+（推荐与容器/CI 对齐） |
+| **格式化工具** | clang-format 19+（以 `.clang-format` 为准） |
+| **静态分析** | clang-tidy 19+（以 `.clang-tidy` 为准） |
 | **缩进** | 4 空格（禁止 Tab） |
 | **行宽** | 100 字符 |
 | **文件编码** | UTF-8（无 BOM） |
@@ -36,11 +36,12 @@
 | **函数/方法** | `camelCase` | `void encodeBlock();` |
 | **变量（局部/参数）** | `camelCase` | `int blockSize = 0;` |
 | **成员变量** | `camelCase_` | `std::string filePath_;` |
-| **常量** | `kPascalCase` | `constexpr int kMaxBlockSize = 100000;` |
-| **枚举值** | `PascalCase` | `enum class Mode { Compress, Decompress };` |
+| **常量** | `kCamelCase` | `constexpr int kMaxBlockSize = 100000;` |
+| **枚举类型** | `CamelCase` | `enum class Mode { Compress, Decompress };` |
+| **枚举值** | `CamelCase` | `enum class Mode { Compress, Decompress };` |
 | **宏** | `SCREAMING_SNAKE_CASE` | `#define FQC_VERSION "1.0.0"` |
 | **命名空间** | `snake_case` | `namespace fqc::format` |
-| **模板参数** | `PascalCase` | `template <typename InputIterator>` |
+| **模板参数** | `CamelCase` | `template <typename InputIterator>` |
 
 ### 命名规则详解
 
@@ -144,28 +145,26 @@ namespace fqc::format {
 
 ### Include 顺序
 
-采用 Google Style 的 include 顺序，便于发现依赖问题：
+include 顺序与 `.clang-format` 对齐，避免贡献者与自动格式化冲突：
 
 ```cpp
 // 1. 对应的头文件（仅在 .cpp 文件中）
 #include "fqc/format/block_encoder.h"
 
-// 2. C 系统头文件
+// 2. C/C++ 标准库
 #include <cstdint>
 #include <cstring>
-
-// 3. C++ 标准库
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-// 4. 第三方库
+// 3. 第三方库
 #include <CLI/CLI.hpp>
 #include <quill/Quill.h>
 #include <tbb/parallel_pipeline.h>
 
-// 5. 本项目头文件
+// 4. 本项目头文件
 #include "fqc/common/types.h"
 #include "fqc/format/fqc_format.h"
 ```
@@ -416,6 +415,28 @@ fq-compressor/
 ```
 
 ## 工具配置
+
+### clang-format 规则说明
+
+- include 分组顺序：标准库 → 第三方 → 项目内。
+- 自动格式化不应被手动覆盖，提交前务必运行格式化脚本。
+
+### clang-tidy 规则说明
+
+- 启用：clang-diagnostic / clang-analyzer / bugprone / cppcoreguidelines / misc / modernize / performance / portability / readability。
+- 默认禁用：
+  - `modernize-use-trailing-return-type`（不强制尾随返回类型）
+  - `bugprone-easily-swappable-parameters`
+  - `cppcoreguidelines-pro-bounds-*`
+  - `misc-non-private-member-variables-in-classes`
+- 命名检查：枚举/枚举值为 CamelCase，宏为 UPPER_CASE，模板参数为 CamelCase。
+- 断言宏：`assert` 与 `FQTOOLS_ASSERT` 均视为断言。
+
+### editorconfig 规则说明
+
+- 全局默认：UTF-8、LF、4 空格缩进。
+- YAML 使用 2 空格缩进；Makefile 必须使用 Tab。
+- C/C++ 行宽 100；Markdown 保留行尾空格。
 
 ### 格式化命令
 
