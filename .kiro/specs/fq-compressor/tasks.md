@@ -66,14 +66,15 @@
   - [ ] 3.1 定义格式常量与数据结构
     - 创建 `include/fqc/format/fqc_format.h`
     - 定义 Magic Header (`0x89 'F' 'Q' 'C' ...`)
-    - 定义 `GlobalHeader`, `BlockHeader`, `IndexEntry`, `FileFooter` 结构体
+    - 定义 `GlobalHeader`, `BlockHeader`, `BlockIndex`, `IndexEntry`, `FileFooter` 结构体
+    - BlockIndex 需包含 `header_size` 与 `entry_size` 以支持前向兼容
     - _Requirements: 2.1, 5.1, 5.2_
 
   - [ ] 3.2 实现 FQCWriter 类
     - 创建 `include/fqc/format/fqc_writer.h` 和 `src/format/fqc_writer.cpp`
     - 实现 `write_global_header()`, `write_block()`, `finalize()`
     - 实现 Block Index 构建和写入
-    - 集成 xxHash64 校验和计算
+    - 集成 xxHash64 校验和计算（Block 校验针对未压缩逻辑流）
     - **实现原子写入**: 使用 `.fqc.tmp` + rename 策略
     - **实现信号处理**: 捕获 SIGINT/SIGTERM，清理临时文件
     - _Requirements: 2.1, 5.1, 5.2, 8.1, 8.2_
@@ -84,7 +85,7 @@
     - 实现随机访问：`seek_to_block()`, `get_reads_range()`, Reorder Map lookup (for original ID)
     - 实现 Header-only 读取：仅解码 Identifier Stream
     - 预留子流选择性解码接口：可只解码 Sequence 或 Quality 子流
-    - 实现校验和验证
+    - 实现校验和验证（Block 校验基于未压缩逻辑流）
     - _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2_
 
   - [ ] 3.4 编写格式读写属性测试
@@ -185,6 +186,7 @@
         - Reverse Map: `archive_id -> original_id` (用于原始顺序输出)
     - 实现 Delta + Varint 压缩编码
     - 实现 Reorder Map 读写
+    - 分治模式下按 Chunk 拼接映射并累加偏移，保证全局 `archive_id` 连续
     - 目标压缩率: ~4 bytes/read (两个映射各 ~2 bytes/read)
     - _Requirements: 2.1_
 

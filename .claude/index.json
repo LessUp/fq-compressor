@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-01-15T05:27:52Z",
+  "project": {
+    "name": "fq-compressor",
+    "description": "高性能 FASTQ 压缩工具，支持随机访问",
+    "language": "C++20",
+    "build_system": "CMake + Conan",
+    "status": "design_phase"
+  },
+  "scan_info": {
+    "timestamp": "2026-01-15T05:27:52Z",
+    "total_files_estimated": 50,
+    "total_files_scanned": 25,
+    "coverage_percent": 50.0,
+    "truncated": false,
+    "ignored_patterns": [
+      "build/**",
+      "install/**",
+      "*.o, *.a, *.so",
+      "*.log, *.tmp"
+    ]
+  },
+  "modules": [
+    {
+      "name": "root",
+      "path": "/home/shane/lessup/fq-compressor",
+      "has_claude_md": true,
+      "has_index_json": true,
+      "responsibility": "项目根目录，包含所有子模块"
+    },
+    {
+      "name": "fq-compressor",
+      "path": "/home/shane/lessup/fq-compressor/fq-compressor",
+      "has_claude_md": false,
+      "has_index_json": false,
+      "responsibility": "主体项目目录，包含设计文档和构建配置",
+      "status": "design_phase",
+      "missing_items": ["src 目录", "include 目录", "test 目录"]
+    }
+  ],
+  "key_paths": {
+    "readme": "/home/shane/lessup/fq-compressor/fq-compressor/README.md",
+    "docs": [
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/01_feasibility_analysis.md",
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/02_strategy_evaluation.md",
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/03_algorithm_selection.md"
+    ],
+    "build_config": "/home/shane/lessup/fq-compressor/fq-compressor/CMakePresets.json",
+    "dependencies": "/home/shane/lessup/fq-compressor/fq-compressor/conanfile.py",
+    "ci_config": "/home/shane/lessup/fq-compressor/fq-compressor/.github/workflows/ci.yml"
+  },
+  "coverage_summary": {
+    "root_claude_md": true,
+    "root_index_json": true,
+    "module_docs": {
+      "fq-compressor": false
+    },
+    "code_files": 0,
+    "config_files": 10,
+    "documentation_files": 15
+  },
+  "gaps": [
+    {
+      "category": "missing_source_code",
+      "description": "项目处于设计阶段，尚未开始编码",
+      "priority": "high",
+      "paths_to_scan": ["fq-compressor/src", "fq-compressor/include", "fq-compressor/test"]
+    },
+    {
+      "category": "missing_module_claude_md",
+      "description": "fq-compressor 模块缺少 CLAUDE.md",
+      "priority": "medium",
+      "paths_to_scan": ["fq-compressor/"]
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": 1,
+      "action": "创建 fq-compressor 模块的 CLAUDE.md",
+      "reason": "为设计文档提供模块级索引"
+    },
+    {
+      "priority": 2,
+      "action": "开始 Phase 1 实现",
+      "reason": "设计文档已完成，可以开始骨架和格式实现"
+    },
+    {
+      "priority": 3,
+      "action": "验证 Spring 集成可行性",
+      "reason": "建议在 Phase 1 后进行技术验证"
+    }
+  ]
+}
