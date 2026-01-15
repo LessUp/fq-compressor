@@ -111,10 +111,16 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 3.  **Requirement 1.1.3: 压缩模式与数据类型**
     -   **Reorder (Default)**: 允许重排序 reads 以获得最高压缩比（参考 Spring/Repaq）。
     -   **Order-Preserving**: 强制保留原始 reads 顺序（压缩比略低）。
-    -   支持 **Short Reads** (Illumina, length < 512bp)。
-    -   支持 **Long Reads** (Nanopore/PacBio, 任意长度，自动禁用重排序或使用专有算法)。
+    -   **Streaming Mode**: 流式压缩模式，禁用全局重排序，支持 stdin 输入。
+    -   支持 **Short Reads** (median < 1KB，如 Illumina)。
+    -   支持 **Medium Reads** (1KB <= median < 10KB，如 PacBio HiFi)。
+    -   支持 **Long Reads** (median >= 10KB，如 Nanopore，自动禁用重排序)。
     -   支持 **SE (Single-End)** 和 **PE (Paired-End)**。
     -   **断点续压**: **不支持**断点续压（No Resume），简化设计。
+    -   **stdin 输入限制**: 
+        -   stdin 输入时自动启用流式模式（禁用全局重排序）
+        -   若需要全局重排序，必须使用文件输入
+        -   stdin 输入时发出警告提示压缩率可能降低
 
 ### Requirement 2: 解压缩与随机访问
 **User Story:** 用户希望快速解压，并能随机访问文件的特定部分。
@@ -214,8 +220,15 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     - `--pe-layout <interleaved|consecutive>`: PE 存储布局（默认：interleaved）。
     
     **Long Read 选项**:
-    - `--long-read-mode <auto|on|off>`: 长读模式（默认：auto）。
-    - 自动检测：采样前 1000 条 Reads，若 median length > 10KB 则启用。
+    - `--long-read-mode <auto|short|medium|long>`: 长读模式（默认：auto）。
+    - 自动检测：采样前 1000 条 Reads，根据 median length 判断：
+        - median < 1KB: Short
+        - 1KB <= median < 10KB: Medium
+        - median >= 10KB: Long
+    
+    **流式模式选项**:
+    - `--streaming`: 强制启用流式模式（禁用全局重排序，支持 stdin）。
+    - 当 `-i -` (stdin) 时自动启用，并发出警告。
 
     **decompress 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。
@@ -226,6 +239,8 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     - `--streams <id|seq|qual|all>`: 子流选择性解码（默认：all；与 `--header-only` 互斥）。
     - `--verify / --no-verify`: 解压时是否校验 checksum（默认：`--verify`）。
     - `--split-pe`: PE 模式下分别输出 R1/R2 到两个文件（需配合 `-o` 指定前缀）。
+    - `--skip-corrupted`: 跳过损坏的 Block 继续解压（默认：遇到损坏则报错退出）。
+    - `--corrupted-placeholder <skip|empty>`: 损坏 Block 的处理方式（默认：skip）。
 
     **info 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。
@@ -270,6 +285,11 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 2.  **Requirement 8.2: 信号处理**: 捕获 `SIGINT`/`SIGTERM`，清理临时文件后退出。
 3.  **Requirement 8.3: 磁盘空间检查**: 压缩前检查目标磁盘可用空间（可选警告）。
 4.  **Requirement 8.4: 断点续压**: **不支持**（简化设计，与 Requirement 1.1.3 一致）。
+5.  **Requirement 8.5: 错误隔离与恢复**:
+    -   单个 Block 损坏不应影响其他 Block 的解压。
+    -   `verify` 命令应报告所有损坏 Block 的位置和数量。
+    -   `decompress` 支持 `--skip-corrupted` 选项，跳过损坏 Block 继续解压。
+    -   损坏 Block 的 Reads 在输出中用占位符替代或跳过（由用户选择）。
 
 ### Requirement 9: 版本兼容性
 **User Story:** 用户希望新版本工具能读取旧版本创建的文件。
