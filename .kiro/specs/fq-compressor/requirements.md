@@ -147,7 +147,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **Requirement 3.1: Lossless (Default)**: 无损保留所有质量值。
 2.  **Requirement 3.2: QVZ Lossy**: 支持 **QVZ** 算法进行有损压缩，提供 configurable compression ratio。
 3.  **Requirement 3.3: Illumina Binning**: 支持标准的 8-level binning。
-4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID），解压时填充占位符质量值以保持 FASTQ 四行格式。
+4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID），解压时填充占位符质量值（默认 `'!'`）以保持 FASTQ 四行格式。
 
 ### Requirement 4: 高性能架构
 **User Story:** 用户希望充分利用多核 CPU，加速处理 massive datasets。
