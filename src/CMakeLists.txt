@@ -16,11 +16,14 @@
 set(FQC_CORE_SOURCES
     common/error.cpp
     common/logger.cpp
+    common/memory_budget.cpp
     format/fqc_reader.cpp
     format/fqc_writer.cpp
+    format/reorder_map.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
     algo/global_analyzer.cpp
+    algo/block_compressor.cpp
 )
 
 # Command sources
