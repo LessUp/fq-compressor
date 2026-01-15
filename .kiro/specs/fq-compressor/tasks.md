@@ -26,7 +26,7 @@
 
 - [ ] 1. 项目初始化与构建系统搭建
   - [ ] 1.1 创建项目目录结构
-    - 创建 `fq-compressor/` 根目录
+    - 创建项目根目录结构
     - 创建 `include/fqc/`, `src/`, `tests/`, `vendor/` 目录
     - 创建 `.clang-format`, `.clang-tidy` 配置文件
     - _Requirements: 7.1, 7.3_
