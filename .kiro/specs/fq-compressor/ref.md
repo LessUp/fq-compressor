@@ -10,6 +10,10 @@
   - 基于 **Intel oneTBB** 的并行流水线处理架构。
   - 使用 C++20 标准。
   - 提供了 `stat`（统计分析）和 `filter`（读段过滤与剪切）等核心命令。
+- **工程化参考要点**:
+  - `.clang-format/.clang-tidy/.editorconfig` 体系完整，可作为工程化基线。
+  - 代码风格源于 MongoDB，整体可被主流 C++ 社区接受，但需注意尾随返回类型不宜强制。
+  - 构建与脚本规范清晰（lint/build/test），适合迁移到新项目。
 
 ## 2. fqzcomp5
 - **路径**: `ref-projects/fqzcomp5`

@@ -301,7 +301,18 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 #### Acceptance Criteria
 1.  **Requirement 7.1: 构建系统**: CMake 3.20+。
 2.  **Requirement 7.2: 依赖管理**: 使用 Conan 或 Git Submodules (vendor)。
-3.  **Requirement 7.3: 代码风格**: 严格遵循 C++20 标准和 fastq-tools 代码风格。
+3.  **Requirement 7.3: 代码风格**: 遵循 fastq-tools 代码风格作为基线，并做开源友好优化。
+    - 强制 `.clang-format` 自动格式化（4 空格缩进、列宽 100、include 分组）。
+    - 命名约定统一：文件/目录 `snake_case`；类 `PascalCase`；函数/变量 `camelCase`；成员变量尾部 `_`；常量 `kConstant`。
+    - 返回类型：默认常规返回类型，仅在模板或复杂返回类型时使用尾随返回类型，避免强制风格争议。
+4.  **Requirement 7.4: 代码质量工具**:
+    - 通过 `clang-tidy` 与 `clang-format` 做最低门槛检查。
+    - 关键告警必须在 CI 中阻断合入（基础规则集先严格、逐步收敛）。
+5.  **Requirement 7.5: 可复现构建**:
+    - 使用 `CMakePresets.json` 统一本地/CI 构建配置。
+    - Conan 2.x 使用 profile + lockfile 固化依赖版本。
+6.  **Requirement 7.6: 容器化开发**:
+    - 提供 Dev Container 或等价 Docker 环境，统一 GCC/Clang/CMake/Conan 版本。
 
 #### 推荐开发环境（容器）
 

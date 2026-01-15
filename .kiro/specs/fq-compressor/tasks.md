@@ -43,6 +43,14 @@
     - 配置 CMake 集成
     - _Requirements: 7.2_
 
+  - [ ] 1.4 工程化规范落地
+    - 固化 `.clang-format/.clang-tidy/.editorconfig`（基于 fastq-tools，针对开源友好做裁剪）
+    - 配置 `CMakePresets.json`，统一本地/CI 构建入口
+    - 生成 Conan profile + lockfile，确保依赖可复现
+    - 建立 Dev Container / Docker 开发环境，统一编译器与工具版本
+    - 定义 CI 基线：格式检查、静态分析、单元测试
+    - _Requirements: 7.3, 7.4, 7.5, 7.6_
+
 - [ ] 2. 基础设施模块实现
   - [ ] 2.1 实现 Logger 模块 (Quill)
     - 创建 `include/fqc/common/logger.h`
