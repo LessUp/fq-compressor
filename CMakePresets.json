@@ -16,12 +16,26 @@
                 "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_COLOR_DIAGNOSTICS": "ON"
             },
             "condition": {
                 "type": "notEquals",
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
+            }
+        },
+        {
+            "name": "ci-base",
+            "hidden": true,
+            "inherits": "base",
+            "displayName": "CI Base",
+            "description": "Base configuration for CI environments",
+            "cacheVariables": {
+                "CMAKE_COLOR_DIAGNOSTICS": "OFF"
+            },
+            "environment": {
+                "CTEST_OUTPUT_ON_FAILURE": "1"
             }
         },
         {
@@ -155,6 +169,33 @@
                 "CMAKE_EXE_LINKER_FLAGS_DEBUG": "--coverage",
                 "ENABLE_COVERAGE": "ON"
             }
+        },
+        {
+            "name": "ci-gcc-release",
+            "displayName": "CI GCC Release",
+            "description": "Release build for CI with GCC",
+            "inherits": [
+                "ci-base",
+                "gcc-release"
+            ]
+        },
+        {
+            "name": "ci-clang-release",
+            "displayName": "CI Clang Release",
+            "description": "Release build for CI with Clang",
+            "inherits": [
+                "ci-base",
+                "clang-release"
+            ]
+        },
+        {
+            "name": "ci-clang-debug",
+            "displayName": "CI Clang Debug",
+            "description": "Debug build for CI with Clang (for linting)",
+            "inherits": [
+                "ci-base",
+                "clang-debug"
+            ]
         }
     ],
     "buildPresets": [
@@ -197,6 +238,21 @@
             "name": "coverage",
             "configurePreset": "coverage",
             "displayName": "Coverage Build"
+        },
+        {
+            "name": "ci-gcc-release",
+            "configurePreset": "ci-gcc-release",
+            "displayName": "CI GCC Release Build"
+        },
+        {
+            "name": "ci-clang-release",
+            "configurePreset": "ci-clang-release",
+            "displayName": "CI Clang Release Build"
+        },
+        {
+            "name": "ci-clang-debug",
+            "configurePreset": "ci-clang-debug",
+            "displayName": "CI Clang Debug Build"
         }
     ],
     "testPresets": [
@@ -269,6 +325,30 @@
             "output": {
                 "outputOnFailure": true,
                 "verbosity": "verbose"
+            }
+        },
+        {
+            "name": "ci-gcc-release",
+            "configurePreset": "ci-gcc-release",
+            "displayName": "CI GCC Release Tests",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
+        },
+        {
+            "name": "ci-clang-release",
+            "configurePreset": "ci-clang-release",
+            "displayName": "CI Clang Release Tests",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
             }
         }
     ],

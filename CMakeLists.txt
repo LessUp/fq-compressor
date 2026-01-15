@@ -175,6 +175,10 @@ message(STATUS "Found libdeflate: ${libdeflate_VERSION}")
 find_package(TBB CONFIG REQUIRED)
 message(STATUS "Found TBB: ${TBB_VERSION}")
 
+# Checksum library
+find_package(xxHash CONFIG REQUIRED)
+message(STATUS "Found xxHash: ${xxHash_VERSION}")
+
 # Handle fmt header-only vs compiled library
 if(TARGET fmt::fmt-header-only AND NOT TARGET fmt::fmt)
     add_library(fmt::fmt ALIAS fmt::fmt-header-only)

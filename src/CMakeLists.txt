@@ -12,22 +12,25 @@
 # Contains the core compression/decompression logic, format handling, and
 # algorithm implementations.
 
-# Note: Source files will be added as they are implemented
-# For now, create an INTERFACE library to allow the project to configure
+# Collect source files for the core library
+set(FQC_CORE_SOURCES
+    common/logger.cpp
+)
 
-add_library(fqc_core INTERFACE)
+# Create the core library
+add_library(fqc_core STATIC ${FQC_CORE_SOURCES})
 
 target_include_directories(fqc_core
-    INTERFACE
+    PUBLIC
         $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(fqc_core INTERFACE cxx_std_20)
+target_compile_features(fqc_core PUBLIC cxx_std_20)
 
 # Link dependencies
 target_link_libraries(fqc_core
-    INTERFACE
+    PUBLIC
         fmt::fmt
         quill::quill
         TBB::tbb
@@ -62,37 +65,11 @@ target_link_libraries(fqc_cli
 # Main Executable (fqc)
 # =============================================================================
 
-# Create a placeholder main.cpp if it doesn't exist
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp" 
-"// =============================================================================
-// fq-compressor - High Performance FASTQ Compressor
-// =============================================================================
-// Main entry point for the fqc command-line tool.
-// =============================================================================
-
-#include <iostream>
-
-int main(int argc, char* argv[]) {
-    std::cout << \"fq-compressor v${PROJECT_VERSION}\" << std::endl;
-    std::cout << \"High-performance FASTQ compressor with random access support\" << std::endl;
-    std::cout << std::endl;
-    std::cout << \"Usage: fqc <command> [options]\" << std::endl;
-    std::cout << \"Commands: compress, decompress, info, verify\" << std::endl;
-    std::cout << std::endl;
-    std::cout << \"Run 'fqc --help' for more information.\" << std::endl;
-    return 0;
-}
-")
-endif()
-
 add_executable(fqc main.cpp)
 
 target_link_libraries(fqc
     PRIVATE
         fqc_cli
-        fmt::fmt
-        TBB::tbb
 )
 
 target_include_directories(fqc

@@ -1,0 +1,21 @@
+# Conan 2.x Clang Profile for fq-compressor
+# =============================================================================
+# Clang 21 + libc++ profile for development and debugging.
+#
+# Usage:
+#   conan install . --profile=conan/profiles/clang --build=missing
+# =============================================================================
+
+[settings]
+os=Linux
+arch=x86_64
+compiler=clang
+compiler.version=21
+compiler.libcxx=libc++
+compiler.cppstd=20
+build_type=Release
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.build:jobs={{os.cpu_count()}}
+tools.build:skip_test=True

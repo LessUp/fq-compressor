@@ -1,3 +1,19 @@
+# =============================================================================
+# fq-compressor Clang-Format Configuration
+# =============================================================================
+# Based on fastq-tools style with open-source friendly optimizations.
+# Requirement 7.3: Code style enforcement
+#
+# Key settings:
+#   - 4 space indentation
+#   - 100 column limit
+#   - Include grouping (project headers first)
+#   - Naming: files/dirs snake_case, classes PascalCase, functions/vars camelCase
+#
+# Usage:
+#   clang-format -i <file>           # Format in place
+#   clang-format --dry-run <file>    # Check without modifying
+# =============================================================================
 ---
 Language:        Cpp
 AccessModifierOffset: -4

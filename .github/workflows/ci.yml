@@ -1,4 +1,19 @@
 # .github/workflows/ci.yml
+# =============================================================================
+# fq-compressor CI/CD Pipeline
+# =============================================================================
+# This workflow implements the CI baseline defined in Requirements 7.3-7.6:
+#   - Format checking (clang-format)
+#   - Static analysis (clang-tidy)
+#   - Unit tests (GTest + RapidCheck)
+#   - Build verification (GCC + Clang)
+#   - Coverage reporting
+#
+# Triggered on:
+#   - Push to master/main branches
+#   - Pull requests to master/main branches
+# =============================================================================
+
 name: fq-compressor CI/CD Pipeline
 
 on:
@@ -11,9 +26,42 @@ env:
   CONAN_VERSION: 2.24.0
 
 jobs:
-  lint:
-    name: Code Quality and Linting
+  # ===========================================================================
+  # Format Check Job
+  # ===========================================================================
+  # Validates code formatting against .clang-format rules.
+  # Requirement 7.3: Code style enforcement
+  # ===========================================================================
+  format-check:
+    name: Format Check (clang-format)
     runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
+          sudo apt-get install -y clang-format-21
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+
+      - name: Check formatting
+        run: |
+          find src include tests -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | \
+            xargs clang-format --dry-run --Werror
+
+  # ===========================================================================
+  # Lint Job
+  # ===========================================================================
+  # Runs clang-tidy static analysis and commit message validation.
+  # Requirement 7.4: Code quality tools
+  # ===========================================================================
+  lint:
+    name: Static Analysis (clang-tidy)
+    runs-on: ubuntu-latest
+    needs: format-check
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -74,19 +122,16 @@ jobs:
         run: |
           ./scripts/lint.sh --build-dir build-clang-release
 
-      - name: Install Node.js for commitlint
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install and run commitlint
-        run: |
-          npm install -g @commitlint/cli @commitlint/config-conventional
-          commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
-
+  # ===========================================================================
+  # Build and Test Job
+  # ===========================================================================
+  # Builds the project with multiple compilers and runs unit tests.
+  # Requirement 7.5: Reproducible builds via CMakePresets.json
+  # ===========================================================================
   build-and-test:
-    name: ${{ matrix.os }} / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
+    name: Build & Test (${{ matrix.compiler.name }} / ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
+    needs: format-check
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +215,12 @@ jobs:
           path: build-${{ matrix.compiler.name }}-${{ matrix.build_type,, }}/fqcomp
           retention-days: 7
 
+  # ===========================================================================
+  # Docker Build Job
+  # ===========================================================================
+  # Builds the development Docker image.
+  # Requirement 7.6: Containerized development environment
+  # ===========================================================================
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
@@ -184,9 +235,15 @@ jobs:
         run: |
           docker build -f docker/Dockerfile.dev -t fqcompressor:dev .
 
+  # ===========================================================================
+  # Coverage Job
+  # ===========================================================================
+  # Generates code coverage report.
+  # ===========================================================================
   coverage:
-    name: Coverage
+    name: Code Coverage
     runs-on: ubuntu-latest
+    needs: build-and-test
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -249,3 +306,28 @@ jobs:
           name: coverage
           path: build-clang-coverage/coverage/coverage-filtered.info
           retention-days: 7
+
+  # ===========================================================================
+  # Commit Lint Job (PR only)
+  # ===========================================================================
+  # Validates commit messages follow Conventional Commits format.
+  # ===========================================================================
+  commit-lint:
+    name: Commit Message Lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js for commitlint
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and run commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+          commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
