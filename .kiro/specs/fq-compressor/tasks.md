@@ -357,19 +357,22 @@
 
 - [ ] 18. 长读支持
   - [ ] 18.1 实现长读检测
-    - 采样前 1000 条 Reads 计算 median length
-    - 三级分类阈值:
-        - Short: median < 1KB
-        - Medium: 1KB <= median < 10KB
-        - Long: median >= 10KB
+    - 采样前 1000 条 Reads 计算 median 和 max length
+    - 三级分类阈值 (优先级从高到低):
+        1. max_length >= 10KB → LONG
+        2. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
+        3. median >= 1KB → MEDIUM
+        4. 其余 → SHORT
     - 支持 `--long-read-mode <auto|short|medium|long>` 参数覆盖
     - _Requirements: 1.1.3_
 
   - [ ] 18.2 实现长读压缩策略
-    - Short: ABC + 全局 Reordering，Block Size 100K
-    - Medium: ABC + 可选 Reordering，Block Size 50K
-    - Long: Overlap-based 或 Zstd，禁用 Reordering，Block Size 10K
+    - **Short (max <= 511)**: ABC + 全局 Reordering，Block Size 100K
+    - **Medium (max > 511 或 1KB <= median < 10KB)**: Zstd fallback (推荐)，禁用 Reordering，Block Size 50K
+    - **Long (median >= 10KB)**: **Zstd (推荐首选)**，禁用 Reordering，Block Size 10K
     - Quality: Long Read 使用 SCM Order-1（降低内存）
+    - **关键约束**: Spring ABC 仅用于 max_length <= 511 的数据，超过则必须使用 Zstd
+    - **可选优化**: Overlap-based 压缩可作为 Phase 5+ 优化项
     - _Requirements: 1.1.3_
 
   - [ ] 18.3 编写长读属性测试
@@ -615,8 +618,8 @@ Streaming Mode Compression:
 ### D.1 分类阈值
 | 分类 | Median Length | 典型数据类型 |
 |------|---------------|--------------|
-| Short | < 1KB | Illumina (50-300bp) |
-| Medium | 1KB - 10KB | PacBio HiFi, Illumina Long |
+| Short | < 1KB 且 max <= 511 | Illumina (50-300bp) |
+| Medium | 1KB - 10KB 或 max > 511 | PacBio HiFi, Illumina Long |
 | Long | >= 10KB | Nanopore, PacBio CLR |
 
 ### D.2 各分类压缩策略
@@ -630,11 +633,14 @@ struct CompressionStrategy {
 };
 
 const CompressionStrategy STRATEGIES[] = {
-    // Short: 全功能
+    // Short (max <= 511): Spring ABC + 全局 Reordering
     {SHORT, true, 100000, 2, CODEC_ABC_V1},
-    // Medium: 可选重排序
-    {MEDIUM, true, 50000, 2, CODEC_ABC_V1},
-    // Long: 禁用重排序，使用 Overlap-based
-    {LONG, false, 10000, 1, CODEC_OVERLAP_V1},
+    // Medium (max > 511 或 1KB <= median < 10KB): Zstd fallback，禁用 Reordering
+    {MEDIUM, false, 50000, 2, CODEC_ZSTD_PLAIN},
+    // Long (median >= 10KB): Zstd 或 Overlap-based，禁用 Reordering
+    {LONG, false, 10000, 1, CODEC_ZSTD_PLAIN},  // 或 CODEC_OVERLAP_V1
 };
+
+// 关键约束: Spring ABC (CODEC_ABC_V1) 仅用于 max_length <= 511 的数据
+// 超过 511bp 必须使用 CODEC_ZSTD_PLAIN 或其他通用压缩
 ```

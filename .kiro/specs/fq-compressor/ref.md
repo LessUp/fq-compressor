@@ -43,6 +43,13 @@
   - 支持 **随机访问**（解压缩特定范围的 Read）。
   - 支持质量得分的各种量化处理（QVZ, Illumina 8-level binning 等）。
   - 可以通过重新排序 Read（保持配对关系）来进一步提升压缩率。
+- **关键限制**:
+  - **MAX_READ_LEN = 511**: 短读模式（无 `-l` 标志）的硬编码上限，深度嵌入 bitset 数据结构。
+  - **长读模式 (`-l`)**: 完全绕过 ABC 算法，直接使用 BSC 通用压缩，压缩率较低。
+  - 这说明 Spring 作者认为 ABC 算法对长读的收益不值得扩展。
+- **本项目使用策略**:
+  - 仅用于 `max_read_length <= 511` 的短读数据。
+  - 超过 511bp 的数据使用 Zstd fallback 或 NanoSpring 风格的 Overlap-based 策略。
 
 ## 6. repaq
 - **路径**: `ref-projects/repaq`
@@ -64,6 +71,25 @@
 - **路径**: `ref-projects/NanoSpring`
 - **简介**: 专门用于纳米孔（Nanopore）长读段 FASTQ 格式的压缩工具。
 - **核心特性**:
-  - 仅压缩读段序列（忽略质量得分和标识符）。
+  - 仅压缩读段序列（忽略质量得分和标识符），适合与 FQC 的分流架构结合。
+  - 采用 **Overlap-based** 策略（与 Spring 的 Assembly-based 不同，更适合高噪声长读）。
   - 压缩比比 `gzip` 高 3 倍以上。
   - 专门优化了对长读段和高错误率数据的处理能力。
+- **与 Spring 的关系**:
+  - **NanoSpring 不是 Spring 的扩展**，而是完全不同的算法。
+  - Spring 使用 Minimizer + Reordering + Consensus (ABC)，适合低错误率短读。
+  - NanoSpring 使用 MinHash + Minimap2 + Consensus Graph (Overlap-based)，适合高错误率长读。
+- **核心算法差异**:
+
+  | 特性 | Spring (ABC) | NanoSpring (Overlap-based) |
+  |------|-------------|---------------------------|
+  | 核心策略 | Minimizer + Reordering + Consensus | MinHash + Minimap2 + Consensus Graph |
+  | 适用场景 | 短读 (Illumina, <500bp) | 长读 (Nanopore, 10KB+) |
+  | 压缩内容 | 完整 FASTQ (Seq + Qual + ID) | 仅序列 (忽略 Qual/ID) |
+  | 错误率容忍 | 低 (~0.1%) | 高 (~5-15%) |
+  | 重排序 | 全局重排序 (关键优化) | 无重排序 |
+
+- **本项目使用策略**:
+  - 对于 Long Read (median >= 10KB)，**Zstd 通用压缩是推荐首选**（简单、稳定）。
+  - Overlap-based 压缩作为可选优化（需适配为 Block-based 模式以支持随机访问，实现复杂度高）。
+  - 不推荐在 Phase 1-3 实现 Overlap-based，可作为 Phase 5+ 的优化项。
