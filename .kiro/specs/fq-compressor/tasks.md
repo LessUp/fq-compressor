@@ -599,14 +599,15 @@ bool should_use_streaming_mode(const CompressOptions& opts) {
 ```
 Streaming Mode Compression:
 ├── 1. 读取 Block 大小的 Reads
-├── 2. Block 内局部优化 (可选的 Block 内重排序)
+├── 2. Block 内局部优化（不包含重排序）
 ├── 3. 压缩并写入 Block
 ├── 4. 重复直到 EOF
 └── 5. 写入 Index 和 Footer
 
 注意:
 - 跳过 Phase 1 全局分析
-- PRESERVE_ORDER=1 或 STREAMING_MODE=1
+- PRESERVE_ORDER=1 且 STREAMING_MODE=1
+- 禁用 Reorder Map 写入
 - 压缩率降低约 10-20%
 - 内存使用显著降低
 ```

@@ -305,6 +305,9 @@ struct IndexEntry {
 **语义说明**:
 - `archive_id_start` 以归档存储顺序计数（若 `PRESERVE_ORDER=0` 则为重排后顺序）
 - **PE 计数语义**: Read ID 以 **单条 Read 记录** 计数（PE 总数 = 2 * Pairs）
+- `entry_size` 兼容规则:
+    - `entry_size` > 当前结构大小：跳过尾部扩展字段
+    - `entry_size` < 必须字段大小：报错 `EXIT_FORMAT_ERROR (3)`
 - 若需查询"原始第 N 条 Read"：
     1. 查询 Reorder Map (Forward) 得到 `archive_id`
     2. 二分查找 Block Index 找到包含该 `archive_id` 的 Block
@@ -334,15 +337,17 @@ struct ReorderMap {
 ```
 
 **设计说明**:
-- **Forward Map**: 支持 `--range` 按原始 ID 范围解压
+- **Forward Map**: 支持按原始 ID 查询（可扩展为 `--range-original`）
 - **Reverse Map**: 支持 `--original-order` 高效输出
 - **空间开销**: ~4 bytes/read（两个映射各 ~2 bytes/read）
 - **性能**: 映射解压到内存后两种查询方向都是 O(1)；若按需解码需额外块索引
+- **超大映射**: 可选分块索引或 mmap 方式按需解码，避免一次性展开占用过多内存
 
 **查询流程**:
 1. 按归档顺序解压: 无需 Reorder Map
 2. 按原始顺序输出: 使用 Reverse Map，按 archive_id 顺序遍历，输出到 original_id 位置
 3. 查询原始 Read 位置: 使用 Forward Map
+4. `--range` 参数始终以归档顺序计数；原始顺序范围查询需额外参数（可选扩展）
 
 ### 5. File Footer
 ```cpp
