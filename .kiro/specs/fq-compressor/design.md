@@ -105,9 +105,9 @@ Phase 2: Block-wise Compression (分块压缩)
 **流式模式 (Streaming Mode)**:
 当输入来自 stdin 或显式指定 `--streaming` 时，跳过 Phase 1 的全局分析：
 - 禁用全局重排序（`PRESERVE_ORDER=1`）
-- 仅做 Block 内局部优化
+- 禁用块内重排序（保持原始顺序）
 - 压缩率降低约 10-20%，但支持流式处理
-- 自动设置 `STREAMING_MODE` 标志位
+- 自动设置 `STREAMING_MODE` 标志位，并强制 `HAS_REORDER_MAP=0`
 
 **Reorder Map 存储**:
 - 若 `PRESERVE_ORDER=0`，Reorder Map 作为可选元数据存入文件（位于 Block Index 之前）
@@ -145,7 +145,9 @@ Phase 2: Block-wise Compression (分块压缩)
 ### 1. Magic Header
 Magic Header = Magic (8 bytes) + Version (1 byte)
 - `Magic`: `0x89 'F' 'Q' 'C' 0x0D 0x0A 0x1A 0x0A` (参考 PNG/XZ 风格魔法数)
-- `Version`: 1 byte (e.g., 0x01)
+- `Version`: 1 byte (`major:4bit, minor:4bit`)
+    - Major 变更：格式不兼容（需新版本 Reader）
+    - Minor 变更：向后兼容（Reader 可跳过未知字段）
 
 ### 2. Global Header
 包含全局元数据：
@@ -153,7 +155,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 - `Flags` (uint64): 扩展为 64 位，预留更多空间
     - bit 0: `IS_PAIRED`: 配对端数据
     - bit 1: `PRESERVE_ORDER`: 是否保留原始 Reads 顺序 (0=Reordered, 1=Original)
-    - bit 2: `LONG_READ_MODE`: 长读模式（已废弃，使用 bit 10-11 READ_LENGTH_CLASS）
+    - bit 2: `LEGACY_LONG_READ_MODE`: 保留位（历史兼容），**必须为 0**
     - bit 3-4: `QUALITY_MODE`:
         - 00: Lossless (Default)
         - 01: Illumina Binning 8
@@ -173,7 +175,9 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
         - 01: Medium (1KB <= median < 10KB 或 max > 511，使用 Zstd，禁用 Reordering)
         - 10: Long (median >= 10KB 或 max >= 10KB，禁用 Reordering)
         - 11: Reserved
-    - bit 12: `STREAMING_MODE`: 流式压缩模式（禁用全局重排序）
+    - bit 12: `STREAMING_MODE`: 流式压缩模式（禁用全局与块内重排）
+        - 强制 `PRESERVE_ORDER=1`
+        - 强制 `HAS_REORDER_MAP=0`
     - bit 13-63: Reserved
 - `CompressionAlgo` (uint8): 主要策略族 ID（用于兼容/快速识别；具体以每个 BlockHeader 的 codec_* 为准）
 - `ChecksumType` (uint8): 校验算法（默认：xxhash64；预留升级空间）
@@ -206,7 +210,7 @@ struct BlockHeader {
     uint8_t  codec_aux;           // e.g., 0x50 = Family 5, Version 0 (Delta + Varint for lengths)
     uint8_t  reserved1;           // Padding for alignment
     uint16_t reserved2;           // Padding for alignment
-    uint64_t block_xxhash64;
+    uint64_t block_xxhash64;      // xxhash64 of uncompressed logical streams (ID+SEQ+QUAL+Aux)
     uint32_t uncompressed_count;  // Number of reads in this block
     uint32_t uniform_read_length; // If all reads same length, store here; 0 = variable (use Aux)
     uint64_t compressed_size;     // Total compressed payload size (bytes)
@@ -270,6 +274,7 @@ struct BlockHeader {
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
     -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
+    -   **Discard 模式**: `codec_qual=RAW` 且 `size_qual=0`，解压时填充占位符质量值（默认 `'!'`）以保持 FASTQ 四行格式
 4.  **Aux Stream** (可选):
     -   *用途*: 存储可变长度 Reads 的长度信息
     -   *Strategy*: Delta + Varint 编码
@@ -283,6 +288,8 @@ struct BlockHeader {
 支持快速定位。
 ```cpp
 struct BlockIndex {
+    uint32_t header_size;     // BlockIndex header size (bytes)
+    uint32_t entry_size;      // IndexEntry size (bytes), for forward compatibility
     uint64_t num_blocks;
     IndexEntry entries[];  // Array of IndexEntry
 };
@@ -297,6 +304,7 @@ struct IndexEntry {
 
 **语义说明**:
 - `archive_id_start` 以归档存储顺序计数（若 `PRESERVE_ORDER=0` 则为重排后顺序）
+- **PE 计数语义**: Read ID 以 **单条 Read 记录** 计数（PE 总数 = 2 * Pairs）
 - 若需查询"原始第 N 条 Read"：
     1. 查询 Reorder Map (Forward) 得到 `archive_id`
     2. 二分查找 Block Index 找到包含该 `archive_id` 的 Block
@@ -329,7 +337,7 @@ struct ReorderMap {
 - **Forward Map**: 支持 `--range` 按原始 ID 范围解压
 - **Reverse Map**: 支持 `--original-order` 高效输出
 - **空间开销**: ~4 bytes/read（两个映射各 ~2 bytes/read）
-- **性能**: 两种查询方向都是 O(1) 随机访问（解压后）
+- **性能**: 映射解压到内存后两种查询方向都是 O(1)；若按需解码需额外块索引
 
 **查询流程**:
 1. 按归档顺序解压: 无需 Reorder Map
@@ -446,6 +454,7 @@ public:
 ### PE 压缩优化
 - 利用 R1/R2 的互补性：若 R2 与 R1 的反向互补相似，仅存储差异
 - Reordering 时保持配对关系：同时移动 (R1_i, R2_i)
+- **范围语义**: 所有范围/索引的 Read ID 以单条 Read 计数（PE 总数 = 2 * Pairs）
 
 ## Long Read 模式设计
 
@@ -600,8 +609,10 @@ struct MemoryBudget {
 ### 超大文件分治
 当文件超过内存预算时，自动启用分治模式：
 1. 将输入文件分割为 N 个 Chunk（每 Chunk 可放入内存）
-2. 每 Chunk 独立执行 Two-Phase 压缩
-3. Chunk 间不共享重排序上下文（压缩率略降 5-10%）
+2. 每 Chunk 独立执行 Two-Phase 压缩（仅在 Chunk 内重排序）
+3. 归档顺序按 Chunk 顺序串联，`archive_id` 全局连续
+4. Reorder Map 以 Chunk 为单位拼接并累加偏移，保证原始/归档 ID 可全局查询
+5. Chunk 间不共享重排序上下文（压缩率略降 5-10%）
 
 ## Development Phases
 

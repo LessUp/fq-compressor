@@ -133,6 +133,8 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   压缩文件必须按 **Block** 组织。
     -   支持通过 Block Index 快速定位并解压指定范围的 reads。
     -   解压语义："第 X 到 Y 条 Reads" 的编号以归档存储顺序为准（开启重排时按重排后的顺序）。
+    -   **PE 计数语义**: Read ID 以 **单条 Read 记录** 计数（PE 总数 = 2 * Pairs）。
+    -   Block Index 需包含 `header_size` 与 `entry_size` 以支持前向兼容。
 2.  **Requirement 2.2: 输出格式**: 支持解压为 `.fastq` 或直接流式输出到标准输出。
 3.  **Requirement 2.3: 部分解压 (Header-only / Column-selective)**:
     -   支持仅解压 header（Identifier Stream），用于快速预览/统计。
@@ -145,7 +147,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **Requirement 3.1: Lossless (Default)**: 无损保留所有质量值。
 2.  **Requirement 3.2: QVZ Lossy**: 支持 **QVZ** 算法进行有损压缩，提供 configurable compression ratio。
 3.  **Requirement 3.3: Illumina Binning**: 支持标准的 8-level binning。
-4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID）。
+4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID），解压时填充占位符质量值以保持 FASTQ 四行格式。
 
 ### Requirement 4: 高性能架构
 **User Story:** 用户希望充分利用多核 CPU，加速处理 massive datasets。
@@ -160,13 +162,14 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   Phase 1 (全局分析) 内存估算：~24 bytes/read（Minimizer 索引 + Reorder Map）。
     -   Phase 2 (分块压缩) 内存估算：~50 bytes/read × block_size。
     -   超大文件自动启用分治模式（Chunk-wise Compression）。
+    -   分治模式下 `archive_id` 必须全局连续，Reorder Map 需按 Chunk 拼接并累加偏移。
 
 ### Requirement 5: 数据完整性
 **User Story:** 数据安全第一，必须能检测损坏。
 
 #### Acceptance Criteria
 1.  **Requirement 5.1: Global Checksum**: 文件尾部包含全局 `xxhash64`。
-2.  **Requirement 5.2: Block Checksum**: 每个 Block 包含独立的 `xxhash64`，支持定位损坏块。
+2.  **Requirement 5.2: Block Checksum**: 每个 Block 包含独立的 `xxhash64`，对未压缩逻辑流 (ID/SEQ/QUAL/AUX) 计算，支持定位损坏块。
 3.  **Requirement 5.3: Verify Mode**: 提供单独的 `verify` 命令，不解压落盘即可验证文件完整性。
 4.  **Requirement 5.4: 校验顺序**: 推荐校验流程：
     1. 读取 Footer，验证 `magic_end`（快速检测格式）
@@ -233,7 +236,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     - **保守策略**: 不允许截断超长 reads，只要存在任何 read 超过 511bp，整个文件即归类为 Medium 或更高
     
     **流式模式选项**:
-    - `--streaming`: 强制启用流式模式（禁用全局重排序，支持 stdin）。
+    - `--streaming`: 强制启用流式模式（禁用全局/块内重排序，支持 stdin；强制 `--preserve-order` 且 `--no-save-reorder-map`）。
     - 当 `-i -` (stdin) 时自动启用，并发出警告。
 
     **decompress 子命令**:
