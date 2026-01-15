@@ -20,6 +20,7 @@ set(FQC_CORE_SOURCES
     format/fqc_writer.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
+    algo/global_analyzer.cpp
 )
 
 # Command sources

@@ -160,7 +160,7 @@
 
 ## Phase 2: Spring 核心算法集成 (**高风险阶段**)
 
-- [-] 7. Spring 代码分析与提取
+- [x] 7. Spring 代码分析与提取
   - [x] 7.1 分析 Spring 源码结构
     - 研究 `ref-projects/Spring/src/` 目录结构
     - 识别核心模块：Minimizer Bucketing, Reordering, Consensus/Delta, Arithmetic Coding
@@ -168,7 +168,7 @@
     - **重点关注**: 全局状态依赖、内存分配模式
     - _Requirements: 1.1.2_
 
-  - [-] 7.2 提取 Spring 核心算法
+  - [x] 7.2 提取 Spring 核心算法
     - 创建 `vendor/spring-core/` 目录
     - 提取 Minimizer Bucketing 相关代码
     - 提取 Reordering 算法代码
@@ -177,8 +177,8 @@
     - 审核并记录 Spring License 约束，确保与项目发布目标一致（非商用/自用学习）
     - _Requirements: 1.1.2, 1.1.3_
 
-- [~] 8. 两阶段压缩策略实现 (**核心任务**)
-  - [~] 8.1 实现 Phase 1: 全局分析模块
+- [-] 8. 两阶段压缩策略实现 (**核心任务**)
+  - [x] 8.1 实现 Phase 1: 全局分析模块
     - 创建 `include/fqc/algo/global_analyzer.h`
     - 实现 Minimizer 提取与索引构建
     - 实现全局 Bucketing
@@ -187,7 +187,7 @@
     - 内存估算: ~24 bytes/read
     - _Requirements: 1.1.2, 4.3_
 
-  - [~] 8.2 实现 Reorder Map 存储
+  - [-] 8.2 实现 Reorder Map 存储
     - 创建 `include/fqc/format/reorder_map.h`
     - 实现双向映射设计:
         - Forward Map: `original_id -> archive_id` (用于查询)
