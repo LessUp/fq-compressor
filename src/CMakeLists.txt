@@ -14,7 +14,20 @@
 
 # Collect source files for the core library
 set(FQC_CORE_SOURCES
+    common/error.cpp
     common/logger.cpp
+    format/fqc_reader.cpp
+    format/fqc_writer.cpp
+    io/fastq_parser.cpp
+    io/compressed_stream.cpp
+)
+
+# Command sources
+set(FQC_COMMAND_SOURCES
+    commands/compress_command.cpp
+    commands/decompress_command.cpp
+    commands/info_command.cpp
+    commands/verify_command.cpp
 )
 
 # Create the core library
@@ -40,6 +53,7 @@ target_link_libraries(fqc_core
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_shared>
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_static>
         libdeflate::libdeflate_shared
+        xxHash::xxhash
 )
 
 # =============================================================================
@@ -47,16 +61,16 @@ target_link_libraries(fqc_core
 # =============================================================================
 # Contains command-line interface logic and command implementations.
 
-add_library(fqc_cli INTERFACE)
+add_library(fqc_cli STATIC ${FQC_COMMAND_SOURCES})
 
 target_include_directories(fqc_cli
-    INTERFACE
+    PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
 )
 
 target_link_libraries(fqc_cli
-    INTERFACE
+    PUBLIC
         fqc_core
         CLI11::CLI11
 )
