@@ -1,3 +1,33 @@
+# =============================================================================
+# fq-compressor Clang-Tidy Configuration
+# =============================================================================
+# Static analysis rules based on fastq-tools with open-source friendly settings.
+# Requirement 7.4: Code quality tools
+#
+# Enabled check categories:
+#   - clang-diagnostic-*: Compiler diagnostics
+#   - bugprone-*: Bug-prone patterns
+#   - clang-analyzer-*: Static analyzer checks
+#   - cppcoreguidelines-*: C++ Core Guidelines
+#   - misc-*: Miscellaneous checks
+#   - modernize-*: Modern C++ idioms
+#   - performance-*: Performance improvements
+#   - portability-*: Portability issues
+#   - readability-*: Code readability
+#
+# Naming conventions (aligned with .clang-format):
+#   - Classes/Structs: PascalCase
+#   - Functions/Methods: camelCase
+#   - Variables/Parameters: camelCase
+#   - Private/Protected members: camelCase with trailing _
+#   - Constants: kCamelCase
+#   - Namespaces: lower_case
+#   - Macros: UPPER_CASE
+#
+# Usage:
+#   clang-tidy -p build <file>       # Run analysis
+#   clang-tidy --fix -p build <file> # Auto-fix issues
+# =============================================================================
 Checks:          '-*,
                    clang-diagnostic-*,
                    bugprone-*,

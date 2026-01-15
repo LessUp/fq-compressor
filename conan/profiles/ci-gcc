@@ -1,0 +1,23 @@
+# Conan 2.x CI GCC Profile for fq-compressor
+# =============================================================================
+# GCC profile optimized for CI environments (GitHub Actions).
+# Uses system GCC and conservative settings for reproducibility.
+#
+# Usage (CI):
+#   conan install . --profile=conan/profiles/ci-gcc --build=missing
+# =============================================================================
+
+[settings]
+os=Linux
+arch=x86_64
+compiler=gcc
+compiler.version=13
+compiler.libcxx=libstdc++11
+compiler.cppstd=20
+build_type=Release
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+# Limit parallel jobs in CI to avoid resource exhaustion
+tools.build:jobs=2
+tools.build:skip_test=True

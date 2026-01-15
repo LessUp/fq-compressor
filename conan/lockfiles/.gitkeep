@@ -1,0 +1,5 @@
+# This directory stores Conan lockfiles for reproducible builds.
+# Lockfiles are generated with:
+#   conan lock create . --profile=conan/profiles/default --lockfile-out=conan/lockfiles/conan.lock
+#
+# Note: Lockfiles should be regenerated when dependencies change.

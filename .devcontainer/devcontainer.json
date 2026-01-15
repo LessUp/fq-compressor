@@ -1,4 +1,20 @@
 {
+    // =========================================================================
+    // fq-compressor Dev Container Configuration
+    // =========================================================================
+    // Requirement 7.6: Containerized development environment
+    //
+    // Recommended Development Environment:
+    //   - GCC 15 + libstdc++ (production builds)
+    //   - Clang 21 + libc++ (development/debugging)
+    //   - CMake 4.x
+    //   - Conan 2.x
+    //
+    // Usage:
+    //   1. Open VS Code in WSL2 (recommended)
+    //   2. Use "Reopen in Container" command
+    //   3. Build with: cmake --preset clang-debug && cmake --build --preset clang-debug
+    // =========================================================================
     "name": "fq-compressor Dev",
     "dockerComposeFile": [
         "../docker/docker-compose.yml"

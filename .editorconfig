@@ -1,4 +1,11 @@
 # EditorConfig - https://editorconfig.org
+# =============================================================================
+# fq-compressor Editor Configuration
+# =============================================================================
+# This file ensures consistent coding styles across different editors and IDEs.
+# Requirement 7.3: Code style enforcement
+# =============================================================================
+
 root = true
 
 # 全局默认配置
@@ -35,7 +42,7 @@ indent_size = 2
 indent_style = space
 indent_size = 4
 
-# C/C++ 源文件
+# C/C++ 源文件 (aligned with .clang-format)
 [*.{c,cc,cpp,cxx,h,hh,hpp,hxx,inl,ipp}]
 charset = utf-8
 indent_style = space
@@ -66,7 +73,28 @@ indent_size = 4
 indent_style = space
 indent_size = 4
 
+# Conan profiles
+[conan/profiles/*]
+indent_style = space
+indent_size = 4
+
 # Docker 文件
 [Dockerfile*]
 indent_style = space
 indent_size = 4
+
+# GitHub Actions workflows
+[.github/workflows/*.yml]
+indent_style = space
+indent_size = 2
+
+# VS Code settings
+[.vscode/*.json]
+indent_style = space
+indent_size = 4
+
+# Dev Container configuration
+[.devcontainer/*.json]
+indent_style = space
+indent_size = 4
+

@@ -1,0 +1,26 @@
+# Conan 2.x Default Profile for fq-compressor
+# =============================================================================
+# This profile ensures reproducible builds across local development and CI.
+#
+# Usage:
+#   conan install . --profile=conan/profiles/default --build=missing
+#
+# For CI, use the specific compiler profiles (gcc or clang).
+# =============================================================================
+
+[settings]
+os=Linux
+arch=x86_64
+compiler=gcc
+compiler.version=15
+compiler.libcxx=libstdc++11
+compiler.cppstd=20
+build_type=Release
+
+[conf]
+# Use Ninja as the default generator for faster builds
+tools.cmake.cmaketoolchain:generator=Ninja
+# Enable parallel builds
+tools.build:jobs={{os.cpu_count()}}
+# Skip test packages during install
+tools.build:skip_test=True
