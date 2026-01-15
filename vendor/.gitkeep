@@ -1,0 +1,9 @@
+# Third-party dependencies (vendored)
+# This directory contains vendored third-party code.
+#
+# Planned contents:
+#   - spring-core/   - Extracted Spring ABC algorithm core (Phase 2)
+#
+# Note: Most dependencies are managed via Conan 2.x.
+# Only code that requires modification or is not available via Conan
+# should be vendored here.

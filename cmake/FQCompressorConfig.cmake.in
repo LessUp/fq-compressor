@@ -1,0 +1,34 @@
+# =============================================================================
+# FQCompressorConfig.cmake.in
+# =============================================================================
+# CMake package configuration file for fq-compressor
+#
+# This file is processed by configure_package_config_file() to generate
+# FQCompressorConfig.cmake, which can be used by other CMake projects to
+# find and use fq-compressor.
+#
+# Usage in consuming projects:
+#   find_package(FQCompressor CONFIG REQUIRED)
+#   target_link_libraries(my_target PRIVATE FQCompressor::fqc_core)
+# =============================================================================
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(CLI11 CONFIG)
+find_dependency(quill CONFIG)
+find_dependency(fmt CONFIG)
+find_dependency(ZLIB)
+find_dependency(BZip2)
+find_dependency(LibLZMA)
+find_dependency(zstd CONFIG)
+find_dependency(libdeflate CONFIG)
+find_dependency(TBB CONFIG)
+
+# Include the targets file
+include("${CMAKE_CURRENT_LIST_DIR}/FQCompressorTargets.cmake")
+
+# Check that all required components are found
+check_required_components(FQCompressor)

@@ -24,26 +24,26 @@
 
 ## Phase 1: Skeleton & Format (项目骨架与格式定义)
 
-- [ ] 1. 项目初始化与构建系统搭建
-  - [ ] 1.1 创建项目目录结构
+- [-] 1. 项目初始化与构建系统搭建
+  - [x] 1.1 创建项目目录结构
     - 创建项目根目录结构
     - 创建 `include/fqc/`, `src/`, `tests/`, `vendor/` 目录
     - 创建 `.clang-format`, `.clang-tidy` 配置文件
     - _Requirements: 7.1, 7.3_
 
-  - [ ] 1.2 配置 CMake 构建系统
+  - [x] 1.2 配置 CMake 构建系统
     - 创建根 `CMakeLists.txt`，设置 C++20 标准
     - 配置编译选项 (warnings, sanitizers)
     - 创建 `cmake/` 目录存放 Find 模块
     - _Requirements: 7.1_
 
-  - [ ] 1.3 配置 Conan 依赖管理
+  - [-] 1.3 配置 Conan 依赖管理
     - 创建 `conanfile.py` 或 `conanfile.txt`
     - 添加依赖：CLI11, Quill, xxHash, TBB, GTest, RapidCheck
     - 配置 CMake 集成
     - _Requirements: 7.2_
 
-  - [ ] 1.4 工程化规范落地
+  - [~] 1.4 工程化规范落地
     - 固化 `.clang-format/.clang-tidy/.editorconfig`（基于 fastq-tools，针对开源友好做裁剪）
     - 配置 `CMakePresets.json`，统一本地/CI 构建入口
     - 生成 Conan profile + lockfile，确保依赖可复现
@@ -51,34 +51,34 @@
     - 定义 CI 基线：格式检查、静态分析、单元测试
     - _Requirements: 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 2. 基础设施模块实现
-  - [ ] 2.1 实现 Logger 模块 (Quill)
+- [~] 2. 基础设施模块实现
+  - [~] 2.1 实现 Logger 模块 (Quill)
     - 创建 `include/fqc/common/logger.h`
     - 创建 `src/common/logger.cpp`
     - 实现 `fqc::log::init()` 和全局 logger 访问
     - _Requirements: 4.2_
 
-  - [ ] 2.2 实现通用类型定义
+  - [~] 2.2 实现通用类型定义
     - 创建 `include/fqc/common/types.h`
     - 定义 `ReadRecord`, `QualityMode`, `IDMode` 等核心类型
     - 使用 C++20 Concepts 约束模板
     - _Requirements: 7.3_
 
-  - [ ] 2.3 实现错误处理框架
+  - [~] 2.3 实现错误处理框架
     - 创建 `include/fqc/common/error.h`
     - 定义 `FQCException` 层次结构
     - 实现 `Result<T, E>` 类型 (或使用 std::expected)
     - _Requirements: 7.3_
 
-- [ ] 3. FQC 文件格式实现
-  - [ ] 3.1 定义格式常量与数据结构
+- [~] 3. FQC 文件格式实现
+  - [~] 3.1 定义格式常量与数据结构
     - 创建 `include/fqc/format/fqc_format.h`
     - 定义 Magic Header (`0x89 'F' 'Q' 'C' ...`)
     - 定义 `GlobalHeader`, `BlockHeader`, `BlockIndex`, `IndexEntry`, `FileFooter` 结构体
     - BlockIndex 需包含 `header_size` 与 `entry_size` 以支持前向兼容
     - _Requirements: 2.1, 5.1, 5.2_
 
-  - [ ] 3.2 实现 FQCWriter 类
+  - [~] 3.2 实现 FQCWriter 类
     - 创建 `include/fqc/format/fqc_writer.h` 和 `src/format/fqc_writer.cpp`
     - 实现 `write_global_header()`, `write_block()`, `finalize()`
     - 实现 Block Index 构建和写入
@@ -87,7 +87,7 @@
     - **实现信号处理**: 捕获 SIGINT/SIGTERM，清理临时文件
     - _Requirements: 2.1, 5.1, 5.2, 8.1, 8.2_
 
-  - [ ] 3.3 实现 FQCReader 类
+  - [~] 3.3 实现 FQCReader 类
     - 创建 `include/fqc/format/fqc_reader.h` 和 `src/format/fqc_reader.cpp`
     - 实现 `read_global_header()`, `read_block()`, `read_index()`
     - 实现随机访问：`seek_to_block()`, `get_reads_range()`, Reorder Map lookup (for original ID)
@@ -96,31 +96,31 @@
     - 实现校验和验证（Block 校验基于未压缩逻辑流）
     - _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2_
 
-  - [ ] 3.4 编写格式读写属性测试
+  - [~] 3.4 编写格式读写属性测试
     - **Property 1: FQC 格式往返一致性**
     - *For any* 有效的 GlobalHeader 和 BlockData 序列，写入后读取应产生等价数据
     - **Validates: Requirements 2.1, 5.1, 5.2**
 
-- [ ] 4. FASTQ 解析器实现
-  - [ ] 4.1 实现 FASTQ 解析器核心
+- [~] 4. FASTQ 解析器实现
+  - [~] 4.1 实现 FASTQ 解析器核心
     - 创建 `include/fqc/io/fastq_parser.h` 和 `src/io/fastq_parser.cpp`
     - 实现流式解析，支持分块读取
     - 处理 4 行格式 (ID, Seq, +, Qual)
     - _Requirements: 1.1.1_
 
-  - [ ] 4.2 实现压缩输入支持 (Phase 1: gzip)
+  - [~] 4.2 实现压缩输入支持 (Phase 1: gzip)
     - 创建 `include/fqc/io/compressed_stream.h`
     - 集成 libdeflate 或 zlib 进行 gzip 解压
     - 实现透明的压缩格式检测
     - _Requirements: 1.1.1_
 
-  - [ ] 4.3 编写 FASTQ 解析属性测试
+  - [~] 4.3 编写 FASTQ 解析属性测试
     - **Property 2: FASTQ 解析往返一致性**
     - *For any* 有效的 FASTQ 记录序列，解析后重新格式化应产生等价输出
     - **Validates: Requirements 1.1.1**
 
-- [ ] 5. CLI 框架实现
-  - [ ] 5.1 实现 CLI 主入口
+- [~] 5. CLI 框架实现
+  - [~] 5.1 实现 CLI 主入口
     - 创建 `src/main.cpp`
     - 使用 CLI11 配置子命令：`compress`, `decompress`, `info`, `verify`
     - 实现全局选项：`-t/--threads`, `-v/--verbose`, `--memory-limit`
@@ -128,7 +128,7 @@
     - **实现 stdin 检测**: stdin 输入时自动启用流式模式并发出警告
     - _Requirements: 6.1, 6.2, 6.3_
 
-  - [ ] 5.2 实现 CompressCommand 框架
+  - [~] 5.2 实现 CompressCommand 框架
     - 创建 `src/commands/compress_command.h/cpp`
     - 解析压缩相关选项：`-i`, `-o`, `-l`, `--reorder`, `--lossy-quality`
     - 添加 `--streaming` 选项支持流式模式
@@ -136,21 +136,21 @@
     - 预留压缩引擎调用接口
     - _Requirements: 6.2_
 
-  - [ ] 5.3 实现 DecompressCommand 框架
+  - [~] 5.3 实现 DecompressCommand 框架
     - 创建 `src/commands/decompress_command.h/cpp`
     - 解析解压选项：`-i`, `-o`, `--range`, `--header-only`
     - 添加 `--skip-corrupted` 和 `--corrupted-placeholder` 选项
     - 预留解压引擎调用接口
     - _Requirements: 6.2, 8.5_
 
-  - [ ] 5.4 实现 InfoCommand 和 VerifyCommand
+  - [~] 5.4 实现 InfoCommand 和 VerifyCommand
     - 创建 `src/commands/info_command.h/cpp`
     - 创建 `src/commands/verify_command.h/cpp`
     - Info: 显示归档元数据
     - Verify: 校验文件完整性
     - _Requirements: 5.3, 6.2_
 
-- [ ] 6. Checkpoint - Phase 1 验证
+- [~] 6. Checkpoint - Phase 1 验证
   - 确保所有测试通过
   - 验证 CLI 框架可正常解析参数
   - 验证 FQC 格式读写基本功能

@@ -61,13 +61,13 @@
             "name": "conan-gcc-base",
             "hidden": true,
             "inherits": "gcc-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/conan_toolchain.cmake"
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
         },
         {
             "name": "conan-clang-base",
             "hidden": true,
             "inherits": "clang-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/conan_toolchain.cmake"
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
         },
         {
             "name": "gcc-debug",
