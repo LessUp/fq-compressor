@@ -64,7 +64,32 @@ graph TD
 
 # 运行测试
 ./scripts/test.sh -c clang -t Release
+
+# 压缩示例
+./build/fq-compressor compress input.fastq -o output.fqc
+
+# 解压示例
+./build/fq-compressor decompress input.fqc -o output.fastq
 ```
+
+### 命令行接口 (CLI)
+
+| 命令 | 用途 |
+|------|------|
+| `compress` | FASTQ 压缩 |
+| `decompress` | FQC 解压 |
+| `info` | 文件统计信息 |
+| `verify` | 完整性验证 |
+
+### 常用参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-i, --input` | 输入文件 | 必填 |
+| `-o, --output` | 输出文件 | 必填 |
+| `-t, --threads` | 并行线程数 | CPU 核心数 |
+| `--memory-limit` | 内存限制 (MB) | 8192 |
+| `-l, --level` | 压缩级别 | 5 |
 
 ### 主要依赖
 
@@ -76,6 +101,17 @@ graph TD
 | zlib-ng / zstd / libdeflate | 通用压缩后端 |
 | fmt | 格式化库 |
 
+### 依赖版本 (Conan)
+
+| 依赖 | 版本 | 用途 |
+|------|------|------|
+| cli11 | 2.4.2 | CLI 解析 |
+| quill | 11.0.2 | 日志 |
+| onetbb | 2022.3.0 | 并行处理 |
+| zlib-ng | 2.3.2 | 压缩 |
+| zstd | 1.5.7 | 压缩 |
+| libdeflate | 1.25 | 压缩 |
+
 ## 测试策略
 
 项目设计阶段，测试策略将在实现阶段确定。计划使用：
@@ -84,6 +120,40 @@ graph TD
 - **属性测试**: 用于格式往返一致性验证
 - **性能基准**: 自定义基准测试框架
 - **集成测试**: 端到端压缩/解压验证
+
+## FQC 格式设计
+
+FQC 是项目的自定义压缩格式，支持随机访问：
+
+```
+┌─────────────────────────────────────────────┐
+│  File Header (64 bytes)                      │
+├─────────────────────────────────────────────┤
+│  Block 1 (e.g., 10MB)                        │
+│  ├─ Block Header (32 bytes)                  │
+│  ├─ ID Stream (Delta + Tokenized)            │
+│  ├─ Sequence Stream (ABC Encoded)            │
+│  └─ Quality Stream (SCM Encoded)             │
+├─────────────────────────────────────────────┤
+│  Block 2                                     │
+├─────────────────────────────────────────────┤
+│  ...                                         │
+├─────────────────────────────────────────────┤
+│  Reorder Map (Optional)                      │
+├─────────────────────────────────────────────┤
+│  Block Index                                 │
+├─────────────────────────────────────────────┤
+│  File Footer (32 bytes)                      │
+└─────────────────────────────────────────────┘
+```
+
+### Read 长度分类
+
+| 类型 | 条件 | 压缩策略 |
+|------|------|----------|
+| **Short** | max <= 511 且 median < 1KB | Spring ABC + 全局重排序 |
+| **Medium** | max > 511 或 1KB <= median < 10KB | Zstd，禁用重排序 |
+| **Long** | median >= 10KB 或 max >= 10KB | Zstd，禁用重排序 |
 
 ## 编码规范
 
@@ -147,6 +217,47 @@ Total: 12-17 周 (约 3-4 个月)
 - **fqzcomp5**: 质量分数压缩模型
 - **fastq-tools**: 高性能 C++ 框架和 I/O
 - **pigz**: 并行实现参考
+
+## 常见问题 (FAQ)
+
+### Q: 项目目前处于什么阶段？
+
+A: 设计阶段。所有设计文档已完成评审，尚未开始编码实现。
+
+### Q: 为什么选择 Spring ABC 而非其他算法？
+
+A: Spring 的 ABC 策略在短读数据上能达到接近有参考压缩的比率，同时保持无参考的灵活性。
+
+### Q: 如何处理长读数据？
+
+A: 长读数据（max > 511bp）会自动切换到 Zstd 压缩策略，因为 Spring ABC 对长读收益有限。
+
+### Q: 项目许可证是什么？
+
+A: 计划使用 MIT 许可证，但 Spring 依赖可能导致非商业限制（待最终确认）。
+
+## 相关文件清单
+
+### 设计文档
+
+- `docs/01_feasibility_analysis.md` - 可行性分析
+- `docs/02_strategy_evaluation.md` - 策略评估
+- `docs/03_algorithm_selection.md` - 算法选择
+- `docs/reivew/*.md` - 设计评审报告
+
+### 构建配置
+
+- `CMakePresets.json` - CMake 预设
+- `conanfile.py` - Conan 依赖配置
+- `.clang-format` - 代码格式
+- `.clang-tidy` - 静态检查
+- `.github/workflows/` - CI/CD 配置
+
+### 开发脚本
+
+- `scripts/build.sh` - 构建脚本
+- `scripts/test.sh` - 测试脚本
+- `scripts/lint.sh` - 代码检查脚本
 
 ## 变更记录
 
