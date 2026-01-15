@@ -358,19 +358,20 @@
 - [ ] 18. 长读支持
   - [ ] 18.1 实现长读检测
     - 采样前 1000 条 Reads 计算 median 和 max length
-    - 三级分类阈值 (优先级从高到低):
-        1. max_length >= 100KB → LONG (Ultra-long)
+    - 分类判定（按优先级从高到低，严格按此顺序）:
+        1. max_length >= 100KB → LONG (Ultra-long 策略)
         2. max_length >= 10KB → LONG
         3. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
         4. median >= 1KB → MEDIUM
         5. 其余 → SHORT
+    - **保守策略**: 不允许截断超长 reads，只要存在任何 read 超过 511bp，整个文件即归类为 MEDIUM 或更高
     - 支持 `--long-read-mode <auto|short|medium|long>` 参数覆盖
     - _Requirements: 1.1.3_
 
   - [ ] 18.2 实现长读压缩策略
-    - **Short (max <= 511)**: ABC + 全局 Reordering，Block Size 100K
-    - **Medium (max > 511 或 1KB <= median < 10KB)**: Zstd fallback (推荐)，禁用 Reordering，Block Size 50K
-    - **Long (median >= 10KB)**: **Zstd (推荐首选)**，禁用 Reordering，Block Size 10K
+    - **Short (max <= 511 且 median < 1KB)**: ABC + 全局 Reordering，Block Size 100K
+    - **Medium (max > 511 或 median >= 1KB)**: Zstd，禁用 Reordering，Block Size 50K
+    - **Long (max >= 10KB)**: Zstd，禁用 Reordering，Block Size 10K
     - **Ultra-long (max >= 100KB)**: 强制 Zstd，Block Size 10K，并启用 `max_block_bases` 上限
     - Quality: Long Read 使用 SCM Order-1（降低内存）
     - **关键约束**: Spring ABC 仅用于 max_length <= 511 的数据，超过则必须使用 Zstd
@@ -618,14 +619,16 @@ Streaming Mode Compression:
 
 ## Appendix D: Read 长度分类参考
 
-### D.1 分类阈值
-| 分类 | Median Length | 典型数据类型 |
-|------|---------------|--------------|
-| Short | < 1KB 且 max <= 511 | Illumina (50-300bp) |
-| Medium | 1KB - 10KB 或 max > 511 | PacBio HiFi, Illumina Long |
-| Long | >= 10KB | Nanopore, PacBio CLR |
+### D.1 分类判定（按优先级从高到低）
+| 优先级 | 判定条件 | 分类 | 典型数据类型 |
+|--------|----------|------|--------------|
+| 1 | max >= 100KB | Long (Ultra-long) | Nanopore Ultra-long |
+| 2 | max >= 10KB | Long | Nanopore, PacBio CLR |
+| 3 | max > 511 | Medium | PacBio HiFi, 混合数据 |
+| 4 | median >= 1KB | Medium | PacBio HiFi |
+| 5 | 其余 | Short | Illumina (50-300bp) |
 
-> Ultra-long: max >= 100KB，仍归类为 Long，但需要更保守的块大小与 Zstd 策略。
+> **保守策略**: 不允许截断超长 reads。只要存在任何 read 超过 511bp，整个文件即归类为 Medium 或更高，确保数据完整性。
 
 ### D.2 各分类压缩策略
 ```cpp
@@ -638,14 +641,17 @@ struct CompressionStrategy {
 };
 
 const CompressionStrategy STRATEGIES[] = {
-    // Short (max <= 511): Spring ABC + 全局 Reordering
+    // Short (max <= 511 且 median < 1KB): Spring ABC + 全局 Reordering
     {SHORT, true, 100000, 2, CODEC_ABC_V1},
-    // Medium (max > 511 或 1KB <= median < 10KB): Zstd fallback，禁用 Reordering
+    // Medium (max > 511 或 median >= 1KB): Zstd，禁用 Reordering
     {MEDIUM, false, 50000, 2, CODEC_ZSTD_PLAIN},
-    // Long (median >= 10KB): Zstd 或 Overlap-based，禁用 Reordering
-    {LONG, false, 10000, 1, CODEC_ZSTD_PLAIN},  // 或 CODEC_OVERLAP_V1
+    // Long (max >= 10KB): Zstd，禁用 Reordering
+    {LONG, false, 10000, 1, CODEC_ZSTD_PLAIN},
+    // Ultra-long (max >= 100KB): 强制 Zstd + max_block_bases 限制
+    // 仍使用 LONG 枚举，但应用更保守的参数
 };
 
 // 关键约束: Spring ABC (CODEC_ABC_V1) 仅用于 max_length <= 511 的数据
 // 超过 511bp 必须使用 CODEC_ZSTD_PLAIN 或其他通用压缩
+// 不允许截断 reads 以适配 Spring ABC
 ```
