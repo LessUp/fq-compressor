@@ -113,8 +113,23 @@ fqc_add_test(placeholder_test
 # =============================================================================
 
 if(rapidcheck_FOUND)
-    # Property-based tests will be added as modules are implemented
     message(STATUS "Property-based testing enabled with RapidCheck")
+    
+    # FQC Format Property Tests
+    # **Property 1: FQC 格式往返一致性**
+    # Validates: Requirements 2.1, 5.1, 5.2
+    fqc_add_test(fqc_format_property_test
+        SOURCES format/fqc_format_property_test.cpp
+        PROPERTY_BASED
+    )
+    
+    # FASTQ Parser Property Tests
+    # **Property 2: FASTQ 解析往返一致性**
+    # Validates: Requirements 1.1.1
+    fqc_add_test(fastq_parser_property_test
+        SOURCES io/fastq_parser_property_test.cpp
+        PROPERTY_BASED
+    )
 endif()
 
 # =============================================================================
