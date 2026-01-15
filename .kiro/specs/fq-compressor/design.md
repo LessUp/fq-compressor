@@ -26,6 +26,26 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 | 测试框架 | Google Test + RapidCheck | 单元测试 + 属性测试 |
 | 依赖管理 | Conan 2.x | 依赖包管理 |
 
+## 工程化与编码规范
+
+目标：在保持 fastq-tools 成熟工程化体系的基础上，形成开源社区可接受、可复现的工程规范。
+
+1.  **代码风格**
+    - 使用 `.clang-format` 自动格式化（4 空格缩进、列宽 100、严格的 include 分组）。
+    - 命名约定：文件/目录 `snake_case`；类/结构体 `PascalCase`；函数/变量 `camelCase`；成员变量尾部 `_`；常量 `kConstant`；命名空间 `snake_case`。
+    - 返回类型：默认采用常规返回类型；仅在模板或复杂返回类型时使用尾随返回类型，避免强制风格引发争议。
+2.  **工具链与质量控制**
+    - `clang-format` + `clang-tidy` 作为最低基线；静态分析与格式检查纳入 CI。
+    - 统一脚本入口（`scripts/lint.sh`, `scripts/test.sh`），避免工具分散。
+3.  **构建与依赖管理**
+    - Modern CMake（target-based）+ `CMakePresets.json`，确保本地/CI 构建一致。
+    - Conan 2.x 使用 profile + lockfile 固化依赖版本，避免不可复现的升级。
+4.  **容器化开发**
+    - 提供 Dev Container（GCC/Clang/CMake/Conan 版本对齐），保证跨平台一致性。
+5.  **工程化流程**
+    - Git 提交遵循 Conventional Commits（英文），每个提交只做一件事。
+    - CI 至少包含：格式检查、静态分析、单元测试、基础构建。
+
 ## Architecture
 
 ### 系统架构图
