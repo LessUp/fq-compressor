@@ -1,34 +1,72 @@
+# EditorConfig - https://editorconfig.org
 root = true
 
+# 全局默认配置
 [*]
+charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
 
+# Markdown 文件保留尾部空格（用于换行）
 [*.md]
 trim_trailing_whitespace = false
 
+# Shell 脚本
 [*.sh]
 charset = utf-8
 indent_style = space
 indent_size = 4
 
+# JSON 配置文件
 [*.json]
 indent_style = space
 indent_size = 4
 
-[*.yaml]
+# YAML 配置文件
+[*.{yaml,yml}]
 indent_style = space
 indent_size = 2
 
-[*.{c++,cc,cpp,cxx,h,h++,hh,hpp,hxx,inl,ipp,tlh,tli}]
+# CMake 文件
+[{CMakeLists.txt,*.cmake}]
+indent_style = space
+indent_size = 4
+
+# C/C++ 源文件
+[*.{c,cc,cpp,cxx,h,hh,hpp,hxx,inl,ipp}]
 charset = utf-8
 indent_style = space
 indent_size = 4
 cpp_indent_braces = false
+max_line_length = 100
 
+# Python 文件
+[*.py]
+charset = utf-8
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+# JavaScript/TypeScript
 [*.{js,jsx,ts,tsx}]
 charset = utf-8
-end_of_line = lf
+indent_style = space
+indent_size = 4
+
+# Makefile 必须使用 Tab
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+# Conan 配置
+[conanfile.*]
+indent_style = space
+indent_size = 4
+
+# Docker 文件
+[Dockerfile*]
 indent_style = space
 indent_size = 4

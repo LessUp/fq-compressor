@@ -1,0 +1,91 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # 通用文件检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # C++ 代码格式化
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format
+        description: Format C++ code with clang-format
+        entry: bash -c 'clang-format -i "$@" || clang-format-19 -i "$@"' --
+        language: system
+        files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$'
+        exclude: '^(vendor|ref-projects)/'
+
+      - id: clang-format-check
+        name: clang-format-check
+        description: Check C++ code formatting
+        entry: bash -c 'clang-format --dry-run --Werror "$@" || clang-format-19 --dry-run --Werror "$@"' --
+        language: system
+        files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$'
+        exclude: '^(vendor|ref-projects)/'
+        stages: [manual]
+
+  # CMake 格式检查
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        args: ['--in-place']
+        exclude: '^(vendor|ref-projects|build)/'
+
+  # Shell 脚本检查
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+
+  # Python 代码格式化 (conanfile.py 等)
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3
+        files: '\.py$'
+
+  # Commit message 格式检查
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # clang-tidy (手动触发，因为需要 compile_commands.json)
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        description: Run clang-tidy static analysis
+        entry: ./scripts/lint.sh lint
+        language: script
+        files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$'
+        exclude: '^(vendor|ref-projects)/'
+        stages: [manual]
+        pass_filenames: false
+
+# 默认阶段配置
+default_stages: [commit]
+
+# CI 配置
+ci:
+  autofix_commit_msg: 'style: auto-fix by pre-commit hooks'
+  autoupdate_commit_msg: 'chore: update pre-commit hooks'

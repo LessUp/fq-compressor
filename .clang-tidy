@@ -9,15 +9,12 @@ Checks:          '-*,
                    portability-*,
                    readability-*,
                    -bugprone-easily-swappable-parameters,
-                   -cppcoreguidelines-avoid-magic-numbers,
                    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
                    -cppcoreguidelines-pro-bounds-constant-array-index,
                    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
                    -misc-non-private-member-variables-in-classes,
                    -modernize-use-trailing-return-type,
-                   -readability-function-cognitive-complexity,
                    -readability-identifier-length,
-                   -readability-magic-numbers,
                    '
 HeaderFilterRegex: '^(.*[/\\])?(src|include|tests)/.*\.(h|hh|hpp|hxx|ipp|inl|c|cc|cpp|cxx)$'
 CheckOptions:
@@ -77,3 +74,13 @@ CheckOptions:
     value:           false
   - key:             readability-function-cognitive-complexity.Threshold
     value:           25
+  - key:             readability-magic-numbers.IgnoredIntegerValues
+    value:           '0;1;2;4;8;16;32;64;128;256;512;1024'
+  - key:             readability-magic-numbers.IgnoredFloatingPointValues
+    value:           '0.0;1.0;0.5;100.0'
+  - key:             readability-magic-numbers.IgnorePowersOf2IntegerValues
+    value:           true
+  - key:             readability-magic-numbers.IgnoreAllFloatingPointValues
+    value:           false
+  - key:             cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value:           '0;1;2;4;8;16;32;64;128;256;512;1024'
