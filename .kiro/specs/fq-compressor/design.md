@@ -102,8 +102,16 @@ Phase 2: Block-wise Compression (分块压缩)
 - **随机访问**: Phase 2 的 Block 独立性保证 O(1) 随机访问
 - **内存控制**: Phase 1 仅需 O(N) 的 Minimizer 索引，Phase 2 内存受 Block 大小限制
 
+**流式模式 (Streaming Mode)**:
+当输入来自 stdin 或显式指定 `--streaming` 时，跳过 Phase 1 的全局分析：
+- 禁用全局重排序（`PRESERVE_ORDER=1`）
+- 仅做 Block 内局部优化
+- 压缩率降低约 10-20%，但支持流式处理
+- 自动设置 `STREAMING_MODE` 标志位
+
 **Reorder Map 存储**:
 - 若 `PRESERVE_ORDER=0`，Reorder Map 作为可选元数据存入文件（位于 Block Index 之前）
+- 采用双向映射设计，支持正向查询和反向输出
 - 支持用户查询"原始第 N 条 Read 在归档中的位置"
 
 ## Archive Format Design (.fqc)
@@ -143,7 +151,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 - `Flags` (uint64): 扩展为 64 位，预留更多空间
     - bit 0: `IS_PAIRED`: 配对端数据
     - bit 1: `PRESERVE_ORDER`: 是否保留原始 Reads 顺序 (0=Reordered, 1=Original)
-    - bit 2: `LONG_READ_MODE`: 长读模式
+    - bit 2: `LONG_READ_MODE`: 长读模式（已废弃，使用 bit 10-11 READ_LENGTH_CLASS）
     - bit 3-4: `QUALITY_MODE`:
         - 00: Lossless (Default)
         - 01: Illumina Binning 8
@@ -154,11 +162,17 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
         - 01: Tokenized/Reconstruct (Split static/dynamic parts)
         - 10: Discard/Indexed (Replace with 1,2,3...)
     - bit 7: `HAS_REORDER_MAP`: 是否包含 Reorder Map（用于原始顺序回溯）
-    - bit 8-9: `PE_LAYOUT`: Paired-End 布局
-        - 00: Single-End
-        - 01: Interleaved (R1, R2 交替存储)
-        - 10: Consecutive (所有 R1 后跟所有 R2)
-    - bit 10-63: Reserved
+    - bit 8-9: `PE_LAYOUT`: Paired-End 布局（**仅当 IS_PAIRED=1 时有效**）
+        - 00: Interleaved (默认，R1/R2 交替存储)
+        - 01: Consecutive (所有 R1 后跟所有 R2)
+        - 10-11: Reserved
+    - bit 10-11: `READ_LENGTH_CLASS`: Read 长度分类
+        - 00: Short (median < 1KB，使用 ABC + 全局 Reordering)
+        - 01: Medium (1KB <= median < 10KB，使用 ABC + 可选 Reordering)
+        - 10: Long (median >= 10KB，禁用 Reordering)
+        - 11: Reserved
+    - bit 12: `STREAMING_MODE`: 流式压缩模式（禁用全局重排序）
+    - bit 13-63: Reserved
 - `CompressionAlgo` (uint8): 主要策略族 ID（用于兼容/快速识别；具体以每个 BlockHeader 的 codec_* 为准）
 - `ChecksumType` (uint8): 校验算法（默认：xxhash64；预留升级空间）
 - `TotalReadCount` (uint64): 总 Read 数量（用于快速统计和进度显示）
@@ -187,27 +201,30 @@ struct BlockHeader {
     uint32_t header_size;         // BlockHeader total size (bytes), for forward compatibility
     uint32_t block_id;
     uint8_t  checksum_type;       // Same domain as GlobalHeader.ChecksumType
-    uint8_t  codec_id;            // e.g., 0x10 = Family 1, Version 0 (Delta + LZMA)
+    uint8_t  codec_id;            // e.g., 0x30 = Family 3, Version 0 (Delta + LZMA)
     uint8_t  codec_seq;           // e.g., 0x10 = Family 1, Version 0 (Spring ABC + Arithmetic)
-    uint8_t  codec_qual;          // e.g., 0x10 = Family 1, Version 0 (SCM + Arithmetic)
+    uint8_t  codec_qual;          // e.g., 0x20 = Family 2, Version 0 (SCM + Arithmetic)
+    uint8_t  codec_aux;           // e.g., 0x50 = Family 5, Version 0 (Delta + Varint for lengths)
+    uint8_t  reserved1;           // Padding for alignment
+    uint16_t reserved2;           // Padding for alignment
     uint64_t block_xxhash64;
     uint32_t uncompressed_count;  // Number of reads in this block
-    uint32_t reserved;            // Padding for alignment
+    uint32_t uniform_read_length; // If all reads same length, store here; 0 = variable (use Aux)
     uint64_t compressed_size;     // Total compressed payload size (bytes)
     
     // Stream Offsets (Relative to Payload Start) - 使用 uint64_t 支持大 Block
     uint64_t offset_id;
     uint64_t offset_seq;
     uint64_t offset_qual;
-    uint64_t offset_aux;          // Optional (e.g., Read lengths if variable)
+    uint64_t offset_aux;          // Read lengths if variable (size_aux > 0)
     
     // Stream Sizes (Compressed) - 便于选择性解码
     uint64_t size_id;
     uint64_t size_seq;
     uint64_t size_qual;
-    uint64_t size_aux;
+    uint64_t size_aux;            // 0 = uniform length (use uniform_read_length)
 };
-// Total: 4 + 4 + 1 + 1 + 1 + 1 + 8 + 4 + 4 + 8 + (8*4) + (8*4) = 100 bytes
+// Total: 4 + 4 + 1 + 1 + 1 + 1 + 1 + 1 + 2 + 8 + 4 + 4 + 8 + (8*4) + (8*4) = 104 bytes
 ```
 
 **Codec Versioning Convention**:
@@ -217,14 +234,24 @@ struct BlockHeader {
     - **Version 变更**: 向后兼容。新版本 Reader 可读取旧版本数据；旧版本 Reader 遇到更高 version 应报警告但尝试解码。
 - **预定义 Codec Family**：
 
-    | Family | Name | Description |
-    |--------|------|-------------|
-    | 0x0 | RAW | 无压缩 (用于调试) |
-    | 0x1 | ABC_V1 | Spring ABC (Sequence) |
-    | 0x2 | SCM_V1 | Statistical Context Mixing (Quality) |
-    | 0x3 | DELTA_LZMA | Delta + LZMA (IDs) |
-    | 0x4 | DELTA_ZSTD | Delta + Zstd (IDs) |
-    | 0xF | RESERVED | 保留 |
+    | Family | Name | Description | 适用流 |
+    |--------|------|-------------|--------|
+    | 0x0 | RAW | 无压缩 (用于调试) | 所有 |
+    | 0x1 | ABC_V1 | Spring ABC (Sequence) | Sequence |
+    | 0x2 | SCM_V1 | Statistical Context Mixing (Quality) | Quality |
+    | 0x3 | DELTA_LZMA | Delta + LZMA | IDs |
+    | 0x4 | DELTA_ZSTD | Delta + Zstd | IDs |
+    | 0x5 | DELTA_VARINT | Delta + Varint 编码 | Aux (lengths) |
+    | 0x6 | OVERLAP_V1 | Overlap-based (Long Read) | Sequence |
+    | 0x7 | ZSTD_PLAIN | Plain Zstd | Sequence (fallback) |
+    | 0x8 | SCM_ORDER1 | SCM Order-1 (低内存) | Quality |
+    | 0xE | EXTERNAL | 外部/自定义 Codec | 所有 |
+    | 0xF | RESERVED | 保留 | - |
+
+**Codec 参数存储**:
+- 大多数 Codec 无需额外参数
+- 需要参数的 Codec（如 SCM Order）在 GlobalHeader 末尾添加可选的 `CodecParams` 段
+- `CodecParams` 格式: `[codec_family:1][param_len:1][params:N]...`，以 `0xFF` 结束
 
 **Stream Definitions**:
 1.  **Identifier Stream**:
@@ -243,6 +270,13 @@ struct BlockHeader {
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
     -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
+4.  **Aux Stream** (可选):
+    -   *用途*: 存储可变长度 Reads 的长度信息
+    -   *Strategy*: Delta + Varint 编码
+    -   *存储条件*:
+        -   当 Block 内所有 Reads 长度相同时: `size_aux = 0`，长度存储在 `BlockHeader.uniform_read_length`
+        -   当 Reads 长度不同时: 存储 Delta + Varint 编码的长度序列
+    -   *编码方式*: 第一个长度存储原值，后续存储与前一个的差值（相邻 Reads 长度通常相近）
 
 
 ### 4. Block Index (At End)
@@ -267,14 +301,37 @@ struct IndexEntry {
 
 ### 4.1 Reorder Map (Optional)
 当 `PRESERVE_ORDER=0` 且 `HAS_REORDER_MAP=1` 时存在，支持原始顺序回溯。
+
+采用**双向映射**设计，同时支持正向查询和反向输出：
+
 ```cpp
 struct ReorderMap {
     uint64_t total_reads;
-    // 压缩存储: original_id -> archive_id 映射
-    // 使用 Delta + Varint 编码，通常压缩到 ~2 bytes/read
-    uint8_t compressed_mapping[];
+    uint64_t forward_map_size;    // Forward Map 压缩后大小
+    uint64_t reverse_map_size;    // Reverse Map 压缩后大小
+    
+    // Forward Map: original_id -> archive_id
+    // 用途: 查询"原始第 N 条 Read 在归档中的位置"
+    // 编码: Delta + Varint，通常压缩到 ~2 bytes/read
+    uint8_t forward_map[];
+    
+    // Reverse Map: archive_id -> original_id
+    // 用途: 按原始顺序输出时，快速查找每条 Read 的原始位置
+    // 编码: Delta + Varint，通常压缩到 ~2 bytes/read
+    uint8_t reverse_map[];
 };
 ```
+
+**设计说明**:
+- **Forward Map**: 支持 `--range` 按原始 ID 范围解压
+- **Reverse Map**: 支持 `--original-order` 高效输出
+- **空间开销**: ~4 bytes/read（两个映射各 ~2 bytes/read）
+- **性能**: 两种查询方向都是 O(1) 随机访问（解压后）
+
+**查询流程**:
+1. 按归档顺序解压: 无需 Reorder Map
+2. 按原始顺序输出: 使用 Reverse Map，按 archive_id 顺序遍历，输出到 original_id 位置
+3. 查询原始 Read 位置: 使用 Forward Map
 
 ### 5. File Footer
 ```cpp
@@ -288,8 +345,14 @@ struct FileFooter {
 // 读取方式: fseek(file, -32, SEEK_END)
 ```
 
+**Global Checksum 校验范围**:
+- 校验范围: `[文件起始, Footer 起始位置)`
+- 包含: Magic Header, Global Header, All Blocks, Reorder Map (if exists), Block Index
+- 不包含: File Footer 本身
+- 计算方式: 流式计算，边写边更新 xxHash64 状态
+
 **校验流程 (推荐顺序)**:
-1. 读取 Footer，验证 `magic_end`
+1. 读取 Footer，验证 `magic_end`（快速检测格式）
 2. 验证 `global_checksum`（快速检测文件截断/损坏）
 3. 读取 Block Index
 4. 逐 Block 验证 `block_xxhash64`（完整模式）
@@ -383,25 +446,36 @@ public:
 
 ## Long Read 模式设计
 
+### Read 长度分类
+
+采用三级分类系统，基于采样的 median read length 自动判断：
+
+| 分类 | 长度范围 | 压缩策略 | Block Size |
+|------|----------|----------|------------|
+| **Short** | median < 1KB | ABC + 全局 Reordering | 100K reads |
+| **Medium** | 1KB <= median < 10KB | ABC + 可选 Reordering | 50K reads |
+| **Long** | median >= 10KB | Overlap-based 或 Zstd，禁用 Reordering | 10K reads |
+
 ### 自动检测策略
 ```cpp
-enum class ReadLengthMode {
-    AUTO,       // 自动检测 (默认)
-    SHORT,      // 强制短读模式 (< 512bp)
-    LONG        // 强制长读模式 (>= 512bp)
+enum class ReadLengthClass {
+    SHORT,      // median < 1KB
+    MEDIUM,     // 1KB <= median < 10KB
+    LONG        // median >= 10KB
 };
 
 // 自动检测逻辑:
-// 采样前 1000 条 Reads，若 median length > 10KB 则启用 Long Read 模式
+// 采样前 1000 条 Reads，计算 median length
+// 根据 median 值确定 ReadLengthClass
 ```
 
 ### Long Read 压缩策略
-| 组件 | Short Read | Long Read |
-|------|------------|-----------|
-| Sequence | ABC (Spring) | Overlap-based 或 Zstd |
-| Quality | SCM Order-2 | SCM Order-1 (降低内存) |
-| Reordering | 启用 | 禁用 |
-| Block Size | 100K reads | 10K reads (更大单条) |
+| 组件 | Short Read | Medium Read | Long Read |
+|------|------------|-------------|-----------|
+| Sequence | ABC (Spring) | ABC (Spring) | Overlap-based 或 Zstd |
+| Quality | SCM Order-2 | SCM Order-2 | SCM Order-1 (降低内存) |
+| Reordering | 启用 | 可选（默认启用） | 禁用 |
+| Block Size | 100K reads | 50K reads | 10K reads |
 
 ## 内存管理设计
 

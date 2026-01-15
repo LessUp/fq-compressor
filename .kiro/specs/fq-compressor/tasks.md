@@ -116,19 +116,23 @@
     - 使用 CLI11 配置子命令：`compress`, `decompress`, `info`, `verify`
     - 实现全局选项：`-t/--threads`, `-v/--verbose`, `--memory-limit`
     - **实现 stdout TTY 检测**: 非 TTY 时自动禁用进度显示
+    - **实现 stdin 检测**: stdin 输入时自动启用流式模式并发出警告
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [ ] 5.2 实现 CompressCommand 框架
     - 创建 `src/commands/compress_command.h/cpp`
     - 解析压缩相关选项：`-i`, `-o`, `-l`, `--reorder`, `--lossy-quality`
+    - 添加 `--streaming` 选项支持流式模式
+    - 添加 `--long-read-mode <auto|short|medium|long>` 选项
     - 预留压缩引擎调用接口
     - _Requirements: 6.2_
 
   - [ ] 5.3 实现 DecompressCommand 框架
     - 创建 `src/commands/decompress_command.h/cpp`
     - 解析解压选项：`-i`, `-o`, `--range`, `--header-only`
+    - 添加 `--skip-corrupted` 和 `--corrupted-placeholder` 选项
     - 预留解压引擎调用接口
-    - _Requirements: 6.2_
+    - _Requirements: 6.2, 8.5_
 
   - [ ] 5.4 实现 InfoCommand 和 VerifyCommand
     - 创建 `src/commands/info_command.h/cpp`
@@ -176,9 +180,12 @@
 
   - [ ] 8.2 实现 Reorder Map 存储
     - 创建 `include/fqc/format/reorder_map.h`
+    - 实现双向映射设计:
+        - Forward Map: `original_id -> archive_id` (用于查询)
+        - Reverse Map: `archive_id -> original_id` (用于原始顺序输出)
     - 实现 Delta + Varint 压缩编码
     - 实现 Reorder Map 读写
-    - 目标压缩率: ~2 bytes/read
+    - 目标压缩率: ~4 bytes/read (两个映射各 ~2 bytes/read)
     - _Requirements: 2.1_
 
   - [ ] 8.3 实现 Phase 2: 分块压缩模块
@@ -262,7 +269,10 @@
   - [ ] 12.2 实现 ReaderFilter (Serial)
     - 创建 `src/pipeline/reader_filter.cpp`
     - 实现分块读取 FASTQ
-    - 配置 Block 大小 (默认 10000 reads)
+    - 配置 Block 大小:
+        - Short Read: 100,000 reads/block
+        - Medium Read: 50,000 reads/block
+        - Long Read: 10,000 reads/block
     - 实现内存池管理
     - _Requirements: 4.1, 4.3_
 
@@ -348,14 +358,18 @@
 - [ ] 18. 长读支持
   - [ ] 18.1 实现长读检测
     - 采样前 1000 条 Reads 计算 median length
-    - 阈值: median > 10KB 则启用 Long Read 模式
-    - 支持 `--long-read-mode <auto|on|off>` 参数覆盖
+    - 三级分类阈值:
+        - Short: median < 1KB
+        - Medium: 1KB <= median < 10KB
+        - Long: median >= 10KB
+    - 支持 `--long-read-mode <auto|short|medium|long>` 参数覆盖
     - _Requirements: 1.1.3_
 
   - [ ] 18.2 实现长读压缩策略
-    - Sequence: 禁用 Reordering，使用 Overlap-based 或 Zstd
-    - Quality: 使用 SCM Order-1（降低内存）
-    - Block Size: 默认 10K reads（单条更大）
+    - Short: ABC + 全局 Reordering，Block Size 100K
+    - Medium: ABC + 可选 Reordering，Block Size 50K
+    - Long: Overlap-based 或 Zstd，禁用 Reordering，Block Size 10K
+    - Quality: Long Read 使用 SCM Order-1（降低内存）
     - _Requirements: 1.1.3_
 
   - [ ] 18.3 编写长读属性测试
@@ -398,10 +412,17 @@
   - [ ] 21.1 实现 Verify 命令完整功能
     - 实现全局校验和验证
     - 实现 Block 级别校验
-    - 报告损坏位置
-    - _Requirements: 5.1, 5.2, 5.3_
+    - 报告损坏位置和数量
+    - 支持 `--fail-fast` 选项
+    - _Requirements: 5.1, 5.2, 5.3, 8.5_
 
-  - [ ] 21.2 实现与 Spring 对比验证
+  - [ ] 21.2 实现错误隔离机制
+    - 确保单个 Block 损坏不影响其他 Block 解压
+    - 实现 `--skip-corrupted` 功能
+    - 实现损坏 Block 占位符/跳过逻辑
+    - _Requirements: 8.5_
+
+  - [ ] 21.3 实现与 Spring 对比验证
     - 创建对比测试脚本
     - 验证压缩率
     - 验证解压正确性
@@ -540,4 +561,80 @@ private:
 };
 
 }  // namespace fqc::io
+```
+
+
+---
+
+## Appendix C: 流式模式实现参考
+
+流式模式用于处理 stdin 输入或显式禁用全局重排序的场景。
+
+### C.1 流式模式检测逻辑
+```cpp
+bool should_use_streaming_mode(const CompressOptions& opts) {
+    // 显式指定流式模式
+    if (opts.streaming) return true;
+    
+    // stdin 输入自动启用流式模式
+    if (opts.input == "-") {
+        LOG_WARNING("stdin input detected, enabling streaming mode (no global reordering)");
+        return true;
+    }
+    
+    return false;
+}
+```
+
+### C.2 流式模式压缩流程
+```
+Streaming Mode Compression:
+├── 1. 读取 Block 大小的 Reads
+├── 2. Block 内局部优化 (可选的 Block 内重排序)
+├── 3. 压缩并写入 Block
+├── 4. 重复直到 EOF
+└── 5. 写入 Index 和 Footer
+
+注意:
+- 跳过 Phase 1 全局分析
+- PRESERVE_ORDER=1 或 STREAMING_MODE=1
+- 压缩率降低约 10-20%
+- 内存使用显著降低
+```
+
+### C.3 性能对比预期
+| 模式 | 压缩率 (bits/base) | 内存使用 | 适用场景 |
+|------|-------------------|----------|----------|
+| 标准模式 | 0.4-0.6 | ~24 bytes/read | 文件输入 |
+| 流式模式 | 0.5-0.8 | ~50 bytes/block | stdin/管道 |
+
+---
+
+## Appendix D: Read 长度分类参考
+
+### D.1 分类阈值
+| 分类 | Median Length | 典型数据类型 |
+|------|---------------|--------------|
+| Short | < 1KB | Illumina (50-300bp) |
+| Medium | 1KB - 10KB | PacBio HiFi, Illumina Long |
+| Long | >= 10KB | Nanopore, PacBio CLR |
+
+### D.2 各分类压缩策略
+```cpp
+struct CompressionStrategy {
+    ReadLengthClass length_class;
+    bool enable_global_reorder;
+    size_t block_size;
+    uint8_t quality_scm_order;
+    uint8_t sequence_codec;
+};
+
+const CompressionStrategy STRATEGIES[] = {
+    // Short: 全功能
+    {SHORT, true, 100000, 2, CODEC_ABC_V1},
+    // Medium: 可选重排序
+    {MEDIUM, true, 50000, 2, CODEC_ABC_V1},
+    // Long: 禁用重排序，使用 Overlap-based
+    {LONG, false, 10000, 1, CODEC_OVERLAP_V1},
+};
 ```
