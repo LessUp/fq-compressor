@@ -169,8 +169,8 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
         - 01: Consecutive (所有 R1 后跟所有 R2；**注意：此模式会导致 Sequence 压缩率下降，因无法利用 R1/R2 互补性**)
         - 10-11: Reserved
     - bit 10-11: `READ_LENGTH_CLASS`: Read 长度分类（判定时参考 median/max length）
-        - 00: Short (median < 1KB，使用 ABC + 全局 Reordering)
-        - 01: Medium (1KB <= median < 10KB，使用 ABC + 可选 Reordering)
+        - 00: Short (median < 1KB 且 max <= 511，使用 ABC + 全局 Reordering)
+        - 01: Medium (1KB <= median < 10KB 或 max > 511，使用 Zstd，禁用 Reordering)
         - 10: Long (median >= 10KB 或 max >= 10KB，禁用 Reordering)
         - 11: Reserved
     - bit 12: `STREAMING_MODE`: 流式压缩模式（禁用全局重排序）
@@ -262,10 +262,11 @@ struct BlockHeader {
         -   **Phase 1 (Global)**: Minimizer 提取 -> 全局 Bucketing -> 全局 Reordering
         -   **Phase 2 (Per-Block)**: Block 内 Consensus & Delta -> Arithmetic Coding
     -   *Why*: 核心思想：Don't just compress reads, compress the edits。两阶段策略在保持高压缩率的同时实现随机访问。
-    -   **Long Read 策略** (read length > 10KB 或 max > 511):
-        -   禁用 Minimizer Reordering（长读序列相似度低，重排收益有限）
+    -   **Medium/Long Read 策略** (max > 511 或 median >= 1KB):
+        -   禁用 Minimizer Reordering（中长读相似度低，重排收益有限）
         -   **主要策略**: Zstd 通用压缩（简单、稳定、推荐）
-        -   **可选优化**: NanoSpring 风格的 overlap-based 压缩（需适配 Block 模式，复杂度高）
+        -   **可选优化**: NanoSpring 风格的 overlap-based 压缩（仅适用于 Long；需适配 Block 模式，复杂度高）
+        -   具体分类与 Block 限制见「Long Read 模式设计」
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
     -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
@@ -499,11 +500,18 @@ char s[MAX_READ_LEN + 1];                       // 固定缓冲区
 
 采用三级分类系统，基于采样的 median 和 max read length 自动判断：
 
-| 分类 | 长度范围 | 压缩策略 | Block Size |
-|------|----------|----------|------------|
-| **Short** | median < 1KB 且 max <= 511 | ABC + 全局 Reordering | 100K reads |
-| **Medium** | 1KB <= median < 10KB 或 max > 511 | Zstd fallback (推荐) | 50K reads |
-| **Long** | median >= 10KB 或 max >= 10KB | Overlap-based 或 Zstd，禁用 Reordering | 10K reads |
+| 分类 | 判定条件（按优先级） | 压缩策略 | Block Size |
+|------|----------------------|----------|------------|
+| **Long (Ultra)** | max >= 100KB | Zstd + max_block_bases 限制，禁用 Reordering | 10K reads |
+| **Long** | max >= 10KB | Zstd，禁用 Reordering | 10K reads |
+| **Medium** | max > 511 或 median >= 1KB | Zstd，禁用 Reordering | 50K reads |
+| **Short** | max <= 511 且 median < 1KB | ABC + 全局 Reordering | 100K reads |
+
+**超长读 (Ultra-long) 定义**:
+- 当 `max_read_length >= 100KB`（可配置）时视为超长读。
+- 仍归类为 `READ_LENGTH_CLASS=LONG`，但采用更保守策略：
+  - 强制 Zstd（不启用 overlap-based）
+  - 更小的 Block 基准大小与基于碱基数的上限
 
 **Spring 兼容性约束**:
 - Spring ABC 原版对可变长度 short reads 的上限约 511bp
@@ -513,16 +521,22 @@ char s[MAX_READ_LEN + 1];                       // 固定缓冲区
 ### 自动检测策略
 ```cpp
 enum class ReadLengthClass {
-    SHORT,      // median < 1KB 且 max <= 511 (Spring ABC 兼容)
-    MEDIUM,     // 1KB <= median < 10KB 或 max > 511
-    LONG        // median >= 10KB
+    SHORT,      // max <= 511 且 median < 1KB (Spring ABC 兼容)
+    MEDIUM,     // max > 511 或 1KB <= median < 10KB
+    LONG        // max >= 10KB (包含 Ultra-long: max >= 100KB)
 };
 
-// 自动检测逻辑 (优先级从高到低):
-// 1. max_length >= 10KB → LONG
-// 2. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
-// 3. median >= 1KB → MEDIUM
-// 4. 其余 → SHORT
+// 自动检测逻辑 (优先级从高到低，严格按此顺序判定):
+// 1. max_length >= 100KB → LONG (Ultra-long 策略：强制 Zstd + 10K block + max_block_bases)
+// 2. max_length >= 10KB → LONG (Zstd，禁重排，10K block)
+// 3. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
+// 4. median >= 1KB → MEDIUM (Zstd，禁重排，50K block)
+// 5. 其余 → SHORT (ABC + 全局 Reordering，100K block)
+
+// 设计决策：保守策略
+// - 不允许截断超长 reads 以适配 Spring ABC
+// - 只要存在任何 read 超过 511bp，整个文件即归类为 MEDIUM 或更高
+// - 这确保数据完整性，避免因截断导致的信息丢失
 ```
 
 ### Long Read 压缩策略
@@ -544,6 +558,10 @@ enum class ReadLengthClass {
 | **Reordering** | **启用**<br>*(提升~20%)* | **禁用**<br>*(ABC 不可用)* | **禁用**<br>*(收益低，开销大)* |
 | **Block Size** | 100K reads | 50K reads | 10K reads |
 
+**Block Size 边界约束**:
+- 对 Long/Ultra-long 追加 `max_block_bases` 上限（默认 200MB；Ultra-long 默认 50MB）。
+- 实际 reads 数 = `min(reads_limit, max_block_bases / max(1, median_length))`，避免超长读导致单块过大。
+
 ### 混合长短读场景分析
 
 **结论**: 在真实世界中，**几乎不存在**单个 FASTQ 文件混合长短读的场景。
@@ -556,7 +574,13 @@ enum class ReadLengthClass {
 
 **唯一例外**: PacBio HiFi 数据可能有较大的长度变异（5-25KB），但仍属于"长读"范畴，统一使用 Long Read 策略。
 
-**设计决策**: 本项目**不支持**单文件混合长短读场景，简化实现复杂度。
+**设计决策**: 本项目不做混合长短读的专门优化；若出现混合数据，按 `max_length` 优先级归类并提示可能的压缩率下降。
+
+### 通用压缩算法选择：Zstd vs BSC
+
+- **Zstd**: 低内存、解压快、支持流式与字典、生态成熟，便于 Block-based 随机访问与多线程。
+- **BSC**: 压缩率可能更高，但内存占用大、解压慢、生态与部署成本高，且不利于小 Block 快速解码。
+- **取舍**: 本项目优先保证随机访问与可维护性，因此默认选择 Zstd；BSC 可作为 `EXTERNAL` codec 的实验性选项。
 
 ## 内存管理设计
 
