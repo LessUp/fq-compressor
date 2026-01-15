@@ -54,6 +54,35 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 3.  **压缩核心**: 将 Spring 的算法解耦为 "Block Context"，使其支持无状态/重置状态的压缩。
 4.  **扩展性**: 格式设计预留 Flag 位，支持多种压缩后端。
 
+## Non-Functional Requirements
+
+### Performance Targets
+
+| 指标 | Baseline | Target | Stretch Goal |
+|------|----------|--------|--------------|
+| **压缩率** (bits/base) | 1.5-2.0 | 0.4-0.6 | 0.3-0.4 |
+| **压缩速度** (MB/s/thread) | 50-100 | 20-50 | 10-20 |
+| **解压速度** (MB/s/thread) | 200-400 | 100-200 | 50-100 |
+| **内存峰值** (GB) | < 2 | < 4 | < 8 |
+
+### Comparison with Existing Tools
+
+| 工具 | 压缩率 (bits/base) | 压缩速度 (MB/s) | 解压速度 (MB/s) |
+|------|-------------------|----------------|----------------|
+| gzip -9 | ~2.0 | ~20 | ~200 |
+| Spring | ~0.3 | ~5 | ~50 |
+| repaq | ~0.5 | ~100 | ~200 |
+| **fqc (Target)** | **0.4-0.6** | **20-50** | **100-200** |
+
+### Test Datasets (Recommended)
+
+| 数据集 | 类型 | 大小 | 来源 |
+|--------|------|------|------|
+| SRR000001 | Illumina, 36bp SE | 200MB | NCBI SRA |
+| SRR1770413 | Illumina HiSeq, 100bp PE | 2GB | NCBI SRA |
+| ERR000589 | NovaSeq, 150bp PE | 20GB | ENA |
+| PacBio HiFi | PacBio, 10-20KB | 5GB | PacBio 官网 |
+
 ## Requirements
 
 ### Requirement 1.1: 混合压缩策略 (Hybrid Compression Strategy - Strategy B)
@@ -232,3 +261,24 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 - Clang 21 + libc++（开发调试首选）
 - CMake 4.x
 - Conan 2.x
+
+### Requirement 8: 原子写入与错误恢复
+**User Story:** 用户希望压缩过程中断时不会产生损坏的输出文件。
+
+#### Acceptance Criteria
+1.  **Requirement 8.1: 原子写入**: 压缩输出使用临时文件 (`.fqc.tmp`)，完成后原子重命名。
+2.  **Requirement 8.2: 信号处理**: 捕获 `SIGINT`/`SIGTERM`，清理临时文件后退出。
+3.  **Requirement 8.3: 磁盘空间检查**: 压缩前检查目标磁盘可用空间（可选警告）。
+4.  **Requirement 8.4: 断点续压**: **不支持**（简化设计，与 Requirement 1.1.3 一致）。
+
+### Requirement 9: 版本兼容性
+**User Story:** 用户希望新版本工具能读取旧版本创建的文件。
+
+#### Acceptance Criteria
+1.  **Requirement 9.1: 向后兼容**: 新版本 Reader 必须能读取所有旧版本创建的 `.fqc` 文件。
+2.  **Requirement 9.2: 前向兼容**: 旧版本 Reader 遇到未知字段时应跳过（利用 `header_size`），遇到未知 Codec Family 时报错 `EXIT_UNSUPPORTED_CODEC (5)`。
+3.  **Requirement 9.3: 版本语义**:
+    - `Version` 字段采用 `(major:4bit, minor:4bit)` 编码
+    - Major 变更：格式不兼容（需要新版本工具）
+    - Minor 变更：向后兼容（新增可选字段）
+4.  **Requirement 9.4: 升级路径**: 提供 `fqc upgrade` 命令将旧版本文件升级到新格式（可选，Phase 5+）。

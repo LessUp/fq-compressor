@@ -186,9 +186,13 @@ struct Block {
 struct BlockHeader {
     uint32_t header_size;         // BlockHeader total size (bytes), for forward compatibility
     uint32_t block_id;
-    uint8_t checksum_type;        // Same domain as GlobalHeader.ChecksumType
+    uint8_t  checksum_type;       // Same domain as GlobalHeader.ChecksumType
+    uint8_t  codec_id;            // e.g., 0x10 = Family 1, Version 0 (Delta + LZMA)
+    uint8_t  codec_seq;           // e.g., 0x10 = Family 1, Version 0 (Spring ABC + Arithmetic)
+    uint8_t  codec_qual;          // e.g., 0x10 = Family 1, Version 0 (SCM + Arithmetic)
     uint64_t block_xxhash64;
     uint32_t uncompressed_count;  // Number of reads in this block
+    uint32_t reserved;            // Padding for alignment
     uint64_t compressed_size;     // Total compressed payload size (bytes)
     
     // Stream Offsets (Relative to Payload Start) - 使用 uint64_t 支持大 Block
@@ -202,14 +206,8 @@ struct BlockHeader {
     uint64_t size_seq;
     uint64_t size_qual;
     uint64_t size_aux;
-    
-    // Stream Codecs (Compression Strategy Flags)
-    // 格式: high 4 bits = family, low 4 bits = version
-    // Family 变更 = 不兼容; Version 变更 = 向后兼容
-    uint8_t codec_id;   // e.g., 0x10 = Family 1, Version 0 (Delta + LZMA)
-    uint8_t codec_seq;  // e.g., 0x10 = Family 1, Version 0 (Spring ABC + Arithmetic)
-    uint8_t codec_qual; // e.g., 0x10 = Family 1, Version 0 (SCM + Arithmetic)
 };
+// Total: 4 + 4 + 1 + 1 + 1 + 1 + 8 + 4 + 4 + 8 + (8*4) + (8*4) = 100 bytes
 ```
 
 **Codec Versioning Convention**:
@@ -284,8 +282,10 @@ struct FileFooter {
     uint64_t index_offset;       // Block Index 开始的位置
     uint64_t reorder_map_offset; // Reorder Map 开始位置 (0 = 不存在)
     uint64_t global_checksum;    // 整个文件的 XXHASH64 (不含 Footer 本身)
-    uint8_t  magic_end[7];       // "FQC_EOF" (0x46 0x51 0x43 0x5F 0x45 0x4F 0x46)
+    uint8_t  magic_end[8];       // "FQC_EOF\0" (0x46 0x51 0x43 0x5F 0x45 0x4F 0x46 0x00)
 };
+// Total: 32 bytes (8 + 8 + 8 + 8)
+// 读取方式: fseek(file, -32, SEEK_END)
 ```
 
 **校验流程 (推荐顺序)**:

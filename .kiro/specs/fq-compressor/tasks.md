@@ -74,7 +74,9 @@
     - 实现 `write_global_header()`, `write_block()`, `finalize()`
     - 实现 Block Index 构建和写入
     - 集成 xxHash64 校验和计算
-    - _Requirements: 2.1, 5.1, 5.2_
+    - **实现原子写入**: 使用 `.fqc.tmp` + rename 策略
+    - **实现信号处理**: 捕获 SIGINT/SIGTERM，清理临时文件
+    - _Requirements: 2.1, 5.1, 5.2, 8.1, 8.2_
 
   - [ ] 3.3 实现 FQCReader 类
     - 创建 `include/fqc/format/fqc_reader.h` 和 `src/format/fqc_reader.cpp`
@@ -112,7 +114,8 @@
   - [ ] 5.1 实现 CLI 主入口
     - 创建 `src/main.cpp`
     - 使用 CLI11 配置子命令：`compress`, `decompress`, `info`, `verify`
-    - 实现全局选项：`-t/--threads`, `-v/--verbose`
+    - 实现全局选项：`-t/--threads`, `-v/--verbose`, `--memory-limit`
+    - **实现 stdout TTY 检测**: 非 TTY 时自动禁用进度显示
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [ ] 5.2 实现 CompressCommand 框架
@@ -443,3 +446,98 @@
 - 属性测试使用 RapidCheck 框架，最少运行 100 次迭代
 - 所有代码遵循 C++20 标准和 fastq-tools 代码风格
 - 所有属性测试任务均为必须完成项
+
+---
+
+## Appendix A: 属性测试生成器规范
+
+为确保属性测试的有效性，定义以下数据生成器规范：
+
+### A.1 DNA 序列生成器
+```cpp
+// 参数
+size_t min_length = 50;    // 最小长度
+size_t max_length = 500;   // 最大长度 (Short Read)
+double n_ratio = 0.01;     // N 碱基比例
+
+// 碱基分布
+// A: 25%, C: 25%, G: 25%, T: 25%, N: 1% (可配置)
+```
+
+### A.2 质量值生成器
+```cpp
+// Phred33 编码: ASCII 33-126 ('!' to '~')
+// 实际范围: 0-93 (通常 0-41 for Illumina)
+char min_qual = '!';  // Phred 0
+char max_qual = 'J';  // Phred 41
+
+// 分布: 模拟真实数据的质量值下降趋势
+// 前 20%: 高质量 (30-41)
+// 中 60%: 中等质量 (20-35)
+// 后 20%: 低质量 (10-25)
+```
+
+### A.3 Read ID 生成器
+```cpp
+// Illumina 格式: @<instrument>:<run>:<flowcell>:<lane>:<tile>:<x>:<y>
+// 示例: @SIM:1:FCX:1:1:1:1
+
+// 生成策略:
+// - instrument: 固定 "SIM"
+// - run: 1-10
+// - flowcell: "FCX"
+// - lane: 1-8
+// - tile: 1-100
+// - x, y: 1-10000 (Delta 编码友好)
+```
+
+### A.4 Long Read 生成器
+```cpp
+size_t min_length = 1000;   // 最小长度
+size_t max_length = 50000;  // 最大长度
+double error_rate = 0.05;   // 模拟错误率 (Nanopore ~5%)
+```
+
+---
+
+## Appendix B: 原子写入实现参考
+
+```cpp
+// include/fqc/io/atomic_writer.h
+namespace fqc::io {
+
+class AtomicFileWriter {
+public:
+    explicit AtomicFileWriter(std::filesystem::path target)
+        : target_(std::move(target))
+        , temp_(target_.string() + ".tmp")
+    {
+        // 注册信号处理器
+        register_cleanup_handler();
+    }
+    
+    ~AtomicFileWriter() {
+        if (!committed_) {
+            cleanup();
+        }
+    }
+    
+    void commit() {
+        stream_.close();
+        std::filesystem::rename(temp_, target_);
+        committed_ = true;
+    }
+    
+private:
+    void cleanup() {
+        std::filesystem::remove(temp_);
+    }
+    
+    std::filesystem::path target_;
+    std::filesystem::path temp_;
+    std::ofstream stream_{temp_, std::ios::binary};
+    bool committed_ = false;
+};
+
+}  // namespace fqc::io
+```
