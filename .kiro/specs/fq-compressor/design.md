@@ -164,7 +164,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
     - bit 7: `HAS_REORDER_MAP`: 是否包含 Reorder Map（用于原始顺序回溯）
     - bit 8-9: `PE_LAYOUT`: Paired-End 布局（**仅当 IS_PAIRED=1 时有效**）
         - 00: Interleaved (默认，R1/R2 交替存储)
-        - 01: Consecutive (所有 R1 后跟所有 R2)
+        - 01: Consecutive (所有 R1 后跟所有 R2；**注意：此模式会导致 Sequence 压缩率下降，因无法利用 R1/R2 互补性**)
         - 10-11: Reserved
     - bit 10-11: `READ_LENGTH_CLASS`: Read 长度分类
         - 00: Short (median < 1KB，使用 ABC + 全局 Reordering)
@@ -175,7 +175,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
     - bit 13-63: Reserved
 - `CompressionAlgo` (uint8): 主要策略族 ID（用于兼容/快速识别；具体以每个 BlockHeader 的 codec_* 为准）
 - `ChecksumType` (uint8): 校验算法（默认：xxhash64；预留升级空间）
-- `TotalReadCount` (uint64): 总 Read 数量（用于快速统计和进度显示）
+- `TotalReadCount` (uint64): 总 Reads 数量（即 Sequence Count；若为 PE 数据，R1 和 R2 分别计数，Total = 2 * Pairs）
 - `OriginalFilenameLength` (uint16)
 - `OriginalFilename` (string)
 - `Timestamp` (uint64)
@@ -183,9 +183,6 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 **Forward Compatibility**:
 - Reader 读取 `GlobalHeaderSize` 后，若发现未知字段，可按长度跳过；不理解的 `Flags` 位应忽略。
 - `Version` 仅用于格式重大变更；字段扩展优先通过 `GlobalHeaderSize` + 预留字段/新增字段实现。
-
-### 3. Block Structure
-为了支持 "Scheme A" (Random Access)，数据被分割为独立的块。每个块可以独立解压（除了可能的共享静态字典）。
 
 ### 3. Block Structure (Columnar Storage)
 采用**列式存储** (Columnar Storage) 思想，将 Block Payload 划分为独立的子流 (Sub-streams)，每个子流单独压缩。
@@ -201,7 +198,7 @@ struct BlockHeader {
     uint32_t header_size;         // BlockHeader total size (bytes), for forward compatibility
     uint32_t block_id;
     uint8_t  checksum_type;       // Same domain as GlobalHeader.ChecksumType
-    uint8_t  codec_id;            // e.g., 0x30 = Family 3, Version 0 (Delta + LZMA)
+    uint8_t  codec_ids;           // e.g., 0x30 = Family 3, Version 0 (Delta + LZMA) -> For Identifier Stream
     uint8_t  codec_seq;           // e.g., 0x10 = Family 1, Version 0 (Spring ABC + Arithmetic)
     uint8_t  codec_qual;          // e.g., 0x20 = Family 2, Version 0 (SCM + Arithmetic)
     uint8_t  codec_aux;           // e.g., 0x50 = Family 5, Version 0 (Delta + Varint for lengths)
@@ -213,13 +210,13 @@ struct BlockHeader {
     uint64_t compressed_size;     // Total compressed payload size (bytes)
     
     // Stream Offsets (Relative to Payload Start) - 使用 uint64_t 支持大 Block
-    uint64_t offset_id;
+    uint64_t offset_ids;
     uint64_t offset_seq;
     uint64_t offset_qual;
     uint64_t offset_aux;          // Read lengths if variable (size_aux > 0)
     
     // Stream Sizes (Compressed) - 便于选择性解码
-    uint64_t size_id;
+    uint64_t size_ids;
     uint64_t size_seq;
     uint64_t size_qual;
     uint64_t size_aux;            // 0 = uniform length (use uniform_read_length)
@@ -297,7 +294,10 @@ struct IndexEntry {
 
 **语义说明**:
 - `archive_id_start` 以归档存储顺序计数（若 `PRESERVE_ORDER=0` 则为重排后顺序）
-- 若需查询"原始第 N 条 Read"，需配合 Reorder Map（存储于 Block Index 之前）
+- 若需查询"原始第 N 条 Read"：
+    1. 查询 Reorder Map (Forward) 得到 `archive_id`
+    2. 二分查找 Block Index 找到包含该 `archive_id` 的 Block
+    3. 解压并定位
 
 ### 4.1 Reorder Map (Optional)
 当 `PRESERVE_ORDER=0` 且 `HAS_REORDER_MAP=1` 时存在，支持原始顺序回溯。
