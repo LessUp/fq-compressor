@@ -35,12 +35,22 @@ class FQCompressorConan(ConanFile):
         self.requires("xz_utils/5.4.5")
         self.requires("zstd/1.5.7")
         self.requires("libdeflate/1.25", override=True)
+        # 校验和
+        self.requires("xxhash/0.8.3")
         # 并行处理
         self.requires("onetbb/2022.3.0")
 
+    def build_requirements(self):
+        # 测试框架
+        self.test_requires("gtest/1.15.0")
+        self.test_requires("rapidcheck/cci.20230815")
+
     def generate(self):
+        from conan.tools.cmake import CMakeDeps
         tc = CMakeToolchain(self)
         tc.generate()
+        deps = CMakeDeps(self)
+        deps.generate()
 
     def build(self):
         cmake = CMake(self)
