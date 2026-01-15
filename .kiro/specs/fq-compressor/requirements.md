@@ -224,11 +224,13 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     
     **Long Read 选项**:
     - `--long-read-mode <auto|short|medium|long>`: 长读模式（默认：auto）。
-    - 自动检测：采样前 1000 条 Reads，计算 median 与 max length：
-        - max_length >= 100KB: Long (Ultra-long)
-        - max_length >= 10KB: Long
-        - max_length > 511: Medium (Spring 兼容保护)
-        - 其余：median < 1KB -> Short；1KB <= median < 10KB -> Medium
+    - 自动检测（采样前 1000 条 Reads，按优先级从高到低判定）：
+        1. max_length >= 100KB → Long (Ultra-long 策略)
+        2. max_length >= 10KB → Long
+        3. max_length > 511 → Medium (Spring 兼容保护，即使 median < 1KB)
+        4. median >= 1KB → Medium
+        5. 其余 → Short
+    - **保守策略**: 不允许截断超长 reads，只要存在任何 read 超过 511bp，整个文件即归类为 Medium 或更高
     
     **流式模式选项**:
     - `--streaming`: 强制启用流式模式（禁用全局重排序，支持 stdin）。
