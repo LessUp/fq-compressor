@@ -81,7 +81,7 @@
   - [ ] 3.3 实现 FQCReader 类
     - 创建 `include/fqc/format/fqc_reader.h` 和 `src/format/fqc_reader.cpp`
     - 实现 `read_global_header()`, `read_block()`, `read_index()`
-    - 实现随机访问：`seek_to_block()`, `get_reads_range()`
+    - 实现随机访问：`seek_to_block()`, `get_reads_range()`, Reorder Map lookup (for original ID)
     - 实现 Header-only 读取：仅解码 Identifier Stream
     - 预留子流选择性解码接口：可只解码 Sequence 或 Quality 子流
     - 实现校验和验证
