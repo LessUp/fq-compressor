@@ -359,7 +359,7 @@
 
 - [ ] 18. 长读支持
   - [ ] 18.1 实现长读检测
-    - 采样前 1000 条 Reads 计算 median 和 max length
+    - 采样 `min(1000, total_reads)` 条 Reads 计算 median 和 max length
     - 分类判定（按优先级从高到低，严格按此顺序）:
         1. max_length >= 100KB → LONG (Ultra-long 策略)
         2. max_length >= 10KB → LONG
@@ -367,7 +367,9 @@
         4. median >= 1KB → MEDIUM
         5. 其余 → SHORT
     - **保守策略**: 不允许截断超长 reads，只要存在任何 read 超过 511bp，整个文件即归类为 MEDIUM 或更高
+    - **流式模式采样**: stdin 输入时无法预先采样，默认使用 MEDIUM 策略（保守），或要求用户显式指定 `--long-read-mode`
     - 支持 `--long-read-mode <auto|short|medium|long>` 参数覆盖
+    - 支持 `--scan-all-lengths` 选项进行全文件扫描（仅文件输入）
     - _Requirements: 1.1.3_
 
   - [ ] 18.2 实现长读压缩策略
@@ -379,6 +381,7 @@
     - **关键约束**: Spring ABC 仅用于 max_length <= 511 的数据，超过则必须使用 Zstd
     - **可选优化**: Overlap-based 压缩可作为 Phase 5+ 优化项
     - **边界控制**: 对 Long/Ultra-long 追加 `max_block_bases` 上限（默认 200MB/50MB）
+    - 支持 `--max-block-bases <bytes>` CLI 参数
     - _Requirements: 1.1.3_
 
   - [ ] 18.3 编写长读属性测试
@@ -633,7 +636,23 @@ Streaming Mode Compression:
 
 > **保守策略**: 不允许截断超长 reads。只要存在任何 read 超过 511bp，整个文件即归类为 Medium 或更高，确保数据完整性。
 
-### D.2 各分类压缩策略
+### D.2 采样策略
+```cpp
+// 采样数量: min(1000, total_reads)
+size_t sample_count = std::min(1000UL, total_reads);
+
+// 流式模式 (stdin) 采样策略:
+// - 无法预先采样，默认使用 MEDIUM 策略（保守）
+// - 或要求用户显式指定 --long-read-mode <short|medium|long>
+// - 发出警告: "stdin input detected, using conservative MEDIUM strategy"
+
+// 可选全文件扫描 (--scan-all-lengths):
+// - 仅文件输入时可用
+// - 扫描所有 reads 的长度，获取精确的 max_length
+// - 更准确但更慢
+```
+
+### D.3 各分类压缩策略
 ```cpp
 struct CompressionStrategy {
     ReadLengthClass length_class;

@@ -151,7 +151,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 
 ### 2. Global Header
 包含全局元数据：
-- `GlobalHeaderSize` (uint32): Global Header 总长度（bytes，包含自身字段），用于前向兼容跳过未知扩展字段。
+- `GlobalHeaderSize` (uint32): Global Header 总长度（bytes，包含自身字段及可选的 CodecParams），用于前向兼容跳过未知扩展字段。
 - `Flags` (uint64): 扩展为 64 位，预留更多空间
     - bit 0: `IS_PAIRED`: 配对端数据
     - bit 1: `PRESERVE_ORDER`: 是否保留原始 Reads 顺序 (0=Reordered, 1=Original)
@@ -164,7 +164,7 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
     - bit 5-6: `ID_MODE`:
         - 00: Preserve Exact (Default)
         - 01: Tokenized/Reconstruct (Split static/dynamic parts)
-        - 10: Discard/Indexed (Replace with 1,2,3...)
+        - 10: Discard/Indexed (Replace with 1,2,3...)，解压时重建 ID（见下文 ID 重建格式）
     - bit 7: `HAS_REORDER_MAP`: 是否包含 Reorder Map（用于原始顺序回溯）
     - bit 8-9: `PE_LAYOUT`: Paired-End 布局（**仅当 IS_PAIRED=1 时有效**）
         - 00: Interleaved (默认，R1/R2 交替存储)
@@ -183,8 +183,31 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
 - `ChecksumType` (uint8): 校验算法（默认：xxhash64；预留升级空间）
 - `TotalReadCount` (uint64): 总 Reads 数量（即 Sequence Count；若为 PE 数据，R1 和 R2 分别计数，Total = 2 * Pairs）
 - `OriginalFilenameLength` (uint16)
-- `OriginalFilename` (string)
+- `OriginalFilename` (string): **UTF-8 编码，无 null 终止符**
 - `Timestamp` (uint64)
+
+**GlobalHeader 完整结构体定义**:
+```cpp
+struct GlobalHeader {
+    uint32_t header_size;           // 偏移 0, 包含自身的总大小（含 CodecParams）
+    uint64_t flags;                 // 偏移 4
+    uint8_t  compression_algo;      // 偏移 12
+    uint8_t  checksum_type;         // 偏移 13
+    uint16_t reserved;              // 偏移 14, 对齐填充
+    uint64_t total_read_count;      // 偏移 16
+    uint16_t original_filename_len; // 偏移 24
+    // uint8_t original_filename[original_filename_len]; // 偏移 26, UTF-8 编码, 无 null 终止
+    // uint64_t timestamp;          // 偏移 26 + original_filename_len
+    // uint8_t codec_params[];      // 可选, 以 0xFF 结束
+};
+// 最小大小: 26 + 8 = 34 bytes (无文件名)
+```
+
+**ID 重建格式 (ID_MODE=Discard)**:
+- SE 模式: `@{archive_id}` (如 `@1`, `@2`, `@3`)
+- PE Interleaved 模式: `@{pair_id}/{read_num}` (如 `@1/1`, `@1/2`, `@2/1`, `@2/2`)
+- PE Consecutive 模式: `@{archive_id}` (如 `@1`, `@2`, ..., `@N`, `@N+1`, ...)
+- 可通过 `--id-prefix <prefix>` 自定义前缀（默认为空）
 
 **Forward Compatibility**:
 - Reader 读取 `GlobalHeaderSize` 后，若发现未知字段，可按长度跳过；不理解的 `Flags` 位应忽略。
@@ -255,6 +278,16 @@ struct BlockHeader {
 - 大多数 Codec 无需额外参数
 - 需要参数的 Codec（如 SCM Order）在 GlobalHeader 末尾添加可选的 `CodecParams` 段
 - `CodecParams` 格式: `[codec_family:1][param_len:1][params:N]...`，以 `0xFF` 结束
+- **CodecParams 计入 `GlobalHeaderSize`**
+- **检测逻辑**:
+  ```cpp
+  size_t known_fields_size = 34 + original_filename_len;
+  if (header_size > known_fields_size) {
+      // 存在 CodecParams 或扩展字段
+      parse_codec_params(buffer + known_fields_size, header_size - known_fields_size);
+  }
+  ```
+- CodecParams 以 `0xFF` 结束，之后的数据为未知扩展字段（应跳过）
 
 **Stream Definitions**:
 1.  **Identifier Stream**:
@@ -274,7 +307,7 @@ struct BlockHeader {
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
     -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
-    -   **Discard 模式**: `codec_qual=RAW` 且 `size_qual=0`，解压时填充占位符质量值（默认 `'!'`）以保持 FASTQ 四行格式
+    -   **Discard 模式**: `codec_qual=RAW (0x0)` 且 `size_qual=0` 表示 "Quality 被丢弃"，解压时填充占位符质量值（默认 `'!'`，可通过 `--placeholder-qual` 配置）以保持 FASTQ 四行格式
 4.  **Aux Stream** (可选):
     -   *用途*: 存储可变长度 Reads 的长度信息
     -   *Strategy*: Delta + Varint 编码
@@ -282,6 +315,7 @@ struct BlockHeader {
         -   当 Block 内所有 Reads 长度相同时: `size_aux = 0`，长度存储在 `BlockHeader.uniform_read_length`
         -   当 Reads 长度不同时: 存储 Delta + Varint 编码的长度序列
     -   *编码方式*: 第一个长度存储原值，后续存储与前一个的差值（相邻 Reads 长度通常相近）
+    -   **注意**: `uniform_read_length = 0` 表示 "可变长度，使用 Aux"；长度为 0 的 read 是无效的，解析时应报错
 
 
 ### 4. Block Index (At End)
@@ -320,6 +354,8 @@ struct IndexEntry {
 
 ```cpp
 struct ReorderMap {
+    uint32_t header_size;         // ReorderMap header 大小 (bytes)，用于前向兼容
+    uint32_t version;             // ReorderMap 版本号 (当前为 1)
     uint64_t total_reads;
     uint64_t forward_map_size;    // Forward Map 压缩后大小
     uint64_t reverse_map_size;    // Reverse Map 压缩后大小
@@ -334,6 +370,9 @@ struct ReorderMap {
     // 编码: Delta + Varint，通常压缩到 ~2 bytes/read
     uint8_t reverse_map[];
 };
+// header_size 兼容规则:
+// - header_size > 当前结构大小：跳过尾部扩展字段
+// - header_size < 必须字段大小：报错 EXIT_FORMAT_ERROR (3)
 ```
 
 **设计说明**:
@@ -366,6 +405,13 @@ struct FileFooter {
 - 包含: Magic Header, Global Header, All Blocks, Reorder Map (if exists), Block Index
 - 不包含: File Footer 本身
 - 计算方式: 流式计算，边写边更新 xxHash64 状态
+
+**空文件处理**:
+- 空 FASTQ 文件（0 reads）产生有效的 .fqc 文件
+- `TotalReadCount = 0`
+- `num_blocks = 0`
+- 只有 Magic Header, Global Header, Block Index (空), File Footer
+- 解压空 .fqc 产生空 FASTQ 文件
 
 **校验流程 (推荐顺序)**:
 1. 读取 Footer，验证 `magic_end`（快速检测格式）
@@ -460,6 +506,9 @@ public:
 - 利用 R1/R2 的互补性：若 R2 与 R1 的反向互补相似，仅存储差异
 - Reordering 时保持配对关系：同时移动 (R1_i, R2_i)
 - **范围语义**: 所有范围/索引的 Read ID 以单条 Read 计数（PE 总数 = 2 * Pairs）
+- **`--range` 参数**: 始终以 **archive_id** 计数，与存储布局无关
+  - Consecutive 模式下 `--range 1:100` 返回 archive_id 1-100（即前 100 条 R1）
+  - 如需按配对访问，使用 `--range-pairs 1:50`（新增参数）
 
 ## Long Read 模式设计
 
@@ -553,6 +602,22 @@ enum class ReadLengthClass {
 // - 这确保数据完整性，避免因截断导致的信息丢失
 ```
 
+### 采样策略边界处理
+```cpp
+// 采样数量: min(1000, total_reads)
+// 对于文件少于 1000 条 reads 的情况，采样全部 reads
+
+// 流式模式 (stdin) 采样策略:
+// - 无法预先采样，默认使用 MEDIUM 策略（保守）
+// - 或要求用户显式指定 --long-read-mode <short|medium|long>
+// - 发出警告: "stdin input detected, using conservative MEDIUM strategy"
+
+// 动态检测 (可选增强):
+// - 在压缩过程中动态检测超长 reads
+// - 遇到超过当前策略限制的 read 时报错并建议重新压缩
+// - 或提供 --scan-all-lengths 选项进行全文件扫描（仅文件输入）
+```
+
 ### Long Read 压缩策略
 
 > [!IMPORTANT]
@@ -616,8 +681,9 @@ struct MemoryBudget {
 1. 将输入文件分割为 N 个 Chunk（每 Chunk 可放入内存）
 2. 每 Chunk 独立执行 Two-Phase 压缩（仅在 Chunk 内重排序）
 3. 归档顺序按 Chunk 顺序串联，`archive_id` 全局连续
-4. Reorder Map 以 Chunk 为单位拼接并累加偏移，保证原始/归档 ID 可全局查询
-5. Chunk 间不共享重排序上下文（压缩率略降 5-10%）
+4. **`block_id` 全局连续**，跨 Chunk 递增（如 Chunk 0: block_id 0,1,2; Chunk 1: block_id 3,4,5）
+5. Reorder Map 以 Chunk 为单位拼接并累加偏移，保证原始/归档 ID 可全局查询
+6. Chunk 间不共享重排序上下文（压缩率略降 5-10%）
 
 ## Development Phases
 

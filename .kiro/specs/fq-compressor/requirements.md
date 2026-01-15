@@ -133,7 +133,9 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   压缩文件必须按 **Block** 组织。
     -   支持通过 Block Index 快速定位并解压指定范围的 reads。
     -   解压语义："第 X 到 Y 条 Reads" 的编号以归档存储顺序为准（开启重排时按重排后的顺序）。
+    -   **索引基数**: 使用 **1-based 索引**（与 SAMtools、bedtools 等生物信息工具一致）。
     -   **PE 计数语义**: Read ID 以 **单条 Read 记录** 计数（PE 总数 = 2 * Pairs）。
+    -   **PE Consecutive 模式**: `--range` 始终以 archive_id 计数，与存储布局无关；如需按配对访问，使用 `--range-pairs`。
     -   Block Index 需包含 `header_size` 与 `entry_size` 以支持前向兼容。
 2.  **Requirement 2.2: 输出格式**: 支持解压为 `.fastq` 或直接流式输出到标准输出。
 3.  **Requirement 2.3: 部分解压 (Header-only / Column-selective)**:
@@ -147,7 +149,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 1.  **Requirement 3.1: Lossless (Default)**: 无损保留所有质量值。
 2.  **Requirement 3.2: QVZ Lossy**: 支持 **QVZ** 算法进行有损压缩，提供 configurable compression ratio。
 3.  **Requirement 3.3: Illumina Binning**: 支持标准的 8-level binning。
-4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID），解压时填充占位符质量值（默认 `'!'`）以保持 FASTQ 四行格式。
+4.  **Requirement 3.4: No Quality**: 选项丢弃质量值（仅保留序列和 ID），解压时填充占位符质量值（默认 `'!'`，可通过 `--placeholder-qual` 配置）以保持 FASTQ 四行格式。
 
 ### Requirement 4: 高性能架构
 **User Story:** 用户希望充分利用多核 CPU，加速处理 massive datasets。
@@ -162,7 +164,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   Phase 1 (全局分析) 内存估算：~24 bytes/read（Minimizer 索引 + Reorder Map）。
     -   Phase 2 (分块压缩) 内存估算：~50 bytes/read × block_size。
     -   超大文件自动启用分治模式（Chunk-wise Compression）。
-    -   分治模式下 `archive_id` 必须全局连续，Reorder Map 需按 Chunk 拼接并累加偏移。
+    -   分治模式下 `archive_id` 和 `block_id` 必须全局连续，Reorder Map 需按 Chunk 拼接并累加偏移。
 
 ### Requirement 5: 数据完整性
 **User Story:** 数据安全第一，必须能检测损坏。
@@ -227,13 +229,16 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     
     **Long Read 选项**:
     - `--long-read-mode <auto|short|medium|long>`: 长读模式（默认：auto）。
-    - 自动检测（采样前 1000 条 Reads，按优先级从高到低判定）：
+    - 自动检测（采样 `min(1000, total_reads)` 条 Reads，按优先级从高到低判定）：
         1. max_length >= 100KB → Long (Ultra-long 策略)
         2. max_length >= 10KB → Long
         3. max_length > 511 → Medium (Spring 兼容保护，即使 median < 1KB)
         4. median >= 1KB → Medium
         5. 其余 → Short
     - **保守策略**: 不允许截断超长 reads，只要存在任何 read 超过 511bp，整个文件即归类为 Medium 或更高
+    - **流式模式采样**: stdin 输入时无法预先采样，默认使用 MEDIUM 策略（保守），或要求用户显式指定 `--long-read-mode`
+    - `--scan-all-lengths`: 可选，对文件输入进行全文件扫描 max_length（更准确但更慢）
+    - `--max-block-bases <bytes>`: Long/Ultra-long 模式下单个 Block 的最大碱基数上限（默认：Long 200MB，Ultra-long 50MB）
     
     **流式模式选项**:
     - `--streaming`: 强制启用流式模式（禁用全局/块内重排序，支持 stdin；强制 `--preserve-order` 且 `--no-save-reorder-map`）。
@@ -242,14 +247,33 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     **decompress 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。
     - `-o, --output <path>`: 输出 FASTQ（默认：stdout）。
-    - `--range <start:end>`: 仅解压指定 reads 范围（闭区间；以归档存储顺序计数；`end` 可省略表示直到文件末尾）。
+    - `--range <start:end>`: 仅解压指定 reads 范围。
+        - **1-based 索引**（与 SAMtools、bedtools 等生物信息工具一致）
+        - 闭区间，以归档存储顺序计数
+        - `start` 可省略（`:end` 等价于 `1:end`）
+        - `end` 可省略（`start:` 等价于 `start:TotalReadCount`）
+        - 错误处理：
+            - `start > end`: 报错 `EXIT_USAGE_ERROR (1)`
+            - `start < 1`: 报错 `EXIT_USAGE_ERROR (1)`
+            - `end > TotalReadCount`: 自动截断到 `TotalReadCount`，发出警告
+    - `--range-pairs <start:end>`: PE 模式下按配对范围解压（如 `--range-pairs 1:50` 返回前 50 对）
     - `--original-order`: 按原始顺序输出（需要归档包含 Reorder Map；若不存在则报错）。
     - `--header-only`: 仅输出 header（Identifier Stream），不解码 Sequence/Quality。
     - `--streams <id|seq|qual|all>`: 子流选择性解码（默认：all；与 `--header-only` 互斥）。
+        - **输出格式规则**:
+            - `--streams all`: 标准 FASTQ 四行格式
+            - `--streams id`: 每行一个 ID（不含 `@` 前缀）
+            - `--streams seq`: 每行一条序列（纯碱基）
+            - `--streams qual`: 每行一条质量值（纯 ASCII）
+            - `--streams id,seq`: FASTA 格式（`>ID\nSEQUENCE`）
+            - `--streams id,seq,qual`: 标准 FASTQ 格式
+    - `--output-format <fastq|fasta|tsv|raw>`: 显式控制输出格式（可选，覆盖 `--streams` 的默认格式）
     - `--verify / --no-verify`: 解压时是否校验 checksum（默认：`--verify`）。
     - `--split-pe`: PE 模式下分别输出 R1/R2 到两个文件（需配合 `-o` 指定前缀）。
     - `--skip-corrupted`: 跳过损坏的 Block 继续解压（默认：遇到损坏则报错退出）。
     - `--corrupted-placeholder <skip|empty>`: 损坏 Block 的处理方式（默认：skip）。
+    - `--placeholder-qual <char>`: Quality Discard 模式下的占位符质量值（默认：`'!'`）
+    - `--id-prefix <prefix>`: ID Discard 模式下重建 ID 的前缀（默认：空）
 
     **info 子命令**:
     - `-i, --input <path>`: 输入 `.fqc`。
@@ -311,3 +335,20 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     - Major 变更：格式不兼容（需要新版本工具）
     - Minor 变更：向后兼容（新增可选字段）
 4.  **Requirement 9.4: 升级路径**: 提供 `fqc upgrade` 命令将旧版本文件升级到新格式（可选，Phase 5+）。
+
+### Requirement 10: 边界条件与特殊情况
+**User Story:** 用户希望工具能正确处理各种边界情况。
+
+#### Acceptance Criteria
+1.  **Requirement 10.1: 空文件处理**:
+    -   空 FASTQ 文件（0 reads）产生有效的 .fqc 文件
+    -   `TotalReadCount = 0`，`num_blocks = 0`
+    -   解压空 .fqc 产生空 FASTQ 文件
+2.  **Requirement 10.2: ID 重建格式 (ID_MODE=Discard)**:
+    -   SE 模式: `@{archive_id}` (如 `@1`, `@2`, `@3`)
+    -   PE Interleaved 模式: `@{pair_id}/{read_num}` (如 `@1/1`, `@1/2`, `@2/1`, `@2/2`)
+    -   PE Consecutive 模式: `@{archive_id}` (如 `@1`, `@2`, ..., `@N`, `@N+1`, ...)
+    -   可通过 `--id-prefix <prefix>` 自定义前缀（默认为空）
+3.  **Requirement 10.3: Read 长度验证**:
+    -   长度为 0 的 read 是无效的，解析时应报错
+    -   `uniform_read_length = 0` 表示 "可变长度，使用 Aux Stream"
