@@ -134,6 +134,8 @@ Phase 2: Block-wise Compression (分块压缩)
 +----------------+
 |    Block N     |
 +----------------+
+| Reorder Map    |  (Optional, Variable Length)
++----------------+
 |   Block Index  |  (Variable Length)
 +----------------+
 |  File Footer   |  (Fixed Length)
@@ -166,10 +168,10 @@ Magic Header = Magic (8 bytes) + Version (1 byte)
         - 00: Interleaved (默认，R1/R2 交替存储)
         - 01: Consecutive (所有 R1 后跟所有 R2；**注意：此模式会导致 Sequence 压缩率下降，因无法利用 R1/R2 互补性**)
         - 10-11: Reserved
-    - bit 10-11: `READ_LENGTH_CLASS`: Read 长度分类
+    - bit 10-11: `READ_LENGTH_CLASS`: Read 长度分类（判定时参考 median/max length）
         - 00: Short (median < 1KB，使用 ABC + 全局 Reordering)
         - 01: Medium (1KB <= median < 10KB，使用 ABC + 可选 Reordering)
-        - 10: Long (median >= 10KB，禁用 Reordering)
+        - 10: Long (median >= 10KB 或 max >= 10KB，禁用 Reordering)
         - 11: Reserved
     - bit 12: `STREAMING_MODE`: 流式压缩模式（禁用全局重排序）
     - bit 13-63: Reserved
@@ -260,10 +262,10 @@ struct BlockHeader {
         -   **Phase 1 (Global)**: Minimizer 提取 -> 全局 Bucketing -> 全局 Reordering
         -   **Phase 2 (Per-Block)**: Block 内 Consensus & Delta -> Arithmetic Coding
     -   *Why*: 核心思想：Don't just compress reads, compress the edits。两阶段策略在保持高压缩率的同时实现随机访问。
-    -   **Long Read 策略** (read length > 10KB):
+    -   **Long Read 策略** (read length > 10KB 或 max > 511):
         -   禁用 Minimizer Reordering（长读序列相似度低，重排收益有限）
-        -   使用 NanoSpring 风格的 overlap-based 压缩
-        -   或回退到 SCM + Zstd 通用策略
+        -   **主要策略**: Zstd 通用压缩（简单、稳定、推荐）
+        -   **可选优化**: NanoSpring 风格的 overlap-based 压缩（需适配 Block 模式，复杂度高）
 3.  **Quality Stream**:
     -   *Strategy*: **Statistical Context Mixing (SCM)** (Ref: Fqzcomp5).
     -   *Why*: 质量值具有高频率波动特性，Assembly-based 方法效果不佳。Fqzcomp5 的上下文模型 (Context Model) 是目前处理质量值的最佳实践。我们将实现一个类似的 Order-1/Order-2 上下文模型。
@@ -446,36 +448,115 @@ public:
 
 ## Long Read 模式设计
 
+### Spring 511 长度限制深度分析
+
+**问题根源**: Spring 的 `MAX_READ_LEN = 511` 是**编译时硬编码常量**，深度嵌入其核心数据结构：
+
+```cpp
+// Spring 源码 (params.h)
+const uint16_t MAX_READ_LEN = 511;
+const uint32_t MAX_READ_LEN_LONG = 4294967290;  // -l 模式使用
+
+// 依赖此常量的数据结构 (reorder.cpp)
+typedef std::bitset<2*MAX_READ_LEN> bitset;     // 1022 bits 固定大小
+bitset basemask[MAX_READ_LEN][128];             // 静态数组
+bitset positionmask[MAX_READ_LEN];              // 静态数组
+char s[MAX_READ_LEN + 1];                       // 固定缓冲区
+```
+
+**扩展可行性评估**:
+
+| 扩展方案 | 难度 | 说明 |
+|---------|------|------|
+| 修改 `MAX_READ_LEN` 常量 | **低** | 只需改一个值，但会显著增加内存（bitset 大小翻倍） |
+| 动态长度支持 | **高** | 需重构所有 bitset 为 `std::vector<bool>` 或动态容器，涉及大量代码 |
+| 算法适用性 | **有限** | ABC 对长读收益有限（见下文分析） |
+
+**关键发现**: Spring 的 `-l` (long read) 模式**完全绕过 ABC 算法**：
+> "Supports variable length long reads of arbitrary length (with -l flag). This mode **directly applies general purpose compression (BSC)** to reads and so compression gains might be lower."
+
+这说明 Spring 作者认为 **ABC 算法对长读的收益不值得扩展**。
+
+### NanoSpring vs Spring 对比分析
+
+**NanoSpring 不是 Spring 的扩展**，而是**完全不同的算法**：
+
+| 特性 | Spring (ABC) | NanoSpring (Overlap-based) |
+|------|-------------|---------------------------|
+| **核心策略** | Minimizer + Reordering + Consensus | MinHash + Minimap2 + Consensus Graph |
+| **适用场景** | 短读 (Illumina, <500bp) | 长读 (Nanopore, 10KB+) |
+| **压缩内容** | 完整 FASTQ (Seq + Qual + ID) | **仅序列** (忽略 Qual/ID) |
+| **错误率容忍** | 低 (~0.1%) | **高** (~5-15%) |
+| **重排序** | 全局重排序 (关键优化) | 无重排序 |
+| **内存模型** | O(N) Minimizer 索引 | O(N) MinHash + Consensus Graph |
+
+**为什么 ABC 对长读效果有限**:
+1. **高错误率**: Nanopore ~5-15% 错误率导致 Minimizer 匹配困难
+2. **序列相似度低**: 长读间难以找到足够相似的序列进行 Consensus
+3. **重排序收益低**: 无法有效聚集相似 reads
+
 ### Read 长度分类
 
-采用三级分类系统，基于采样的 median read length 自动判断：
+采用三级分类系统，基于采样的 median 和 max read length 自动判断：
 
 | 分类 | 长度范围 | 压缩策略 | Block Size |
 |------|----------|----------|------------|
-| **Short** | median < 1KB | ABC + 全局 Reordering | 100K reads |
-| **Medium** | 1KB <= median < 10KB | ABC + 可选 Reordering | 50K reads |
-| **Long** | median >= 10KB | Overlap-based 或 Zstd，禁用 Reordering | 10K reads |
+| **Short** | median < 1KB 且 max <= 511 | ABC + 全局 Reordering | 100K reads |
+| **Medium** | 1KB <= median < 10KB 或 max > 511 | Zstd fallback (推荐) | 50K reads |
+| **Long** | median >= 10KB 或 max >= 10KB | Overlap-based 或 Zstd，禁用 Reordering | 10K reads |
+
+**Spring 兼容性约束**:
+- Spring ABC 原版对可变长度 short reads 的上限约 511bp
+- 若未对 Spring 做扩展，进入 ABC 的 reads 必须满足 `max_read_length <= 511`
+- 超过 511bp 的数据自动切换到 Medium/Long 策略
 
 ### 自动检测策略
 ```cpp
 enum class ReadLengthClass {
-    SHORT,      // median < 1KB
-    MEDIUM,     // 1KB <= median < 10KB
+    SHORT,      // median < 1KB 且 max <= 511 (Spring ABC 兼容)
+    MEDIUM,     // 1KB <= median < 10KB 或 max > 511
     LONG        // median >= 10KB
 };
 
-// 自动检测逻辑:
-// 采样前 1000 条 Reads，计算 median length
-// 根据 median 值确定 ReadLengthClass
+// 自动检测逻辑 (优先级从高到低):
+// 1. max_length >= 10KB → LONG
+// 2. max_length > 511 → MEDIUM (Spring 兼容保护，即使 median < 1KB)
+// 3. median >= 1KB → MEDIUM
+// 4. 其余 → SHORT
 ```
 
 ### Long Read 压缩策略
-| 组件 | Short Read | Medium Read | Long Read |
-|------|------------|-------------|-----------|
-| Sequence | ABC (Spring) | ABC (Spring) | Overlap-based 或 Zstd |
-| Quality | SCM Order-2 | SCM Order-2 | SCM Order-1 (降低内存) |
-| Reordering | 启用 | 可选（默认启用） | 禁用 |
-| Block Size | 100K reads | 50K reads | 10K reads |
+
+> [!IMPORTANT]
+> **关于 Spring 511bp 限制与策略选择**:
+> Spring 的 ABC 算法是为了短读长 (Illumina) 设计的，其图结构在处理超长且高错误率的 reads 时效率急剧下降。
+> 因此，**绝对不应尝试强行扩展 Spring ABC 算法去支持长读**。
+> 本项目采用 **分而治之** 的策略：
+> *   **Short (<1KB, max<=511)**: 使用 Spring ABC (SOTA for short reads)。
+> *   **Medium (1KB-10KB 或 max>511)**: Spring ABC 不支持。因此 **Zstd 通用压缩** 是该区间最稳妥、最高效的选择。
+> *   **Long (>10KB)**: **Zstd 通用压缩** 作为主要策略（简单、稳定）；Overlap-based 作为可选优化（需适配为 Block 模式，复杂度高）。
+> *   **NanoSpring 适配挑战**: NanoSpring 原生算法倾向于全局处理 (Global Graph/Index)，为了支持本项目要求的 **Block-based Random Access**，需要将其改造为处理独立的 Block。这会牺牲少量跨 Block 的重叠压缩收益，且实现复杂度高。因此 **Zstd 是 Long Read 的推荐首选**。
+
+| 组件 | Short Read (<1KB, max<=511) | Medium Read (1KB-10KB 或 max>511) | Long Read (>10KB) |
+|------|-------------------|------------------------|-------------------|
+| **Sequence** | **ABC (Spring)**<br>*(limit: 511bp)* | **Zstd (General)**<br>*(Recommended for stability)* | **Zstd (Primary)**<br>*(Overlap-based 作为可选优化)* |
+| **Quality** | **SCM Order-2**<br>*(高精度上下文)* | **SCM Order-2** | **SCM Order-1**<br>*(降低内存/计算开销)* |
+| **Reordering** | **启用**<br>*(提升~20%)* | **禁用**<br>*(ABC 不可用)* | **禁用**<br>*(收益低，开销大)* |
+| **Block Size** | 100K reads | 50K reads | 10K reads |
+
+### 混合长短读场景分析
+
+**结论**: 在真实世界中，**几乎不存在**单个 FASTQ 文件混合长短读的场景。
+
+**原因**:
+1. **测序平台不同**: Illumina (短读) vs Nanopore/PacBio (长读) 是不同的仪器
+2. **数据产出分离**: 每个测序 run 产出独立的 FASTQ 文件
+3. **分析流程不同**: 短读和长读的下游分析完全不同
+4. **即使混合测序**: 也会产出独立的文件（如 10x Genomics 的 linked-reads）
+
+**唯一例外**: PacBio HiFi 数据可能有较大的长度变异（5-25KB），但仍属于"长读"范畴，统一使用 Long Read 策略。
+
+**设计决策**: 本项目**不支持**单文件混合长短读场景，简化实现复杂度。
 
 ## 内存管理设计
 

@@ -112,9 +112,10 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     -   **Reorder (Default)**: 允许重排序 reads 以获得最高压缩比（参考 Spring/Repaq）。
     -   **Order-Preserving**: 强制保留原始 reads 顺序（压缩比略低）。
     -   **Streaming Mode**: 流式压缩模式，禁用全局重排序，支持 stdin 输入。
-    -   支持 **Short Reads** (median < 1KB，如 Illumina)。
-    -   支持 **Medium Reads** (1KB <= median < 10KB，如 PacBio HiFi)。
+    -   支持 **Short Reads** (median < 1KB 且 max <= 511，Spring ABC 兼容)。
+    -   支持 **Medium Reads** (1KB <= median < 10KB 或 max > 511，如 PacBio HiFi)。
     -   支持 **Long Reads** (median >= 10KB，如 Nanopore，自动禁用重排序)。
+    -   **Spring 兼容性**: 未扩展 Spring ABC 时，max_read_length > 511 的数据不得进入 Short 模式，应切换到 Medium/Long 或通用压缩。
     -   支持 **SE (Single-End)** 和 **PE (Paired-End)**。
     -   **断点续压**: **不支持**断点续压（No Resume），简化设计。
     -   **stdin 输入限制**: 
@@ -221,10 +222,10 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
     
     **Long Read 选项**:
     - `--long-read-mode <auto|short|medium|long>`: 长读模式（默认：auto）。
-    - 自动检测：采样前 1000 条 Reads，根据 median length 判断：
-        - median < 1KB: Short
-        - 1KB <= median < 10KB: Medium
-        - median >= 10KB: Long
+    - 自动检测：采样前 1000 条 Reads，计算 median 与 max length：
+        - max_length > 10KB: Long
+        - max_length > 511: Medium (Spring 兼容保护)
+        - 其余：median < 1KB -> Short；1KB <= median < 10KB -> Medium
     
     **流式模式选项**:
     - `--streaming`: 强制启用流式模式（禁用全局重排序，支持 stdin）。
