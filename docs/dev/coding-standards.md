@@ -438,6 +438,26 @@ fq-compressor/
 - YAML 使用 2 空格缩进；Makefile 必须使用 Tab。
 - C/C++ 行宽 100；Markdown 保留行尾空格。
 
+### Git 提交规范
+
+采用 Conventional Commits（英文），保持可读性与可追溯性：
+
+```
+<type>(<scope>): <subject>
+```
+
+- **type**: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`
+- **scope**: 可选，模块/目录/组件名（如 `cli`, `io`, `format`, `pipeline`）
+- **subject**: 英文、祈使句、小写开头、不以句号结尾
+
+模板示例：
+
+```
+feat(cli): add streaming mode option
+fix(format): validate footer checksum order
+docs(dev): update coding standards
+```
+
 ### 格式化命令
 
 ```bash
@@ -474,6 +494,16 @@ fq-compressor/
 # 运行特定测试
 ./scripts/test.sh --filter "BlockEncoder*"
 ```
+
+## 不推荐实践
+
+以下做法容易引发争议或降低可维护性，因此明确不推荐：
+
+1. **强制尾随返回类型**：会降低可读性，且在简单返回类型上收益有限。
+   - 已在 clang-tidy 中禁用 `modernize-use-trailing-return-type`。
+2. **过度启用复杂规则**：如 `cppcoreguidelines-pro-bounds-*` 在性能敏感代码中易产生噪声。
+   - 仅在必要时手动启用或针对性检查。
+3. **依赖 clang-tidy 修复所有风格问题**：工具仅提供基线，复杂设计问题需人工评审。
 
 ## 参考资料
 
