@@ -25,6 +25,7 @@ set(FQC_CORE_SOURCES
     algo/global_analyzer.cpp
     algo/block_compressor.cpp
     algo/quality_compressor.cpp
+    algo/id_compressor.cpp
 )
 
 # Command sources
