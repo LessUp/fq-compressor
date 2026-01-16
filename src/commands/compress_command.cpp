@@ -34,7 +34,7 @@ QualityCompressionMode parseQualityMode(std::string_view str) {
     if (str == "discard") {
         return QualityCompressionMode::kDiscard;
     }
-    throw ArgumentError(ErrorCode::kInvalidArgument,
+    throw ArgumentError(
                         "Invalid quality mode: " + std::string(str));
 }
 
@@ -95,10 +95,10 @@ int CompressCommand::execute() {
         return 0;
 
     } catch (const FQCException& e) {
-        LOG_ERROR("Compression failed: {}", e.what());
+        FQC_LOG_ERROR("Compression failed: {}", e.what());
         return static_cast<int>(e.code());
     } catch (const std::exception& e) {
-        LOG_ERROR("Unexpected error: {}", e.what());
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;
     }
 }
@@ -107,58 +107,58 @@ void CompressCommand::validateOptions() {
     // Check input exists (unless stdin)
     if (options_.inputPath != "-") {
         if (!std::filesystem::exists(options_.inputPath)) {
-            throw IOError(ErrorCode::kFileNotFound,
+            throw IOError(
                           "Input file not found: " + options_.inputPath.string());
         }
     }
 
     // Check output doesn't exist (unless force)
     if (!options_.forceOverwrite && std::filesystem::exists(options_.outputPath)) {
-        throw IOError(ErrorCode::kFileExists,
+        throw IOError(
                       "Output file already exists: " + options_.outputPath.string() +
                           " (use -f to overwrite)");
     }
 
     // Validate compression level
     if (options_.compressionLevel < 1 || options_.compressionLevel > 9) {
-        throw ArgumentError(ErrorCode::kInvalidArgument,
+        throw ArgumentError(
                             "Compression level must be 1-9");
     }
 
     // Streaming mode implies no reordering
     if (options_.streamingMode) {
         options_.enableReordering = false;
-        LOG_DEBUG("Streaming mode enabled, disabling reordering");
+        FQC_LOG_DEBUG("Streaming mode enabled, disabling reordering");
     }
 
     // stdin implies streaming mode
     if (options_.inputPath == "-" && !options_.streamingMode) {
-        LOG_WARNING("stdin input detected, enabling streaming mode");
+        FQC_LOG_WARNING("stdin input detected, enabling streaming mode");
         options_.streamingMode = true;
         options_.enableReordering = false;
     }
 
-    LOG_DEBUG("Compression options validated");
-    LOG_DEBUG("  Input: {}", options_.inputPath.string());
-    LOG_DEBUG("  Output: {}", options_.outputPath.string());
-    LOG_DEBUG("  Level: {}", options_.compressionLevel);
-    LOG_DEBUG("  Reordering: {}", options_.enableReordering);
-    LOG_DEBUG("  Streaming: {}", options_.streamingMode);
-    LOG_DEBUG("  Quality mode: {}", qualityModeToString(options_.qualityMode));
+    FQC_LOG_DEBUG("Compression options validated");
+    FQC_LOG_DEBUG("  Input: {}", options_.inputPath.string());
+    FQC_LOG_DEBUG("  Output: {}", options_.outputPath.string());
+    FQC_LOG_DEBUG("  Level: {}", options_.compressionLevel);
+    FQC_LOG_DEBUG("  Reordering: {}", options_.enableReordering);
+    FQC_LOG_DEBUG("  Streaming: {}", options_.streamingMode);
+    FQC_LOG_DEBUG("  Quality mode: {}", qualityModeToString(options_.qualityMode));
 }
 
 void CompressCommand::detectReadLengthClass() {
     if (options_.inputPath == "-") {
         // Cannot sample stdin
-        LOG_WARNING("Cannot sample stdin for length detection, using MEDIUM strategy");
+        FQC_LOG_WARNING("Cannot sample stdin for length detection, using MEDIUM strategy");
         detectedLengthClass_ = ReadLengthClass::kMedium;
         return;
     }
 
     if (options_.scanAllLengths) {
-        LOG_INFO("Scanning all reads for length detection (--scan-all-lengths)...");
+        FQC_LOG_INFO("Scanning all reads for length detection (--scan-all-lengths)...");
     } else {
-        LOG_DEBUG("Sampling input file for read length detection...");
+        FQC_LOG_DEBUG("Sampling input file for read length detection...");
     }
 
     try {
@@ -178,11 +178,11 @@ void CompressCommand::detectReadLengthClass() {
 
                 // Progress report every 1M reads
                 if (options_.showProgress && scannedCount % 1000000 == 0) {
-                    LOG_INFO("Scanned {} reads, max length so far: {}",
+                    FQC_LOG_INFO("Scanned {} reads, max length so far: {}",
                              scannedCount, sampleStats.maxLength);
                 }
             }
-            LOG_INFO("Full scan complete: {} reads scanned", scannedCount);
+            FQC_LOG_INFO("Full scan complete: {} reads scanned", scannedCount);
         } else {
             // Sample records (default: 1000)
             sampleStats = parser.sampleRecords(1000);
@@ -191,18 +191,18 @@ void CompressCommand::detectReadLengthClass() {
         // Detect length class
         detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
 
-        LOG_INFO("Detected read length class: {}",
+        FQC_LOG_INFO("Detected read length class: {}",
                  detectedLengthClass_ == ReadLengthClass::kShort    ? "SHORT"
                  : detectedLengthClass_ == ReadLengthClass::kMedium ? "MEDIUM"
                                                                     : "LONG");
-        LOG_DEBUG("  {} size: {} reads", options_.scanAllLengths ? "Scan" : "Sample",
+        FQC_LOG_DEBUG("  {} size: {} reads", options_.scanAllLengths ? "Scan" : "Sample",
                   sampleStats.totalRecords);
-        LOG_DEBUG("  Min length: {}", sampleStats.minLength);
-        LOG_DEBUG("  Max length: {}", sampleStats.maxLength);
-        LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
+        FQC_LOG_DEBUG("  Min length: {}", sampleStats.minLength);
+        FQC_LOG_DEBUG("  Max length: {}", sampleStats.maxLength);
+        FQC_LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
 
     } catch (const std::exception& e) {
-        LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
+        FQC_LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
                     options_.scanAllLengths ? "scan" : "sample", e.what());
         detectedLengthClass_ = ReadLengthClass::kMedium;
     }
@@ -220,7 +220,7 @@ void CompressCommand::setupCompressionParams() {
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 0;  // No limit for short reads
             }
-            LOG_DEBUG("Using SHORT read strategy: ABC + reordering, 100K reads/block");
+            FQC_LOG_DEBUG("Using SHORT read strategy: ABC + reordering, 100K reads/block");
             break;
 
         case ReadLengthClass::kMedium:
@@ -230,7 +230,7 @@ void CompressCommand::setupCompressionParams() {
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 200 * 1024 * 1024;  // 200MB
             }
-            LOG_DEBUG("Using MEDIUM read strategy: Zstd, no reordering, 50K reads/block");
+            FQC_LOG_DEBUG("Using MEDIUM read strategy: Zstd, no reordering, 50K reads/block");
             break;
 
         case ReadLengthClass::kLong:
@@ -240,7 +240,7 @@ void CompressCommand::setupCompressionParams() {
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 50 * 1024 * 1024;  // 50MB for ultra-long
             }
-            LOG_DEBUG("Using LONG read strategy: Zstd, no reordering, 10K reads/block");
+            FQC_LOG_DEBUG("Using LONG read strategy: Zstd, no reordering, 10K reads/block");
             break;
     }
 
@@ -252,9 +252,9 @@ void CompressCommand::runCompression() {
     // TODO: Implement actual compression pipeline
     // This is a placeholder that will be replaced in Phase 2/3
 
-    LOG_INFO("Starting compression...");
-    LOG_INFO("  Input: {}", options_.inputPath.string());
-    LOG_INFO("  Output: {}", options_.outputPath.string());
+    FQC_LOG_INFO("Starting compression...");
+    FQC_LOG_INFO("  Input: {}", options_.inputPath.string());
+    FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
 
     // Open input
     std::unique_ptr<std::istream> inputStream;
@@ -277,7 +277,7 @@ void CompressCommand::runCompression() {
 
         // Progress update every 100K reads
         if (options_.showProgress && readCount % 100000 == 0) {
-            LOG_INFO("Processed {} reads...", readCount);
+            FQC_LOG_INFO("Processed {} reads...", readCount);
         }
     }
 
@@ -290,7 +290,7 @@ void CompressCommand::runCompression() {
     // For now, just create an empty placeholder file
     std::ofstream outFile(options_.outputPath, std::ios::binary);
     if (!outFile) {
-        throw IOError(ErrorCode::kFileOpenFailed,
+        throw IOError(
                       "Failed to create output file: " + options_.outputPath.string());
     }
 
@@ -301,7 +301,7 @@ void CompressCommand::runCompression() {
     stats_.outputBytes = 8;  // Placeholder
     stats_.blocksWritten = 0;
 
-    LOG_INFO("Compression complete (placeholder - actual compression not yet implemented)");
+    FQC_LOG_INFO("Compression complete (placeholder - actual compression not yet implemented)");
 }
 
 void CompressCommand::printSummary() const {

@@ -105,7 +105,7 @@ VoidResult CompressionPipelineConfig::validate() const {
     }
 
     if (maxInFlightBlocks == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Max in-flight blocks must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Max in-flight blocks must be > 0"));
     }
 
     return {};
@@ -132,7 +132,7 @@ VoidResult DecompressionPipelineConfig::validate() const {
     }
 
     if (maxInFlightBlocks == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Max in-flight blocks must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Max in-flight blocks must be > 0"));
     }
 
     return {};
@@ -323,7 +323,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, "Pipeline error: {}", e.what());
+            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -333,10 +333,10 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, "Pipeline cancelled");
+            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
         }
 
-        LOG_INFO("Compression complete: {} reads, {} blocks, {:.2f}x ratio, {:.1f} MB/s",
+        FQC_LOG_INFO("Compression complete: {} reads, {} blocks, {:.2f}x ratio, {:.1f} MB/s",
                  stats_.totalReads, stats_.totalBlocks, 
                  stats_.compressionRatio(), stats_.throughputMBps());
 
@@ -464,7 +464,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, "Pipeline error: {}", e.what());
+            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -474,7 +474,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, "Pipeline cancelled");
+            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
         }
 
         return {};
@@ -502,7 +502,7 @@ public:
 
     VoidResult setConfig(CompressionPipelineConfig config) {
         if (running_.load()) {
-            return makeError(ErrorCode::kInvalidState, "Cannot change config while running");
+            return makeError(ErrorCode::kInvalidState, std::string("Cannot change config while running"));
         }
         if (auto result = config.validate(); !result) {
             return result;
@@ -609,7 +609,7 @@ public:
                     std::move(compressedBlock), reader.globalHeader());
                 if (!decompressResult) {
                     if (config_.skipCorrupted) {
-                        LOG_WARNING("Skipping corrupted block");
+                        FQC_LOG_WARNING("Skipping corrupted block");
                         continue;
                     }
                     running_.store(false);
@@ -667,7 +667,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, "Pipeline error: {}", e.what());
+            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -677,10 +677,10 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, "Pipeline cancelled");
+            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
         }
 
-        LOG_INFO("Decompression complete: {} reads, {} blocks, {:.1f} MB/s",
+        FQC_LOG_INFO("Decompression complete: {} reads, {} blocks, {:.1f} MB/s",
                  stats_.totalReads, stats_.totalBlocks, stats_.throughputMBps());
 
         return {};
@@ -792,7 +792,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, "Pipeline error: {}", e.what());
+            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -802,7 +802,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, "Pipeline cancelled");
+            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
         }
 
         return {};
@@ -830,7 +830,7 @@ public:
 
     VoidResult setConfig(DecompressionPipelineConfig config) {
         if (running_.load()) {
-            return makeError(ErrorCode::kInvalidState, "Cannot change config while running");
+            return makeError(ErrorCode::kInvalidState, std::string("Cannot change config while running"));
         }
         if (auto result = config.validate(); !result) {
             return result;

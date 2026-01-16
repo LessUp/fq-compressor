@@ -70,7 +70,40 @@ enum class ErrorCode : std::uint8_t {
 
     /// @brief Unsupported algorithm or codec.
     /// @note Unknown codec family, incompatible compression algorithm.
-    kUnsupportedCodec = 5
+    kUnsupportedCodec = 5,
+
+    /// @brief Invalid argument value.
+    kInvalidArgument = 6,
+
+    /// @brief File not found.
+    kFileNotFound = 7,
+
+    /// @brief File already exists.
+    kFileExists = 8,
+
+    /// @brief Failed to open file.
+    kFileOpenFailed = 9,
+
+    /// @brief Seek operation failed.
+    kSeekFailed = 10,
+
+    /// @brief Invalid file format.
+    kInvalidFormat = 11,
+
+    /// @brief Invalid state for operation.
+    kInvalidState = 12,
+
+    /// @brief Operation was cancelled.
+    kCancelled = 13,
+
+    /// @brief Decompression failed.
+    kDecompressionFailed = 14,
+
+    /// @brief Unsupported format.
+    kUnsupportedFormat = 15,
+
+    /// @brief Corrupted data detected.
+    kCorruptedData = 16
 };
 
 /// @brief Convert ErrorCode to its integer exit code value.
@@ -97,6 +130,28 @@ enum class ErrorCode : std::uint8_t {
             return "checksum error";
         case ErrorCode::kUnsupportedCodec:
             return "unsupported codec";
+        case ErrorCode::kInvalidArgument:
+            return "invalid argument";
+        case ErrorCode::kFileNotFound:
+            return "file not found";
+        case ErrorCode::kFileExists:
+            return "file exists";
+        case ErrorCode::kFileOpenFailed:
+            return "file open failed";
+        case ErrorCode::kSeekFailed:
+            return "seek failed";
+        case ErrorCode::kInvalidFormat:
+            return "invalid format";
+        case ErrorCode::kInvalidState:
+            return "invalid state";
+        case ErrorCode::kCancelled:
+            return "cancelled";
+        case ErrorCode::kDecompressionFailed:
+            return "decompression failed";
+        case ErrorCode::kUnsupportedFormat:
+            return "unsupported format";
+        case ErrorCode::kCorruptedData:
+            return "corrupted data";
     }
     return "unknown error";
 }

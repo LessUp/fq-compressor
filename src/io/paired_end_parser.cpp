@@ -73,14 +73,14 @@ void PairedEndParser::open() {
         r1Parser_->open();
         r2Parser_->open();
 
-        LOG_DEBUG("Opened paired-end files: R1={}, R2={}", r1Path_.string(), r2Path_.string());
+        FQC_LOG_DEBUG("Opened paired-end files: R1={}, R2={}", r1Path_.string(), r2Path_.string());
     } else {
         // Open single interleaved file
         auto stream = openCompressedFile(r1Path_);
         r1Parser_ = std::make_unique<FastqParser>(std::move(stream), options_.baseOptions);
         r1Parser_->open();
 
-        LOG_DEBUG("Opened interleaved paired-end file: {}", r1Path_.string());
+        FQC_LOG_DEBUG("Opened interleaved paired-end file: {}", r1Path_.string());
     }
 
     isOpen_ = true;
@@ -121,9 +121,9 @@ std::optional<PairedEndRecord> PairedEndParser::readPair() {
         if (!r1 || !r2) {
             eof_ = true;
             if (r1 && !r2) {
-                LOG_WARNING("R1 has more reads than R2");
+                FQC_LOG_WARNING("R1 has more reads than R2");
             } else if (!r1 && r2) {
-                LOG_WARNING("R2 has more reads than R1");
+                FQC_LOG_WARNING("R2 has more reads than R1");
             }
             return std::nullopt;
         }
@@ -141,7 +141,7 @@ std::optional<PairedEndRecord> PairedEndParser::readPair() {
         auto r2 = r1Parser_->readRecord();
         if (!r2) {
             eof_ = true;
-            LOG_WARNING("Interleaved file has odd number of reads");
+            FQC_LOG_WARNING("Interleaved file has odd number of reads");
             return std::nullopt;
         }
 
@@ -152,7 +152,7 @@ std::optional<PairedEndRecord> PairedEndParser::readPair() {
     // Validate pairing if enabled
     if (options_.validatePairing && !validatePairIds(pair.read1, pair.read2)) {
         ++stats_.mismatchedPairs;
-        LOG_WARNING("Mismatched pair IDs: '{}' vs '{}'", pair.read1.id, pair.read2.id);
+        FQC_LOG_WARNING("Mismatched pair IDs: '{}' vs '{}'", pair.read1.id, pair.read2.id);
     }
 
     // Update statistics
@@ -295,7 +295,7 @@ bool detectInterleavedFormat(const std::filesystem::path& filePath, std::size_t 
         return totalPairs > 0 && (matchedPairs * 2 >= totalPairs);
 
     } catch (const std::exception& e) {
-        LOG_DEBUG("Failed to detect interleaved format: {}", e.what());
+        FQC_LOG_DEBUG("Failed to detect interleaved format: {}", e.what());
         return false;
     }
 }

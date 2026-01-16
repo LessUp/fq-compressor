@@ -204,7 +204,7 @@ void setupCompressCommand(CLI::App& app) {
         // Check for stdin input
         if (gCompressOpts.input == "-") {
             if (!gCompressOpts.streaming) {
-                LOG_WARNING("stdin input detected, enabling streaming mode (no global reordering)");
+                FQC_LOG_WARNING("stdin input detected, enabling streaming mode (no global reordering)");
                 gCompressOpts.streaming = true;
             }
         }
@@ -330,7 +330,7 @@ int main(int argc, char* argv[]) {
     // Auto-disable progress on non-TTY
     if (!isStdoutTty() && !gOptions.noProgress) {
         gOptions.noProgress = true;
-        LOG_DEBUG("stdout is not a TTY, disabling progress display");
+        FQC_LOG_DEBUG("stdout is not a TTY, disabling progress display");
     }
 
     // Dispatch to subcommand handlers
@@ -348,10 +348,10 @@ int main(int argc, char* argv[]) {
             return fqc::commands::runVerify(app.get_subcommand("verify"));
         }
     } catch (const fqc::FQCException& e) {
-        LOG_ERROR("Error: {}", e.what());
+        FQC_LOG_ERROR("Error: {}", e.what());
         return static_cast<int>(e.code());
     } catch (const std::exception& e) {
-        LOG_ERROR("Unexpected error: {}", e.what());
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return EXIT_FAILURE;
     }
 
@@ -366,31 +366,31 @@ int main(int argc, char* argv[]) {
 namespace fqc::commands {
 
 int runCompress([[maybe_unused]] CLI::App* app) {
-    LOG_INFO("Compress command not yet implemented");
-    LOG_INFO("Input: {}", gCompressOpts.input);
-    LOG_INFO("Output: {}", gCompressOpts.output);
-    LOG_INFO("Level: {}", gCompressOpts.level);
-    LOG_INFO("Reorder: {}", gCompressOpts.reorder);
-    LOG_INFO("Streaming: {}", gCompressOpts.streaming);
+    FQC_LOG_INFO("Compress command not yet implemented");
+    FQC_LOG_INFO("Input: {}", gCompressOpts.input);
+    FQC_LOG_INFO("Output: {}", gCompressOpts.output);
+    FQC_LOG_INFO("Level: {}", gCompressOpts.level);
+    FQC_LOG_INFO("Reorder: {}", gCompressOpts.reorder);
+    FQC_LOG_INFO("Streaming: {}", gCompressOpts.streaming);
     return EXIT_SUCCESS;
 }
 
 int runDecompress([[maybe_unused]] CLI::App* app) {
-    LOG_INFO("Decompress command not yet implemented");
-    LOG_INFO("Input: {}", gDecompressOpts.input);
-    LOG_INFO("Output: {}", gDecompressOpts.output);
+    FQC_LOG_INFO("Decompress command not yet implemented");
+    FQC_LOG_INFO("Input: {}", gDecompressOpts.input);
+    FQC_LOG_INFO("Output: {}", gDecompressOpts.output);
     return EXIT_SUCCESS;
 }
 
 int runInfo([[maybe_unused]] CLI::App* app) {
-    LOG_INFO("Info command not yet implemented");
-    LOG_INFO("Input: {}", gInfoOpts.input);
+    FQC_LOG_INFO("Info command not yet implemented");
+    FQC_LOG_INFO("Input: {}", gInfoOpts.input);
     return EXIT_SUCCESS;
 }
 
 int runVerify([[maybe_unused]] CLI::App* app) {
-    LOG_INFO("Verify command not yet implemented");
-    LOG_INFO("Input: {}", gVerifyOpts.input);
+    FQC_LOG_INFO("Verify command not yet implemented");
+    FQC_LOG_INFO("Input: {}", gVerifyOpts.input);
     return EXIT_SUCCESS;
 }
 

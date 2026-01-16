@@ -37,7 +37,7 @@ VoidResult ReaderNodeConfig::validate() const {
             kMinBlockSize, kMaxBlockSize);
     }
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
     }
     return {};
 }
@@ -54,7 +54,7 @@ VoidResult CompressorNodeConfig::validate() const {
 
 VoidResult WriterNodeConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
     }
     return {};
 }
@@ -81,7 +81,7 @@ VoidResult DecompressorNodeConfig::validate() const {
 
 VoidResult FASTQWriterNodeConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
     }
     return {};
 }
@@ -135,7 +135,7 @@ public:
             totalBytesRead_ = 0;
             nextReadId_ = 1;  // 1-based indexing
             
-            LOG_DEBUG("ReaderNode opened: path={}, estimated_reads={}, block_size={}",
+            FQC_LOG_DEBUG("ReaderNode opened: path={}, estimated_reads={}, block_size={}",
                       path.string(), estimatedTotalReads_, effectiveBlockSize_);
             
             return {};
@@ -144,7 +144,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open input: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open input: {}"), e.what());
         }
     }
 
@@ -185,7 +185,7 @@ public:
             totalBytesRead_ = 0;
             nextReadId_ = 1;
             
-            LOG_DEBUG("ReaderNode opened (paired): path1={}, path2={}, estimated_reads={}",
+            FQC_LOG_DEBUG("ReaderNode opened (paired): path1={}, path2={}, estimated_reads={}",
                       path1.string(), path2.string(), estimatedTotalReads_);
             
             return {};
@@ -194,7 +194,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open paired input: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open paired input: {}"), e.what());
         }
     }
 
@@ -222,7 +222,7 @@ public:
                     if (!record1 || !record2) {
                         // Check for mismatched file lengths
                         if (record1.has_value() != record2.has_value()) {
-                            LOG_WARNING("Paired-end files have different lengths");
+                            FQC_LOG_WARNING("Paired-end files have different lengths");
                         }
                         break;
                     }
@@ -267,7 +267,7 @@ public:
             if (chunk.reads.empty()) {
                 // EOF reached
                 state_ = NodeState::kFinished;
-                LOG_DEBUG("ReaderNode finished: total_reads={}, total_bytes={}",
+                FQC_LOG_DEBUG("ReaderNode finished: total_reads={}, total_bytes={}",
                           totalReadsRead_, totalBytesRead_);
                 return std::nullopt;
             }
@@ -294,7 +294,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to read chunk: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to read chunk: {}"), e.what());
         }
     }
 
@@ -481,7 +481,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kCompressionFailed, "Compression failed: {}", e.what());
+            return makeError(ErrorCode::kCompressionFailed, std::string("Compression failed: {}"), e.what());
         }
     }
 
@@ -712,7 +712,7 @@ public:
             totalBytesWritten_ = 0;
             nextExpectedBlockId_ = 0;
             
-            LOG_DEBUG("WriterNode opened: path={}", path.string());
+            FQC_LOG_DEBUG("WriterNode opened: path={}", path.string());
             
             return {};
         } catch (const FQCException& e) {
@@ -720,13 +720,13 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open output: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open output: {}"), e.what());
         }
     }
 
     VoidResult writeBlock(CompressedBlock block) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
         }
 
         try {
@@ -765,19 +765,19 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to write block: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to write block: {}"), e.what());
         }
     }
 
     VoidResult finalize(std::optional<std::span<const std::uint8_t>> reorderMap) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
         }
 
         try {
             // Check for any remaining pending blocks (shouldn't happen in normal operation)
             if (!pendingBlocks_.empty()) {
-                LOG_WARNING("WriterNode finalize with {} pending blocks", pendingBlocks_.size());
+                FQC_LOG_WARNING("WriterNode finalize with {} pending blocks", pendingBlocks_.size());
                 // Write remaining blocks in order
                 while (!pendingBlocks_.empty()) {
                     auto it = pendingBlocks_.begin();
@@ -800,7 +800,7 @@ public:
             
             state_ = NodeState::kFinished;
             
-            LOG_DEBUG("WriterNode finalized: blocks={}, bytes={}",
+            FQC_LOG_DEBUG("WriterNode finalized: blocks={}, bytes={}",
                       totalBlocksWritten_, totalBytesWritten_);
             
             return {};
@@ -810,7 +810,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to finalize: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to finalize: {}"), e.what());
         }
     }
 
@@ -956,7 +956,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open FQC file: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open FQC file: {}"), e.what());
         }
     }
 
@@ -1014,7 +1014,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to read block: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to read block: {}"), e.what());
         }
     }
 
@@ -1149,7 +1149,7 @@ public:
 
         } catch (const FQCException& e) {
             if (config_.skipCorrupted) {
-                LOG_WARNING("Skipping corrupted block {}: {}", block.blockId, e.what());
+                FQC_LOG_WARNING("Skipping corrupted block {}: {}", block.blockId, e.what());
                 state_ = NodeState::kIdle;
                 return chunk;  // Return empty chunk
             }
@@ -1157,7 +1157,7 @@ public:
             return makeError(e.code(), e.what());
         } catch (const std::exception& e) {
             if (config_.skipCorrupted) {
-                LOG_WARNING("Skipping corrupted block {}: {}", block.blockId, e.what());
+                FQC_LOG_WARNING("Skipping corrupted block {}: {}", block.blockId, e.what());
                 state_ = NodeState::kIdle;
                 return chunk;
             }
@@ -1329,7 +1329,7 @@ public:
             return {};
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open output: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open output: {}"), e.what());
         }
     }
 
@@ -1362,13 +1362,13 @@ public:
             return {};
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to open paired output: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open paired output: {}"), e.what());
         }
     }
 
     VoidResult writeChunk(ReadChunk chunk) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
         }
 
         try {
@@ -1412,7 +1412,7 @@ public:
             
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, "Failed to write FASTQ: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to write FASTQ: {}"), e.what());
         }
     }
 
@@ -1430,7 +1430,7 @@ public:
             }
             return {};
         } catch (const std::exception& e) {
-            return makeError(ErrorCode::kIOError, "Failed to flush output: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to flush output: {}"), e.what());
         }
     }
 

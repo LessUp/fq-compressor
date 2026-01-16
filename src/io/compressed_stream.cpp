@@ -219,7 +219,7 @@ void GzipStreamBuf::initZlib() {
     int ret = inflateInit2(stream, 16 + MAX_WBITS);
     if (ret != Z_OK) {
         delete stream;
-        throw IOError(ErrorCode::kDecompressionFailed, "Failed to initialize zlib: " +
+        throw IOError( "Failed to initialize zlib: " +
                                                            std::string(zError(ret)));
     }
 
@@ -283,7 +283,7 @@ std::size_t GzipStreamBuf::decompress() {
     if (ret == Z_STREAM_END) {
         streamEnd_ = true;
     } else if (ret != Z_OK && ret != Z_BUF_ERROR) {
-        throw IOError(ErrorCode::kDecompressionFailed,
+        throw IOError(
                       "Gzip decompression failed: " + std::string(zError(ret)));
     }
 
@@ -299,7 +299,7 @@ CompressedInputStream::CompressedInputStream(const std::filesystem::path& path)
     // Open file
     fileStream_ = std::make_unique<std::ifstream>(path, std::ios::binary);
     if (!fileStream_->is_open()) {
-        throw IOError(ErrorCode::kFileOpenFailed, "Failed to open file: " + path.string());
+        throw IOError( "Failed to open file: " + path.string());
     }
 
     // Detect format from magic bytes
@@ -349,7 +349,7 @@ CompressedInputStream& CompressedInputStream::operator=(CompressedInputStream&&)
 void CompressedInputStream::setup() {
     std::istream* source = fileStream_ ? fileStream_.get() : sourceStream_.get();
     if (!source) {
-        throw IOError(ErrorCode::kFileOpenFailed, "No source stream available");
+        throw IOError( "No source stream available");
     }
 
     switch (format_) {
@@ -361,18 +361,18 @@ void CompressedInputStream::setup() {
         case CompressionFormat::kGzip:
             decompressBuf_ = std::make_unique<GzipStreamBuf>(*source);
             rdbuf(decompressBuf_.get());
-            LOG_DEBUG("Opened gzip compressed stream");
+            FQC_LOG_DEBUG("Opened gzip compressed stream");
             break;
 
         case CompressionFormat::kBzip2:
         case CompressionFormat::kXz:
         case CompressionFormat::kZstd:
-            throw IOError(ErrorCode::kUnsupportedFormat,
+            throw IOError(
                           "Compression format not yet supported: " +
                               std::string(compressionFormatName(format_)));
 
         default:
-            throw IOError(ErrorCode::kUnsupportedFormat, "Unknown compression format");
+            throw IOError( "Unknown compression format");
     }
 }
 
@@ -388,7 +388,7 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
     if (path == "-") {
         // stdin - check if compressed
         // Note: For stdin, we can't seek back, so we need to buffer
-        LOG_DEBUG("Opening stdin for input");
+        FQC_LOG_DEBUG("Opening stdin for input");
 
         // Read magic bytes
         std::uint8_t magic[8];
@@ -410,7 +410,7 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
 
         // Compressed stdin - need to handle specially
         if (!isCompressionSupported(format)) {
-            throw IOError(ErrorCode::kUnsupportedFormat,
+            throw IOError(
                           "Compressed stdin not supported for format: " +
                               std::string(compressionFormatName(format)));
         }

@@ -518,7 +518,7 @@ Result<CompressedIDData> IDCompressorImpl::compress(std::span<const std::string_
         case IDMode::kDiscard:
             return compressDiscard(ids);
     }
-    return makeError(ErrorCode::kInvalidArgument, "Unknown ID mode");
+    return makeError(ErrorCode::kInvalidArgument, std::string("Unknown ID mode"));
 }
 
 Result<CompressedIDData> IDCompressorImpl::compressExact(std::span<const std::string_view> ids) {
@@ -720,7 +720,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompress(
         if (numIds == 0) {
             return std::vector<std::string>{};
         }
-        return makeError(ErrorCode::kCorruptedData, "Empty compressed data");
+        return makeError(ErrorCode::kCorruptedData, std::string("Empty compressed data"));
     }
 
     std::uint8_t magic = data[0];
@@ -747,7 +747,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
     }
 
     if (data.empty()) {
-        return makeError(ErrorCode::kCorruptedData, "Missing uncompressed size");
+        return makeError(ErrorCode::kCorruptedData, std::string("Missing uncompressed size"));
     }
 
     // Read uncompressed size
@@ -804,7 +804,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
     }
 
     if (data.empty()) {
-        return makeError(ErrorCode::kCorruptedData, "Missing uncompressed size");
+        return makeError(ErrorCode::kCorruptedData, std::string("Missing uncompressed size"));
     }
 
     // Read uncompressed size

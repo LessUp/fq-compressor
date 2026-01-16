@@ -47,15 +47,15 @@ void FastqParser::open() {
     if (isStdin_) {
         // Use cin for stdin
         stream_ = std::make_unique<std::istream>(std::cin.rdbuf());
-        LOG_DEBUG("Opening stdin for FASTQ parsing");
+        FQC_LOG_DEBUG("Opening stdin for FASTQ parsing");
     } else {
         auto fileStream = std::make_unique<std::ifstream>(filePath_, std::ios::binary);
         if (!fileStream->is_open()) {
-            throw IOError(ErrorCode::kFileOpenFailed,
+            throw IOError(
                           "Failed to open FASTQ file: " + filePath_.string());
         }
         stream_ = std::move(fileStream);
-        LOG_DEBUG("Opened FASTQ file: {}", filePath_.string());
+        FQC_LOG_DEBUG("Opened FASTQ file: {}", filePath_.string());
     }
 
     isOpen_ = true;
@@ -214,7 +214,7 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
 
 void FastqParser::reset() {
     if (!canSeek()) {
-        throw IOError(ErrorCode::kSeekFailed, "Cannot seek on stdin input");
+        throw IOError( "Cannot seek on stdin input");
     }
 
     if (stream_) {
@@ -272,7 +272,7 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (idLine[0] != '@') {
         setError("Expected '@' at start of ID line", idLine);
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": expected '@' at start of ID line");
     }
@@ -291,7 +291,7 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (record.id.empty()) {
         setError("Empty read ID", idLine);
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": empty read ID");
     }
@@ -299,21 +299,21 @@ bool FastqParser::parseRecord(FastqRecord& record) {
     // Line 2: Sequence
     if (!readLine(record.sequence)) {
         setError("Unexpected EOF: missing sequence line");
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format: unexpected EOF at line " +
                               std::to_string(lineNumber_));
     }
 
     if (record.sequence.empty()) {
         setError("Empty sequence", record.sequence);
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": empty sequence");
     }
 
     // Validate sequence if enabled
     if (options_.validateSequence && !validateSequence(record.sequence)) {
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": invalid sequence characters");
     }
@@ -322,14 +322,14 @@ bool FastqParser::parseRecord(FastqRecord& record) {
     std::string plusLine;
     if (!readLine(plusLine)) {
         setError("Unexpected EOF: missing '+' line");
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format: unexpected EOF at line " +
                               std::to_string(lineNumber_));
     }
 
     if (plusLine.empty() || plusLine[0] != '+') {
         setError("Expected '+' at start of separator line", plusLine);
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": expected '+' at start of separator line");
     }
@@ -337,7 +337,7 @@ bool FastqParser::parseRecord(FastqRecord& record) {
     // Line 4: Quality scores
     if (!readLine(record.quality)) {
         setError("Unexpected EOF: missing quality line");
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format: unexpected EOF at line " +
                               std::to_string(lineNumber_));
     }
@@ -348,14 +348,14 @@ bool FastqParser::parseRecord(FastqRecord& record) {
                      ") does not match sequence length (" + std::to_string(record.sequence.size()) +
                      ")",
                  record.quality);
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": quality length does not match sequence length");
     }
 
     // Validate quality scores if enabled
     if (options_.validateQuality && !validateQuality(record.quality)) {
-        throw FormatError(ErrorCode::kInvalidFormat,
+        throw FormatError(
                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
                               ": invalid quality characters");
     }
