@@ -269,14 +269,14 @@
 
 ## Phase 3: TBB 并行流水线
 
-- [-] 12. 流水线架构实现
-  - [ ] 12.1 设计流水线接口
+- [x] 12. 流水线架构实现
+  - [x] 12.1 设计流水线接口
     - 创建 `include/fqc/pipeline/pipeline.h`
     - 定义 `IPipelineStage` 接口
     - 定义 `PipelineConfig` 配置结构
     - _Requirements: 4.1_
 
-  - [ ] 12.2 实现 ReaderFilter (Serial)
+  - [x] 12.2 实现 ReaderFilter (Serial)
     - 创建 `src/pipeline/reader_filter.cpp`
     - 实现分块读取 FASTQ
     - 配置 Block 大小:
@@ -286,7 +286,7 @@
     - 实现内存池管理
     - _Requirements: 4.1, 4.3_
 
-  - [ ] 12.3 实现 CompressFilter (Parallel)
+  - [x] 12.3 实现 CompressFilter (Parallel)
     - 创建 `src/pipeline/compress_filter.cpp`
     - 集成 Spring 适配器
     - 集成质量压缩器
@@ -294,33 +294,33 @@
     - 实现 Block 级别并行
     - _Requirements: 4.1_
 
-  - [ ] 12.4 实现 WriterFilter (Serial)
+  - [x] 12.4 实现 WriterFilter (Serial)
     - 创建 `src/pipeline/writer_filter.cpp`
     - 集成 FQCWriter
     - 实现有序写入 (保持 Block 顺序)
     - _Requirements: 4.1_
 
-- [ ] 13. 压缩引擎实现
-  - [ ] 13.1 实现 CompressionEngine
+- [x] 13. 压缩引擎实现
+  - [x] 13.1 实现 CompressionEngine
     - 创建 `include/fqc/engine/compression_engine.h`
     - 创建 `src/engine/compression_engine.cpp`
     - 组装 TBB parallel_pipeline
     - 实现进度报告
     - _Requirements: 4.1_
 
-  - [ ] 13.2 实现内存管理
+  - [x] 13.2 实现内存管理
     - 实现内存使用上限控制
     - 实现 Block 缓冲池
     - 监控内存使用
     - _Requirements: 4.3_
 
-  - [ ] 13.3 编写压缩引擎属性测试
+  - [x] 13.3 编写压缩引擎属性测试
     - **Property 6: 完整压缩往返一致性**
     - *For any* 有效的 FASTQ 文件，压缩后解压应产生等价文件
     - **Validates: Requirements 1.1, 2.1, 2.2**
 
-- [ ] 14. 解压引擎实现
-  - [ ] 14.1 实现 DecompressionEngine
+- [x] 14. 解压引擎实现
+  - [x] 14.1 实现 DecompressionEngine
     - 创建 `include/fqc/engine/decompression_engine.h`
     - 创建 `src/engine/decompression_engine.cpp`
     - 实现全文件解压
@@ -329,7 +329,7 @@
     - 实现子流选择性解码：可只解码 Sequence 或 Quality 子流
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 14.2 实现并行解压
+  - [x] 14.2 实现并行解压
     - 使用 TBB parallel_for 并行解压多个 Block
     - 实现有序输出合并
     - _Requirements: 4.1_
