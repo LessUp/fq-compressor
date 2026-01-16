@@ -128,6 +128,122 @@ private:
 };
 
 // =============================================================================
+// Bzip2StreamBuf
+// =============================================================================
+
+/// @brief Stream buffer for bzip2 decompression.
+/// @note Uses libbz2 for streaming decompression.
+class Bzip2StreamBuf : public std::streambuf {
+public:
+    /// @brief Construct a bzip2 stream buffer.
+    /// @param source Source stream to decompress.
+    /// @param bufferSize Internal buffer size.
+    explicit Bzip2StreamBuf(std::istream& source, std::size_t bufferSize = 64 * 1024);
+
+    /// @brief Destructor.
+    ~Bzip2StreamBuf() override;
+
+    // Non-copyable
+    Bzip2StreamBuf(const Bzip2StreamBuf&) = delete;
+    Bzip2StreamBuf& operator=(const Bzip2StreamBuf&) = delete;
+
+    // Movable
+    Bzip2StreamBuf(Bzip2StreamBuf&&) noexcept;
+    Bzip2StreamBuf& operator=(Bzip2StreamBuf&&) noexcept;
+
+protected:
+    /// @brief Underflow handler - refill buffer.
+    int_type underflow() override;
+
+private:
+    /// @brief Initialize bzip2 stream.
+    void initBzip2();
+
+    /// @brief Cleanup bzip2 stream.
+    void cleanupBzip2();
+
+    /// @brief Decompress more data into output buffer.
+    /// @return Number of bytes decompressed.
+    std::size_t decompress();
+
+    /// @brief Source stream.
+    std::istream* source_ = nullptr;
+
+    /// @brief Compressed input buffer.
+    std::vector<char> inputBuffer_;
+
+    /// @brief Decompressed output buffer.
+    std::vector<char> outputBuffer_;
+
+    /// @brief bzip2 stream state (opaque pointer).
+    void* bzStream_ = nullptr;
+
+    /// @brief Whether stream is initialized.
+    bool initialized_ = false;
+
+    /// @brief Whether end of compressed stream reached.
+    bool streamEnd_ = false;
+};
+
+// =============================================================================
+// XzStreamBuf
+// =============================================================================
+
+/// @brief Stream buffer for xz/lzma decompression.
+/// @note Uses liblzma for streaming decompression.
+class XzStreamBuf : public std::streambuf {
+public:
+    /// @brief Construct an xz stream buffer.
+    /// @param source Source stream to decompress.
+    /// @param bufferSize Internal buffer size.
+    explicit XzStreamBuf(std::istream& source, std::size_t bufferSize = 64 * 1024);
+
+    /// @brief Destructor.
+    ~XzStreamBuf() override;
+
+    // Non-copyable
+    XzStreamBuf(const XzStreamBuf&) = delete;
+    XzStreamBuf& operator=(const XzStreamBuf&) = delete;
+
+    // Movable
+    XzStreamBuf(XzStreamBuf&&) noexcept;
+    XzStreamBuf& operator=(XzStreamBuf&&) noexcept;
+
+protected:
+    /// @brief Underflow handler - refill buffer.
+    int_type underflow() override;
+
+private:
+    /// @brief Initialize lzma stream.
+    void initLzma();
+
+    /// @brief Cleanup lzma stream.
+    void cleanupLzma();
+
+    /// @brief Decompress more data into output buffer.
+    /// @return Number of bytes decompressed.
+    std::size_t decompress();
+
+    /// @brief Source stream.
+    std::istream* source_ = nullptr;
+
+    /// @brief Compressed input buffer.
+    std::vector<std::uint8_t> inputBuffer_;
+
+    /// @brief Decompressed output buffer.
+    std::vector<char> outputBuffer_;
+
+    /// @brief lzma stream state (opaque pointer).
+    void* lzmaStream_ = nullptr;
+
+    /// @brief Whether stream is initialized.
+    bool initialized_ = false;
+
+    /// @brief Whether end of compressed stream reached.
+    bool streamEnd_ = false;
+};
+
+// =============================================================================
 // CompressedInputStream
 // =============================================================================
 

@@ -12,6 +12,8 @@
 #include "fqc/io/compressed_stream.h"
 
 #include <zlib.h>
+#include <bzlib.h>
+#include <lzma.h>
 
 #include <algorithm>
 #include <cstring>
@@ -152,18 +154,19 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
     switch (format) {
         case CompressionFormat::kNone:
         case CompressionFormat::kGzip:
-            return true;
         case CompressionFormat::kBzip2:
         case CompressionFormat::kXz:
+            return true;
         case CompressionFormat::kZstd:
-            return false;  // Phase 2
+            return false;  // Not yet implemented
         default:
             return false;
     }
 }
 
 std::vector<CompressionFormat> supportedCompressionFormats() {
-    return {CompressionFormat::kNone, CompressionFormat::kGzip};
+    return {CompressionFormat::kNone, CompressionFormat::kGzip,
+            CompressionFormat::kBzip2, CompressionFormat::kXz};
 }
 
 // =============================================================================
