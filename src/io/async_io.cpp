@@ -92,12 +92,12 @@ BufferPool::BufferPool(std::size_t bufferSize, std::size_t bufferCount)
         buffers_.push_back(std::move(buffer));
     }
     
-    LOG_DEBUG("BufferPool created: size={}, count={}", bufferSize, bufferCount);
+    FQC_LOG_DEBUG("BufferPool created: size={}, count={}", bufferSize, bufferCount);
 }
 
 BufferPool::~BufferPool() {
     // Buffers are automatically freed by unique_ptr
-    LOG_DEBUG("BufferPool destroyed");
+    FQC_LOG_DEBUG("BufferPool destroyed");
 }
 
 ManagedBuffer BufferPool::acquire() {
@@ -176,10 +176,10 @@ void BufferPool::reset() {
 
 VoidResult AsyncReaderConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
     }
     if (bufferCount == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer count must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer count must be > 0"));
     }
     if (prefetchDepth > bufferCount) {
         return makeError(ErrorCode::kInvalidArgument,
@@ -191,10 +191,10 @@ VoidResult AsyncReaderConfig::validate() const {
 
 VoidResult AsyncWriterConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
     }
     if (bufferCount == 0) {
-        return makeError(ErrorCode::kInvalidArgument, "Buffer count must be > 0");
+        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer count must be > 0"));
     }
     if (writeBehindDepth > bufferCount) {
         return makeError(ErrorCode::kInvalidArgument,
@@ -220,7 +220,7 @@ public:
 
     VoidResult open(const std::filesystem::path& path) {
         if (isOpen_) {
-            return makeError(ErrorCode::kInvalidState, "Reader already open");
+            return makeError(ErrorCode::kInvalidState, std::string("Reader already open"));
         }
 
         try {
@@ -245,17 +245,17 @@ public:
             // Start prefetch thread
             startPrefetchThread();
             
-            LOG_DEBUG("AsyncReader opened: path={}, size={}", path.string(), fileSize_);
+            FQC_LOG_DEBUG("AsyncReader opened: path={}, size={}", path.string(), fileSize_);
             
             return {};
         } catch (const std::exception& e) {
-            return makeError(ErrorCode::kIOError, "Failed to open file: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open file: {}"), e.what());
         }
     }
 
     VoidResult openStdin() {
         if (isOpen_) {
-            return makeError(ErrorCode::kInvalidState, "Reader already open");
+            return makeError(ErrorCode::kInvalidState, std::string("Reader already open"));
         }
 
         isStdin_ = true;
@@ -268,7 +268,7 @@ public:
         // Start prefetch thread
         startPrefetchThread();
         
-        LOG_DEBUG("AsyncReader opened: stdin");
+        FQC_LOG_DEBUG("AsyncReader opened: stdin");
         
         return {};
     }
@@ -361,7 +361,7 @@ public:
         isOpen_ = false;
         eof_ = true;
         
-        LOG_DEBUG("AsyncReader closed: total_bytes={}", totalBytesRead_.load());
+        FQC_LOG_DEBUG("AsyncReader closed: total_bytes={}", totalBytesRead_.load());
     }
 
 private:
@@ -488,7 +488,7 @@ public:
 
     VoidResult open(const std::filesystem::path& path) {
         if (isOpen_) {
-            return makeError(ErrorCode::kInvalidState, "Writer already open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer already open"));
         }
 
         try {
@@ -517,17 +517,17 @@ public:
             // Start write-behind thread
             startWriteThread();
             
-            LOG_DEBUG("AsyncWriter opened: path={}", path.string());
+            FQC_LOG_DEBUG("AsyncWriter opened: path={}", path.string());
             
             return {};
         } catch (const std::exception& e) {
-            return makeError(ErrorCode::kIOError, "Failed to open file: {}", e.what());
+            return makeError(ErrorCode::kIOError, std::string("Failed to open file: {}"), e.what());
         }
     }
 
     VoidResult openStdout() {
         if (isOpen_) {
-            return makeError(ErrorCode::kInvalidState, "Writer already open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer already open"));
         }
 
         isStdout_ = true;
@@ -539,7 +539,7 @@ public:
         // Start write-behind thread
         startWriteThread();
         
-        LOG_DEBUG("AsyncWriter opened: stdout");
+        FQC_LOG_DEBUG("AsyncWriter opened: stdout");
         
         return {};
     }
@@ -554,7 +554,7 @@ public:
 
     VoidResult write(ManagedBuffer buffer) {
         if (!isOpen_ || isFinalized_) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
         }
 
         if (buffer.empty()) {
@@ -571,7 +571,7 @@ public:
             });
             
             if (stopWrite_) {
-                return makeError(ErrorCode::kCancelled, "Writer stopped");
+                return makeError(ErrorCode::kCancelled, std::string("Writer stopped"));
             }
             
             writeQueue_.push(std::move(buffer));
@@ -619,7 +619,7 @@ public:
 
     VoidResult flush() {
         if (!isOpen_) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
         }
 
         // Wait for write queue to drain
@@ -641,7 +641,7 @@ public:
 
     VoidResult finalize() {
         if (!isOpen_ || isFinalized_) {
-            return makeError(ErrorCode::kInvalidState, "Writer not open or already finalized");
+            return makeError(ErrorCode::kInvalidState, std::string("Writer not open or already finalized"));
         }
 
         // Flush remaining writes
@@ -669,14 +669,14 @@ public:
                     std::filesystem::rename(tempPath_, targetPath_);
                 } catch (const std::exception& e) {
                     return makeError(ErrorCode::kIOError,
-                                     "Failed to rename temp file: {}", e.what());
+                                     std::string("Failed to rename temp file: ") + e.what());
                 }
             }
         }
         
         isFinalized_ = true;
         
-        LOG_DEBUG("AsyncWriter finalized: total_bytes={}", totalBytesWritten_.load());
+        FQC_LOG_DEBUG("AsyncWriter finalized: total_bytes={}", totalBytesWritten_.load());
         
         return {};
     }
@@ -717,7 +717,7 @@ public:
         isOpen_ = false;
         isFinalized_ = false;
         
-        LOG_DEBUG("AsyncWriter aborted");
+        FQC_LOG_DEBUG("AsyncWriter aborted");
     }
 
     std::uint64_t totalBytesWritten() const noexcept { return totalBytesWritten_; }

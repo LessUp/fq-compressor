@@ -169,6 +169,14 @@ if(rapidcheck_FOUND)
         SOURCES algo/long_read_property_test.cpp
         PROPERTY_BASED
     )
+    
+    # Paired-End Property Tests
+    # **Property 8: PE 压缩往返一致性**
+    # Validates: Requirements 1.1.3
+    fqc_add_test(pe_property_test
+        SOURCES algo/pe_property_test.cpp
+        PROPERTY_BASED
+    )
 endif()
 
 # =============================================================================

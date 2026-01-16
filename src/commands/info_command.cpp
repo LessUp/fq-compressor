@@ -32,7 +32,7 @@ int InfoCommand::execute() {
     try {
         // Check input exists
         if (!std::filesystem::exists(options_.inputPath)) {
-            throw IOError(ErrorCode::kFileNotFound,
+            throw IOError(
                           "Input file not found: " + options_.inputPath.string());
         }
 
@@ -45,10 +45,10 @@ int InfoCommand::execute() {
         return 0;
 
     } catch (const FQCException& e) {
-        LOG_ERROR("Info command failed: {}", e.what());
+        FQC_LOG_ERROR("Info command failed: {}", e.what());
         return static_cast<int>(e.code());
     } catch (const std::exception& e) {
-        LOG_ERROR("Unexpected error: {}", e.what());
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;
     }
 }
@@ -57,7 +57,7 @@ void InfoCommand::printTextInfo() {
     // Open file and read basic info
     std::ifstream file(options_.inputPath, std::ios::binary);
     if (!file) {
-        throw IOError(ErrorCode::kFileOpenFailed,
+        throw IOError(
                       "Failed to open file: " + options_.inputPath.string());
     }
 
@@ -111,7 +111,7 @@ void InfoCommand::printJsonInfo() {
     // Open file and read basic info
     std::ifstream file(options_.inputPath, std::ios::binary);
     if (!file) {
-        throw IOError(ErrorCode::kFileOpenFailed,
+        throw IOError(
                       "Failed to open file: " + options_.inputPath.string());
     }
 

@@ -33,7 +33,7 @@ int VerifyCommand::execute() {
     try {
         // Check input exists
         if (!std::filesystem::exists(options_.inputPath)) {
-            throw IOError(ErrorCode::kFileNotFound,
+            throw IOError(
                           "Input file not found: " + options_.inputPath.string());
         }
 
@@ -116,10 +116,10 @@ int VerifyCommand::execute() {
         return summary_.passed() ? 0 : static_cast<int>(ErrorCode::kChecksumMismatch);
 
     } catch (const FQCException& e) {
-        LOG_ERROR("Verification failed: {}", e.what());
+        FQC_LOG_ERROR("Verification failed: {}", e.what());
         return static_cast<int>(e.code());
     } catch (const std::exception& e) {
-        LOG_ERROR("Unexpected error: {}", e.what());
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;
     }
 }

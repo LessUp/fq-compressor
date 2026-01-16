@@ -36,7 +36,7 @@ ReadRange parseRange(std::string_view str) {
             range.start = std::stoull(std::string(str));
             range.end = range.start;
         } catch (const std::exception&) {
-            throw ArgumentError(ErrorCode::kInvalidArgument,
+            throw ArgumentError(
                                 "Invalid range format: " + std::string(str));
         }
         return range;
@@ -54,12 +54,12 @@ ReadRange parseRange(std::string_view str) {
             range.end = std::stoull(std::string(endStr));
         }
     } catch (const std::exception&) {
-        throw ArgumentError(ErrorCode::kInvalidArgument,
+        throw ArgumentError(
                             "Invalid range format: " + std::string(str));
     }
 
     if (!range.isValid()) {
-        throw ArgumentError(ErrorCode::kInvalidArgument,
+        throw ArgumentError(
                             "Invalid range: start must be <= end");
     }
 
@@ -107,10 +107,10 @@ int DecompressCommand::execute() {
         return 0;
 
     } catch (const FQCException& e) {
-        LOG_ERROR("Decompression failed: {}", e.what());
+        FQC_LOG_ERROR("Decompression failed: {}", e.what());
         return static_cast<int>(e.code());
     } catch (const std::exception& e) {
-        LOG_ERROR("Unexpected error: {}", e.what());
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;
     }
 }
@@ -118,14 +118,14 @@ int DecompressCommand::execute() {
 void DecompressCommand::validateOptions() {
     // Check input exists
     if (!std::filesystem::exists(options_.inputPath)) {
-        throw IOError(ErrorCode::kFileNotFound,
+        throw IOError(
                       "Input file not found: " + options_.inputPath.string());
     }
 
     // Check output doesn't exist (unless force or stdout)
     if (options_.outputPath != "-" && !options_.forceOverwrite &&
         std::filesystem::exists(options_.outputPath)) {
-        throw IOError(ErrorCode::kFileExists,
+        throw IOError(
                       "Output file already exists: " + options_.outputPath.string() +
                           " (use -f to overwrite)");
     }
@@ -133,7 +133,7 @@ void DecompressCommand::validateOptions() {
     // Handle PE split output
     if (options_.splitPairedEnd) {
         if (options_.outputPath == "-") {
-            throw ArgumentError(ErrorCode::kInvalidArgument,
+            throw ArgumentError(
                                 "--split-pe cannot be used with stdout output");
         }
 
@@ -152,13 +152,13 @@ void DecompressCommand::validateOptions() {
                 options_.output2Path = outPath + "_R2";
                 options_.outputPath = outPath + "_R1";
             }
-            LOG_INFO("PE split output: R1={}, R2={}",
+            FQC_LOG_INFO("PE split output: R1={}, R2={}",
                      options_.outputPath.string(), options_.output2Path.string());
         }
 
         // Check output2 doesn't exist
         if (!options_.forceOverwrite && std::filesystem::exists(options_.output2Path)) {
-            throw IOError(ErrorCode::kFileExists,
+            throw IOError(
                           "Output file already exists: " + options_.output2Path.string() +
                               " (use -f to overwrite)");
         }
@@ -166,23 +166,23 @@ void DecompressCommand::validateOptions() {
 
     // Validate range if specified
     if (options_.range && !options_.range->isValid()) {
-        throw ArgumentError(ErrorCode::kInvalidArgument, "Invalid read range");
+        throw ArgumentError( "Invalid read range");
     }
 
-    LOG_DEBUG("Decompression options validated");
-    LOG_DEBUG("  Input: {}", options_.inputPath.string());
-    LOG_DEBUG("  Output: {}", options_.outputPath.string());
+    FQC_LOG_DEBUG("Decompression options validated");
+    FQC_LOG_DEBUG("  Input: {}", options_.inputPath.string());
+    FQC_LOG_DEBUG("  Output: {}", options_.outputPath.string());
     if (options_.splitPairedEnd) {
-        LOG_DEBUG("  Output R2: {}", options_.output2Path.string());
+        FQC_LOG_DEBUG("  Output R2: {}", options_.output2Path.string());
     }
-    LOG_DEBUG("  Header only: {}", options_.headerOnly);
-    LOG_DEBUG("  Original order: {}", options_.originalOrder);
-    LOG_DEBUG("  Skip corrupted: {}", options_.skipCorrupted);
-    LOG_DEBUG("  Split PE: {}", options_.splitPairedEnd);
+    FQC_LOG_DEBUG("  Header only: {}", options_.headerOnly);
+    FQC_LOG_DEBUG("  Original order: {}", options_.originalOrder);
+    FQC_LOG_DEBUG("  Skip corrupted: {}", options_.skipCorrupted);
+    FQC_LOG_DEBUG("  Split PE: {}", options_.splitPairedEnd);
 }
 
 void DecompressCommand::openArchive() {
-    LOG_DEBUG("Opening archive: {}", options_.inputPath.string());
+    FQC_LOG_DEBUG("Opening archive: {}", options_.inputPath.string());
 
     // TODO: Actually open and validate the archive
     // This is a placeholder for Phase 2/3 implementation
@@ -190,7 +190,7 @@ void DecompressCommand::openArchive() {
     // For now, just check the file can be opened
     std::ifstream file(options_.inputPath, std::ios::binary);
     if (!file) {
-        throw IOError(ErrorCode::kFileOpenFailed,
+        throw IOError(
                       "Failed to open archive: " + options_.inputPath.string());
     }
 
@@ -198,16 +198,16 @@ void DecompressCommand::openArchive() {
     char magic[8];
     file.read(magic, 8);
     if (file.gcount() < 8) {
-        throw FormatError(ErrorCode::kInvalidFormat, "File too small to be a valid .fqc archive");
+        throw FormatError( "File too small to be a valid .fqc archive");
     }
 
     // Check magic bytes
     const char expectedMagic[] = "\x89FQC\r\n\x1a\n";
     if (std::memcmp(magic, expectedMagic, 8) != 0) {
-        throw FormatError(ErrorCode::kInvalidFormat, "Invalid .fqc magic header");
+        throw FormatError( "Invalid .fqc magic header");
     }
 
-    LOG_DEBUG("Archive magic header verified");
+    FQC_LOG_DEBUG("Archive magic header verified");
 }
 
 void DecompressCommand::planExtraction() {
@@ -215,10 +215,10 @@ void DecompressCommand::planExtraction() {
     // This is a placeholder for Phase 2/3 implementation
 
     if (options_.range) {
-        LOG_DEBUG("Planning extraction for range {}:{}", options_.range->start,
+        FQC_LOG_DEBUG("Planning extraction for range {}:{}", options_.range->start,
                   options_.range->end == 0 ? "end" : std::to_string(options_.range->end));
     } else {
-        LOG_DEBUG("Planning full archive extraction");
+        FQC_LOG_DEBUG("Planning full archive extraction");
     }
 
     // Placeholder: assume single block
@@ -229,9 +229,9 @@ void DecompressCommand::runDecompression() {
     // TODO: Implement actual decompression pipeline
     // This is a placeholder that will be replaced in Phase 2/3
 
-    LOG_INFO("Starting decompression...");
-    LOG_INFO("  Input: {}", options_.inputPath.string());
-    LOG_INFO("  Output: {}", options_.outputPath.string());
+    FQC_LOG_INFO("Starting decompression...");
+    FQC_LOG_INFO("  Input: {}", options_.inputPath.string());
+    FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
 
     // Open output
     std::ostream* output = nullptr;
@@ -242,7 +242,7 @@ void DecompressCommand::runDecompression() {
     } else {
         fileOutput = std::make_unique<std::ofstream>(options_.outputPath);
         if (!fileOutput->is_open()) {
-            throw IOError(ErrorCode::kFileOpenFailed,
+            throw IOError(
                           "Failed to create output file: " + options_.outputPath.string());
         }
         output = fileOutput.get();
@@ -261,7 +261,7 @@ void DecompressCommand::runDecompression() {
     stats_.inputBytes = std::filesystem::file_size(options_.inputPath);
     stats_.outputBytes = 0;
 
-    LOG_INFO("Decompression complete (placeholder - actual decompression not yet implemented)");
+    FQC_LOG_INFO("Decompression complete (placeholder - actual decompression not yet implemented)");
 }
 
 void DecompressCommand::printSummary() const {

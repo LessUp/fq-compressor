@@ -63,7 +63,8 @@ target_link_libraries(fqc_core
         LibLZMA::LibLZMA
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_shared>
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_static>
-        libdeflate::libdeflate_shared
+        $<TARGET_NAME_IF_EXISTS:libdeflate::libdeflate_shared>
+        $<TARGET_NAME_IF_EXISTS:libdeflate::libdeflate_static>
         xxHash::xxhash
 )
 

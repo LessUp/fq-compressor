@@ -524,6 +524,7 @@ static_assert(BlockHeader::kSize == 104, "BlockHeader::kSize must be 104");
 
 /// @brief Block index entry structure.
 /// @note Each entry describes one block's location and contents.
+#pragma pack(push, 1)
 struct IndexEntry {
     /// @brief Absolute file offset to block start.
     std::uint64_t offset = 0;
@@ -554,6 +555,7 @@ struct IndexEntry {
         return archiveId >= archiveIdStart && archiveId < archiveIdEnd();
     }
 };
+#pragma pack(pop)
 
 // Verify IndexEntry size
 static_assert(sizeof(IndexEntry) == 28, "IndexEntry must be exactly 28 bytes");
