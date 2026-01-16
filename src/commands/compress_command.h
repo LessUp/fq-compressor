@@ -48,6 +48,9 @@ struct CompressOptions {
     /// @brief Input file path (or "-" for stdin).
     std::filesystem::path inputPath;
 
+    /// @brief Second input file path for PE (R2).
+    std::filesystem::path input2Path;
+
     /// @brief Output file path.
     std::filesystem::path outputPath;
 
@@ -75,8 +78,17 @@ struct CompressOptions {
     /// @brief Auto-detect long read mode.
     bool autoDetectLongRead = true;
 
+    /// @brief Scan all reads for length detection (instead of sampling).
+    bool scanAllLengths = false;
+
     /// @brief Maximum bases per block (for long reads).
     std::size_t maxBlockBases = 0;
+
+    /// @brief Input is interleaved paired-end.
+    bool interleaved = false;
+
+    /// @brief Paired-end storage layout.
+    PELayout peLayout = PELayout::kInterleaved;
 
     /// @brief Block size in reads.
     std::size_t blockSize = 100000;

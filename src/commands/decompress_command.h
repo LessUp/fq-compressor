@@ -67,6 +67,10 @@ struct DecompressOptions {
     /// @brief Output FASTQ file path (or "-" for stdout).
     std::filesystem::path outputPath;
 
+    /// @brief Second output file path for PE split (R2).
+    /// If empty and splitPairedEnd is true, derived from outputPath.
+    std::filesystem::path output2Path;
+
     /// @brief Number of threads (0 = auto).
     int threads = 0;
 

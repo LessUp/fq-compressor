@@ -85,6 +85,7 @@ GlobalOptions gOptions;
 
 struct CompressOptions {
     std::string input;
+    std::string input2;               // Second input for PE (R2)
     std::string output;
     int level = 6;                    // Compression level (1-9)
     bool reorder = true;              // Enable global reordering
@@ -92,6 +93,9 @@ struct CompressOptions {
     std::string lossyQuality;         // Lossy quality mode
     std::string longReadMode = "auto";  // auto, short, medium, long
     std::size_t maxBlockBases = 0;    // Max bases per block (0 = default)
+    bool scanAllLengths = false;      // Scan all reads for length detection
+    bool interleaved = false;         // Input is interleaved PE
+    std::string peLayout = "interleaved";  // PE storage layout
     bool force = false;               // Overwrite existing output
 };
 
@@ -147,9 +151,12 @@ void setupCompressCommand(CLI::App& app) {
     compress->alias("c");
 
     // Required options
-    compress->add_option("-i,--input", gCompressOpts.input, "Input FASTQ file (or '-' for stdin)")
+    compress->add_option("-i,--input,-1", gCompressOpts.input, "Input FASTQ file (or '-' for stdin)")
         ->required()
         ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
+
+    compress->add_option("-2", gCompressOpts.input2, "Second input file for paired-end (R2)")
+        ->check(CLI::ExistingFile);
 
     compress->add_option("-o,--output", gCompressOpts.output, "Output .fqc file")
         ->required();
@@ -179,6 +186,17 @@ void setupCompressCommand(CLI::App& app) {
     compress->add_option("--max-block-bases", gCompressOpts.maxBlockBases,
                          "Maximum bases per block (for long reads)")
         ->default_val(0);
+
+    compress->add_flag("--scan-all-lengths", gCompressOpts.scanAllLengths,
+                       "Scan all reads for length detection (slower but more accurate)");
+
+    compress->add_flag("--interleaved", gCompressOpts.interleaved,
+                       "Input is interleaved paired-end (R1, R2, R1, R2, ...)");
+
+    compress->add_option("--pe-layout", gCompressOpts.peLayout,
+                         "Paired-end storage layout: interleaved, consecutive")
+        ->default_val("interleaved")
+        ->check(CLI::IsMember({"interleaved", "consecutive"}));
 
     compress->add_flag("-f,--force", gCompressOpts.force, "Overwrite existing output file");
 
