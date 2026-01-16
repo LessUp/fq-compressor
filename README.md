@@ -52,6 +52,45 @@ Files are composed of independent **Blocks** (e.g., 10MB unpackaged).
 
 ---
 
+## 📦 Distribution & External Compression
+
+### Why No Built-in `.fqc.gz` Output?
+
+The `.fqc` format is **already highly compressed** using domain-specific algorithms (ABC for sequences, SCM for quality scores). Adding an external compression layer (like gzip or xz) provides minimal additional benefit while introducing significant drawbacks:
+
+1. **Marginal Compression Gain**: External compression typically adds only 1-5% additional compression on already-compressed `.fqc` files.
+2. **Breaks Random Access**: The `.fqc` format supports O(1) random access to any read range. External compression destroys this capability.
+3. **Increased Latency**: Decompression requires two passes (external decompression + FQC decompression).
+4. **Complexity**: Managing nested compression adds operational complexity.
+
+### Recommended Distribution Workflow
+
+If you need to distribute `.fqc` files and want additional compression for transfer:
+
+```bash
+# Compress for distribution (user's responsibility)
+xz -9 archive.fqc              # Creates archive.fqc.xz
+
+# Before use, decompress the outer layer
+xz -d archive.fqc.xz           # Restores archive.fqc
+
+# Now use fqc normally with random access
+fqc decompress -i archive.fqc --range 1000:2000 -o subset.fastq
+```
+
+### Best Practices
+
+| Scenario | Recommendation |
+|----------|----------------|
+| **Active Analysis** | Use `.fqc` directly (random access enabled) |
+| **Long-term Archive** | Use `.fqc` directly (already near-optimal compression) |
+| **Network Transfer** | Optionally wrap with `xz -9` or `zstd -19`, unwrap before use |
+| **Cloud Storage** | Use `.fqc` directly (cloud providers often compress at rest) |
+
+> **Note**: The `.fqc` format achieves compression ratios of 0.4-0.6 bits/base, which is already close to the theoretical entropy limit for genomic data. External compression cannot significantly improve upon this.
+
+---
+
 ## 📚 References & Acknowledgements
 
 This project stands on the shoulders of giants. We explicitly acknowledge and reference the following academic works and open-source projects:

@@ -334,7 +334,7 @@
     - 实现有序输出合并
     - _Requirements: 4.1_
 
-- [ ] 15. Checkpoint - Phase 3 验证
+- [x] 15. Checkpoint - Phase 3 验证
   - 确保流水线测试通过
   - 验证多线程正确性
   - 性能基准测试
@@ -344,17 +344,17 @@
 
 ## Phase 4: 优化与扩展
 
-- [ ] 16. IO 优化 (Pigz 思想)
-  - [ ] 16.1 实现异步 IO
+- [x] 16. IO 优化 (Pigz 思想)
+  - [x] 16.1 实现异步 IO
     - 使用 TBB 或 std::async 实现异步读写
     - 实现双缓冲策略
     - _Requirements: 4.1_
 
-  - [ ] 16.2 外部封装与分发建议（文档）
+  - [x] 16.2 外部封装与分发建议（文档）
     - 在 README/帮助信息中说明：不提供 `.fqc.gz` 内置封装（会破坏随机访问），如需分发可由用户在归档外部自行二次压缩
     - _Requirements: 6.3_
 
-- [ ] 17. 扩展输入格式支持 (Phase 2)
+- [-] 17. 扩展输入格式支持 (Phase 2)
   - [ ] 17.1 实现 bzip2 输入支持
     - 集成 libbz2
     - 扩展 CompressedStream
