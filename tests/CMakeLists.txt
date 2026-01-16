@@ -161,6 +161,14 @@ if(rapidcheck_FOUND)
         SOURCES algo/id_compressor_property_test.cpp
         PROPERTY_BASED
     )
+    
+    # Long Read Property Tests
+    # **Property 7: 长读压缩往返一致性**
+    # Validates: Requirements 1.1.3
+    fqc_add_test(long_read_property_test
+        SOURCES algo/long_read_property_test.cpp
+        PROPERTY_BASED
+    )
 endif()
 
 # =============================================================================

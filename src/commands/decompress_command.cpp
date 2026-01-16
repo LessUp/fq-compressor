@@ -130,6 +130,40 @@ void DecompressCommand::validateOptions() {
                           " (use -f to overwrite)");
     }
 
+    // Handle PE split output
+    if (options_.splitPairedEnd) {
+        if (options_.outputPath == "-") {
+            throw ArgumentError(ErrorCode::kInvalidArgument,
+                                "--split-pe cannot be used with stdout output");
+        }
+
+        // Derive output2Path if not specified
+        if (options_.output2Path.empty()) {
+            auto outPath = options_.outputPath.string();
+            // Try to insert _R2 before extension
+            auto extPos = outPath.rfind('.');
+            if (extPos != std::string::npos) {
+                options_.output2Path = outPath.substr(0, extPos) + "_R2" +
+                                       outPath.substr(extPos);
+                // Also update outputPath to have _R1
+                options_.outputPath = outPath.substr(0, extPos) + "_R1" +
+                                      outPath.substr(extPos);
+            } else {
+                options_.output2Path = outPath + "_R2";
+                options_.outputPath = outPath + "_R1";
+            }
+            LOG_INFO("PE split output: R1={}, R2={}",
+                     options_.outputPath.string(), options_.output2Path.string());
+        }
+
+        // Check output2 doesn't exist
+        if (!options_.forceOverwrite && std::filesystem::exists(options_.output2Path)) {
+            throw IOError(ErrorCode::kFileExists,
+                          "Output file already exists: " + options_.output2Path.string() +
+                              " (use -f to overwrite)");
+        }
+    }
+
     // Validate range if specified
     if (options_.range && !options_.range->isValid()) {
         throw ArgumentError(ErrorCode::kInvalidArgument, "Invalid read range");
@@ -138,9 +172,13 @@ void DecompressCommand::validateOptions() {
     LOG_DEBUG("Decompression options validated");
     LOG_DEBUG("  Input: {}", options_.inputPath.string());
     LOG_DEBUG("  Output: {}", options_.outputPath.string());
+    if (options_.splitPairedEnd) {
+        LOG_DEBUG("  Output R2: {}", options_.output2Path.string());
+    }
     LOG_DEBUG("  Header only: {}", options_.headerOnly);
     LOG_DEBUG("  Original order: {}", options_.originalOrder);
     LOG_DEBUG("  Skip corrupted: {}", options_.skipCorrupted);
+    LOG_DEBUG("  Split PE: {}", options_.splitPairedEnd);
 }
 
 void DecompressCommand::openArchive() {

@@ -155,7 +155,11 @@ void CompressCommand::detectReadLengthClass() {
         return;
     }
 
-    LOG_DEBUG("Sampling input file for read length detection...");
+    if (options_.scanAllLengths) {
+        LOG_INFO("Scanning all reads for length detection (--scan-all-lengths)...");
+    } else {
+        LOG_DEBUG("Sampling input file for read length detection...");
+    }
 
     try {
         // Open input file
@@ -163,8 +167,26 @@ void CompressCommand::detectReadLengthClass() {
         io::FastqParser parser(std::move(stream));
         parser.open();
 
-        // Sample records
-        auto sampleStats = parser.sampleRecords(1000);
+        io::ParserStats sampleStats;
+
+        if (options_.scanAllLengths) {
+            // Full file scan for accurate max length detection
+            std::uint64_t scannedCount = 0;
+            while (auto record = parser.readRecord()) {
+                sampleStats.update(*record);
+                ++scannedCount;
+
+                // Progress report every 1M reads
+                if (options_.showProgress && scannedCount % 1000000 == 0) {
+                    LOG_INFO("Scanned {} reads, max length so far: {}",
+                             scannedCount, sampleStats.maxLength);
+                }
+            }
+            LOG_INFO("Full scan complete: {} reads scanned", scannedCount);
+        } else {
+            // Sample records (default: 1000)
+            sampleStats = parser.sampleRecords(1000);
+        }
 
         // Detect length class
         detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
@@ -173,13 +195,15 @@ void CompressCommand::detectReadLengthClass() {
                  detectedLengthClass_ == ReadLengthClass::kShort    ? "SHORT"
                  : detectedLengthClass_ == ReadLengthClass::kMedium ? "MEDIUM"
                                                                     : "LONG");
-        LOG_DEBUG("  Sample size: {} reads", sampleStats.totalRecords);
+        LOG_DEBUG("  {} size: {} reads", options_.scanAllLengths ? "Scan" : "Sample",
+                  sampleStats.totalRecords);
         LOG_DEBUG("  Min length: {}", sampleStats.minLength);
         LOG_DEBUG("  Max length: {}", sampleStats.maxLength);
         LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
 
     } catch (const std::exception& e) {
-        LOG_WARNING("Failed to sample input: {}, using MEDIUM strategy", e.what());
+        LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
+                    options_.scanAllLengths ? "scan" : "sample", e.what());
         detectedLengthClass_ = ReadLengthClass::kMedium;
     }
 }
