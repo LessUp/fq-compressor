@@ -18,6 +18,7 @@
 #include <xxhash.h>
 #include <zstd.h>
 
+#include "fqc/algo/quality_compressor.h"
 #include "fqc/common/logger.h"
 
 namespace fqc::algo {
@@ -832,34 +833,35 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressQuality(
         return std::vector<std::uint8_t>{};
     }
 
-    // For now, use simple Zstd compression
-    // TODO: Implement SCM (Statistical Context Mixing) for better compression
-    std::vector<std::uint8_t> buffer;
-    buffer.reserve(reads.size() * 150);
+    // Use SCM-based quality compression
+    QualityCompressorConfig qualConfig;
+    qualConfig.qualityMode = config_.qualityMode;
 
+    // Use Order-1 for long reads (lower memory), Order-2 for short/medium
+    if (config_.readLengthClass == ReadLengthClass::kLong) {
+        qualConfig.contextOrder = QualityContextOrder::kOrder1;
+    } else {
+        qualConfig.contextOrder = QualityContextOrder::kOrder2;
+    }
+
+    qualConfig.usePositionContext = true;
+    qualConfig.numPositionBins = kNumPositionBins;
+
+    QualityCompressor compressor(qualConfig);
+
+    // Convert reads to quality string views
+    std::vector<std::string_view> qualities;
+    qualities.reserve(reads.size());
     for (const auto& read : reads) {
-        buffer.insert(buffer.end(),
-                      read.quality.begin(),
-                      read.quality.end());
+        qualities.emplace_back(read.quality);
     }
 
-    // Compress with Zstd
-    std::size_t compressBound = ZSTD_compressBound(buffer.size());
-    std::vector<std::uint8_t> compressed(compressBound);
-
-    std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        config_.zstdLevel);
-
-    if (ZSTD_isError(compressedSize)) {
-        return makeError<std::vector<std::uint8_t>>(
-            ErrorCode::kIOError,
-            "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+    auto result = compressor.compress(qualities);
+    if (!result) {
+        return makeError<std::vector<std::uint8_t>>(result.error());
     }
 
-    compressed.resize(compressedSize);
-    return compressed;
+    return std::move(result->data);
 }
 
 
@@ -1323,46 +1325,48 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressQuality(
     std::span<const std::uint32_t> lengths) {
 
     if (data.empty()) {
-        // Quality was discarded - return empty strings
-        return std::vector<std::string>(readCount);
-    }
-
-    // Decompress with Zstd
-    std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
-    if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
-        decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
-    }
-
-    std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
-
-    if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
-    }
-
-    // Parse quality strings
-    std::vector<std::string> qualities;
-    qualities.reserve(readCount);
-
-    const char* ptr = reinterpret_cast<const char*>(buffer.data());
-
-    for (std::uint32_t i = 0; i < readCount; ++i) {
-        std::uint32_t len = uniformLength;
-        if (len == 0 && i < lengths.size()) {
-            len = lengths[i];
+        // Quality was discarded - return placeholder quality strings
+        std::vector<std::string> qualities;
+        qualities.reserve(readCount);
+        for (std::uint32_t i = 0; i < readCount; ++i) {
+            std::uint32_t len = uniformLength;
+            if (len == 0 && i < lengths.size()) {
+                len = lengths[i];
+            }
+            qualities.emplace_back(len, kDefaultPlaceholderQual);
         }
-
-        qualities.emplace_back(ptr, len);
-        ptr += len;
+        return qualities;
     }
 
-    return qualities;
+    // Use SCM-based quality decompression
+    QualityCompressorConfig qualConfig;
+    qualConfig.qualityMode = config_.qualityMode;
+
+    // Use Order-1 for long reads (lower memory), Order-2 for short/medium
+    if (config_.readLengthClass == ReadLengthClass::kLong) {
+        qualConfig.contextOrder = QualityContextOrder::kOrder1;
+    } else {
+        qualConfig.contextOrder = QualityContextOrder::kOrder2;
+    }
+
+    qualConfig.usePositionContext = true;
+    qualConfig.numPositionBins = kNumPositionBins;
+
+    QualityCompressor compressor(qualConfig);
+
+    // Build lengths vector
+    std::vector<std::uint32_t> lengthsVec;
+    if (uniformLength > 0) {
+        lengthsVec.assign(readCount, uniformLength);
+    } else if (!lengths.empty()) {
+        lengthsVec.assign(lengths.begin(), lengths.end());
+    } else {
+        // Fallback: assume uniform length from data
+        return makeError<std::vector<std::string>>(
+            ErrorCode::kFormatError, "Missing length information for quality decompression");
+    }
+
+    return compressor.decompress(data, lengthsVec);
 }
 
 Result<std::vector<std::string>> BlockCompressorImpl::decompressIds(

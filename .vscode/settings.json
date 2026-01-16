@@ -14,5 +14,6 @@
         "--clang-tidy",
         "--completion-style=detailed",
         "--header-insertion=never"
-    ]
+    ],
+    "kiroAgent.configureMCP": "Disabled"
 }
