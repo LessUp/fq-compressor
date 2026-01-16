@@ -26,6 +26,8 @@ set(FQC_CORE_SOURCES
     algo/block_compressor.cpp
     algo/quality_compressor.cpp
     algo/id_compressor.cpp
+    pipeline/pipeline.cpp
+    pipeline/pipeline_node.cpp
 )
 
 # Command sources
