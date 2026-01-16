@@ -145,6 +145,22 @@ if(rapidcheck_FOUND)
         SOURCES algo/two_phase_compression_property_test.cpp
         PROPERTY_BASED
     )
+    
+    # Quality Compressor Property Tests
+    # **Property 4: 无损质量压缩往返一致性**
+    # Validates: Requirements 3.1
+    fqc_add_test(quality_compressor_property_test
+        SOURCES algo/quality_compressor_property_test.cpp
+        PROPERTY_BASED
+    )
+    
+    # ID Compressor Property Tests
+    # **Property 5: ID 压缩往返一致性**
+    # Validates: Requirements 1.1.2
+    fqc_add_test(id_compressor_property_test
+        SOURCES algo/id_compressor_property_test.cpp
+        PROPERTY_BASED
+    )
 endif()
 
 # =============================================================================

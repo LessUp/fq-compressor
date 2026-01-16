@@ -177,7 +177,7 @@
     - 审核并记录 Spring License 约束，确保与项目发布目标一致（非商用/自用学习）
     - _Requirements: 1.1.2, 1.1.3_
 
-- [-] 8. 两阶段压缩策略实现 (**核心任务**)
+- [x] 8. 两阶段压缩策略实现 (**核心任务**)
   - [x] 8.1 实现 Phase 1: 全局分析模块
     - 创建 `include/fqc/algo/global_analyzer.h`
     - 实现 Minimizer 提取与索引构建
@@ -206,60 +206,60 @@
     - 确保 Block 状态完全隔离（支持独立解压）
     - _Requirements: 1.1.2, 2.1_
 
-  - [ ] 8.4 实现内存管理模块
+  - [x] 8.4 实现内存管理模块
     - 创建 `include/fqc/common/memory_budget.h`
     - 实现内存预算计算与监控
     - 实现超大文件分治策略 (Chunk-wise)
     - 提供 `--memory-limit` 参数支持
     - _Requirements: 4.3_
 
-  - [ ] 8.5 编写两阶段压缩属性测试
+  - [x] 8.5 编写两阶段压缩属性测试
     - **Property 3: 序列压缩往返一致性**
     - *For any* 有效的 DNA 序列集合，压缩后解压应产生等价序列
     - **Property 3.1: Reorder Map 往返一致性**
     - *For any* 重排序映射，存储后读取应产生等价映射
     - **Validates: Requirements 1.1.2, 2.1**
 
-- [ ] 9. 质量值压缩实现
-  - [ ] 9.1 实现无损质量压缩
+- [x] 9. 质量值压缩实现
+  - [x] 9.1 实现无损质量压缩
     - 创建 `include/fqc/algo/quality_compressor.h`
     - 实现 SCM 上下文模型 (参考 Fqzcomp5，Order-1/Order-2)
     - 集成算术编码器
     - _Requirements: 3.1_
 
-  - [ ] 9.2 实现 Illumina 8-bin 有损压缩
+  - [x] 9.2 实现 Illumina 8-bin 有损压缩
     - 实现质量值分箱映射表
     - 实现分箱后的压缩
     - _Requirements: 3.3_
 
-  - [ ] 9.3 实现 QVZ 有损压缩 (可选)
+  - [ ]* 9.3 实现 QVZ 有损压缩 (可选)
     - 研究 QVZ 算法
     - 实现基于模型的有损压缩
     - _Requirements: 3.2_
 
-  - [ ] 9.4 编写质量压缩属性测试
+  - [x] 9.4 编写质量压缩属性测试
     - **Property 4: 无损质量压缩往返一致性**
     - *For any* 有效的质量值序列，无损压缩后解压应产生等价数据
     - **Validates: Requirements 3.1**
 
-- [ ] 10. ID 流压缩实现
-  - [ ] 10.1 实现 ID Tokenizer
+- [x] 10. ID 流压缩实现
+  - [x] 10.1 实现 ID Tokenizer
     - 创建 `include/fqc/algo/id_compressor.h`
     - 实现 Illumina Header 解析和分词
     - 识别静态/动态部分
     - _Requirements: 1.1.2_
 
-  - [ ] 10.2 实现 Delta 编码
+  - [x] 10.2 实现 Delta 编码
     - 实现整数部分的 Delta 编码
     - 集成通用压缩器 (LZMA/Zstd)
     - _Requirements: 1.1.2_
 
-  - [ ] 10.3 编写 ID 压缩属性测试
+  - [x] 10.3 编写 ID 压缩属性测试
     - **Property 5: ID 压缩往返一致性**
     - *For any* 有效的 FASTQ ID 序列，压缩后解压应产生等价 ID
     - **Validates: Requirements 1.1.2**
 
-- [ ] 11. Checkpoint - Phase 2 验证
+- [x] 11. Checkpoint - Phase 2 验证
   - 确保所有算法模块测试通过
   - 验证 Spring 适配器正确性
   - 与原始 Spring 输出对比验证
@@ -269,7 +269,7 @@
 
 ## Phase 3: TBB 并行流水线
 
-- [ ] 12. 流水线架构实现
+- [-] 12. 流水线架构实现
   - [ ] 12.1 设计流水线接口
     - 创建 `include/fqc/pipeline/pipeline.h`
     - 定义 `IPipelineStage` 接口
