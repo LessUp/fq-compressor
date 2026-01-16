@@ -108,6 +108,12 @@ fqc_add_test(placeholder_test
     SOURCES placeholder_test.cpp
 )
 
+# Memory Budget Tests
+# Validates: Requirements 4.3
+fqc_add_test(memory_budget_test
+    SOURCES common/memory_budget_test.cpp
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================
@@ -128,6 +134,15 @@ if(rapidcheck_FOUND)
     # Validates: Requirements 1.1.1
     fqc_add_test(fastq_parser_property_test
         SOURCES io/fastq_parser_property_test.cpp
+        PROPERTY_BASED
+    )
+    
+    # Two-Phase Compression Property Tests
+    # **Property 3: 序列压缩往返一致性**
+    # **Property 3.1: Reorder Map 往返一致性**
+    # Validates: Requirements 1.1.2, 2.1
+    fqc_add_test(two_phase_compression_property_test
+        SOURCES algo/two_phase_compression_property_test.cpp
         PROPERTY_BASED
     )
 endif()
