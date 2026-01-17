@@ -75,7 +75,7 @@ TEST(MemoryBudgetTest, ValidateFailTooSmall) {
     MemoryBudget budget(128, 32, 16, 8);  // Below minimum
     auto result = budget.validate();
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(result.error().code, ErrorCode::kUsageError);
+    EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
 }
 
 TEST(MemoryBudgetTest, ValidateFailPhase1TooLarge) {

@@ -365,8 +365,8 @@
     - 扩展 CompressedStream
     - _Requirements: 1.1.1_
 
-- [ ] 18. 长读支持
-  - [ ] 18.1 实现长读检测
+- [x] 18. 长读支持
+  - [x] 18.1 实现长读检测
     - 采样 `min(1000, total_reads)` 条 Reads 计算 median 和 max length
     - 分类判定（按优先级从高到低，严格按此顺序）:
         1. max_length >= 100KB → LONG (Ultra-long 策略)
@@ -380,7 +380,7 @@
     - 支持 `--scan-all-lengths` 选项进行全文件扫描（仅文件输入）
     - _Requirements: 1.1.3_
 
-  - [ ] 18.2 实现长读压缩策略
+  - [x] 18.2 实现长读压缩策略
     - **Short (max <= 511 且 median < 1KB)**: ABC + 全局 Reordering，Block Size 100K
     - **Medium (max > 511 或 median >= 1KB)**: Zstd，禁用 Reordering，Block Size 50K
     - **Long (max >= 10KB)**: Zstd，禁用 Reordering，Block Size 10K
@@ -392,34 +392,34 @@
     - 支持 `--max-block-bases <bytes>` CLI 参数
     - _Requirements: 1.1.3_
 
-  - [ ] 18.3 编写长读属性测试
+  - [x] 18.3 编写长读属性测试
     - **Property 7: 长读压缩往返一致性**
     - *For any* 有效的长读序列，压缩后解压应产生等价数据
     - **Validates: Requirements 1.1.3**
 
-- [ ] 19. Paired-End 支持
-  - [ ] 19.1 实现 PE 文件处理
+- [x] 19. Paired-End 支持
+  - [x] 19.1 实现 PE 文件处理
     - 支持双文件输入 (`-1, -2`)
     - 支持交错格式输入 (`--interleaved`)
     - 实现 PE 布局选择 (`--pe-layout <interleaved|consecutive>`)
     - _Requirements: 1.1.3_
 
-  - [ ] 19.2 实现 PE 压缩优化
+  - [x] 19.2 实现 PE 压缩优化
     - 利用 R1/R2 互补性：存储 R2 与 R1 反向互补的差异
     - Reordering 时保持配对关系：同时移动 (R1_i, R2_i)
     - _Requirements: 1.1.3_
 
-  - [ ] 19.3 实现 PE 解压功能
+  - [x] 19.3 实现 PE 解压功能
     - 支持 `--split-pe` 分离输出 R1/R2
     - 支持交错格式输出
     - _Requirements: 2.2_
 
-  - [ ] 19.4 编写 PE 属性测试
+  - [x] 19.4 编写 PE 属性测试
     - **Property 8: PE 压缩往返一致性**
     - *For any* 有效的 PE 数据，压缩后解压应产生等价配对数据
     - **Validates: Requirements 1.1.3**
 
-- [ ] 20. Checkpoint - Phase 4 验证
+- [x] 20. Checkpoint - Phase 4 验证
   - 确保扩展功能测试通过
   - 验证各种输入格式
   - 如有问题请询问用户

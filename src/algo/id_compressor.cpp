@@ -123,22 +123,22 @@ bool IDPattern::matchesAll(std::span<const std::string_view> ids) const {
 VoidResult IDCompressorConfig::validate() const {
     if (compressionLevel < kMinCompressionLevel ||
         compressionLevel > kMaxCompressionLevel) {
-        return makeError(ErrorCode::kInvalidArgument,
+        return makeVoidError(ErrorCode::kInvalidArgument,
                          "Compression level must be between 1 and 9");
     }
 
     if (zstdLevel < 1 || zstdLevel > 22) {
-        return makeError(ErrorCode::kInvalidArgument,
+        return makeVoidError(ErrorCode::kInvalidArgument,
                          "Zstd level must be between 1 and 22");
     }
 
     if (lzmaLevel < 0 || lzmaLevel > 9) {
-        return makeError(ErrorCode::kInvalidArgument,
+        return makeVoidError(ErrorCode::kInvalidArgument,
                          "LZMA level must be between 0 and 9");
     }
 
     if (minPatternMatchRatio < 0.0 || minPatternMatchRatio > 1.0) {
-        return makeError(ErrorCode::kInvalidArgument,
+        return makeVoidError(ErrorCode::kInvalidArgument,
                          "Pattern match ratio must be between 0.0 and 1.0");
     }
 
@@ -312,8 +312,8 @@ Result<std::vector<std::int64_t>> deltaVarintDecode(
 
     for (std::size_t i = 0; i < count; ++i) {
         if (offset >= data.size()) {
-            return makeError(ErrorCode::kCorruptedData,
-                             "Unexpected end of varint data");
+            return std::unexpected(Error{ErrorCode::kCorruptedData,
+                             "Unexpected end of varint data"});
         }
 
         std::size_t bytesRead = 0;
@@ -518,7 +518,7 @@ Result<CompressedIDData> IDCompressorImpl::compress(std::span<const std::string_
         case IDMode::kDiscard:
             return compressDiscard(ids);
     }
-    return makeError(ErrorCode::kInvalidArgument, std::string("Unknown ID mode"));
+    return std::unexpected(Error{ErrorCode::kInvalidArgument, "Unknown ID mode"});
 }
 
 Result<CompressedIDData> IDCompressorImpl::compressExact(std::span<const std::string_view> ids) {
@@ -720,7 +720,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompress(
         if (numIds == 0) {
             return std::vector<std::string>{};
         }
-        return makeError(ErrorCode::kCorruptedData, std::string("Empty compressed data"));
+        return std::unexpected(Error{ErrorCode::kCorruptedData, "Empty compressed data"});
     }
 
     std::uint8_t magic = data[0];
@@ -733,8 +733,8 @@ Result<std::vector<std::string>> IDCompressorImpl::decompress(
         case kMagicDiscard:
             return decompressDiscard(numIds);
         default:
-            return makeError(ErrorCode::kCorruptedData,
-                             "Unknown ID compression magic byte");
+            return std::unexpected(Error{ErrorCode::kCorruptedData,
+                             "Unknown ID compression magic byte"});
     }
 }
 
@@ -747,7 +747,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
     }
 
     if (data.empty()) {
-        return makeError(ErrorCode::kCorruptedData, std::string("Missing uncompressed size"));
+        return std::unexpected(Error{ErrorCode::kCorruptedData, "Missing uncompressed size"});
     }
 
     // Read uncompressed size
@@ -758,7 +758,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
     // Decompress with Zstd
     auto uncompressedResult = decompressWithZstd(data, uncompressedSize);
     if (!uncompressedResult) {
-        return uncompressedResult.error();
+        return std::unexpected(uncompressedResult.error());
     }
 
     const auto& uncompressed = *uncompressedResult;
@@ -770,8 +770,8 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
     std::size_t offset = 0;
     for (std::uint32_t i = 0; i < numIds; ++i) {
         if (offset >= uncompressed.size()) {
-            return makeError(ErrorCode::kCorruptedData,
-                             "Unexpected end of ID data");
+            return std::unexpected(Error{ErrorCode::kCorruptedData,
+                             "Unexpected end of ID data"});
         }
 
         std::size_t lenBytes = 0;
@@ -782,8 +782,8 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
         offset += lenBytes;
 
         if (offset + idLen > uncompressed.size()) {
-            return makeError(ErrorCode::kCorruptedData,
-                             "ID length exceeds data size");
+            return std::unexpected(Error{ErrorCode::kCorruptedData,
+                             "ID length exceeds data size"});
         }
 
         result.emplace_back(
@@ -804,7 +804,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
     }
 
     if (data.empty()) {
-        return makeError(ErrorCode::kCorruptedData, std::string("Missing uncompressed size"));
+        return std::unexpected(Error{ErrorCode::kCorruptedData, "Missing uncompressed size"});
     }
 
     // Read uncompressed size
@@ -815,7 +815,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
     // Decompress with Zstd
     auto uncompressedResult = decompressWithZstd(data, uncompressedSize);
     if (!uncompressedResult) {
-        return uncompressedResult.error();
+        return std::unexpected(uncompressedResult.error());
     }
 
     const auto& uncompressed = *uncompressedResult;
@@ -872,7 +872,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
             std::span<const std::uint8_t>(uncompressed.data() + offset, encodedLen),
             numIds);
         if (!decodeResult) {
-            return decodeResult.error();
+            return std::unexpected(decodeResult.error());
         }
         intColumns[col] = std::move(*decodeResult);
         offset += encodedLen;

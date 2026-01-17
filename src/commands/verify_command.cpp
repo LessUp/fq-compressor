@@ -184,7 +184,7 @@ VerificationResult VerifyCommand::verifyFooter() {
     }
 
     // Verify footer magic
-    if (std::memcmp(footer.magicEnd, format::kMagicEnd, sizeof(format::kMagicEnd)) != 0) {
+    if (std::memcmp(footer.magicEnd.data(), format::kMagicEnd.data(), format::kMagicEnd.size()) != 0) {
         result.passed = false;
         result.errorMessage = "Invalid footer magic";
         return result;

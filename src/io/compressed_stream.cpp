@@ -343,9 +343,6 @@ CompressedInputStream::CompressedInputStream(std::unique_ptr<std::istream> sourc
 
 CompressedInputStream::~CompressedInputStream() = default;
 
-CompressedInputStream::CompressedInputStream(CompressedInputStream&&) noexcept = default;
-CompressedInputStream& CompressedInputStream::operator=(CompressedInputStream&&) noexcept = default;
-
 void CompressedInputStream::setup() {
     std::istream* source = fileStream_ ? fileStream_.get() : sourceStream_.get();
     if (!source) {

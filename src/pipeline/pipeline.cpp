@@ -13,6 +13,8 @@
 #include <mutex>
 #include <thread>
 
+#include <fmt/format.h>
+
 // TBB headers (will be available when TBB is linked)
 // #include <tbb/parallel_pipeline.h>
 // #include <tbb/task_arena.h>
@@ -91,21 +93,21 @@ bool hasEnoughMemory(
 
 VoidResult CompressionPipelineConfig::validate() const {
     if (blockSize > 0 && (blockSize < kMinBlockSize || blockSize > kMaxBlockSize)) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
-            "Block size must be between {} and {}",
-            kMinBlockSize, kMaxBlockSize);
+            fmt::format("Block size must be between {} and {}",
+            kMinBlockSize, kMaxBlockSize));
     }
 
     if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
-            "Compression level must be between {} and {}",
-            kMinCompressionLevel, kMaxCompressionLevel);
+            fmt::format("Compression level must be between {} and {}",
+            kMinCompressionLevel, kMaxCompressionLevel));
     }
 
     if (maxInFlightBlocks == 0) {
-        return makeError(ErrorCode::kInvalidArgument, std::string("Max in-flight blocks must be > 0"));
+        return makeVoidError(ErrorCode::kInvalidArgument, "Max in-flight blocks must be > 0");
     }
 
     return {};
@@ -125,14 +127,14 @@ std::size_t CompressionPipelineConfig::effectiveBlockSize() const noexcept {
 
 VoidResult DecompressionPipelineConfig::validate() const {
     if (rangeStart > 0 && rangeEnd > 0 && rangeStart > rangeEnd) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
-            "Range start ({}) must be <= range end ({})",
-            rangeStart, rangeEnd);
+            fmt::format("Range start ({}) must be <= range end ({})",
+            rangeStart, rangeEnd));
     }
 
     if (maxInFlightBlocks == 0) {
-        return makeError(ErrorCode::kInvalidArgument, std::string("Max in-flight blocks must be > 0"));
+        return makeVoidError(ErrorCode::kInvalidArgument, "Max in-flight blocks must be > 0");
     }
 
     return {};
@@ -249,7 +251,7 @@ public:
                 auto chunkResult = reader.readChunk();
                 if (!chunkResult) {
                     running_.store(false);
-                    return chunkResult.error();
+                    return std::unexpected(chunkResult.error());
                 }
                 
                 if (!chunkResult->has_value()) {
@@ -264,7 +266,7 @@ public:
                 auto compressResult = compressors[0]->compress(std::move(chunk));
                 if (!compressResult) {
                     running_.store(false);
-                    return compressResult.error();
+                    return std::unexpected(compressResult.error());
                 }
                 
                 // Write
@@ -320,10 +322,10 @@ public:
             
         } catch (const FQCException& e) {
             running_.store(false);
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kInternalError, fmt::format("Pipeline error: {}", e.what())});
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -333,7 +335,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
+            return std::unexpected(Error{ErrorCode::kCancelled, "Pipeline cancelled"});
         }
 
         FQC_LOG_INFO("Compression complete: {} reads, {} blocks, {:.2f}x ratio, {:.1f} MB/s",
@@ -422,7 +424,7 @@ public:
                 auto chunkResult = reader.readChunk();
                 if (!chunkResult) {
                     running_.store(false);
-                    return chunkResult.error();
+                    return std::unexpected(chunkResult.error());
                 }
                 
                 if (!chunkResult->has_value()) {
@@ -435,7 +437,7 @@ public:
                 auto compressResult = compressor.compress(std::move(chunk));
                 if (!compressResult) {
                     running_.store(false);
-                    return compressResult.error();
+                    return std::unexpected(compressResult.error());
                 }
                 
                 auto writeResult = writer.writeBlock(std::move(*compressResult));
@@ -461,10 +463,10 @@ public:
             
         } catch (const FQCException& e) {
             running_.store(false);
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kInternalError, fmt::format("Pipeline error: {}", e.what())});
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -474,7 +476,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
+            return std::unexpected(Error{ErrorCode::kCancelled, "Pipeline cancelled"});
         }
 
         return {};
@@ -502,7 +504,7 @@ public:
 
     VoidResult setConfig(CompressionPipelineConfig config) {
         if (running_.load()) {
-            return makeError(ErrorCode::kInvalidState, std::string("Cannot change config while running"));
+            return makeVoidError(ErrorCode::kInvalidState, "Cannot change config while running");
         }
         if (auto result = config.validate(); !result) {
             return result;
@@ -594,7 +596,7 @@ public:
                 auto blockResult = reader.readBlock();
                 if (!blockResult) {
                     running_.store(false);
-                    return blockResult.error();
+                    return std::unexpected(blockResult.error());
                 }
                 
                 if (!blockResult->has_value()) {
@@ -613,7 +615,7 @@ public:
                         continue;
                     }
                     running_.store(false);
-                    return decompressResult.error();
+                    return std::unexpected(decompressResult.error());
                 }
                 
                 // Write
@@ -664,10 +666,10 @@ public:
             
         } catch (const FQCException& e) {
             running_.store(false);
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kInternalError, fmt::format("Pipeline error: {}", e.what())});
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -677,7 +679,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
+            return std::unexpected(Error{ErrorCode::kCancelled, "Pipeline cancelled"});
         }
 
         FQC_LOG_INFO("Decompression complete: {} reads, {} blocks, {:.1f} MB/s",
@@ -721,8 +723,8 @@ public:
             // Check if input is paired-end
             if (!format::isPaired(reader.globalHeader().flags)) {
                 running_.store(false);
-                return makeError(ErrorCode::kInvalidFormat, 
-                                 "Input file is not paired-end data");
+                return std::unexpected(Error{ErrorCode::kInvalidFormat, 
+                                 "Input file is not paired-end data"});
             }
 
             // Initialize decompressor
@@ -748,7 +750,7 @@ public:
                 auto blockResult = reader.readBlock();
                 if (!blockResult) {
                     running_.store(false);
-                    return blockResult.error();
+                    return std::unexpected(blockResult.error());
                 }
                 
                 if (!blockResult->has_value()) {
@@ -764,7 +766,7 @@ public:
                         continue;
                     }
                     running_.store(false);
-                    return decompressResult.error();
+                    return std::unexpected(decompressResult.error());
                 }
                 
                 auto writeResult = writer.writeChunk(std::move(*decompressResult));
@@ -789,10 +791,10 @@ public:
             
         } catch (const FQCException& e) {
             running_.store(false);
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             running_.store(false);
-            return makeError(ErrorCode::kInternalError, std::string("Pipeline error: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kInternalError, fmt::format("Pipeline error: {}", e.what())});
         }
 
         auto endTime = std::chrono::steady_clock::now();
@@ -802,7 +804,7 @@ public:
         running_.store(false);
 
         if (cancelled_.load()) {
-            return makeError(ErrorCode::kCancelled, std::string("Pipeline cancelled"));
+            return std::unexpected(Error{ErrorCode::kCancelled, "Pipeline cancelled"});
         }
 
         return {};
@@ -830,7 +832,7 @@ public:
 
     VoidResult setConfig(DecompressionPipelineConfig config) {
         if (running_.load()) {
-            return makeError(ErrorCode::kInvalidState, std::string("Cannot change config while running"));
+            return makeVoidError(ErrorCode::kInvalidState, "Cannot change config while running");
         }
         if (auto result = config.validate(); !result) {
             return result;

@@ -20,10 +20,13 @@
 #define FQC_PIPELINE_PIPELINE_NODE_H
 
 #include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <queue>
 #include <string>

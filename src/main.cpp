@@ -26,6 +26,7 @@
 #include <unistd.h>
 #endif
 
+#include "fqc/common/error.h"
 #include "fqc/common/logger.h"
 #include "fqc/common/types.h"
 
@@ -313,15 +314,15 @@ int main(int argc, char* argv[]) {
 
     // Initialize logger
     try {
-        auto logLevel = fqc::log::LogLevel::kInfo;
+        auto logLevel = fqc::log::Level::kInfo;
         if (gOptions.quiet) {
-            logLevel = fqc::log::LogLevel::kError;
+            logLevel = fqc::log::Level::kError;
         } else if (gOptions.verbosity >= 2) {
-            logLevel = fqc::log::LogLevel::kDebug;
+            logLevel = fqc::log::Level::kDebug;
         } else if (gOptions.verbosity >= 1) {
-            logLevel = fqc::log::LogLevel::kInfo;
+            logLevel = fqc::log::Level::kInfo;
         }
-        fqc::log::init(logLevel);
+        fqc::log::init("", logLevel);
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize logger: " << e.what() << std::endl;
         return EXIT_FAILURE;
@@ -330,7 +331,7 @@ int main(int argc, char* argv[]) {
     // Auto-disable progress on non-TTY
     if (!isStdoutTty() && !gOptions.noProgress) {
         gOptions.noProgress = true;
-        FQC_LOG_DEBUG("stdout is not a TTY, disabling progress display");
+        // FQC_LOG_DEBUG("stdout is not a TTY, disabling progress display");
     }
 
     // Dispatch to subcommand handlers
@@ -347,11 +348,11 @@ int main(int argc, char* argv[]) {
         if (app.got_subcommand("verify")) {
             return fqc::commands::runVerify(app.get_subcommand("verify"));
         }
-    } catch (const fqc::FQCException& e) {
-        FQC_LOG_ERROR("Error: {}", e.what());
-        return static_cast<int>(e.code());
-    } catch (const std::exception& e) {
-        FQC_LOG_ERROR("Unexpected error: {}", e.what());
+    } catch (const fqc::FQCException& ex) {
+        FQC_LOG_ERROR("Error: {}", ex.what());
+        return static_cast<int>(ex.code());
+    } catch (const std::exception& ex) {
+        FQC_LOG_ERROR("Unexpected error: {}", ex.what());
         return EXIT_FAILURE;
     }
 
