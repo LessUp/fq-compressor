@@ -1,0 +1,76 @@
+# Benchmark Tool Configurations
+# Each tool defines compress/decompress commands with placeholders:
+#   {input} - input file path
+#   {output} - output file path
+#   {threads} - number of threads
+
+tools:
+  fqc:
+    name: "fq-compressor"
+    version_cmd: "fqc --version"
+    compress: "fqc compress -i {input} -o {output} -t {threads} -q"
+    decompress: "fqc decompress -i {output} -o {decompressed} -t {threads} -q"
+    extension: ".fqc"
+    category: "specialized"
+    description: "High-performance FASTQ compressor with ABC algorithm"
+
+  spring:
+    name: "Spring"
+    version_cmd: "spring --version 2>&1 || echo 'unknown'"
+    compress: "spring -c -i {input} -o {output} -t {threads}"
+    decompress: "spring -d -i {output} -o {decompressed} -t {threads}"
+    extension: ".spring"
+    category: "specialized"
+    description: "Assembly-based FASTQ compressor"
+
+  gzip:
+    name: "gzip"
+    version_cmd: "gzip --version | head -1"
+    compress: "gzip -c -9 {input} > {output}"
+    decompress: "gzip -dc {output} > {decompressed}"
+    extension: ".gz"
+    category: "general"
+    description: "Standard general-purpose compressor"
+
+  pigz:
+    name: "pigz"
+    version_cmd: "pigz --version 2>&1 | head -1"
+    compress: "pigz -c -9 -p {threads} {input} > {output}"
+    decompress: "pigz -dc -p {threads} {output} > {decompressed}"
+    extension: ".gz"
+    category: "general"
+    description: "Parallel gzip implementation"
+
+  zstd:
+    name: "zstd"
+    version_cmd: "zstd --version | head -1"
+    compress: "zstd -19 -T{threads} -q {input} -o {output}"
+    decompress: "zstd -d -T{threads} -q {output} -o {decompressed}"
+    extension: ".zst"
+    category: "general"
+    description: "Fast real-time compression"
+
+  xz:
+    name: "xz"
+    version_cmd: "xz --version | head -1"
+    compress: "xz -9 -c -T {threads} {input} > {output}"
+    decompress: "xz -dc -T {threads} {output} > {decompressed}"
+    extension: ".xz"
+    category: "general"
+    description: "High compression ratio general compressor"
+
+  bzip2:
+    name: "bzip2"
+    version_cmd: "bzip2 --version 2>&1 | head -1"
+    compress: "bzip2 -9 -c {input} > {output}"
+    decompress: "bzip2 -dc {output} > {decompressed}"
+    extension: ".bz2"
+    category: "general"
+    description: "Block-sorting compression"
+
+# Benchmark settings
+settings:
+  warmup_runs: 1
+  benchmark_runs: 3
+  default_threads: [1, 4, 8]
+  timeout_seconds: 3600
