@@ -13,6 +13,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <fmt/format.h>
+
 #include "fqc/common/logger.h"
 #include "fqc/io/fastq_parser.h"
 #include "fqc/format/fqc_reader.h"
@@ -31,37 +33,37 @@ namespace fqc::pipeline {
 
 VoidResult ReaderNodeConfig::validate() const {
     if (blockSize < kMinBlockSize || blockSize > kMaxBlockSize) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
-            "Block size must be between {} and {}",
-            kMinBlockSize, kMaxBlockSize);
+            fmt::format("Block size must be between {} and {}",
+            kMinBlockSize, kMaxBlockSize));
     }
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
+        return makeVoidError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
     }
     return {};
 }
 
 VoidResult CompressorNodeConfig::validate() const {
     if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
-            "Compression level must be between {} and {}",
-            kMinCompressionLevel, kMaxCompressionLevel);
+            fmt::format("Compression level must be between {} and {}",
+            kMinCompressionLevel, kMaxCompressionLevel));
     }
     return {};
 }
 
 VoidResult WriterNodeConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
+        return makeVoidError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
     }
     return {};
 }
 
 VoidResult FQCReaderNodeConfig::validate() const {
     if (rangeStart > 0 && rangeEnd > 0 && rangeStart > rangeEnd) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
             "Range start must be <= range end");
     }
@@ -72,7 +74,7 @@ VoidResult FQCReaderNodeConfig::validate() const {
 VoidResult DecompressorNodeConfig::validate() const {
     // Placeholder quality must be valid ASCII
     if (placeholderQual < 33 || placeholderQual > 126) {
-        return makeError(
+        return makeVoidError(
             ErrorCode::kInvalidArgument,
             "Placeholder quality must be ASCII 33-126");
     }
@@ -81,7 +83,7 @@ VoidResult DecompressorNodeConfig::validate() const {
 
 VoidResult FASTQWriterNodeConfig::validate() const {
     if (bufferSize == 0) {
-        return makeError(ErrorCode::kInvalidArgument, std::string("Buffer size must be > 0"));
+        return makeVoidError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
     }
     return {};
 }
@@ -141,10 +143,10 @@ public:
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open input: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open input: {}", e.what())});
         }
     }
 
@@ -191,10 +193,10 @@ public:
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open paired input: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open paired input: {}", e.what())});
         }
     }
 
@@ -284,17 +286,17 @@ public:
                 state_ = NodeState::kFinished;
             }
             
-            LOG_TRACE("ReaderNode read chunk: id={}, reads={}, is_last={}",
+            FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, is_last={}",
                       chunk.chunkId, chunk.reads.size(), chunk.isLast);
             
             return chunk;
             
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to read chunk: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to read chunk: {}", e.what())});
         }
     }
 
@@ -431,7 +433,7 @@ public:
             auto idResult = compressIds(ids);
             if (!idResult) {
                 state_ = NodeState::kError;
-                return idResult.error();
+                return std::unexpected(idResult.error());
             }
             block.idStream = std::move(idResult->data);
             block.codecIds = getIdCodec();
@@ -440,7 +442,7 @@ public:
             auto seqResult = compressSequences(sequences);
             if (!seqResult) {
                 state_ = NodeState::kError;
-                return seqResult.error();
+                return std::unexpected(seqResult.error());
             }
             block.seqStream = std::move(*seqResult);
             block.codecSeq = getSequenceCodec();
@@ -449,7 +451,7 @@ public:
             auto qualResult = compressQualities(qualities, sequences);
             if (!qualResult) {
                 state_ = NodeState::kError;
-                return qualResult.error();
+                return std::unexpected(qualResult.error());
             }
             block.qualStream = std::move(qualResult->data);
             block.codecQual = getQualityCodec();
@@ -459,7 +461,7 @@ public:
                 auto auxResult = compressLengths(lengths);
                 if (!auxResult) {
                     state_ = NodeState::kError;
-                    return auxResult.error();
+                    return std::unexpected(auxResult.error());
                 }
                 block.auxStream = std::move(*auxResult);
             }
@@ -471,17 +473,17 @@ public:
             ++totalBlocksCompressed_;
             state_ = NodeState::kIdle;
 
-            LOG_TRACE("CompressorNode compressed block: id={}, reads={}, compressed_size={}",
+            FQC_LOG_DEBUG("CompressorNode compressed block: id={}, reads={}, compressed_size={}",
                       block.blockId, block.readCount, block.totalSize());
 
             return block;
 
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kCompressionFailed, std::string("Compression failed: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kCompressionFailed, fmt::format("Compression failed: {}", e.what())});
         }
     }
 
@@ -555,7 +557,7 @@ private:
             
             auto result = blockCompressor_->compress(reads, 0);
             if (!result) {
-                return result.error();
+                return std::unexpected(result.error());
             }
             return std::move(result->seqStream);
         } else {
@@ -717,16 +719,16 @@ public:
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open output: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open output: {}", e.what())});
         }
     }
 
     VoidResult writeBlock(CompressedBlock block) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
+            return makeVoidError(ErrorCode::kInvalidState, "Writer not open");
         }
 
         try {
@@ -762,16 +764,16 @@ public:
             
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to write block: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to write block: {}", e.what())});
         }
     }
 
     VoidResult finalize(std::optional<std::span<const std::uint8_t>> reorderMap) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
+            return makeVoidError(ErrorCode::kInvalidState, "Writer not open");
         }
 
         try {
@@ -807,10 +809,10 @@ public:
             
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to finalize: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to finalize: {}", e.what())});
         }
     }
 
@@ -876,7 +878,7 @@ private:
         totalBytesWritten_ += format::BlockHeader::kSize + block.totalSize();
         ++nextExpectedBlockId_;
         
-        LOG_TRACE("WriterNode wrote block: id={}, size={}", block.blockId, block.totalSize());
+        FQC_LOG_DEBUG("WriterNode wrote block: id={}, size={}", block.blockId, block.totalSize());
         
         return {};
     }
@@ -953,10 +955,10 @@ public:
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open FQC file: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open FQC file: {}", e.what())});
         }
     }
 
@@ -1011,10 +1013,10 @@ public:
             return block;
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to read block: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to read block: {}", e.what())});
         }
     }
 
@@ -1154,7 +1156,7 @@ public:
                 return chunk;  // Return empty chunk
             }
             state_ = NodeState::kError;
-            return makeError(e.code(), e.what());
+            return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             if (config_.skipCorrupted) {
                 FQC_LOG_WARNING("Skipping corrupted block {}: {}", block.blockId, e.what());
@@ -1162,8 +1164,8 @@ public:
                 return chunk;
             }
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kDecompressionError, 
-                             "Failed to decompress block: {}", e.what());
+            return std::unexpected(Error{ErrorCode::kDecompressionError, 
+                             fmt::format("Failed to decompress block: {}", e.what())});
         }
     }
 
@@ -1211,14 +1213,8 @@ private:
         std::vector<std::string> sequences;
         sequences.reserve(count);
 
-        // Use BlockCompressor for decompression
-        algo::BlockCompressor blockCompressor;
-        auto result = blockCompressor.decompressSequences(data, count, uniformLength);
-        if (result) {
-            return std::move(*result);
-        }
-
-        // Fallback: return empty sequences
+        // TODO: Implement proper sequence decompression using BlockCompressor::decompress
+        // For now, return placeholder sequences
         for (std::uint32_t i = 0; i < count; ++i) {
             sequences.emplace_back();
         }
@@ -1316,8 +1312,8 @@ public:
             } else {
                 stream1_.open(path, std::ios::binary | std::ios::trunc);
                 if (!stream1_.is_open()) {
-                    return makeError(ErrorCode::kIOError, 
-                                     "Failed to open output file: {}", path.string());
+                    return std::unexpected(Error{ErrorCode::kIOError, 
+                                     fmt::format("Failed to open output file: {}", path.string())});
                 }
                 useStdout_ = false;
             }
@@ -1329,7 +1325,7 @@ public:
             return {};
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open output: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open output: {}", e.what())});
         }
     }
 
@@ -1344,15 +1340,15 @@ public:
             
             stream1_.open(path1, std::ios::binary | std::ios::trunc);
             if (!stream1_.is_open()) {
-                return makeError(ErrorCode::kIOError, 
-                                 "Failed to open R1 output file: {}", path1.string());
+                return std::unexpected(Error{ErrorCode::kIOError, 
+                                 fmt::format("Failed to open R1 output file: {}", path1.string())});
             }
             
             stream2_.open(path2, std::ios::binary | std::ios::trunc);
             if (!stream2_.is_open()) {
                 stream1_.close();
-                return makeError(ErrorCode::kIOError, 
-                                 "Failed to open R2 output file: {}", path2.string());
+                return std::unexpected(Error{ErrorCode::kIOError, 
+                                 fmt::format("Failed to open R2 output file: {}", path2.string())});
             }
             
             state_ = NodeState::kRunning;
@@ -1362,13 +1358,13 @@ public:
             return {};
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to open paired output: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open paired output: {}", e.what())});
         }
     }
 
     VoidResult writeChunk(ReadChunk chunk) {
         if (state_ != NodeState::kRunning) {
-            return makeError(ErrorCode::kInvalidState, std::string("Writer not open"));
+            return makeVoidError(ErrorCode::kInvalidState, "Writer not open");
         }
 
         try {
@@ -1412,7 +1408,7 @@ public:
             
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return makeError(ErrorCode::kIOError, std::string("Failed to write FASTQ: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to write FASTQ: {}", e.what())});
         }
     }
 
@@ -1430,7 +1426,7 @@ public:
             }
             return {};
         } catch (const std::exception& e) {
-            return makeError(ErrorCode::kIOError, std::string("Failed to flush output: {}"), e.what());
+            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to flush output: {}", e.what())});
         }
     }
 

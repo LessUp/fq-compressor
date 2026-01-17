@@ -264,11 +264,11 @@ public:
     /// @brief Destructor.
     ~CompressedInputStream() override;
 
-    // Non-copyable, movable
+    // Non-copyable, non-movable (std::istream is not movable)
     CompressedInputStream(const CompressedInputStream&) = delete;
     CompressedInputStream& operator=(const CompressedInputStream&) = delete;
-    CompressedInputStream(CompressedInputStream&&) noexcept;
-    CompressedInputStream& operator=(CompressedInputStream&&) noexcept;
+    CompressedInputStream(CompressedInputStream&&) = delete;
+    CompressedInputStream& operator=(CompressedInputStream&&) = delete;
 
     /// @brief Get the detected compression format.
     [[nodiscard]] CompressionFormat format() const noexcept { return format_; }

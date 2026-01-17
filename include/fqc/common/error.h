@@ -103,7 +103,19 @@ enum class ErrorCode : std::uint8_t {
     kUnsupportedFormat = 15,
 
     /// @brief Corrupted data detected.
-    kCorruptedData = 16
+    kCorruptedData = 16,
+
+    /// @brief Internal error.
+    kInternalError = 17,
+
+    /// @brief Compression failed.
+    kCompressionFailed = 18,
+
+    /// @brief Decompression error.
+    kDecompressionError = 19,
+
+    /// @brief Checksum mismatch.
+    kChecksumMismatch = 20
 };
 
 /// @brief Convert ErrorCode to its integer exit code value.
@@ -152,6 +164,14 @@ enum class ErrorCode : std::uint8_t {
             return "unsupported format";
         case ErrorCode::kCorruptedData:
             return "corrupted data";
+        case ErrorCode::kInternalError:
+            return "internal error";
+        case ErrorCode::kCompressionFailed:
+            return "compression failed";
+        case ErrorCode::kDecompressionError:
+            return "decompression error";
+        case ErrorCode::kChecksumMismatch:
+            return "checksum mismatch";
     }
     return "unknown error";
 }
@@ -328,6 +348,9 @@ public:
     UsageError(std::string message, ErrorContext context)
         : FQCException(ErrorCode::kUsageError, std::move(message), std::move(context)) {}
 };
+
+/// @brief Alias for UsageError (for argument parsing errors).
+using ArgumentError = UsageError;
 
 /// @brief Exception for I/O errors (exit code 2).
 /// @note Thrown for file not found, read/write failures, permission denied,
@@ -533,6 +556,16 @@ template <typename T>
 template <typename T>
 [[nodiscard]] Result<T> makeError(ErrorCode code, std::string message) {
     return std::unexpected(Error{code, std::move(message)});
+}
+
+/// @brief Create an error result (const char* overload).
+/// @tparam T The expected value type.
+/// @param code The error code.
+/// @param message The error message.
+/// @return Result containing the error.
+template <typename T>
+[[nodiscard]] Result<T> makeError(ErrorCode code, const char* message) {
+    return std::unexpected(Error{code, std::string(message)});
 }
 
 /// @brief Create an error result from an Error object.
