@@ -108,5 +108,152 @@ This project stands on the shoulders of giants. We explicitly acknowledge and re
 *   **[pigz](https://github.com/madler/pigz)**: Parallel implementation reference.
 *   **[Repaq](https://github.com/OpenGene/repaq)**: Compact reordering ideas.
 
+## 🔧 Installation
+
+### Prerequisites
+- C++20 compatible compiler (GCC 13+, Clang 16+)
+- CMake 3.20+
+- Conan 2.x package manager
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/LessUp/fq-compressor.git
+cd fq-compressor
+
+# Install dependencies
+conan install . --build=missing -of=build
+
+# Build
+cmake --preset release
+cmake --build build/build/Release -j$(nproc)
+
+# Run tests
+ctest --test-dir build/build/Release
+```
+
+The binary will be at `build/build/Release/bin/fqc`.
+
+---
+
+## 📖 Usage
+
+### Basic Compression
+
+```bash
+# Compress a FASTQ file
+fqc compress -i input.fastq -o output.fqc
+
+# Compress with specific options
+fqc compress -i input.fastq -o output.fqc -t 8 -l 6
+```
+
+### Basic Decompression
+
+```bash
+# Decompress to FASTQ
+fqc decompress -i archive.fqc -o output.fastq
+
+# Extract specific read range
+fqc decompress -i archive.fqc -o subset.fastq --range 1000:2000
+
+# Output to stdout
+fqc decompress -i archive.fqc -o -
+```
+
+### Paired-End Support
+
+```bash
+# Compress paired-end files
+fqc compress -i read1.fastq -2 read2.fastq -o paired.fqc
+
+# Decompress with split output
+fqc decompress -i paired.fqc --split-pe -o reads.fastq
+# Creates reads_R1.fastq and reads_R2.fastq
+```
+
+### Verification
+
+```bash
+# Verify archive integrity
+fqc verify archive.fqc
+
+# Verbose verification
+fqc verify archive.fqc -v
+
+# Quick verification (magic + footer only)
+fqc verify archive.fqc --quick
+```
+
+### Archive Information
+
+```bash
+# Show archive metadata
+fqc info archive.fqc
+```
+
+---
+
+## ⚙️ CLI Reference
+
+### Global Options
+| Option | Description |
+|--------|-------------|
+| `-t, --threads <N>` | Number of threads (0 = auto) |
+| `-v, --verbose` | Increase verbosity |
+| `-q, --quiet` | Suppress output |
+| `--version` | Show version |
+| `-h, --help` | Show help |
+
+### Compress Options
+| Option | Description |
+|--------|-------------|
+| `-i, --input <file>` | Input FASTQ file (required) |
+| `-o, --output <file>` | Output .fqc file (required) |
+| `-2 <file>` | Second input file for paired-end |
+| `-l, --level <1-9>` | Compression level (default: 6) |
+| `--quality-mode <mode>` | Quality handling: lossless, illumina8, qvz, discard |
+| `--id-mode <mode>` | ID handling: exact, tokenize, discard |
+| `-f, --force` | Overwrite existing output |
+
+### Decompress Options
+| Option | Description |
+|--------|-------------|
+| `-i, --input <file>` | Input .fqc file (required) |
+| `-o, --output <file>` | Output FASTQ file (required, or "-" for stdout) |
+| `--range <start:end>` | Extract read range (1-based) |
+| `--split-pe` | Split paired-end to separate files |
+| `--original-order` | Output in original order (if reorder map present) |
+| `--skip-corrupted` | Skip corrupted blocks instead of failing |
+| `-f, --force` | Overwrite existing output |
+
+### Verify Options
+| Option | Description |
+|--------|-------------|
+| `--fail-fast` | Stop on first error |
+| `--quick` | Quick mode (magic + footer only) |
+| `-v, --verbose` | Show detailed progress |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+ctest --test-dir build/build/Release
+
+# Run end-to-end CLI tests
+./tests/e2e/test_cli.sh
+
+# Run performance benchmarks
+./tests/e2e/test_performance.sh
+
+# Compare with Spring
+./scripts/compare_spring.sh input.fastq
+```
+
+---
+
 ## License
 [License TBD - Likely GPLv3 or similar due to Spring dependency]
