@@ -34,13 +34,41 @@ RUN set -eux; \
     fi
 
 # =============================================================================
+# APT 镜像源配置 (中国大陆用户可启用国内镜像加速)
+# 设置 USE_CHINA_MIRROR=1 启用阿里云镜像
+# =============================================================================
+ARG USE_CHINA_MIRROR=1
+RUN if [ "${USE_CHINA_MIRROR}" = "1" ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true; \
+    fi
+
+# =============================================================================
+# APT 重试配置 (处理镜像临时故障)
+# =============================================================================
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
+
+# =============================================================================
 # 基础工具
 # =============================================================================
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     build-essential \
     ninja-build \
     pkg-config \
     git \
+    vim \
+    neovim \
+    less \
+    tree \
+    grep \
+    htop \
+    tmux \
+    ripgrep \
+    zip \
+    unzip \
+    jq \
     wget \
     curl \
     ca-certificates \
@@ -52,11 +80,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    nodejs \
+    npm \
     ccache \
     openssh-server \
     openssh-client \
     procps \
     sudo \
+    skopeo \
     && rm -rf /var/lib/apt/lists/*
 
 RUN touch /tmp/host-gitconfig
@@ -109,7 +140,7 @@ RUN wget -q https://apt.llvm.org/llvm.sh && \
 # =============================================================================
 # 项目依赖库
 # =============================================================================
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     libdeflate-dev \
     zlib1g-dev \
     libbz2-dev \
@@ -128,7 +159,7 @@ RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
 # =============================================================================
 FROM base AS development
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     gdb \
     valgrind \
     lcov \
@@ -137,6 +168,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     graphviz \
     cppcheck \
     && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Claude Code / Codex CLI
+# =============================================================================
+RUN set -eux; \
+    npm install -g @openai/codex
 
 # =============================================================================
 # 非 root 用户
@@ -154,11 +191,41 @@ RUN rm -rf /home/$USERNAME/.gitconfig && \
     chown $USERNAME:$USERNAME /home/$USERNAME/.gitconfig
 
 # =============================================================================
+# Claude Code 启动函数（bashrc/profile）
+# =============================================================================
+RUN cat <<'EOF' >/etc/profile.d/claude-config.sh
+# claude-config
+claude-duck() {
+    claude --settings "$HOME/.claude/settings.duck.json" "$@"
+}
+
+claude-glm() {
+    claude --settings "$HOME/.claude/settings.glm.json" "$@"
+}
+
+claude-kimi() {
+    claude --settings "$HOME/.claude/settings.kimi.json" "$@"
+}
+
+claude-minimax() {
+    claude --settings "$HOME/.claude/settings.minimax.json" "$@"
+}
+
+claude-wong() {
+    claude --settings "$HOME/.claude/settings.wong.json" "$@"
+}
+EOF
+RUN if [ -f /etc/bash.bashrc ] && ! grep -Fxq 'source /etc/profile.d/claude-config.sh' /etc/bash.bashrc; then \
+    echo 'source /etc/profile.d/claude-config.sh' >> /etc/bash.bashrc; \
+fi
+
+# =============================================================================
 # 环境配置
 # =============================================================================
+ENV HOME=/home/$USERNAME
 ENV CONAN_HOME=/home/$USERNAME/.conan2
 ENV CCACHE_DIR=/home/$USERNAME/.ccache
-ENV PATH=/usr/lib/ccache:$PATH
+ENV PATH=/home/$USERNAME/.local/bin:/home/$USERNAME/.claude/bin:/usr/lib/ccache:$PATH
 
 # 默认使用 GCC（可通过 CMake Preset 切换）
 ENV CC=gcc
@@ -177,28 +244,8 @@ USER $USERNAME
 RUN conan profile detect --force
 
 # =============================================================================
-# SSH 配置
+# Claude Code CLI (developer 用户安装)
 # =============================================================================
-RUN sudo mkdir -p /var/run/sshd && \
-    sudo ssh-keygen -A
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# 创建启动脚本
-COPY .devcontainer/setup-sshd.sh /usr/local/bin/setup-sshd.sh
-COPY .devcontainer/start-sshd.sh /usr/local/bin/start-sshd.sh
-RUN sudo chmod +x /usr/local/bin/setup-sshd.sh /usr/local/bin/start-sshd.sh
-
-# 创建入口脚本
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-# 启动 SSH\n\
-bash /usr/local/bin/setup-sshd.sh || true\n\
-bash /usr/local/bin/start-sshd.sh || true\n\
-\n\
-# 执行传入的命令或默认 bash\n\
-exec "$@"\n\
-' | sudo tee /usr/local/bin/docker-entrypoint.sh > /dev/null && \
-    sudo chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]

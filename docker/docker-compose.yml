@@ -1,29 +1,45 @@
+# 项目名称，避免与其他项目冲突
+name: fqcompressor
+
 services:
   # 开发环境
   dev:
-    image: fqcompressor-dev
+    image: fqcompressor-dev:latest
+    pull_policy: never
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
       target: development
-    container_name: fqcompressor-dev
+      args:
+        - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - ALL_PROXY=${ALL_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local}
+    # container_name 已移除，避免与手动启动的容器冲突
+    # VS Code devcontainer 会自动管理容器名
     volumes:
       - ..:/workspace:cached
       - conan_cache:/home/developer/.conan2:cached
       - ccache_cache:/home/developer/.ccache:cached
     ports:
-      - "${FQCOMPRESSOR_SSH_BIND:-127.0.0.1}:${FQCOMPRESSOR_SSH_PORT:-2223}:2222"
+      - "${FQCOMPRESSOR_SSH_BIND:-127.0.0.1}:${FQCOMPRESSOR_SSH_PORT:-2222}:${FQCOMPRESSOR_SSH_PORT:-2222}"
+    environment:
+      - FQCOMPRESSOR_SSH_PORT=${FQCOMPRESSOR_SSH_PORT:-2222}
     stdin_open: true
     tty: true
+    command: /bin/bash
     working_dir: /workspace
 
   # 生产环境
   prod:
-    image: fqcompressor-prod
+    image: fqcompressor-prod:latest
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: production
+      args:
+        - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
     container_name: fqcompressor-prod
     volumes:
       - ./data:/app/data:ro
@@ -35,11 +51,13 @@ services:
 
   # 测试环境
   test:
-    image: fqcompressor-test
+    image: fqcompressor-test:latest
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
       target: development
+      args:
+        - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
     container_name: fqcompressor-test
     volumes:
       - ..:/workspace:cached
@@ -53,11 +71,13 @@ services:
 
   # 构建服务
   build:
-    image: fqcompressor-build
+    image: fqcompressor-build:latest
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: build
+      args:
+        - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
     container_name: fqcompressor-build
     volumes:
       - ..:/workspace:cached
