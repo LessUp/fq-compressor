@@ -185,9 +185,19 @@ public:
     void reset();
 
 private:
+    /// @brief Custom deleter for aligned memory
+    struct AlignedDeleter {
+        void operator()(std::uint8_t* ptr) const noexcept {
+            if (ptr) { std::free(ptr); }
+        }
+    };
+    
+    /// @brief Aligned buffer type for cache-line alignment
+    using AlignedBuffer = std::unique_ptr<std::uint8_t[], AlignedDeleter>;
+    
     std::size_t bufferSize_;
     std::size_t bufferCount_;
-    std::vector<std::unique_ptr<std::uint8_t[]>> buffers_;
+    std::vector<AlignedBuffer> buffers_;
     std::queue<std::uint8_t*> available_;
     mutable std::mutex mutex_;
     std::condition_variable cv_;

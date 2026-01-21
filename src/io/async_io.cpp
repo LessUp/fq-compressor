@@ -83,18 +83,31 @@ std::uint8_t* ManagedBuffer::release() noexcept {
 // BufferPool Implementation
 // =============================================================================
 
+// Cache line size for memory alignment (64 bytes on most modern CPUs)
+inline constexpr std::size_t kCacheLineSize = 64;
+
 BufferPool::BufferPool(std::size_t bufferSize, std::size_t bufferCount)
     : bufferSize_(bufferSize)
     , bufferCount_(bufferCount) {
-    // Allocate all buffers upfront
+    // Round up buffer size to cache line boundary for optimal alignment
+    const std::size_t alignedSize = (bufferSize + kCacheLineSize - 1) & ~(kCacheLineSize - 1);
+    
+    // Allocate all buffers upfront with cache line alignment
     buffers_.reserve(bufferCount);
     for (std::size_t i = 0; i < bufferCount; ++i) {
-        auto buffer = std::make_unique<std::uint8_t[]>(bufferSize);
+        // Use aligned_alloc for cache-line aligned memory
+        // This improves SIMD performance and reduces cache line bouncing
+        void* ptr = std::aligned_alloc(kCacheLineSize, alignedSize);
+        if (!ptr) {
+            throw std::bad_alloc();
+        }
+        auto buffer = AlignedBuffer(static_cast<std::uint8_t*>(ptr));
         available_.push(buffer.get());
         buffers_.push_back(std::move(buffer));
     }
     
-    FQC_LOG_DEBUG("BufferPool created: size={}, count={}", bufferSize, bufferCount);
+    FQC_LOG_DEBUG("BufferPool created: size={}, aligned_size={}, count={}, alignment={}",
+                  bufferSize, alignedSize, bufferCount, kCacheLineSize);
 }
 
 BufferPool::~BufferPool() {

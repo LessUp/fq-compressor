@@ -15,9 +15,9 @@
 
 #include <fmt/format.h>
 
-// TBB headers (will be available when TBB is linked)
-// #include <tbb/parallel_pipeline.h>
-// #include <tbb/task_arena.h>
+// TBB headers for parallel pipeline
+#include <tbb/parallel_pipeline.h>
+#include <tbb/task_arena.h>
 
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
@@ -241,68 +241,138 @@ public:
             std::atomic<std::uint32_t> blocksProcessed{0};
             auto lastProgressTime = std::chrono::steady_clock::now();
             
-            // Simple sequential pipeline (TBB integration placeholder)
-            // In production, this would use tbb::parallel_pipeline
-            // For now, implement a simple sequential version
+            // =================================================================
+            // TBB Parallel Pipeline Implementation
+            // =================================================================
+            // Stage 1 (Reader): serial_in_order - reads FASTQ chunks
+            // Stage 2 (Compressor): parallel - compresses chunks concurrently
+            // Stage 3 (Writer): serial_in_order - writes blocks in order
+            // =================================================================
             
-            std::uint32_t blockId = 0;
-            while (!cancelled_.load()) {
-                // Read chunk
-                auto chunkResult = reader.readChunk();
-                if (!chunkResult) {
-                    running_.store(false);
-                    return std::unexpected(chunkResult.error());
-                }
-                
-                if (!chunkResult->has_value()) {
-                    // EOF
-                    break;
-                }
-                
-                auto& chunk = chunkResult->value();
-                chunk.chunkId = blockId++;
-                
-                // Compress (using first compressor in sequential mode)
-                auto compressResult = compressors[0]->compress(std::move(chunk));
-                if (!compressResult) {
-                    running_.store(false);
-                    return std::unexpected(compressResult.error());
-                }
-                
-                // Write
-                auto writeResult = writer.writeBlock(std::move(*compressResult));
-                if (!writeResult) {
-                    running_.store(false);
-                    return writeResult;
-                }
-                
-                // Update progress
-                readsProcessed.fetch_add(chunk.reads.size());
-                blocksProcessed.fetch_add(1);
-                
-                // Report progress
-                if (config_.progressCallback) {
-                    auto now = std::chrono::steady_clock::now();
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now - lastProgressTime).count();
+            std::atomic<std::uint32_t> blockId{0};
+            std::atomic<bool> readerError{false};
+            std::atomic<bool> writerError{false};
+            std::optional<Error> pipelineError;
+            std::mutex errorMutex;
+            
+            // Thread-local compressor index for load balancing
+            std::atomic<std::size_t> compressorIndex{0};
+            
+            // Create task arena with configured thread count
+            tbb::task_arena arena(static_cast<int>(config_.effectiveThreads()));
+            
+            arena.execute([&] {
+                tbb::parallel_pipeline(
+                    config_.maxInFlightBlocks,
                     
-                    if (elapsed >= config_.progressIntervalMs) {
-                        ProgressInfo info;
-                        info.readsProcessed = readsProcessed.load();
-                        info.totalReads = reader.estimatedTotalReads();
-                        info.bytesProcessed = reader.totalBytesRead();
-                        info.currentBlock = blocksProcessed.load();
-                        info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            now - startTime).count();
-                        
-                        if (!config_.progressCallback(info)) {
-                            cancelled_.store(true);
-                            break;
+                    // Stage 1: Reader (serial, in-order)
+                    tbb::make_filter<void, std::optional<ReadChunk>>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](tbb::flow_control& fc) -> std::optional<ReadChunk> {
+                            if (cancelled_.load() || readerError.load() || writerError.load()) {
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            auto chunkResult = reader.readChunk();
+                            if (!chunkResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = chunkResult.error();
+                                readerError.store(true);
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            if (!chunkResult->has_value()) {
+                                // EOF reached
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            auto chunk = std::move(chunkResult->value());
+                            chunk.chunkId = blockId.fetch_add(1);
+                            return chunk;
                         }
-                        
-                        lastProgressTime = now;
-                    }
-                }
+                    ) &
+                    
+                    // Stage 2: Compressor (parallel)
+                    tbb::make_filter<std::optional<ReadChunk>, std::optional<CompressedBlock>>(
+                        tbb::filter_mode::parallel,
+                        [&](std::optional<ReadChunk> chunkOpt) -> std::optional<CompressedBlock> {
+                            if (!chunkOpt.has_value()) {
+                                return std::nullopt;
+                            }
+                            
+                            auto& chunk = *chunkOpt;
+                            std::size_t readCount = chunk.reads.size();
+                            
+                            // Select compressor using round-robin
+                            std::size_t idx = compressorIndex.fetch_add(1) % compressors.size();
+                            
+                            auto compressResult = compressors[idx]->compress(std::move(chunk));
+                            if (!compressResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = compressResult.error();
+                                readerError.store(true);  // Signal to stop reader
+                                return std::nullopt;
+                            }
+                            
+                            // Update progress atomically
+                            readsProcessed.fetch_add(readCount);
+                            
+                            return std::move(*compressResult);
+                        }
+                    ) &
+                    
+                    // Stage 3: Writer (serial, in-order)
+                    tbb::make_filter<std::optional<CompressedBlock>, void>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](std::optional<CompressedBlock> blockOpt) {
+                            if (!blockOpt.has_value()) {
+                                return;
+                            }
+                            
+                            auto writeResult = writer.writeBlock(std::move(*blockOpt));
+                            if (!writeResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = writeResult.error();
+                                writerError.store(true);
+                                return;
+                            }
+                            
+                            blocksProcessed.fetch_add(1);
+                            
+                            // Report progress
+                            if (config_.progressCallback) {
+                                auto now = std::chrono::steady_clock::now();
+                                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    now - lastProgressTime).count();
+                                
+                                if (elapsed >= config_.progressIntervalMs) {
+                                    ProgressInfo info;
+                                    info.readsProcessed = readsProcessed.load();
+                                    info.totalReads = reader.estimatedTotalReads();
+                                    info.bytesProcessed = reader.totalBytesRead();
+                                    info.currentBlock = blocksProcessed.load();
+                                    info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        now - startTime).count();
+                                    
+                                    if (!config_.progressCallback(info)) {
+                                        cancelled_.store(true);
+                                    }
+                                    
+                                    lastProgressTime = now;
+                                }
+                            }
+                        }
+                    )
+                );
+            });
+            
+            // Check for pipeline errors
+            if (readerError.load() || writerError.load()) {
+                running_.store(false);
+                return std::unexpected(*pipelineError);
             }
             
             // Finalize
@@ -591,67 +661,152 @@ public:
             // Progress tracking
             auto lastProgressTime = std::chrono::steady_clock::now();
 
-            // Sequential decompression pipeline
-            while (!cancelled_.load()) {
-                auto blockResult = reader.readBlock();
-                if (!blockResult) {
-                    running_.store(false);
-                    return std::unexpected(blockResult.error());
-                }
-                
-                if (!blockResult->has_value()) {
-                    // EOF
-                    break;
-                }
-                
-                auto& compressedBlock = blockResult->value();
-                
-                // Decompress
-                auto decompressResult = decompressor.decompress(
-                    std::move(compressedBlock), reader.globalHeader());
-                if (!decompressResult) {
-                    if (config_.skipCorrupted) {
-                        FQC_LOG_WARNING("Skipping corrupted block");
-                        continue;
-                    }
-                    running_.store(false);
-                    return std::unexpected(decompressResult.error());
-                }
-                
-                // Write
-                auto writeResult = writer.writeChunk(std::move(*decompressResult));
-                if (!writeResult) {
-                    running_.store(false);
-                    return writeResult;
-                }
-                
-                // Update statistics
-                stats_.totalReads += decompressResult->reads.size();
-                ++stats_.totalBlocks;
-                
-                // Report progress
-                if (config_.progressCallback) {
-                    auto now = std::chrono::steady_clock::now();
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        now - lastProgressTime).count();
-                    
-                    if (elapsed >= config_.progressIntervalMs) {
-                        ProgressInfo info;
-                        info.readsProcessed = stats_.totalReads;
-                        info.totalReads = reader.globalHeader().totalReadCount;
-                        info.currentBlock = stats_.totalBlocks;
-                        info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            now - startTime).count();
-                        
-                        if (!config_.progressCallback(info)) {
-                            cancelled_.store(true);
-                            break;
-                        }
-                        
-                        lastProgressTime = now;
-                    }
-                }
+            // =================================================================
+            // TBB Parallel Decompression Pipeline
+            // =================================================================
+            // Stage 1 (Reader): serial_in_order - reads FQC blocks
+            // Stage 2 (Decompressor): parallel - decompresses blocks concurrently
+            // Stage 3 (Writer): serial_in_order - writes FASTQ in order
+            // =================================================================
+            
+            std::atomic<std::uint64_t> readsProcessed{0};
+            std::atomic<std::uint32_t> blocksProcessed{0};
+            std::atomic<bool> readerError{false};
+            std::atomic<bool> writerError{false};
+            std::optional<Error> pipelineError;
+            std::mutex errorMutex;
+            
+            // Store global header reference for decompressor
+            const auto& globalHeader = reader.globalHeader();
+            
+            // Create multiple decompressors for parallel processing
+            std::vector<std::unique_ptr<DecompressorNode>> decompressors;
+            for (std::size_t i = 0; i < config_.effectiveThreads(); ++i) {
+                decompressors.push_back(std::make_unique<DecompressorNode>(decompressorConfig));
             }
+            std::atomic<std::size_t> decompressorIndex{0};
+            
+            // Create task arena with configured thread count
+            tbb::task_arena arena(static_cast<int>(config_.effectiveThreads()));
+            
+            arena.execute([&] {
+                tbb::parallel_pipeline(
+                    config_.maxInFlightBlocks,
+                    
+                    // Stage 1: FQC Reader (serial, in-order)
+                    tbb::make_filter<void, std::optional<CompressedBlock>>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](tbb::flow_control& fc) -> std::optional<CompressedBlock> {
+                            if (cancelled_.load() || readerError.load() || writerError.load()) {
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            auto blockResult = reader.readBlock();
+                            if (!blockResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = blockResult.error();
+                                readerError.store(true);
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            if (!blockResult->has_value()) {
+                                // EOF reached
+                                fc.stop();
+                                return std::nullopt;
+                            }
+                            
+                            return std::move(blockResult->value());
+                        }
+                    ) &
+                    
+                    // Stage 2: Decompressor (parallel)
+                    tbb::make_filter<std::optional<CompressedBlock>, std::optional<ReadChunk>>(
+                        tbb::filter_mode::parallel,
+                        [&](std::optional<CompressedBlock> blockOpt) -> std::optional<ReadChunk> {
+                            if (!blockOpt.has_value()) {
+                                return std::nullopt;
+                            }
+                            
+                            // Select decompressor using round-robin
+                            std::size_t idx = decompressorIndex.fetch_add(1) % decompressors.size();
+                            
+                            auto decompressResult = decompressors[idx]->decompress(
+                                std::move(*blockOpt), globalHeader);
+                            
+                            if (!decompressResult) {
+                                if (config_.skipCorrupted) {
+                                    FQC_LOG_WARNING("Skipping corrupted block");
+                                    return std::nullopt;
+                                }
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = decompressResult.error();
+                                readerError.store(true);
+                                return std::nullopt;
+                            }
+                            
+                            return std::move(*decompressResult);
+                        }
+                    ) &
+                    
+                    // Stage 3: FASTQ Writer (serial, in-order)
+                    tbb::make_filter<std::optional<ReadChunk>, void>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](std::optional<ReadChunk> chunkOpt) {
+                            if (!chunkOpt.has_value()) {
+                                return;
+                            }
+                            
+                            std::size_t readCount = chunkOpt->reads.size();
+                            
+                            auto writeResult = writer.writeChunk(std::move(*chunkOpt));
+                            if (!writeResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = writeResult.error();
+                                writerError.store(true);
+                                return;
+                            }
+                            
+                            // Update statistics atomically
+                            readsProcessed.fetch_add(readCount);
+                            blocksProcessed.fetch_add(1);
+                            
+                            // Report progress
+                            if (config_.progressCallback) {
+                                auto now = std::chrono::steady_clock::now();
+                                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    now - lastProgressTime).count();
+                                
+                                if (elapsed >= config_.progressIntervalMs) {
+                                    ProgressInfo info;
+                                    info.readsProcessed = readsProcessed.load();
+                                    info.totalReads = globalHeader.totalReadCount;
+                                    info.currentBlock = blocksProcessed.load();
+                                    info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        now - startTime).count();
+                                    
+                                    if (!config_.progressCallback(info)) {
+                                        cancelled_.store(true);
+                                    }
+                                    
+                                    lastProgressTime = now;
+                                }
+                            }
+                        }
+                    )
+                );
+            });
+            
+            // Check for pipeline errors
+            if (readerError.load() || writerError.load()) {
+                running_.store(false);
+                return std::unexpected(*pipelineError);
+            }
+            
+            // Update final statistics
+            stats_.totalReads = readsProcessed.load();
+            stats_.totalBlocks = blocksProcessed.load();
             
             // Flush output
             if (!cancelled_.load()) {
