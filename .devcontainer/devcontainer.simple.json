@@ -3,7 +3,13 @@
     "build": {
         "dockerfile": "../docker/Dockerfile.dev",
         "context": "..",
-        "target": "development"
+        "target": "development",
+        "args": {
+            "HTTP_PROXY": "${localEnv:DEVCONTAINER_HTTP_PROXY}",
+            "HTTPS_PROXY": "${localEnv:DEVCONTAINER_HTTPS_PROXY}",
+            "ALL_PROXY": "${localEnv:DEVCONTAINER_ALL_PROXY}",
+            "NO_PROXY": "${localEnv:DEVCONTAINER_NO_PROXY}"
+        }
     },
     "workspaceFolder": "/workspace",
     "remoteUser": "developer",
