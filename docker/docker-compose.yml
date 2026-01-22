@@ -12,10 +12,10 @@ services:
       target: development
       args:
         - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
-        - HTTP_PROXY=${HTTP_PROXY:-}
-        - HTTPS_PROXY=${HTTPS_PROXY:-}
-        - ALL_PROXY=${ALL_PROXY:-}
-        - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local}
+        - HTTP_PROXY=${DEVCONTAINER_HTTP_PROXY:-}
+        - HTTPS_PROXY=${DEVCONTAINER_HTTPS_PROXY:-}
+        - ALL_PROXY=${DEVCONTAINER_ALL_PROXY:-}
+        - NO_PROXY=${DEVCONTAINER_NO_PROXY:-localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local,host.docker.internal}
     # container_name 已移除，避免与手动启动的容器冲突
     # VS Code devcontainer 会自动管理容器名
     volumes:

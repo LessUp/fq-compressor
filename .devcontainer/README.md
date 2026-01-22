@@ -110,10 +110,10 @@ bash .devcontainer/scripts/host-prepare.sh
 
 ### 网络代理
 
-如需使用代理，编辑 `docker/.env`：
+如需使用代理，编辑 `docker/.env`（仅 DevContainer 使用，避免默认继承宿主机 HTTP_PROXY）：
 ```bash
-HTTP_PROXY=http://host.docker.internal:10808
-HTTPS_PROXY=http://host.docker.internal:10808
+DEVCONTAINER_HTTP_PROXY=http://host.docker.internal:10808
+DEVCONTAINER_HTTPS_PROXY=http://host.docker.internal:10808
 ```
 
 ## 开发工具
