@@ -22,6 +22,7 @@ services:
       - ..:/workspace:cached
       - conan_cache:/home/developer/.conan2:cached
       - ccache_cache:/home/developer/.ccache:cached
+      - ${FQCOMPRESSOR_HOST_DATA_DIR:-/tmp/fqcompressor-data}:/data:cached
     ports:
       - "${FQCOMPRESSOR_SSH_BIND:-127.0.0.1}:${FQCOMPRESSOR_SSH_PORT:-2222}:${FQCOMPRESSOR_SSH_PORT:-2222}"
     environment:
