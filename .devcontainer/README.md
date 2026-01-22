@@ -63,6 +63,7 @@ docker/
 | `USE_CHINA_MIRROR` | `0` | 启用国内镜像源 |
 | `FQCOMPRESSOR_SSH_PORT` | `2222` | SSH 端口 |
 | `FQCOMPRESSOR_SSH_BIND` | `127.0.0.1` | SSH 绑定地址 |
+| `FQCOMPRESSOR_HOST_DATA_DIR` | `/tmp/fqcompressor-data` | 宿主机数据目录（dev 容器内映射到 `/data`） |
 
 ### 宿主机文件
 
@@ -72,6 +73,20 @@ devcontainer 会自动同步以下宿主机配置：
 - `~/.ssh/` → SSH 密钥（只读）
 - `~/.claude/` → Claude Code 配置
 - `~/.codex/` → OpenAI Codex 配置
+
+### 数据目录挂载（dev 容器）
+
+通过 `docker/.env` 配置宿主机路径，容器内统一使用 `/data`：
+
+```bash
+# WSL 示例（请用绝对路径或在 shell 中展开 $HOME）
+FQCOMPRESSOR_HOST_DATA_DIR=/home/<user>/data
+
+# 远程服务器示例
+FQCOMPRESSOR_HOST_DATA_DIR=/data
+```
+
+如使用 `docker/start_devcontainer.sh` 启动，确保 `.env` 中配置了该变量即可。
 
 ## 故障排除
 
