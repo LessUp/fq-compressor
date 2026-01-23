@@ -1,5 +1,11 @@
 {
-    "name": "FQCompressor Dev (Simple)",
+    // =========================================================================
+    // fq-compressor Dev Container - Simple Configuration
+    // =========================================================================
+    // 直接使用 Dockerfile 构建，不通过 docker-compose
+    // 适用于简单场景或不需要持久化缓存的情况
+    // =========================================================================
+    "name": "fq-compressor Dev (Simple)",
     "build": {
         "dockerfile": "../docker/Dockerfile.dev",
         "context": "..",
@@ -15,9 +21,26 @@
     "remoteUser": "developer",
     "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/scripts/host-prepare.sh",
     "overrideCommand": true,
+
+    // =========================================================================
+    // DevContainer Features
+    // =========================================================================
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": false,
+            "installOhMyZsh": true,
+            "upgradePackages": false,
+            "username": "developer"
+        }
+    },
+
+    // =========================================================================
+    // Container Configuration
+    // =========================================================================
     "runArgs": [
-        "-p",
-        "127.0.0.1:2222:2222"
+        "-p", "127.0.0.1:2222:2222",
+        "--init"
     ],
     "mounts": [
         "type=bind,source=${localEnv:HOME}/.ssh,target=/home/developer/.ssh,readonly",
@@ -27,26 +50,57 @@
         "type=bind,source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent"
     ],
     "remoteEnv": {
+        "SSH_AUTH_SOCK": "/ssh-agent",
         "WSL_DISTRO_NAME": "${localEnv:WSL_DISTRO_NAME}",
-        "WORKSPACE": "/workspace"
+        "WORKSPACE": "/workspace",
+        "EDITOR": "code --wait",
+        "VISUAL": "code --wait"
     },
+
+    // =========================================================================
+    // Port Forwarding
+    // =========================================================================
     "forwardPorts": [
         8080,
         2222
     ],
+    "portsAttributes": {
+        "2222": {
+            "label": "SSH",
+            "onAutoForward": "silent"
+        },
+        "8080": {
+            "label": "HTTP",
+            "onAutoForward": "notify"
+        }
+    },
+
+    // =========================================================================
+    // Lifecycle Commands
+    // =========================================================================
     "postCreateCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh create",
     "postStartCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh start",
     "postAttachCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh attach",
+
+    // =========================================================================
+    // VS Code Customizations
+    // =========================================================================
     "customizations": {
         "vscode": {
             "settings": {
+                // 终端配置
                 "remote.containers.copyGitConfig": false,
                 "terminal.integrated.defaultProfile.linux": "bash",
                 "terminal.integrated.profiles.linux": {
                     "bash": {
                         "path": "/bin/bash"
+                    },
+                    "zsh": {
+                        "path": "/bin/zsh"
                     }
                 },
+
+                // CMake 配置
                 "cmake.generator": "Ninja",
                 "cmake.useCMakePresets": "always",
                 "cmake.configureOnOpen": false,
@@ -54,19 +108,72 @@
                 "cmake.configureSettings": {
                     "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
                 },
+                "cmake.buildDirectory": "${workspaceFolder}/build/${buildPreset}",
+
+                // Clangd 配置
                 "clangd.path": "/usr/bin/clangd",
                 "clangd.arguments": [
                     "--background-index",
                     "--clang-tidy",
                     "--completion-style=detailed",
                     "--header-insertion=never",
+                    "--suggest-missing-includes",
+                    "--all-scopes-completion",
+                    "--pch-storage=memory",
                     "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/clang++,/usr/bin/clang"
-                ]
+                ],
+                "clangd.checkUpdates": false,
+
+                // 编辑器配置
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+                "[cpp]": {
+                    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+                },
+                "[c]": {
+                    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+                },
+
+                // 文件配置
+                "files.associations": {
+                    "*.h": "cpp",
+                    "*.hpp": "cpp",
+                    "CMakeLists.txt": "cmake",
+                    "conanfile.py": "python"
+                },
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+
+                // 搜索排除
+                "search.exclude": {
+                    "**/build": true,
+                    "**/cmake-build-*": true,
+                    "**/.conan2": true,
+                    "**/.ccache": true
+                }
             },
             "extensions": [
+                // C++ 开发
                 "ms-vscode.cmake-tools",
                 "llvm-vs-code-extensions.vscode-clangd",
-                "vadimcn.vscode-lldb"
+                "vadimcn.vscode-lldb",
+                "twxs.cmake",
+                "jeff-hykin.better-cpp-syntax",
+
+                // 代码质量
+                "streetsidesoftware.code-spell-checker",
+                "EditorConfig.EditorConfig",
+
+                // Docker & 容器
+                "ms-azuretools.vscode-docker",
+
+                // Git
+                "eamodio.gitlens",
+                "mhutchie.git-graph",
+
+                // 实用工具
+                "yzhang.markdown-all-in-one",
+                "redhat.vscode-yaml"
             ]
         }
     }

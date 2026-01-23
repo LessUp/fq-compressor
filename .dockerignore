@@ -1,0 +1,65 @@
+# =============================================================================
+# fq-compressor Docker Build Context Ignore
+# =============================================================================
+# 优化 Docker 构建速度和镜像大小
+
+# Git 目录
+.git/
+.gitattributes
+
+# 构建输出
+build/
+cmake-build-*/
+out/
+
+# IDE 设置
+.idea/
+.vscode/
+*.code-workspace
+
+# 缓存目录
+.ccache/
+.conan2/
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+
+# 测试数据目录
+fq-data/
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+
+# DevContainer 相关（构建时不需要）
+.devcontainer/
+
+# 文档和日志
+docs/generated/
+changelog/
+*.log
+
+# 临时文件
+*.tmp
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Benchmark 结果和数据
+benchmark/results/
+benchmark/*.png
+benchmark/*.svg
+
+# Gemini 工作目录
+.gemini/
