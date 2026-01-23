@@ -71,8 +71,8 @@ case $PRESET in
         COMPILER_SETTINGS=""
         ;;
     clang-*)
-        # Clang 使用 libc++
-        COMPILER_SETTINGS="-s compiler.libcxx=libc++"
+        # Clang 使用 libstdc++11（兼容性更好）
+        COMPILER_SETTINGS="-s compiler.libcxx=libstdc++11"
         ;;
     coverage)
         COMPILER_SETTINGS=""
