@@ -23,6 +23,19 @@
 devcontainer up --workspace-folder . --config .devcontainer/devcontainer.simple.json
 ```
 
+### JetBrains CLion 用户
+
+CLion 对 devcontainer 的支持与 VS Code 有所不同，请使用专用配置：
+
+1. 打开项目目录
+2. 选择 `File` → `Remote Development` → `Dev Containers`
+3. 选择配置文件：`.devcontainer/devcontainer.clion.json`
+
+> **注意**：首次使用前，如需同步宿主机配置（Git、Claude、Codex），请手动运行：
+> ```bash
+> bash .devcontainer/scripts/host-prepare.sh
+> ```
+
 ### 远程服务器（Windsurf/Cursor/Remote-SSH）
 
 ```bash
@@ -39,6 +52,7 @@ ssh -p 2222 developer@<服务器IP>
 .devcontainer/
 ├── devcontainer.json        # 主配置（使用 docker-compose）
 ├── devcontainer.simple.json # 简化配置（直接构建）
+├── devcontainer.clion.json  # CLion 专用配置
 ├── setup-sshd.sh            # SSHD 配置脚本
 ├── start-sshd.sh            # SSHD 启动脚本
 ├── scripts/
@@ -128,7 +142,8 @@ HTTPS_PROXY=http://host.docker.internal:10808
 
 ## 切换配置
 
-- `devcontainer.json` - 使用 docker-compose，支持持久化缓存
-- `devcontainer.simple.json` - 直接构建，更简单但无缓存持久化
+- `devcontainer.json` - 使用 docker-compose，支持持久化缓存（VS Code）
+- `devcontainer.simple.json` - 直接构建，更简单但无缓存持久化（VS Code）
+- `devcontainer.clion.json` - CLion 专用配置，解决路径解析兼容性问题
 
-切换方法：重命名文件或在 VS Code 中选择配置。
+切换方法：在 IDE 中选择对应的配置文件。

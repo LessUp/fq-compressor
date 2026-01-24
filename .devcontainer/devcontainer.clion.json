@@ -1,0 +1,72 @@
+{
+    // =========================================================================
+    // fq-compressor Dev Container Configuration (CLion)
+    // =========================================================================
+    // 专为 JetBrains CLion 优化的配置
+    //
+    // CLion 与 VS Code 的差异：
+    //   - CLion 对 ${localWorkspaceFolder} 变量支持有限
+    //   - CLion 的 Docker 构建上下文处理方式不同
+    //   - initializeCommand 在 CLion 中可能不被正确执行
+    //
+    // 使用方法：
+    //   1. 在 CLion 中打开项目
+    //   2. 选择 "Dev Containers" 并指定此配置文件
+    //   3. 首次使用前，请手动运行 host-prepare.sh（如需同步配置）
+    // =========================================================================
+    "name": "fq-compressor Dev (CLion)",
+    
+    // 使用 build 替代 dockerComposeFile，避免路径解析问题
+    "build": {
+        "dockerfile": "../docker/Dockerfile.dev",
+        "context": "..",
+        "target": "development"
+    },
+    
+    "workspaceFolder": "/workspace",
+    "remoteUser": "developer",
+    
+    // 注意：CLion 对 initializeCommand 支持有限，已移除
+    // 如需同步宿主机配置，请手动运行：
+    //   bash .devcontainer/scripts/host-prepare.sh
+    
+    "overrideCommand": true,
+    
+    "runArgs": [
+        "-p", "127.0.0.1:2222:2222"
+    ],
+    
+    // mounts 配置 - 可选挂载
+    // 注意：如果宿主机文件不存在，CLion 可能报错
+    // 用户可根据需要取消下方注释
+    "mounts": [
+        // SSH 密钥（通常存在）
+        "type=bind,source=${localEnv:HOME}/.ssh,target=/home/developer/.ssh,readonly"
+        
+        // 以下挂载需要先运行 host-prepare.sh 创建对应文件
+        // "type=bind,source=${localEnv:HOME}/.fqcompressor-host-gitconfig,target=/tmp/host-gitconfig,readonly"
+        // "type=bind,source=${localEnv:HOME}/.fqcompressor-host-claude,target=/tmp/host-claude,readonly"
+        // "type=bind,source=${localEnv:HOME}/.fqcompressor-host-codex,target=/tmp/host-codex,readonly"
+    ],
+    
+    "remoteEnv": {
+        "WSL_DISTRO_NAME": "${localEnv:WSL_DISTRO_NAME}",
+        "WORKSPACE": "/workspace"
+    },
+    
+    "forwardPorts": [
+        8080,
+        2222
+    ],
+    
+    "postCreateCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh create || true",
+    "postStartCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh start || true",
+    "postAttachCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh attach || true",
+    
+    // CLion 使用 jetbrains 自定义配置
+    "customizations": {
+        "jetbrains": {
+            "backend": "CLion"
+        }
+    }
+}
