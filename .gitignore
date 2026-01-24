@@ -104,3 +104,10 @@ venv/
 # 压缩测试数据
 *.fqc
 *.fqc.idx
+fq-data/.spec-workflow/templates/design-template.md
+fq-data/.spec-workflow/templates/product-template.md
+fq-data/.spec-workflow/templates/requirements-template.md
+fq-data/.spec-workflow/templates/structure-template.md
+fq-data/.spec-workflow/templates/tasks-template.md
+fq-data/.spec-workflow/templates/tech-template.md
+fq-data/.spec-workflow/user-templates/README.md
