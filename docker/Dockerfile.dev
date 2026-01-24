@@ -10,21 +10,32 @@
 #   Clang 编译： cmake --preset clang-debug && cmake --build --preset clang-debug
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# Base Stage - 基础工具和编译器
+# -----------------------------------------------------------------------------
 FROM gcc:15.2-bookworm AS base
 
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG ALL_PROXY
-ARG NO_PROXY
+# 元数据标签
+LABEL org.opencontainers.image.title="fq-compressor Dev"
+LABEL org.opencontainers.image.description="Development environment for fq-compressor with GCC 15 and Clang 21"
+LABEL org.opencontainers.image.version="2.0.0"
+LABEL org.opencontainers.image.source="https://github.com/LessUp/fq-compressor"
+LABEL maintainer="FQCompressor Team"
 
-ENV HTTP_PROXY=${HTTP_PROXY}
-ENV HTTPS_PROXY=${HTTPS_PROXY}
-ENV ALL_PROXY=${ALL_PROXY}
-ENV NO_PROXY=${NO_PROXY}
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTPS_PROXY}
-ENV all_proxy=${ALL_PROXY}
-ENV no_proxy=${NO_PROXY}
+# 代理配置
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG ALL_PROXY=""
+ARG NO_PROXY="localhost,127.0.0.1"
+
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    ALL_PROXY=${ALL_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY} \
+    all_proxy=${ALL_PROXY} \
+    no_proxy=${NO_PROXY}
 
 RUN set -eux; \
     if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then \
@@ -37,66 +48,82 @@ RUN set -eux; \
 # APT 镜像源配置 (中国大陆用户可启用国内镜像加速)
 # 设置 USE_CHINA_MIRROR=1 启用阿里云镜像
 # =============================================================================
-ARG USE_CHINA_MIRROR=1
+ARG USE_CHINA_MIRROR=0
 RUN if [ "${USE_CHINA_MIRROR}" = "1" ]; then \
         sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
         sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true; \
     fi
 
-# =============================================================================
-# APT 重试配置 (处理镜像临时故障)
-# =============================================================================
+# APT 重试配置
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # =============================================================================
-# 基础工具
+# 基础工具安装 (合并 RUN 层减小镜像体积)
 # =============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
+    # 构建工具
     build-essential \
     ninja-build \
     pkg-config \
+    ccache \
+    # 版本控制
     git \
+    # 编辑器和终端工具
     vim \
     neovim \
     less \
     tree \
-    grep \
     htop \
     tmux \
+    # 搜索和文本处理
+    grep \
     ripgrep \
+    jq \
+    # 压缩工具
     zip \
     unzip \
-    jq \
+    tar \
+    xz-utils \
+    # 网络工具
     wget \
     curl \
     ca-certificates \
-    tar \
-    xz-utils \
     gnupg \
     lsb-release \
     software-properties-common \
+    # Python
     python3 \
     python3-pip \
     python3-venv \
+    # Node.js
     nodejs \
     npm \
-    ccache \
+    # SSH
     openssh-server \
     openssh-client \
+    # 其他
     procps \
     sudo \
     skopeo \
+    locales \
     && rm -rf /var/lib/apt/lists/*
 
+# 配置 locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+# 创建临时文件用于配置同步
 RUN touch /tmp/host-gitconfig
 
 # =============================================================================
-# CMake 4.x (最新版本)
+# CMake 4.x
 # =============================================================================
-RUN CMAKE_VERSION=4.0.2 && \
-    ARCH="$(dpkg --print-architecture)" && \
+ARG CMAKE_VERSION=4.0.2
+RUN ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
         amd64) CMAKE_ARCH="x86_64" ;; \
         arm64) CMAKE_ARCH="aarch64" ;; \
@@ -111,24 +138,24 @@ RUN CMAKE_VERSION=4.0.2 && \
     rm -f /tmp/cmake.tar.gz
 
 # =============================================================================
-# LLVM/Clang 21 工具链 (开发调试)
+# LLVM/Clang 21 工具链
 # =============================================================================
 RUN wget -q https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
     ./llvm.sh 21 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    clang-21 \
-    clangd-21 \
-    clang-tidy-21 \
-    clang-format-21 \
-    lld-21 \
-    lldb-21 \
-    llvm-21 \
-    libc++-21-dev \
-    libc++abi-21-dev \
-    && rm -f llvm.sh && \
-    rm -rf /var/lib/apt/lists/* \
+        clang-21 \
+        clangd-21 \
+        clang-tidy-21 \
+        clang-format-21 \
+        lld-21 \
+        lldb-21 \
+        llvm-21 \
+        libc++-21-dev \
+        libc++abi-21-dev \
+    && rm -f llvm.sh \
+    && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
     && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-21 100 \
@@ -150,15 +177,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Conan 2.x 包管理器 (最新版本)
+# Conan 2.x 包管理器
 # =============================================================================
-RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+ARG CONAN_VERSION=2.24.0
+RUN pip3 install --no-cache-dir --break-system-packages conan==${CONAN_VERSION}
 
 # =============================================================================
-# 开发阶段 - 添加调试和分析工具
+# Development Stage - 开发工具
 # =============================================================================
 FROM base AS development
 
+# 调试和分析工具
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     gdb \
     valgrind \
@@ -167,34 +196,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     doxygen \
     graphviz \
     cppcheck \
+    strace \
+    ltrace \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Claude Code / Codex CLI
+# Codex CLI (全局安装)
 # =============================================================================
 RUN set -eux; \
-    npm install -g @openai/codex
+    npm install -g @openai/codex || echo "Codex CLI 安装跳过"
 
 # =============================================================================
-# 非 root 用户
+# 非 root 用户配置
 # =============================================================================
 ARG USERNAME=developer
 ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+ARG USER_GID=${USER_UID}
 
-RUN groupadd --gid $USER_GID $USERNAME && \
-    useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME && \
-    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN groupadd --gid ${USER_GID} ${USERNAME} && \
+    useradd --uid ${USER_UID} --gid ${USER_GID} -m -s /bin/bash ${USERNAME} && \
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-RUN rm -rf /home/$USERNAME/.gitconfig && \
-    touch /home/$USERNAME/.gitconfig && \
-    chown $USERNAME:$USERNAME /home/$USERNAME/.gitconfig
+RUN rm -rf /home/${USERNAME}/.gitconfig && \
+    touch /home/${USERNAME}/.gitconfig && \
+    chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.gitconfig
 
 # =============================================================================
-# Claude Code 启动函数（bashrc/profile）
+# Shell 配置
 # =============================================================================
-RUN cat <<'EOF' >/etc/profile.d/claude-config.sh
-# claude-config
+RUN cat <<'EOF' > /etc/profile.d/fqcompressor-env.sh
+# fq-compressor 开发环境配置
+
+# Claude Code 快捷函数
 claude-duck() {
     claude --settings "$HOME/.claude/settings.duck.json" "$@"
 }
@@ -214,38 +247,56 @@ claude-minimax() {
 claude-wong() {
     claude --settings "$HOME/.claude/settings.wong.json" "$@"
 }
+
+# 便捷别名
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias gs='git status'
+alias gd='git diff'
+alias gl='git log --oneline -10'
+
+# 编译快捷命令
+alias build-gcc='cmake --preset gcc-debug && cmake --build --preset gcc-debug'
+alias build-clang='cmake --preset clang-debug && cmake --build --preset clang-debug'
+alias build-release='cmake --preset gcc-release && cmake --build --preset gcc-release'
 EOF
-RUN if [ -f /etc/bash.bashrc ] && ! grep -Fxq 'source /etc/profile.d/claude-config.sh' /etc/bash.bashrc; then \
-    echo 'source /etc/profile.d/claude-config.sh' >> /etc/bash.bashrc; \
+
+RUN if [ -f /etc/bash.bashrc ] && ! grep -Fxq 'source /etc/profile.d/fqcompressor-env.sh' /etc/bash.bashrc; then \
+    echo 'source /etc/profile.d/fqcompressor-env.sh' >> /etc/bash.bashrc; \
 fi
 
 # =============================================================================
-# 环境配置
+# 环境变量配置
 # =============================================================================
-ENV HOME=/home/$USERNAME
-ENV CONAN_HOME=/home/$USERNAME/.conan2
-ENV CCACHE_DIR=/home/$USERNAME/.ccache
-ENV PATH=/home/$USERNAME/.local/bin:/home/$USERNAME/.claude/bin:/usr/lib/ccache:$PATH
+ENV HOME=/home/${USERNAME} \
+    CONAN_HOME=/home/${USERNAME}/.conan2 \
+    CCACHE_DIR=/home/${USERNAME}/.ccache \
+    CCACHE_MAXSIZE=5G \
+    PATH=/home/${USERNAME}/.local/bin:/home/${USERNAME}/.claude/bin:/usr/lib/ccache:${PATH}
 
 # 默认使用 GCC（可通过 CMake Preset 切换）
-ENV CC=gcc
-ENV CXX=g++
+ENV CC=gcc \
+    CXX=g++
 
-# 工作目录
-RUN mkdir -p /workspace && chown $USERNAME:$USERNAME /workspace
+# =============================================================================
+# 工作目录配置
+# =============================================================================
+RUN mkdir -p /workspace && chown ${USERNAME}:${USERNAME} /workspace
 RUN git config --system --add safe.directory /workspace
 WORKDIR /workspace
 
-USER $USERNAME
+USER ${USERNAME}
 
 # =============================================================================
-# 初始化 Conan
+# 用户级配置
 # =============================================================================
 RUN conan profile detect --force
 
-# =============================================================================
-# Claude Code CLI (developer 用户安装)
-# =============================================================================
-RUN curl -fsSL https://claude.ai/install.sh | bash
+# Claude Code CLI
+RUN curl -fsSL https://claude.ai/install.sh | bash || echo "Claude CLI 安装跳过"
+
+# 创建常用目录
+RUN mkdir -p ~/.local/bin ~/.cache ~/.config
 
 CMD ["/bin/bash"]
