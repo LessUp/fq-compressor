@@ -259,7 +259,7 @@ std::size_t InMemoryReadProvider::maxLength() const { return maxLength_; }
 // Minimizer Extraction Functions
 // =============================================================================
 
-std::string reverseComplement(std::string_view sequence) {
+inline std::string reverseComplement(std::string_view sequence) {
     std::string result;
     result.reserve(sequence.length());
     for (auto it = sequence.rbegin(); it != sequence.rend(); ++it) {
