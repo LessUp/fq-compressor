@@ -333,7 +333,7 @@ void CompressCommand::runCompression() {
         auto analysisRes = analyzer.analyze(readRecords);
 
         if (!analysisRes) {
-            throw CompressionError("Global analysis failed: " + analysisRes.error().message());
+            throw FormatError("Global analysis failed: " + analysisRes.error().message());
         }
 
         analysisResult = std::move(analysisRes.value());
@@ -387,10 +387,8 @@ void CompressCommand::runCompression() {
 
     FQC_LOG_DEBUG("Writing global header...");
     format::GlobalHeader globalHeader;
-    globalHeader.majorVersion = format::kFormatVersionMajor;
-    globalHeader.minorVersion = format::kFormatVersionMinor;
-    globalHeader.compressionLevel = options_.compressionLevel;
-    globalHeader.checksumType = ChecksumType::kXxHash64;
+    globalHeader.compressionAlgo = static_cast<std::uint8_t>(CodecFamily::kAbcV1);
+    globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
 
     // Set flags
     std::uint64_t flags = 0;
@@ -432,9 +430,7 @@ void CompressCommand::runCompression() {
     flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass) << format::flags::kReadLengthClassShift);
 
     globalHeader.flags = flags;
-    globalHeader.totalReads = analysisResult.totalReads;
-    globalHeader.maxReadLength = analysisResult.maxReadLength;
-    globalHeader.blockCount = analysisResult.numBlocks;
+    globalHeader.totalReadCount = analysisResult.totalReads;
 
     // Get current timestamp
     auto now = std::chrono::system_clock::now();
@@ -518,7 +514,7 @@ void CompressCommand::runCompression() {
         auto compressRes = blockCompressor.compress(blockReads, blockBoundary.blockId);
 
         if (!compressRes) {
-            throw CompressionError(
+            throw FormatError(
                 "Failed to compress block " + std::to_string(blockBoundary.blockId) +
                 ": " + compressRes.error().message()
             );
@@ -529,9 +525,9 @@ void CompressCommand::runCompression() {
         // Write block to FQC file
         format::BlockHeader blockHeader;
         blockHeader.blockId = compressedBlock.blockId;
-        blockHeader.readCount = compressedBlock.readCount;
+        blockHeader.uncompressedCount = compressedBlock.readCount;
         blockHeader.uniformReadLength = compressedBlock.uniformReadLength;
-        blockHeader.blockChecksum = compressedBlock.blockChecksum;
+        blockHeader.blockXxhash64 = compressedBlock.blockChecksum;
         blockHeader.codecIds = compressedBlock.codecIds;
         blockHeader.codecSeq = compressedBlock.codecSeq;
         blockHeader.codecQual = compressedBlock.codecQual;
