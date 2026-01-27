@@ -146,7 +146,7 @@ VerificationResult VerifyCommand::verifyMagicHeader() {
         return result;
     }
 
-    const char expectedMagic[] = "\x89FQC\r\n\x1a\n";
+    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
     if (std::memcmp(magic, expectedMagic, 8) != 0) {
         result.passed = false;
         result.errorMessage = "Invalid magic bytes";

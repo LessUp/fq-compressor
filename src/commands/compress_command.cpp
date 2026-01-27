@@ -295,7 +295,7 @@ void CompressCommand::runCompression() {
     }
 
     // Write placeholder magic
-    outFile.write("\x89FQC\r\n\x1a\n", 8);
+    outFile.write("\x89" "FQC\r\n" "\x1a\n", 8);
     outFile.close();
 
     stats_.outputBytes = 8;  // Placeholder

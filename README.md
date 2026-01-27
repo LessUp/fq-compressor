@@ -237,6 +237,64 @@ fqc info archive.fqc
 
 ---
 
+## 📊 Performance Benchmarking
+
+fq-compressor includes a comprehensive benchmarking framework for evaluating compiler optimizations (GCC vs Clang) and multi-dimensional performance analysis (compression speed, decompression speed, compression ratio, memory usage, and parallel scalability).
+
+### Quick Start
+
+```bash
+# Build both GCC and Clang Release versions
+./scripts/build.sh gcc-release 4
+./scripts/build.sh clang-release 4
+
+# Run compiler performance comparison with visualization
+python3 benchmark/compiler_benchmark.py \
+  --input fq-data/E150035817_L01_1201_1.sub10.fq.gz \
+  --gcc-binary build/gcc-release/src/fqc \
+  --clang-binary build/clang-release/src/fqc \
+  -t 1 4 8 \
+  -r 3 \
+  --output-dir docs/benchmark \
+  --visualize
+```
+
+### Generated Reports
+
+The benchmarking framework automatically generates:
+
+- **benchmark_report.html** - Comprehensive HTML report with embedded visualizations
+- **benchmark_report.md** - Markdown format report
+- **benchmark_results.json** - Raw data in JSON format
+- **PNG Charts** - Performance visualizations:
+  - `compression_speed.png` - Compression throughput comparison
+  - `decompression_speed.png` - Decompression throughput comparison
+  - `compression_ratio.png` - Compression efficiency comparison
+  - `memory_usage.png` - Peak memory usage analysis
+  - `scalability.png` - Parallel scalability metrics
+
+### Key Metrics Evaluated
+
+| Metric | Description |
+|--------|-------------|
+| **Compression Speed (MB/s)** | Throughput during compression |
+| **Decompression Speed (MB/s)** | Throughput during decompression |
+| **Compression Ratio** | Compressed size / Original size |
+| **Bits per Base** | Compressed bits per DNA base |
+| **Peak Memory (MB)** | Maximum memory during operation |
+| **Scalability** | Performance gains with multiple threads |
+| **Parallel Efficiency** | Actual speedup / Ideal speedup |
+
+### For Detailed Information
+
+See [BENCHMARK.md](docs/BENCHMARK.md) for:
+- Complete benchmark framework documentation
+- Usage examples for different tools
+- How to interpret results
+- Continuous integration setup
+
+---
+
 ## 🧪 Testing
 
 ```bash
