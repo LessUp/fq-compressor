@@ -30,6 +30,11 @@
 #include "fqc/common/logger.h"
 #include "fqc/common/types.h"
 
+// Command implementations
+#include "commands/compress_command.h"
+#include "commands/decompress_command.h"
+#include "commands/info_command.h"
+
 // Forward declarations for command handlers
 namespace fqc::commands {
 int runCompress(CLI::App* app);
@@ -360,33 +365,74 @@ int main(int argc, char* argv[]) {
 }
 
 // =============================================================================
-// Placeholder Command Implementations
+// Command Implementations
 // =============================================================================
-// These will be moved to separate files in tasks 5.2-5.4
 
 namespace fqc::commands {
 
 int runCompress([[maybe_unused]] CLI::App* app) {
-    FQC_LOG_INFO("Compress command not yet implemented");
-    FQC_LOG_INFO("Input: {}", gCompressOpts.input);
-    FQC_LOG_INFO("Output: {}", gCompressOpts.output);
-    FQC_LOG_INFO("Level: {}", gCompressOpts.level);
-    FQC_LOG_INFO("Reorder: {}", gCompressOpts.reorder);
-    FQC_LOG_INFO("Streaming: {}", gCompressOpts.streaming);
-    return EXIT_SUCCESS;
+    try {
+        auto cmd = createCompressCommand(
+            gCompressOpts.input,
+            gCompressOpts.output,
+            gCompressOpts.level,
+            gCompressOpts.reorder,
+            gCompressOpts.streaming,
+            gCompressOpts.lossyQuality,
+            gCompressOpts.longReadMode,
+            0,  // threads (auto-detect)
+            0,  // memoryLimit (no limit)
+            gCompressOpts.force
+        );
+        return cmd->execute();
+    } catch (const FQCException& e) {
+        FQC_LOG_ERROR("Compression failed: {}", e.what());
+        return static_cast<int>(e.code());
+    } catch (const std::exception& e) {
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
+        return EXIT_FAILURE;
+    }
 }
 
 int runDecompress([[maybe_unused]] CLI::App* app) {
-    FQC_LOG_INFO("Decompress command not yet implemented");
-    FQC_LOG_INFO("Input: {}", gDecompressOpts.input);
-    FQC_LOG_INFO("Output: {}", gDecompressOpts.output);
-    return EXIT_SUCCESS;
+    try {
+        auto cmd = createDecompressCommand(
+            gDecompressOpts.input,
+            gDecompressOpts.output,
+            gDecompressOpts.range,
+            gDecompressOpts.headerOnly,
+            gDecompressOpts.originalOrder,
+            gDecompressOpts.skipCorrupted,
+            gDecompressOpts.corruptedPlaceholder,
+            gDecompressOpts.splitPe,
+            0,  // threads (auto-detect)
+            false  // force (not in struct)
+        );
+        return cmd->execute();
+    } catch (const FQCException& e) {
+        FQC_LOG_ERROR("Decompression failed: {}", e.what());
+        return static_cast<int>(e.code());
+    } catch (const std::exception& e) {
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
+        return EXIT_FAILURE;
+    }
 }
 
 int runInfo([[maybe_unused]] CLI::App* app) {
-    FQC_LOG_INFO("Info command not yet implemented");
-    FQC_LOG_INFO("Input: {}", gInfoOpts.input);
-    return EXIT_SUCCESS;
+    try {
+        auto cmd = createInfoCommand(
+            gInfoOpts.input,
+            gInfoOpts.json,
+            gInfoOpts.detailed
+        );
+        return cmd->execute();
+    } catch (const FQCException& e) {
+        FQC_LOG_ERROR("Info command failed: {}", e.what());
+        return static_cast<int>(e.code());
+    } catch (const std::exception& e) {
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
+        return EXIT_FAILURE;
+    }
 }
 
 int runVerify([[maybe_unused]] CLI::App* app) {
