@@ -9,11 +9,17 @@
 #include "decompress_command.h"
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 
+#include "fqc/common/error.h"
 #include "fqc/common/logger.h"
+#include "fqc/common/types.h"
+#include "fqc/algo/block_compressor.h"
+#include "fqc/format/fqc_format.h"
 #include "fqc/format/fqc_reader.h"
 
 namespace fqc::commands {
@@ -226,16 +232,27 @@ void DecompressCommand::planExtraction() {
 }
 
 void DecompressCommand::runDecompression() {
-    // TODO: Implement actual decompression pipeline
-    // This is a placeholder that will be replaced in Phase 2/3
-
     FQC_LOG_INFO("Starting decompression...");
     FQC_LOG_INFO("  Input: {}", options_.inputPath.string());
     FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
 
-    // Open output
+    // Open FQC reader
+    format::FQCReader reader(options_.inputPath);
+    reader.open();
+
+    // Load reorder map if needed
+    if (options_.originalOrder) {
+        if (!reader.hasReorderMap()) {
+            throw FormatError("Original order requested but reorder map not present");
+        }
+        FQC_LOG_DEBUG("Loading reorder map...");
+        reader.loadReorderMap();
+    }
+
+    // Open output stream(s)
     std::ostream* output = nullptr;
     std::unique_ptr<std::ofstream> fileOutput;
+    std::unique_ptr<std::ofstream> fileOutput2;
 
     if (options_.outputPath == "-") {
         output = &std::cout;
@@ -248,20 +265,100 @@ void DecompressCommand::runDecompression() {
         output = fileOutput.get();
     }
 
-    // TODO: Actually decompress blocks
-    // For now, just write a placeholder message
+    // Create BlockCompressor for decompression
+    algo::BlockCompressorConfig config;
+    config.readLengthClass = format::getReadLengthClass(reader.globalHeader().flags);
+    config.qualityMode = format::getQualityMode(reader.globalHeader().flags);
+    config.idMode = format::getIdMode(reader.globalHeader().flags);
+    config.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
 
-    *output << "# Decompression not yet implemented\n";
-    *output << "# Input: " << options_.inputPath.string() << "\n";
+    algo::BlockCompressor compressor(config);
 
-    // Update stats (placeholder values)
-    stats_.totalReads = 0;
-    stats_.totalBases = 0;
-    stats_.blocksProcessed = 0;
+    // Process blocks
+    std::size_t blockCount = reader.blockCount();
+    for (BlockId blockId = 0; blockId < blockCount; ++blockId) {
+        try {
+            FQC_LOG_DEBUG("Processing block {}/{}", blockId + 1, blockCount);
+
+            // Read block data
+            auto blockData = reader.readBlock(blockId);
+
+            // Decompress block
+            auto decompressResult = compressor.decompress(
+                blockData.header,
+                blockData.idsData,
+                blockData.seqData,
+                blockData.qualData,
+                blockData.auxData
+            );
+
+            if (!decompressResult) {
+                if (options_.skipCorrupted) {
+                    FQC_LOG_WARNING("Block {} decompression failed, skipping", blockId);
+                    stats_.corruptedBlocks++;
+                    continue;
+                } else {
+                    throw decompressResult.error();
+                }
+            }
+
+            auto& decompressed = decompressResult.value();
+            auto& reads = decompressed.reads;
+
+            // Write reads to output
+            for (const auto& read : reads) {
+                // Handle original order if needed
+                // Note: Original order reordering is currently a placeholder
+                // Full implementation requires buffering and sorting by original ID
+                if (options_.originalOrder && reader.reorderMap()) {
+                    ReadId archiveId = stats_.totalReads + 1;
+                    ReadId originalId = reader.lookupOriginalId(archiveId);
+                    (void)originalId;  // Suppress unused warning - will be used for sorting
+                }
+
+                // Write FASTQ record (only header if headerOnly)
+                *output << "@" << read.id << "\n";
+                if (!options_.headerOnly) {
+                    *output << read.sequence << "\n";
+                    *output << "+\n";
+                    *output << read.quality << "\n";
+                }
+
+                stats_.totalReads++;
+                stats_.totalBases += read.sequence.length();
+                stats_.outputBytes += read.id.length() + read.sequence.length() +
+                                    read.quality.length() + 4;  // +4 for @, +, \n chars
+            }
+
+            stats_.blocksProcessed++;
+
+        } catch (const FQCException& e) {
+            if (options_.skipCorrupted) {
+                FQC_LOG_WARNING("Block {} processing error: {}", blockId, e.what());
+                stats_.corruptedBlocks++;
+            } else {
+                throw;
+            }
+        } catch (const std::exception& e) {
+            if (options_.skipCorrupted) {
+                FQC_LOG_WARNING("Block {} processing error: {}", blockId, e.what());
+                stats_.corruptedBlocks++;
+            } else {
+                throw;
+            }
+        }
+    }
+
+    // Update final stats
     stats_.inputBytes = std::filesystem::file_size(options_.inputPath);
-    stats_.outputBytes = 0;
 
-    FQC_LOG_INFO("Decompression complete (placeholder - actual decompression not yet implemented)");
+    FQC_LOG_INFO("Decompression complete");
+    FQC_LOG_INFO("  Total reads: {}", stats_.totalReads);
+    FQC_LOG_INFO("  Total bases: {}", stats_.totalBases);
+    FQC_LOG_INFO("  Blocks processed: {}", stats_.blocksProcessed);
+    if (stats_.corruptedBlocks > 0) {
+        FQC_LOG_WARNING("  Corrupted blocks: {}", stats_.corruptedBlocks);
+    }
 }
 
 void DecompressCommand::printSummary() const {

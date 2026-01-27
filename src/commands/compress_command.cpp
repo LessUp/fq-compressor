@@ -9,9 +9,15 @@
 #include "compress_command.h"
 
 #include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
+#include "fqc/algo/block_compressor.h"
+#include "fqc/algo/global_analyzer.h"
 #include "fqc/common/logger.h"
+#include "fqc/format/fqc_writer.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
 
@@ -249,14 +255,18 @@ void CompressCommand::setupCompressionParams() {
 }
 
 void CompressCommand::runCompression() {
-    // TODO: Implement actual compression pipeline
-    // This is a placeholder that will be replaced in Phase 2/3
-
     FQC_LOG_INFO("Starting compression...");
     FQC_LOG_INFO("  Input: {}", options_.inputPath.string());
     FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
+    FQC_LOG_INFO("  Compression level: {}", options_.compressionLevel);
+    FQC_LOG_INFO("  Reordering: {}", options_.enableReordering ? "enabled" : "disabled");
+    FQC_LOG_INFO("  Block size: {} reads", options_.blockSize);
 
-    // Open input
+    // =========================================================================
+    // Phase 0: Open input and collect all reads
+    // =========================================================================
+
+    FQC_LOG_DEBUG("Opening input file...");
     std::unique_ptr<std::istream> inputStream;
     if (options_.inputPath == "-") {
         inputStream = io::openInputFile("-");
@@ -267,41 +277,315 @@ void CompressCommand::runCompression() {
     io::FastqParser parser(std::move(inputStream));
     parser.open();
 
-    // Count reads (placeholder - actual compression will process them)
-    std::uint64_t readCount = 0;
-    std::uint64_t baseCount = 0;
+    // Read all records into memory for global analysis
+    FQC_LOG_INFO("Reading input into memory...");
+    auto allRecords = parser.readAll();
 
-    while (auto record = parser.readRecord()) {
-        ++readCount;
-        baseCount += record->length();
+    if (allRecords.empty()) {
+        throw ArgumentError("Input file contains no FASTQ records");
+    }
 
-        // Progress update every 100K reads
-        if (options_.showProgress && readCount % 100000 == 0) {
-            FQC_LOG_INFO("Processed {} reads...", readCount);
+    // Convert FastqRecord to ReadRecord (input type compatibility)
+    std::vector<ReadRecord> readRecords;
+    readRecords.reserve(allRecords.size());
+
+    std::uint64_t totalBases = 0;
+    for (auto& fastqRec : allRecords) {
+        readRecords.emplace_back(
+            std::move(fastqRec.id),
+            std::move(fastqRec.sequence),
+            std::move(fastqRec.quality)
+        );
+        totalBases += fastqRec.length();
+    }
+
+    // Update basic stats
+    stats_.totalReads = readRecords.size();
+    stats_.totalBases = totalBases;
+    stats_.inputBytes = totalBases;  // Approximate - actual byte count would be larger
+
+    FQC_LOG_INFO("Loaded {} reads ({} bases)", readRecords.size(), totalBases);
+
+    // =========================================================================
+    // Phase 1: Global Analysis (Reordering)
+    // =========================================================================
+
+    algo::GlobalAnalysisResult analysisResult;
+
+    if (options_.enableReordering && !options_.streamingMode) {
+        FQC_LOG_INFO("Starting global analysis (Phase 1)...");
+
+        algo::GlobalAnalyzerConfig analyzerConfig;
+        analyzerConfig.readsPerBlock = options_.blockSize;
+        analyzerConfig.enableReorder = true;
+        analyzerConfig.numThreads = options_.threads > 0 ? options_.threads : 0;
+        analyzerConfig.memoryLimit = options_.memoryLimitMb > 0
+            ? options_.memoryLimitMb * 1024 * 1024 : 0;
+
+        // Progress callback
+        if (options_.showProgress) {
+            analyzerConfig.progressCallback = [this](double progress) {
+                FQC_LOG_DEBUG("Global analysis progress: {:.1f}%", progress * 100.0);
+            };
+        }
+
+        algo::GlobalAnalyzer analyzer(analyzerConfig);
+        auto analysisRes = analyzer.analyze(readRecords);
+
+        if (!analysisRes) {
+            throw CompressionError("Global analysis failed: " + analysisRes.error().message());
+        }
+
+        analysisResult = std::move(analysisRes.value());
+        FQC_LOG_INFO("Global analysis complete");
+        FQC_LOG_INFO("  Reads: {}", analysisResult.totalReads);
+        FQC_LOG_INFO("  Max length: {}", analysisResult.maxReadLength);
+        FQC_LOG_INFO("  Blocks: {}", analysisResult.numBlocks);
+        FQC_LOG_INFO("  Reordering: {}", analysisResult.reorderingPerformed ? "yes" : "no");
+
+    } else {
+        FQC_LOG_INFO("Skipping global analysis (streaming or reordering disabled)");
+
+        // Create simple block boundaries without reordering
+        analysisResult.totalReads = readRecords.size();
+        analysisResult.maxReadLength = 0;
+        for (const auto& rec : readRecords) {
+            analysisResult.maxReadLength = std::max(analysisResult.maxReadLength, rec.length());
+        }
+        analysisResult.reorderingPerformed = false;
+        analysisResult.lengthClass = options_.longReadMode;
+
+        // Divide into blocks
+        std::size_t blockCount = (readRecords.size() + options_.blockSize - 1) / options_.blockSize;
+        for (std::uint32_t i = 0; i < blockCount; ++i) {
+            algo::BlockBoundary boundary;
+            boundary.blockId = i;
+            boundary.archiveIdStart = static_cast<ReadId>(i * options_.blockSize);
+            boundary.archiveIdEnd = std::min(
+                static_cast<ReadId>((i + 1) * options_.blockSize),
+                static_cast<ReadId>(readRecords.size())
+            );
+            analysisResult.blockBoundaries.push_back(boundary);
+        }
+        analysisResult.numBlocks = blockCount;
+    }
+
+    // =========================================================================
+    // Phase 1.5: Create FQC Writer
+    // =========================================================================
+
+    FQC_LOG_DEBUG("Creating FQC writer...");
+    format::FQCWriter fqcWriter(options_.outputPath);
+
+    // Register for signal handling cleanup
+    format::installSignalHandlers();
+    format::registerWriterForCleanup(&fqcWriter);
+
+    // =========================================================================
+    // Phase 1.5: Write Global Header
+    // =========================================================================
+
+    FQC_LOG_DEBUG("Writing global header...");
+    format::GlobalHeader globalHeader;
+    globalHeader.majorVersion = format::kFormatVersionMajor;
+    globalHeader.minorVersion = format::kFormatVersionMinor;
+    globalHeader.compressionLevel = options_.compressionLevel;
+    globalHeader.checksumType = ChecksumType::kXxHash64;
+
+    // Set flags
+    std::uint64_t flags = 0;
+    if (options_.interleaved) {
+        flags |= format::flags::kIsPaired;
+        flags |= (static_cast<std::uint64_t>(options_.peLayout) << format::flags::kPeLayoutShift);
+    }
+    if (!analysisResult.reorderingPerformed) {
+        flags |= format::flags::kPreserveOrder;
+    }
+    if (analysisResult.reorderingPerformed && analysisResult.forwardMap.size() > 0) {
+        flags |= format::flags::kHasReorderMap;
+    }
+    if (options_.streamingMode) {
+        flags |= format::flags::kStreamingMode;
+    }
+
+    // Set quality mode
+    {
+        QualityMode qualMode = QualityMode::kLossless;
+        switch (options_.qualityMode) {
+            case QualityCompressionMode::kLossless:
+                qualMode = QualityMode::kLossless;
+                break;
+            case QualityCompressionMode::kIllumina8:
+                qualMode = QualityMode::kIllumina8;
+                break;
+            case QualityCompressionMode::kQvz:
+                qualMode = QualityMode::kQvz;
+                break;
+            case QualityCompressionMode::kDiscard:
+                qualMode = QualityMode::kDiscard;
+                break;
+        }
+        flags |= (static_cast<std::uint64_t>(qualMode) << format::flags::kQualityModeShift);
+    }
+
+    // Set read length class
+    flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass) << format::flags::kReadLengthClassShift);
+
+    globalHeader.flags = flags;
+    globalHeader.totalReads = analysisResult.totalReads;
+    globalHeader.maxReadLength = analysisResult.maxReadLength;
+    globalHeader.blockCount = analysisResult.numBlocks;
+
+    // Get current timestamp
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::system_clock::to_time_t(now);
+
+    std::string inputFilename = options_.inputPath.filename().string();
+    fqcWriter.writeGlobalHeader(globalHeader, inputFilename, timestamp);
+
+    // =========================================================================
+    // Phase 2: Block Compression
+    // =========================================================================
+
+    FQC_LOG_INFO("Starting block compression (Phase 2)...");
+
+    algo::BlockCompressorConfig compressorConfig;
+    compressorConfig.readLengthClass = analysisResult.lengthClass;
+    compressorConfig.compressionLevel = options_.compressionLevel;
+    compressorConfig.numThreads = options_.threads > 0 ? options_.threads : 0;
+
+    // Convert quality mode
+    {
+        QualityMode qualMode = QualityMode::kLossless;
+        switch (options_.qualityMode) {
+            case QualityCompressionMode::kLossless:
+                qualMode = QualityMode::kLossless;
+                break;
+            case QualityCompressionMode::kIllumina8:
+                qualMode = QualityMode::kIllumina8;
+                break;
+            case QualityCompressionMode::kQvz:
+                qualMode = QualityMode::kQvz;
+                break;
+            case QualityCompressionMode::kDiscard:
+                qualMode = QualityMode::kDiscard;
+                break;
+        }
+        compressorConfig.qualityMode = qualMode;
+    }
+
+    algo::BlockCompressor blockCompressor(compressorConfig);
+
+    std::uint64_t totalCompressedBytes = 0;
+
+    // Process blocks
+    for (const auto& blockBoundary : analysisResult.blockBoundaries) {
+        if (options_.showProgress) {
+            FQC_LOG_INFO("Processing block {} of {}...",
+                        blockBoundary.blockId + 1, analysisResult.numBlocks);
+        }
+
+        // Extract reads for this block
+        std::vector<ReadRecord> blockReads;
+        const auto& startId = blockBoundary.archiveIdStart;
+        const auto& endId = blockBoundary.archiveIdEnd;
+
+        if (analysisResult.reorderingPerformed && !analysisResult.reverseMap.empty()) {
+            // Reordered: use reverse map to get original read order
+            for (auto archiveId = startId; archiveId < endId; ++archiveId) {
+                if (archiveId < analysisResult.reverseMap.size()) {
+                    auto originalId = analysisResult.reverseMap[archiveId];
+                    if (originalId < readRecords.size()) {
+                        blockReads.push_back(readRecords[originalId]);
+                    }
+                }
+            }
+        } else {
+            // No reordering: use original order
+            for (auto archiveId = startId; archiveId < endId; ++archiveId) {
+                if (archiveId < readRecords.size()) {
+                    blockReads.push_back(readRecords[archiveId]);
+                }
+            }
+        }
+
+        if (blockReads.empty()) {
+            FQC_LOG_WARNING("Block {} has no reads, skipping", blockBoundary.blockId);
+            continue;
+        }
+
+        // Compress the block
+        auto compressRes = blockCompressor.compress(blockReads, blockBoundary.blockId);
+
+        if (!compressRes) {
+            throw CompressionError(
+                "Failed to compress block " + std::to_string(blockBoundary.blockId) +
+                ": " + compressRes.error().message()
+            );
+        }
+
+        auto compressedBlock = std::move(compressRes.value());
+
+        // Write block to FQC file
+        format::BlockHeader blockHeader;
+        blockHeader.blockId = compressedBlock.blockId;
+        blockHeader.readCount = compressedBlock.readCount;
+        blockHeader.uniformReadLength = compressedBlock.uniformReadLength;
+        blockHeader.blockChecksum = compressedBlock.blockChecksum;
+        blockHeader.codecIds = compressedBlock.codecIds;
+        blockHeader.codecSeq = compressedBlock.codecSeq;
+        blockHeader.codecQual = compressedBlock.codecQual;
+        blockHeader.codecAux = compressedBlock.codecAux;
+
+        format::BlockPayload payload;
+        payload.idsData = compressedBlock.idStream;
+        payload.seqData = compressedBlock.seqStream;
+        payload.qualData = compressedBlock.qualStream;
+        payload.auxData = compressedBlock.auxStream;
+
+        fqcWriter.writeBlock(blockHeader, payload);
+
+        totalCompressedBytes += compressedBlock.totalCompressedSize();
+        stats_.blocksWritten++;
+
+        if (options_.showProgress) {
+            FQC_LOG_DEBUG("Block {} compressed: {} bytes -> {} bytes ({:.1f}%)",
+                         blockBoundary.blockId,
+                         blockReads.size() * 100,  // Rough estimate
+                         compressedBlock.totalCompressedSize(),
+                         blockReads.empty() ? 0.0 :
+                            (100.0 * compressedBlock.totalCompressedSize() /
+                             (blockReads.size() * 100)));
         }
     }
 
-    // Update stats
-    stats_.totalReads = readCount;
-    stats_.totalBases = baseCount;
-    stats_.inputBytes = parser.stats().totalBases;  // Approximate
+    // =========================================================================
+    // Phase 2.5: Write Reorder Map (if applicable)
+    // =========================================================================
 
-    // TODO: Write actual compressed output
-    // For now, just create an empty placeholder file
-    std::ofstream outFile(options_.outputPath, std::ios::binary);
-    if (!outFile) {
-        throw IOError(
-                      "Failed to create output file: " + options_.outputPath.string());
+    if (analysisResult.reorderingPerformed &&
+        !analysisResult.forwardMap.empty() && !analysisResult.reverseMap.empty()) {
+        FQC_LOG_DEBUG("Writing reorder map...");
+        // TODO: Compress and write reorder maps
+        // For now, we skip this as the FQCWriter interface needs map compression
     }
 
-    // Write placeholder magic
-    outFile.write("\x89" "FQC\r\n" "\x1a\n", 8);
-    outFile.close();
+    // =========================================================================
+    // Phase 3: Finalize
+    // =========================================================================
 
-    stats_.outputBytes = 8;  // Placeholder
-    stats_.blocksWritten = 0;
+    FQC_LOG_DEBUG("Finalizing FQC archive...");
+    fqcWriter.finalize();
 
-    FQC_LOG_INFO("Compression complete (placeholder - actual compression not yet implemented)");
+    stats_.outputBytes = totalCompressedBytes;
+
+    // Unregister from signal handlers
+    format::unregisterWriterForCleanup(&fqcWriter);
+
+    FQC_LOG_INFO("Compression complete!");
+    FQC_LOG_INFO("  Blocks written: {}", stats_.blocksWritten);
+    FQC_LOG_INFO("  Compression ratio: {:.2f}x", stats_.compressionRatio());
+    FQC_LOG_INFO("  Bits per base: {:.3f}", stats_.bitsPerBase());
 }
 
 void CompressCommand::printSummary() const {

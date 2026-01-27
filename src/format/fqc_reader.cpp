@@ -26,6 +26,17 @@
 namespace fqc::format {
 
 // =============================================================================
+// Forward Declarations for compression functions
+// =============================================================================
+
+/// @brief Decode a delta + varint encoded sequence back to read IDs
+/// @param encoded Compressed byte buffer
+/// @param count Expected number of IDs to decode
+/// @return Decoded read IDs, or error on failure
+[[nodiscard]] Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
+                                                       std::uint64_t count);
+
+// =============================================================================
 // FQCReader Implementation
 // =============================================================================
 
@@ -317,7 +328,8 @@ void FQCReader::loadReorderMap() {
 
     // Validate header
     if (!mapData.header.isValid()) {
-        throw FormatError("Invalid reorder map header");
+        throw FormatError("Invalid reorder map header",
+                          ErrorContext(archivePath_.string()));
     }
 
     // Read compressed map data
@@ -331,21 +343,40 @@ void FQCReader::loadReorderMap() {
         readBytes(reverseCompressed.data(), mapData.header.reverseMapSize);
     }
 
-    // TODO: Decompress maps (Delta + Varint decoding)
-    // For now, store placeholder - actual decompression will be implemented
-    // when the compression module is ready
-    mapData.forwardMap.resize(mapData.header.totalReads);
-    mapData.reverseMap.resize(mapData.header.totalReads);
+    // Decompress forward map using Delta + Varint decoding
+    auto forwardDecodeResult = deltaDecode(
+        std::span<const std::uint8_t>(forwardCompressed),
+        mapData.header.totalReads);
 
-    // Placeholder: identity mapping
-    for (std::uint64_t i = 0; i < mapData.header.totalReads; ++i) {
-        mapData.forwardMap[i] = i + 1;  // 1-based
-        mapData.reverseMap[i] = i + 1;
+    if (!forwardDecodeResult) {
+        throw FormatError("Failed to decompress forward map: " + forwardDecodeResult.error().message(),
+                          ErrorContext(archivePath_.string()));
     }
 
+    // Decompress reverse map using Delta + Varint decoding
+    auto reverseDecodeResult = deltaDecode(
+        std::span<const std::uint8_t>(reverseCompressed),
+        mapData.header.totalReads);
+
+    if (!reverseDecodeResult) {
+        throw FormatError("Failed to decompress reverse map: " + reverseDecodeResult.error().message(),
+                          ErrorContext(archivePath_.string()));
+    }
+
+    // Move decoded maps into mapData structure
+    // Note: The ReorderMapData structure used in fqc_reader.h has forwardMap and reverseMap
+    // as members that match the fqc/format/reorder_map.h API
+    mapData.forwardMap = std::move(*forwardDecodeResult);
+    mapData.reverseMap = std::move(*reverseDecodeResult);
+
+    // Store the reorder map
     reorderMap_ = std::move(mapData);
 
-    FQC_LOG_DEBUG("Reorder map loaded: totalReads={}", reorderMap_->header.totalReads);
+    FQC_LOG_DEBUG("Reorder map loaded and decompressed: totalReads={}, "
+                  "forwardMapSize={}, reverseMapSize={}",
+                  reorderMap_->header.totalReads,
+                  reorderMap_->header.forwardMapSize,
+                  reorderMap_->header.reverseMapSize);
 }
 
 ReadId FQCReader::lookupArchiveId(ReadId originalId) const noexcept {
