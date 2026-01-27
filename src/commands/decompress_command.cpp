@@ -202,7 +202,7 @@ void DecompressCommand::openArchive() {
     }
 
     // Check magic bytes
-    const char expectedMagic[] = "\x89FQC\r\n\x1a\n";
+    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
     if (std::memcmp(magic, expectedMagic, 8) != 0) {
         throw FormatError( "Invalid .fqc magic header");
     }

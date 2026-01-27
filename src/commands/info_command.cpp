@@ -71,7 +71,7 @@ void InfoCommand::printTextInfo() {
     file.read(magic, 8);
 
     // Verify magic
-    const char expectedMagic[] = "\x89FQC\r\n\x1a\n";
+    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
     bool validMagic = (std::memcmp(magic, expectedMagic, 8) == 0);
 
     // Read version byte
@@ -125,7 +125,7 @@ void InfoCommand::printJsonInfo() {
     file.read(magic, 8);
 
     // Verify magic
-    const char expectedMagic[] = "\x89FQC\r\n\x1a\n";
+    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
     bool validMagic = (std::memcmp(magic, expectedMagic, 8) == 0);
 
     // Read version byte
