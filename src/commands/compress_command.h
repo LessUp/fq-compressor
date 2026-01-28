@@ -189,6 +189,9 @@ private:
     /// @brief Run the compression pipeline.
     void runCompression();
 
+    /// @brief Run the parallel compression pipeline using TBB.
+    void runCompressionParallel();
+
     /// @brief Print summary statistics.
     void printSummary() const;
 

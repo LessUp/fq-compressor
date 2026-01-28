@@ -14,6 +14,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 
 #include "fqc/common/error.h"
 #include "fqc/common/logger.h"
@@ -21,6 +22,7 @@
 #include "fqc/algo/block_compressor.h"
 #include "fqc/format/fqc_format.h"
 #include "fqc/format/fqc_reader.h"
+#include "fqc/pipeline/pipeline.h"
 
 namespace fqc::commands {
 
@@ -235,6 +237,23 @@ void DecompressCommand::runDecompression() {
     FQC_LOG_INFO("Starting decompression...");
     FQC_LOG_INFO("  Input: {}", options_.inputPath.string());
     FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
+    FQC_LOG_INFO("  Threads: {}", options_.threads > 0 ? std::to_string(options_.threads) : "auto");
+
+    // =========================================================================
+    // TBB Parallel Pipeline Path (threads > 1)
+    // =========================================================================
+
+    if (options_.threads > 1 || (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
+        FQC_LOG_INFO("Using TBB parallel pipeline for decompression");
+        runDecompressionParallel();
+        return;
+    }
+
+    // =========================================================================
+    // Single-threaded Path (threads == 1)
+    // =========================================================================
+
+    FQC_LOG_INFO("Using single-threaded decompression");
 
     // Open FQC reader
     format::FQCReader reader(options_.inputPath);
@@ -379,6 +398,91 @@ void DecompressCommand::printSummary() const {
     std::cout << "  Throughput:        " << std::fixed << std::setprecision(2)
               << stats_.throughputMbps() << " MB/s" << std::endl;
     std::cout << "==============================" << std::endl;
+}
+
+void DecompressCommand::runDecompressionParallel() {
+    FQC_LOG_INFO("Initializing parallel decompression pipeline...");
+
+    // =========================================================================
+    // Configure Pipeline
+    // =========================================================================
+
+    pipeline::DecompressionPipelineConfig pipelineConfig;
+    pipelineConfig.numThreads = options_.threads > 0
+        ? static_cast<std::size_t>(options_.threads)
+        : 0;  // 0 = auto-detect
+
+    // Set range if specified
+    if (options_.range) {
+        pipelineConfig.rangeStart = static_cast<ReadId>(options_.range->start);
+        pipelineConfig.rangeEnd = static_cast<ReadId>(options_.range->end);
+    }
+
+    pipelineConfig.originalOrder = options_.originalOrder;
+    pipelineConfig.headerOnly = options_.headerOnly;
+    pipelineConfig.verifyChecksums = options_.verifyChecksums;
+    pipelineConfig.skipCorrupted = options_.skipCorrupted;
+
+    // Progress callback
+    if (options_.showProgress) {
+        pipelineConfig.progressCallback = [this](const pipeline::ProgressInfo& info) -> bool {
+            double progress = info.ratio() * 100.0;
+            FQC_LOG_INFO("Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
+                        progress,
+                        info.readsProcessed,
+                        info.currentBlock,
+                        info.bytesProcessed / (1024.0 * 1024.0) /
+                        (info.elapsedMs > 0 ? info.elapsedMs / 1000.0 : 1.0));
+            return true;  // Continue
+        };
+        pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds
+    }
+
+    // Validate configuration
+    if (auto result = pipelineConfig.validate(); !result) {
+        throw FormatError("Invalid pipeline configuration: " + result.error().message());
+    }
+
+    FQC_LOG_INFO("Pipeline configured:");
+    FQC_LOG_INFO("  Threads: {}", pipelineConfig.effectiveThreads());
+    FQC_LOG_INFO("  Original order: {}", pipelineConfig.originalOrder ? "yes" : "no");
+    FQC_LOG_INFO("  Verify checksums: {}", pipelineConfig.verifyChecksums ? "yes" : "no");
+    FQC_LOG_INFO("  Skip corrupted: {}", pipelineConfig.skipCorrupted ? "yes" : "no");
+
+    // =========================================================================
+    // Execute Pipeline
+    // =========================================================================
+
+    pipeline::DecompressionPipeline pipeline(pipelineConfig);
+
+    VoidResult result;
+    if (options_.splitPairedEnd) {
+        // Paired-end split mode
+        result = pipeline.runPaired(options_.inputPath, options_.outputPath, options_.output2Path);
+    } else {
+        // Single output mode
+        result = pipeline.run(options_.inputPath, options_.outputPath);
+    }
+
+    if (!result) {
+        throw FormatError("Decompression pipeline failed: " + result.error().message());
+    }
+
+    // =========================================================================
+    // Update Statistics
+    // =========================================================================
+
+    const auto& pipelineStats = pipeline.stats();
+    stats_.totalReads = pipelineStats.totalReads;
+    stats_.totalBases = pipelineStats.inputBytes;  // Approximate
+    stats_.blocksProcessed = pipelineStats.totalBlocks;
+    stats_.inputBytes = pipelineStats.inputBytes;
+    stats_.outputBytes = pipelineStats.outputBytes;
+
+    FQC_LOG_INFO("Parallel decompression complete!");
+    FQC_LOG_INFO("  Blocks processed: {}", stats_.blocksProcessed);
+    FQC_LOG_INFO("  Total reads: {}", stats_.totalReads);
+    FQC_LOG_INFO("  Throughput: {:.2f} MB/s", pipelineStats.throughputMBps());
 }
 
 // =============================================================================
