@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <thread>
 
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/global_analyzer.h"
@@ -20,6 +21,7 @@
 #include "fqc/format/fqc_writer.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
+#include "fqc/pipeline/pipeline.h"
 
 namespace fqc::commands {
 
@@ -261,6 +263,23 @@ void CompressCommand::runCompression() {
     FQC_LOG_INFO("  Compression level: {}", options_.compressionLevel);
     FQC_LOG_INFO("  Reordering: {}", options_.enableReordering ? "enabled" : "disabled");
     FQC_LOG_INFO("  Block size: {} reads", options_.blockSize);
+    FQC_LOG_INFO("  Threads: {}", options_.threads > 0 ? std::to_string(options_.threads) : "auto");
+
+    // =========================================================================
+    // TBB Parallel Pipeline Path (threads > 1)
+    // =========================================================================
+
+    if (options_.threads > 1 || (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
+        FQC_LOG_INFO("Using TBB parallel pipeline for compression");
+        runCompressionParallel();
+        return;
+    }
+
+    // =========================================================================
+    // Single-threaded Path (threads == 1)
+    // =========================================================================
+
+    FQC_LOG_INFO("Using single-threaded compression");
 
     // =========================================================================
     // Phase 0: Open input and collect all reads
@@ -386,9 +405,17 @@ void CompressCommand::runCompression() {
     // =========================================================================
 
     FQC_LOG_DEBUG("Writing global header...");
+
+    // Calculate header size (will be recalculated by writer, but must be valid for isValid())
+    std::string inputFilename = options_.inputPath.filename().string();
+    std::uint32_t headerSize = static_cast<std::uint32_t>(
+        format::GlobalHeader::kMinSize + inputFilename.size());
+
     format::GlobalHeader globalHeader;
+    globalHeader.headerSize = headerSize;
     globalHeader.compressionAlgo = static_cast<std::uint8_t>(CodecFamily::kAbcV1);
     globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
+    globalHeader.reserved = 0;  // Explicitly set to 0 (required by isValid)
 
     // Set flags
     std::uint64_t flags = 0;
@@ -436,7 +463,6 @@ void CompressCommand::runCompression() {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::system_clock::to_time_t(now);
 
-    std::string inputFilename = options_.inputPath.filename().string();
     fqcWriter.writeGlobalHeader(globalHeader, inputFilename, timestamp);
 
     // =========================================================================
@@ -582,6 +608,108 @@ void CompressCommand::runCompression() {
     FQC_LOG_INFO("  Blocks written: {}", stats_.blocksWritten);
     FQC_LOG_INFO("  Compression ratio: {:.2f}x", stats_.compressionRatio());
     FQC_LOG_INFO("  Bits per base: {:.3f}", stats_.bitsPerBase());
+}
+
+void CompressCommand::runCompressionParallel() {
+    FQC_LOG_INFO("Initializing parallel compression pipeline...");
+
+    // =========================================================================
+    // Configure Pipeline
+    // =========================================================================
+
+    pipeline::CompressionPipelineConfig pipelineConfig;
+    pipelineConfig.numThreads = options_.threads > 0
+        ? static_cast<std::size_t>(options_.threads)
+        : 0;  // 0 = auto-detect
+    pipelineConfig.blockSize = options_.blockSize;
+    pipelineConfig.readLengthClass = options_.longReadMode;
+    pipelineConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
+    pipelineConfig.enableReorder = options_.enableReordering && !options_.streamingMode;
+    pipelineConfig.streamingMode = options_.streamingMode;
+    pipelineConfig.memoryLimitMB = options_.memoryLimitMb;
+
+    // Convert quality mode
+    QualityMode qualMode = QualityMode::kLossless;
+    switch (options_.qualityMode) {
+        case QualityCompressionMode::kLossless:
+            qualMode = QualityMode::kLossless;
+            break;
+        case QualityCompressionMode::kIllumina8:
+            qualMode = QualityMode::kIllumina8;
+            break;
+        case QualityCompressionMode::kQvz:
+            qualMode = QualityMode::kQvz;
+            break;
+        case QualityCompressionMode::kDiscard:
+            qualMode = QualityMode::kDiscard;
+            break;
+    }
+    pipelineConfig.qualityMode = qualMode;
+    pipelineConfig.idMode = IDMode::kExact;  // TODO: Make configurable
+
+    // Progress callback
+    if (options_.showProgress) {
+        pipelineConfig.progressCallback = [this](const pipeline::ProgressInfo& info) -> bool {
+            double progress = info.ratio() * 100.0;
+            FQC_LOG_INFO("Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
+                        progress,
+                        info.readsProcessed,
+                        info.currentBlock,
+                        info.bytesProcessed / (1024.0 * 1024.0) /
+                        (info.elapsedMs > 0 ? info.elapsedMs / 1000.0 : 1.0));
+            return true;  // Continue
+        };
+        pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds
+    }
+
+    // Validate configuration
+    if (auto result = pipelineConfig.validate(); !result) {
+        throw FormatError("Invalid pipeline configuration: " + result.error().message());
+    }
+
+    FQC_LOG_INFO("Pipeline configured:");
+    FQC_LOG_INFO("  Threads: {}", pipelineConfig.effectiveThreads());
+    FQC_LOG_INFO("  Block size: {}", pipelineConfig.effectiveBlockSize());
+    FQC_LOG_INFO("  Read length class: {}",
+                pipelineConfig.readLengthClass == ReadLengthClass::kShort ? "SHORT" :
+                pipelineConfig.readLengthClass == ReadLengthClass::kMedium ? "MEDIUM" : "LONG");
+    FQC_LOG_INFO("  Quality mode: {}", qualityModeToString(options_.qualityMode));
+    FQC_LOG_INFO("  Reordering: {}", pipelineConfig.enableReorder ? "enabled" : "disabled");
+
+    // =========================================================================
+    // Execute Pipeline
+    // =========================================================================
+
+    pipeline::CompressionPipeline pipeline(pipelineConfig);
+
+    VoidResult result;
+    if (options_.input2Path.empty()) {
+        // Single-end mode
+        result = pipeline.run(options_.inputPath, options_.outputPath);
+    } else {
+        // Paired-end mode
+        result = pipeline.runPaired(options_.input2Path, options_.input2Path, options_.outputPath);
+    }
+
+    if (!result) {
+        throw FormatError("Compression pipeline failed: " + result.error().message());
+    }
+
+    // =========================================================================
+    // Update Statistics
+    // =========================================================================
+
+    const auto& pipelineStats = pipeline.stats();
+    stats_.totalReads = pipelineStats.totalReads;
+    stats_.totalBases = pipelineStats.inputBytes;  // Approximate
+    stats_.inputBytes = pipelineStats.inputBytes;
+    stats_.outputBytes = pipelineStats.outputBytes;
+    stats_.blocksWritten = pipelineStats.totalBlocks;
+
+    FQC_LOG_INFO("Parallel compression complete!");
+    FQC_LOG_INFO("  Blocks written: {}", stats_.blocksWritten);
+    FQC_LOG_INFO("  Compression ratio: {:.2f}x", stats_.compressionRatio());
+    FQC_LOG_INFO("  Throughput: {:.2f} MB/s", pipelineStats.throughputMBps());
 }
 
 void CompressCommand::printSummary() const {

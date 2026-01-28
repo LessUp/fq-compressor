@@ -185,6 +185,9 @@ private:
     /// @brief Run the decompression pipeline.
     void runDecompression();
 
+    /// @brief Run the parallel decompression pipeline using TBB.
+    void runDecompressionParallel();
+
     /// @brief Print summary statistics.
     void printSummary() const;
 
