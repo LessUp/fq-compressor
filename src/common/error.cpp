@@ -8,7 +8,7 @@
 
 #include "fqc/common/error.h"
 
-#include <format>
+#include <fmt/format.h>
 #include <sstream>
 
 namespace fqc {
@@ -83,7 +83,7 @@ void FQCException::formatWhat() {
 // =============================================================================
 
 std::string IOError::formatWithSystemError(const std::string& message, std::error_code ec) {
-    return std::format("{}: {} (error code: {})", message, ec.message(), ec.value());
+    return fmt::format("{}: {} (error code: {})", message, ec.message(), ec.value());
 }
 
 // =============================================================================
@@ -91,7 +91,7 @@ std::string IOError::formatWithSystemError(const std::string& message, std::erro
 // =============================================================================
 
 std::string ChecksumError::formatChecksumMismatch(std::uint64_t expected, std::uint64_t actual) {
-    return std::format("checksum mismatch: expected 0x{:016x}, got 0x{:016x}", expected, actual);
+    return fmt::format("checksum mismatch: expected 0x{:016x}, got 0x{:016x}", expected, actual);
 }
 
 // =============================================================================
@@ -99,7 +99,7 @@ std::string ChecksumError::formatChecksumMismatch(std::uint64_t expected, std::u
 // =============================================================================
 
 std::string UnsupportedCodecError::formatUnsupportedCodec(std::uint8_t codecFamily) {
-    return std::format("unsupported codec family: 0x{:02x}", codecFamily);
+    return fmt::format("unsupported codec family: 0x{:02x}", codecFamily);
 }
 
 // =============================================================================

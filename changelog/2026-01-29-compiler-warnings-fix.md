@@ -1,7 +1,7 @@
 # 编译器警告修复 (2026-01-29)
 
 ## 概述
-系统性修复了 GCC 和 Clang 编译器产生的所有项目代码警告，确保 GCC Release 构建无代码警告通过。
+系统性修复了 GCC 和 Clang 编译器产生的所有项目代码警告，确保 GCC Release 和 Clang Release 构建均无代码警告通过。
 
 ## 修复的警告类型
 
@@ -11,10 +11,11 @@
 - `fastq_parser.h`: `ParserStats::averageLength()` 中的类型转换
 - `compress_command.h/cpp`: 多处 `size_t` 和 `int` 到 `double` 的转换
 - `decompress_command.cpp`: 进度回调中的类型转换
-- `quality_compressor.cpp`: `ArithmeticDecoder` 中的符号转换
+- `quality_compressor.cpp`: `ArithmeticDecoder` 中的符号转换，以及整数精度修复
 - `pipeline_node.cpp`: 文件大小估算中的类型转换
 - `pe_optimizer.cpp`: `std::abs()` 返回值的符号转换
 - `memory_budget_test.cpp`: 测试代码中的类型转换
+- `reorder_map.cpp`: zigzag 解码中的符号转换
 
 ### Switch 语句警告 (`-Wswitch`)
 - `error.cpp`: `toException()` 和 `throwException()` 函数中添加所有 `ErrorCode` 枚举值的处理
@@ -23,29 +24,53 @@
 - `main.cpp`: 删除未使用的 `isStdinTty()` 函数
 - `id_compressor.cpp`: 移除 `IDTokenizer::tryParseInt()` 中未使用的 `negative` 变量
 - `memory_budget_test.cpp`: 添加 `[[maybe_unused]]` 属性
+- `block_compressor.cpp`: 添加 `[[maybe_unused]]` 属性到未使用的 `kNoiseEncode` 表
+- `verify_command.cpp`: 添加 `[[maybe_unused]]` 属性到未使用的 `fileSize` 变量
+
+### 未使用 Lambda 捕获警告
+- `compress_command.cpp`: 移除进度回调中未使用的 `this` 捕获
+- `decompress_command.cpp`: 移除进度回调中未使用的 `this` 捕获
 
 ### ODR 违规警告 (`-Wodr`, `-Wlto-type-mismatch`)
 - 将 `fqc_reader.h` 中的 `ReorderMapData` 结构重命名为 `LoadedReorderMapData`
 - 避免与 `reorder_map.h` 中同名类型冲突
 
-### Clang 特有警告 (`-Wshadow-field-in-constructor`)
+### Clang 特有警告 (`-Wshadow-field-in-constructor`, `-Wshadow-all`)
 - `types.h`: 重命名 `ReadRecord` 构造函数参数避免遮蔽成员变量
 - `id_compressor.h`: 修复 `zigzagDecode()` 中的符号转换
+
+## Clang 构建配置修复
+
+### CMakePresets.json 修改
+- 移除 Clang 预设中的 `-stdlib=libc++` 标志
+- 改用与 Conan profile 一致的 `libstdc++` 配置
+- 将 LTO 标志从 `-flto` 改为 `-flto=thin` 以优化编译时间
+
+### Conan Profile 更新
+- 更新 `~/.conan2/profiles/clang` 添加编译器路径配置
+- 添加 `tools.build:compiler_executables` 确保正确使用 Clang 编译器
+
+### std::format 兼容性
+- `error.cpp`: 将 `#include <format>` 和 `std::format()` 替换为 `#include <fmt/format.h>` 和 `fmt::format()`
+- 解决 Clang + libstdc++ 模式下缺少 `<format>` 头文件的问题
 
 ## 修改的文件列表
 
 | 文件 | 修改类型 |
 |------|----------|
-| `src/common/error.cpp` | 补全 switch 枚举处理 |
+| `src/common/error.cpp` | 补全 switch 枚举处理、使用 fmt 库替代 std::format |
 | `src/main.cpp` | 删除未使用函数 |
 | `src/common/memory_budget.cpp` | 添加显式类型转换 |
 | `src/pipeline/pipeline.cpp` | 添加显式类型转换 |
 | `src/pipeline/pipeline_node.cpp` | 添加显式类型转换 |
 | `src/algo/id_compressor.cpp` | 移除未使用变量 |
-| `src/algo/quality_compressor.cpp` | 修复符号转换 |
+| `src/algo/quality_compressor.cpp` | 修复符号转换和整数精度 |
 | `src/algo/pe_optimizer.cpp` | 修复符号转换 |
-| `src/commands/compress_command.cpp` | 添加显式类型转换 |
-| `src/commands/decompress_command.cpp` | 添加显式类型转换 |
+| `src/algo/block_compressor.cpp` | 添加 `[[maybe_unused]]` 属性 |
+| `src/format/reorder_map.cpp` | 修复 zigzag 解码符号转换 |
+| `src/commands/compress_command.cpp` | 添加显式类型转换、移除未使用捕获 |
+| `src/commands/decompress_command.cpp` | 添加显式类型转换、移除未使用捕获 |
+| `src/commands/verify_command.cpp` | 添加 `[[maybe_unused]]` 属性 |
 | `src/format/fqc_reader.cpp` | 更新类型名称引用 |
 | `include/fqc/io/fastq_parser.h` | 添加显式类型转换 |
 | `include/fqc/format/fqc_reader.h` | 重命名 `ReorderMapData` |
@@ -53,12 +78,15 @@
 | `include/fqc/algo/id_compressor.h` | 修复 `zigzagDecode` |
 | `src/commands/compress_command.h` | 添加显式类型转换 |
 | `tests/common/memory_budget_test.cpp` | 添加类型转换和属性 |
+| `CMakePresets.json` | 修复 Clang 工具链配置 |
 
 ## 验证结果
 - ✅ GCC Release 构建成功（无项目代码警告）
-- ⚠️ 仅剩 quill 第三方库的 LTO 警告（代码外部问题）
+- ✅ Clang Release 构建成功（无项目代码警告）
+- ⚠️ GCC 构建仅剩 quill 第三方库的 LTO 警告（代码外部问题）
 
 ## 备注
 quill 日志库在 LTO 优化时产生的 `-Wstringop-overread` 警告来自库内部代码，无法在项目中修复。建议：
 1. 等待 quill 库更新修复
 2. 或考虑使用 `-Wno-stringop-overread` 编译选项抑制此特定警告
+

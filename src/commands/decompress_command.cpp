@@ -425,7 +425,7 @@ void DecompressCommand::runDecompressionParallel() {
 
     // Progress callback
     if (options_.showProgress) {
-        pipelineConfig.progressCallback = [this](const pipeline::ProgressInfo& info) -> bool {
+        pipelineConfig.progressCallback = [](const pipeline::ProgressInfo& info) -> bool {
             double progress = info.ratio() * 100.0;
             FQC_LOG_INFO("Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
                         progress,
