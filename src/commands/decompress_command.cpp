@@ -192,10 +192,7 @@ void DecompressCommand::validateOptions() {
 void DecompressCommand::openArchive() {
     FQC_LOG_DEBUG("Opening archive: {}", options_.inputPath.string());
 
-    // TODO: Actually open and validate the archive
-    // This is a placeholder for Phase 2/3 implementation
-
-    // For now, just check the file can be opened
+    // Open and validate the archive magic header
     std::ifstream file(options_.inputPath, std::ios::binary);
     if (!file) {
         throw IOError(
@@ -219,18 +216,21 @@ void DecompressCommand::openArchive() {
 }
 
 void DecompressCommand::planExtraction() {
-    // TODO: Determine which blocks to process based on range
-    // This is a placeholder for Phase 2/3 implementation
+    // Log extraction plan
+    // Note: Actual block processing is done in runDecompression() based on FQCReader::blockCount()
+    // The range filtering is handled by the pipeline when processing reads
 
     if (options_.range) {
         FQC_LOG_DEBUG("Planning extraction for range {}:{}", options_.range->start,
                   options_.range->end == 0 ? "end" : std::to_string(options_.range->end));
+        FQC_LOG_DEBUG("Range filtering will be applied during read processing");
     } else {
         FQC_LOG_DEBUG("Planning full archive extraction");
     }
 
-    // Placeholder: assume single block
-    blockRange_ = {0, 1};
+    // blockRange_ is not currently used in the actual decompression logic
+    // Keeping it for potential future optimizations
+    blockRange_ = {0, 0};  // 0 means process all blocks
 }
 
 void DecompressCommand::runDecompression() {
