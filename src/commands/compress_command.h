@@ -129,12 +129,12 @@ struct CompressionStats {
 
     /// @brief Compression ratio (input/output).
     [[nodiscard]] double compressionRatio() const noexcept {
-        return outputBytes > 0 ? static_cast<double>(inputBytes) / outputBytes : 0.0;
+        return outputBytes > 0 ? static_cast<double>(inputBytes) / static_cast<double>(outputBytes) : 0.0;
     }
 
     /// @brief Bits per base.
     [[nodiscard]] double bitsPerBase() const noexcept {
-        return totalBases > 0 ? (static_cast<double>(outputBytes) * 8.0) / totalBases : 0.0;
+        return totalBases > 0 ? (static_cast<double>(outputBytes) * 8.0) / static_cast<double>(totalBases) : 0.0;
     }
 
     /// @brief Elapsed time in seconds.

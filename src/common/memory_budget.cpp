@@ -100,7 +100,7 @@ MemoryEstimate MemoryEstimator::estimate(std::size_t totalReads,
     // Peak memory is max of Phase 1 or Phase 2 (they don't overlap significantly)
     // Plus some overhead for buffers
     result.peakBytes = static_cast<std::size_t>(
-        std::max(result.phase1Bytes, phase2Total) * kMemorySafetyMargin);
+        static_cast<double>(std::max(result.phase1Bytes, phase2Total)) * kMemorySafetyMargin);
     result.peakBytes += budget_.blockBufferBytes();
 
     // Calculate max reads for Phase 1
@@ -125,21 +125,21 @@ MemoryEstimate MemoryEstimator::estimate(std::size_t totalReads,
 }
 
 std::size_t MemoryEstimator::estimatePhase1(std::size_t totalReads) const noexcept {
-    return static_cast<std::size_t>(totalReads * kMemoryPerReadPhase1 * kMemorySafetyMargin);
+    return static_cast<std::size_t>(static_cast<double>(totalReads) * kMemoryPerReadPhase1 * kMemorySafetyMargin);
 }
 
 std::size_t MemoryEstimator::estimatePhase2(std::size_t readsPerBlock,
                                              std::size_t numThreads) const noexcept {
     // Each thread processes one block at a time
     std::size_t perBlock = static_cast<std::size_t>(
-        readsPerBlock * kMemoryPerReadPhase2 * kMemorySafetyMargin);
+        static_cast<double>(readsPerBlock) * kMemoryPerReadPhase2 * kMemorySafetyMargin);
     return perBlock * numThreads;
 }
 
 std::size_t MemoryEstimator::maxReadsForPhase1() const noexcept {
     std::size_t availableBytes = budget_.phase1ReserveBytes();
     // Account for safety margin
-    std::size_t effectiveBytes = static_cast<std::size_t>(availableBytes / kMemorySafetyMargin);
+    std::size_t effectiveBytes = static_cast<std::size_t>(static_cast<double>(availableBytes) / kMemorySafetyMargin);
     return effectiveBytes / kMemoryPerReadPhase1;
 }
 
@@ -147,7 +147,7 @@ std::size_t MemoryEstimator::optimalBlockSize(std::size_t numThreads) const noex
     std::size_t availableBytes = budget_.phase2AvailableBytes();
     // Account for safety margin and concurrent threads
     std::size_t perThread = static_cast<std::size_t>(
-        availableBytes / (numThreads * kMemorySafetyMargin));
+        static_cast<double>(availableBytes) / (static_cast<double>(numThreads) * kMemorySafetyMargin));
     std::size_t optimalReads = perThread / kMemoryPerReadPhase2;
 
     // Clamp to reasonable bounds
@@ -298,7 +298,7 @@ ChunkPlan ChunkPlanner::planWithReadLength(std::uint64_t totalReads,
     // Create adjusted budget
     MemoryBudget adjustedBudget = budget_;
     adjustedBudget.phase1ReserveMB = static_cast<std::size_t>(
-        budget_.phase1ReserveMB / lengthFactor);
+        static_cast<double>(budget_.phase1ReserveMB) / lengthFactor);
 
     // Use adjusted planner
     ChunkPlanner adjustedPlanner(adjustedBudget);
@@ -336,7 +336,7 @@ bool MemoryMonitor::exceedsThreshold(double percentage) const {
         return false;
     }
     std::size_t threshold = static_cast<std::size_t>(
-        budget_.maxTotalBytes() * percentage / 100.0);
+        static_cast<double>(budget_.maxTotalBytes()) * percentage / 100.0);
     return currentUsage().rssBytes > threshold;
 }
 
@@ -377,7 +377,7 @@ void MemoryMonitor::checkAlert() {
     if (exceedsThreshold(*alertThreshold_)) {
         auto usage = currentUsage();
         std::size_t threshold = static_cast<std::size_t>(
-            budget_.maxTotalBytes() * (*alertThreshold_) / 100.0);
+            static_cast<double>(budget_.maxTotalBytes()) * (*alertThreshold_) / 100.0);
         alertCallback_(usage, threshold);
     }
 }

@@ -319,7 +319,7 @@ void FQCReader::loadReorderMap() {
     seekTo(footer_.reorderMapOffset);
 
     // Read header
-    ReorderMapData mapData;
+    LoadedReorderMapData mapData;
     mapData.header.headerSize = readLE<std::uint32_t>();
     mapData.header.version = readLE<std::uint32_t>();
     mapData.header.totalReads = readLE<std::uint64_t>();

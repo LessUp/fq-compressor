@@ -347,11 +347,11 @@ struct ReadRecord {
     ReadRecord() = default;
 
     /// @brief Construct a ReadRecord with all fields.
-    /// @param id Read identifier.
-    /// @param sequence DNA sequence.
-    /// @param quality Quality scores.
-    ReadRecord(std::string id, std::string sequence, std::string quality)
-        : id(std::move(id)), sequence(std::move(sequence)), quality(std::move(quality)) {}
+    /// @param id_ Read identifier.
+    /// @param sequence_ DNA sequence.
+    /// @param quality_ Quality scores.
+    ReadRecord(std::string id_, std::string sequence_, std::string quality_)
+        : id(std::move(id_)), sequence(std::move(sequence_)), quality(std::move(quality_)) {}
 
     /// @brief Check if the record is valid.
     /// @return true if sequence and quality have matching non-zero lengths.

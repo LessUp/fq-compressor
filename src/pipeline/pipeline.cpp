@@ -354,8 +354,8 @@ public:
                                     info.totalReads = reader.estimatedTotalReads();
                                     info.bytesProcessed = reader.totalBytesRead();
                                     info.currentBlock = blocksProcessed.load();
-                                    info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        now - startTime).count();
+                                    info.elapsedMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        now - startTime).count());
                                     
                                     if (!config_.progressCallback(info)) {
                                         cancelled_.store(true);
@@ -399,8 +399,8 @@ public:
         }
 
         auto endTime = std::chrono::steady_clock::now();
-        stats_.processingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - startTime).count();
+        stats_.processingTimeMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            endTime - startTime).count());
 
         running_.store(false);
 
@@ -540,8 +540,8 @@ public:
         }
 
         auto endTime = std::chrono::steady_clock::now();
-        stats_.processingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - startTime).count();
+        stats_.processingTimeMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            endTime - startTime).count());
 
         running_.store(false);
 
@@ -783,8 +783,8 @@ public:
                                     info.readsProcessed = readsProcessed.load();
                                     info.totalReads = globalHeader.totalReadCount;
                                     info.currentBlock = blocksProcessed.load();
-                                    info.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        now - startTime).count();
+                                    info.elapsedMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        now - startTime).count());
                                     
                                     if (!config_.progressCallback(info)) {
                                         cancelled_.store(true);
@@ -828,8 +828,8 @@ public:
         }
 
         auto endTime = std::chrono::steady_clock::now();
-        stats_.processingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - startTime).count();
+        stats_.processingTimeMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            endTime - startTime).count());
 
         running_.store(false);
 
@@ -953,8 +953,8 @@ public:
         }
 
         auto endTime = std::chrono::steady_clock::now();
-        stats_.processingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-            endTime - startTime).count();
+        stats_.processingTimeMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            endTime - startTime).count());
 
         running_.store(false);
 

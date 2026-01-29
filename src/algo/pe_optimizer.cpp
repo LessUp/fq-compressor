@@ -156,8 +156,8 @@ std::pair<bool, std::size_t> PEOptimizer::checkComplementarity(
     }
 
     // Add length difference
-    diffCount += std::abs(static_cast<int>(r1Seq.length()) -
-                          static_cast<int>(r2Seq.length()));
+    diffCount += static_cast<std::size_t>(std::abs(static_cast<int>(r1Seq.length()) -
+                          static_cast<int>(r2Seq.length())));
 
     bool beneficial = diffCount <= config_.complementarityThreshold;
     return {beneficial, diffCount};

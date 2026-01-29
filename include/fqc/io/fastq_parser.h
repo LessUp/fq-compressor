@@ -131,7 +131,7 @@ struct ParserStats {
 
     /// @brief Get average read length.
     [[nodiscard]] double averageLength() const noexcept {
-        return totalRecords > 0 ? static_cast<double>(lengthSum) / totalRecords : 0.0;
+        return totalRecords > 0 ? static_cast<double>(lengthSum) / static_cast<double>(totalRecords) : 0.0;
     }
 
     /// @brief Reset statistics.

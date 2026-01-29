@@ -163,10 +163,8 @@ std::optional<std::int64_t> IDTokenizer::tryParseInt(std::string_view str) {
     }
 
     // Handle negative numbers
-    bool negative = false;
     std::size_t start = 0;
     if (str[0] == '-') {
-        negative = true;
         start = 1;
         if (str.length() == 1) {
             return std::nullopt;

@@ -244,8 +244,8 @@ public:
     explicit ArithmeticDecoder(std::span<const std::uint8_t> data)
         : data_(data), low_(0), high_(kTopValue), value_(0), bitPos_(0), bytePos_(0) {
         // Initialize value with first bits
-        for (int i = 0; i < kCodeBits; ++i) {
-            value_ = (value_ << 1) | readBit();
+        for (int i = 0; i < static_cast<int>(kCodeBits); ++i) {
+            value_ = (value_ << 1) | static_cast<std::uint64_t>(readBit());
         }
     }
 
@@ -289,7 +289,7 @@ private:
 
             low_ = 2 * low_;
             high_ = 2 * high_ + 1;
-            value_ = 2 * value_ + readBit();
+            value_ = 2 * value_ + static_cast<std::uint64_t>(readBit());
         }
     }
 
