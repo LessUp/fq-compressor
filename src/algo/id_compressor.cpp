@@ -14,6 +14,7 @@
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
+#include <zstd.h>
 
 namespace fqc::algo {
 
@@ -949,31 +950,101 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressDiscard(std::uint32
 
 
 // =============================================================================
-// IDCompressorImpl - Zstd Compression (Stub)
+// IDCompressorImpl - Zstd Compression
 // =============================================================================
-
-// Note: In a real implementation, these would use the zstd library.
-// For now, we provide stub implementations that store data uncompressed.
 
 std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(
     std::span<const std::uint8_t> data) {
 
-    // TODO: Integrate actual Zstd compression
-    // For now, return data as-is (no compression)
-    return std::vector<std::uint8_t>(data.begin(), data.end());
+    // Handle empty input
+    if (data.empty()) {
+        return {};
+    }
+
+    // Estimate compressed size (use Zstd's bound function)
+    std::size_t const cBuffSize = ZSTD_compressBound(data.size());
+    std::vector<std::uint8_t> compressed(cBuffSize);
+
+    // Compress with level 3 (balance between speed and compression ratio)
+    std::size_t const cSize = ZSTD_compress(
+        compressed.data(), compressed.size(),
+        data.data(), data.size(),
+        3  // compression level
+    );
+
+    // Check for errors
+    if (ZSTD_isError(cSize)) {
+        throw CompressionError(
+            "Zstd compression failed: " + std::string(ZSTD_getErrorName(cSize))
+        );
+    }
+
+    // Resize to actual compressed size
+    compressed.resize(cSize);
+    return compressed;
 }
 
 Result<std::vector<std::uint8_t>> IDCompressorImpl::decompressWithZstd(
     std::span<const std::uint8_t> data,
     std::size_t uncompressedSize) {
 
-    // TODO: Integrate actual Zstd decompression
-    // For now, assume data is uncompressed
-    if (data.size() != uncompressedSize) {
-        // In stub mode, sizes should match
-        // In real mode, compressed size would be smaller
+    // Handle empty input
+    if (data.empty()) {
+        if (uncompressedSize == 0) {
+            return std::vector<std::uint8_t>{};
+        }
+        return std::unexpected(DecompressionError("Empty compressed data but non-zero uncompressed size"));
     }
-    return std::vector<std::uint8_t>(data.begin(), data.end());
+
+    // Get frame content size from compressed data
+    unsigned long long const rSize = ZSTD_getFrameContentSize(
+        data.data(), data.size()
+    );
+
+    if (rSize == ZSTD_CONTENTSIZE_ERROR) {
+        return std::unexpected(DecompressionError("Invalid Zstd frame"));
+    }
+    if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+        // Frame size not stored in header, use provided uncompressedSize
+        if (uncompressedSize == 0) {
+            return std::unexpected(DecompressionError("Zstd content size unknown and uncompressedSize not provided"));
+        }
+    } else {
+        // Verify size matches if both are known
+        if (uncompressedSize != 0 && rSize != uncompressedSize) {
+            return std::unexpected(DecompressionError(
+                "Zstd frame size mismatch: expected " + std::to_string(uncompressedSize) +
+                ", got " + std::to_string(rSize)
+            ));
+        }
+    }
+
+    // Use frame size if available, otherwise use provided size
+    std::size_t const decompSize = (rSize != ZSTD_CONTENTSIZE_UNKNOWN) ? rSize : uncompressedSize;
+    std::vector<std::uint8_t> decompressed(decompSize);
+
+    // Decompress
+    std::size_t const dSize = ZSTD_decompress(
+        decompressed.data(), decompressed.size(),
+        data.data(), data.size()
+    );
+
+    // Check for errors
+    if (ZSTD_isError(dSize)) {
+        return std::unexpected(DecompressionError(
+            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(dSize))
+        ));
+    }
+
+    // Verify decompressed size matches expected
+    if (dSize != decompSize) {
+        return std::unexpected(DecompressionError(
+            "Decompressed size mismatch: expected " + std::to_string(decompSize) +
+            ", got " + std::to_string(dSize)
+        ));
+    }
+
+    return decompressed;
 }
 
 VoidResult IDCompressorImpl::setConfig(IDCompressorConfig config) {
