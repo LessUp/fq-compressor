@@ -317,7 +317,8 @@ public:
     void reset();
 
     /// @brief Check if seeking is supported.
-    [[nodiscard]] bool canSeek() const noexcept { return !isStdin_; }
+    /// @note Compressed files do not support seeking.
+    [[nodiscard]] bool canSeek() const noexcept { return !isStdin_ && !isCompressed_; }
 
 private:
     // =========================================================================
@@ -363,6 +364,9 @@ private:
 
     /// @brief Whether input is stdin.
     bool isStdin_ = false;
+
+    /// @brief Whether input is compressed (gzip, bzip2, xz, etc.).
+    bool isCompressed_ = false;
 
     /// @brief Current line number (1-based).
     std::uint64_t lineNumber_ = 0;
