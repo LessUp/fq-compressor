@@ -14,11 +14,13 @@
 #include <iostream>
 
 #include <fmt/format.h>
+#include <zstd.h>
 
 #include "fqc/common/logger.h"
 #include "fqc/io/fastq_parser.h"
 #include "fqc/format/fqc_reader.h"
 #include "fqc/format/fqc_writer.h"
+#include "fqc/format/reorder_map.h"
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/id_compressor.h"
 #include "fqc/algo/quality_compressor.h"
@@ -614,11 +616,29 @@ private:
             buffer.push_back(static_cast<std::uint8_t>((len >> 24) & 0xFF));
             buffer.insert(buffer.end(), seq.begin(), seq.end());
         }
-        
-        // TODO: Actually compress with Zstd
-        // For now, return uncompressed data (placeholder)
-        // In production, this would call ZSTD_compress()
-        return buffer;
+
+        // Compress with Zstd
+        if (buffer.empty()) {
+            return buffer;
+        }
+
+        std::size_t const compressBound = ZSTD_compressBound(buffer.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        std::size_t const compressedSize = ZSTD_compress(
+            compressed.data(), compressed.size(),
+            buffer.data(), buffer.size(),
+            3  // compression level
+        );
+
+        if (ZSTD_isError(compressedSize)) {
+            throw std::runtime_error(
+                fmt::format("Zstd compression failed: {}", ZSTD_getErrorName(compressedSize))
+            );
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
     }
 
     std::uint64_t calculateBlockChecksum(
@@ -793,8 +813,31 @@ public:
             
             // Write reorder map if provided
             if (reorderMap.has_value() && !reorderMap->empty()) {
-                // TODO: Parse and write reorder map
-                // For now, skip reorder map writing
+                const auto& mapData = reorderMap.value();
+
+                // Prepare ReorderMap header
+                fqc::format::ReorderMap mapHeader;
+                mapHeader.totalReads = static_cast<std::uint32_t>(mapData.size());
+                mapHeader.forwardMapSize = 0;  // Will be set by writeReorderMap
+                mapHeader.reverseMapSize = 0;  // Will be set by writeReorderMap
+
+                // Create ReadId vector from byte data
+                std::vector<fqc::ReadId> ids;
+                ids.reserve(mapData.size() / sizeof(fqc::ReadId));
+                for (std::size_t i = 0; i + sizeof(fqc::ReadId) <= mapData.size(); i += sizeof(fqc::ReadId)) {
+                    fqc::ReadId id;
+                    std::memcpy(&id, mapData.data() + i, sizeof(fqc::ReadId));
+                    ids.push_back(id);
+                }
+
+                // Compress maps (Delta + Varint encoding)
+                auto compressedForward = fqc::format::deltaEncode(std::span<const fqc::ReadId>(ids.data(), ids.size()));
+                auto compressedReverse = fqc::format::deltaEncode(std::span<const fqc::ReadId>(ids.data(), ids.size()));
+
+                // Write to archive
+                writer_->writeReorderMap(mapHeader, compressedForward, compressedReverse);
+
+                FQC_LOG_DEBUG("WriterNode: Reorder map written ({} reads)", mapHeader.totalReads);
             }
             
             // Finalize the archive (writes index and footer, renames temp to final)
@@ -1100,7 +1143,7 @@ public:
             // Create block header from compressed block metadata
             format::BlockHeader blockHeader;
             blockHeader.blockId = block.blockId;
-            blockHeader.readCount = block.readCount;
+            blockHeader.uncompressedCount = block.readCount;
             blockHeader.uniformReadLength = block.uniformReadLength;
             blockHeader.codecIds = block.codecIds;
             blockHeader.codecSeq = block.codecSeq;
@@ -1118,9 +1161,9 @@ public:
             );
 
             if (!decompressResult) {
-                throw DecompressionError(
+                throw std::runtime_error(
                     fmt::format("Failed to decompress block {}: {}",
-                               block.blockId, decompressResult.error().what()));
+                               block.blockId, decompressResult.error().message()));
             }
 
             // Move decompressed reads into chunk
