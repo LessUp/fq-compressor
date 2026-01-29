@@ -217,7 +217,7 @@ private:
     }
 
     void writeBit(int bit) {
-        bitBuffer_ = (bitBuffer_ << 1) | bit;
+        bitBuffer_ = static_cast<std::uint8_t>((bitBuffer_ << 1) | bit);
         bitCount_++;
 
         if (bitCount_ == 8) {

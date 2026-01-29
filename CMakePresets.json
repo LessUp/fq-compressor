@@ -129,21 +129,21 @@
         {
             "name": "clang-debug",
             "displayName": "Clang Debug",
-            "description": "Debug build with Clang + libc++ (recommended for development)",
+            "description": "Debug build with Clang",
             "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG -stdlib=libc++"
+                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
             }
         },
         {
             "name": "clang-release",
             "displayName": "Clang Release",
-            "description": "Release build with Clang + libc++",
+            "description": "Release build with Clang",
             "inherits": "conan-clang-release-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto -stdlib=libc++",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto=thin",
                 "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
             }
         },
@@ -154,9 +154,9 @@
             "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=address,undefined",
-                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=address,undefined"
+                "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
+                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined"
             }
         },
         {
@@ -166,9 +166,9 @@
             "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -stdlib=libc++ -fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=thread",
-                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=thread"
+                "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=thread",
+                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=thread"
             }
         },
         {

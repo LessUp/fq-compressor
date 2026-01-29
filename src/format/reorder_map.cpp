@@ -79,7 +79,9 @@ std::size_t decodeSignedVarint(const std::uint8_t* input, std::size_t inputSize,
     }
 
     // Decode zigzag: reverse the encoding
-    value = static_cast<std::int64_t>((zigzag >> 1) ^ -(static_cast<std::int64_t>(zigzag & 1)));
+    // Cast to avoid sign conversion warning
+    value = static_cast<std::int64_t>(zigzag >> 1) ^
+            -static_cast<std::int64_t>(zigzag & 1);
     return bytesRead;
 }
 

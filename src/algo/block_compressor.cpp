@@ -76,7 +76,7 @@ constexpr char kComplement[256] = {
 /// @brief Noise encoding table: enc_noise[ref_base][read_base]
 /// Based on Minoche et al. substitution statistics
 /// Returns '0'-'3' for the encoded substitution
-constexpr char kNoiseEncode[128][128] = {
+[[maybe_unused]] constexpr char kNoiseEncode[128][128] = {
     // Initialize all to 0
 };
 
