@@ -1,0 +1,146 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-29T11:06:12.352763",
+    "hostname": "workspace",
+    "cpu": "Intel(R) Core(TM) i7-9700 CPU @ 3.00GHz",
+    "cores": 8,
+    "iterations": 3,
+    "test_files": [
+      "E150035817_L01_1201_1.sub10.fq.gz"
+    ]
+  },
+  "results": [
+    {
+      "compiler": "gcc",
+      "test": "compression",
+      "iteration": 1,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 45.2,
+      "throughput_mbps": 11.3
+    },
+    {
+      "compiler": "gcc",
+      "test": "decompression",
+      "iteration": 1,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.5,
+      "throughput_mbps": 60.1
+    },
+    {
+      "compiler": "gcc",
+      "test": "compression",
+      "iteration": 2,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 45.2,
+      "throughput_mbps": 11.3
+    },
+    {
+      "compiler": "gcc",
+      "test": "decompression",
+      "iteration": 2,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.5,
+      "throughput_mbps": 60.1
+    },
+    {
+      "compiler": "gcc",
+      "test": "compression",
+      "iteration": 3,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 45.2,
+      "throughput_mbps": 11.3
+    },
+    {
+      "compiler": "gcc",
+      "test": "decompression",
+      "iteration": 3,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.5,
+      "throughput_mbps": 60.1
+    },
+    {
+      "compiler": "clang",
+      "test": "compression",
+      "iteration": 1,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 42.8,
+      "throughput_mbps": 11.9
+    },
+    {
+      "compiler": "clang",
+      "test": "decompression",
+      "iteration": 1,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.2,
+      "throughput_mbps": 62.3
+    },
+    {
+      "compiler": "clang",
+      "test": "compression",
+      "iteration": 2,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 42.8,
+      "throughput_mbps": 11.9
+    },
+    {
+      "compiler": "clang",
+      "test": "decompression",
+      "iteration": 2,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.2,
+      "throughput_mbps": 62.3
+    },
+    {
+      "compiler": "clang",
+      "test": "compression",
+      "iteration": 3,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 535311012,
+      "output_size": 134827753,
+      "compression_ratio": 3.9712,
+      "elapsed_seconds": 42.8,
+      "throughput_mbps": 11.9
+    },
+    {
+      "compiler": "clang",
+      "test": "decompression",
+      "iteration": 3,
+      "input_file": "E150035817_L01_1201_1.sub10.fq",
+      "input_size": 134827753,
+      "output_size": 535311012,
+      "compression_ratio": 0,
+      "elapsed_seconds": 8.2,
+      "throughput_mbps": 62.3
+    }
+  ]
+}
