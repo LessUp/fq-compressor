@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include "fqc/common/logger.h"
+#include "fqc/io/compressed_stream.h"
 
 namespace fqc::io {
 
@@ -45,17 +46,26 @@ void FastqParser::open() {
     }
 
     if (isStdin_) {
-        // Use cin for stdin
-        stream_ = std::make_unique<std::istream>(std::cin.rdbuf());
+        // Use cin for stdin with automatic decompression support
+        stream_ = openInputFile("-");
+        // stdin might be compressed, but we can't know for sure without reading content
+        // For now, assume stdin might be compressed and disable seeking
+        isCompressed_ = true;
         FQC_LOG_DEBUG("Opening stdin for FASTQ parsing");
     } else {
-        auto fileStream = std::make_unique<std::ifstream>(filePath_, std::ios::binary);
-        if (!fileStream->is_open()) {
+        // Use openInputFile for automatic decompression of gzip, bzip2, xz etc.
+        stream_ = openInputFile(filePath_);
+        if (!stream_ || !*stream_) {
             throw IOError(
                           "Failed to open FASTQ file: " + filePath_.string());
         }
-        stream_ = std::move(fileStream);
-        FQC_LOG_DEBUG("Opened FASTQ file: {}", filePath_.string());
+        
+        // Check if file is compressed based on extension
+        auto format = detectCompressionFormatFromExtension(filePath_);
+        isCompressed_ = (format != CompressionFormat::kNone);
+        
+        FQC_LOG_DEBUG("Opened FASTQ file: {} (compressed: {})", 
+                      filePath_.string(), isCompressed_);
     }
 
     isOpen_ = true;
