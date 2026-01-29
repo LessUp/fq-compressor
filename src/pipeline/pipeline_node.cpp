@@ -1090,60 +1090,41 @@ public:
         chunk.isLast = block.isLast;
 
         try {
-            // Determine codec families
-            auto seqCodecFamily = static_cast<CodecFamily>(block.codecSeq >> 4);
-            auto qualCodecFamily = static_cast<CodecFamily>(block.codecQual >> 4);
-            auto idCodecFamily = static_cast<CodecFamily>(block.codecIds >> 4);
-            auto auxCodecFamily = static_cast<CodecFamily>(block.codecAux >> 4);
+            // Configure BlockCompressor for decompression
+            algo::BlockCompressorConfig compressorConfig;
+            compressorConfig.readLengthClass = format::getReadLengthClass(globalHeader.flags);
+            compressorConfig.qualityMode = format::getQualityMode(globalHeader.flags);
+            compressorConfig.idMode = format::getIdMode(globalHeader.flags);
+            compressorConfig.numThreads = 1;  // Single-threaded per block
 
-            // Decompress ID stream
-            std::vector<std::string> ids;
-            if (!block.idStream.empty()) {
-                ids = decompressIdStream(block.idStream, block.readCount, idCodecFamily);
-            } else {
-                // Generate placeholder IDs
-                ids.reserve(block.readCount);
-                for (std::uint32_t i = 0; i < block.readCount; ++i) {
-                    ids.push_back(config_.idPrefix + std::to_string(block.startReadId + i));
-                }
+            // Create block header from compressed block metadata
+            format::BlockHeader blockHeader;
+            blockHeader.blockId = block.blockId;
+            blockHeader.readCount = block.readCount;
+            blockHeader.uniformReadLength = block.uniformReadLength;
+            blockHeader.codecIds = block.codecIds;
+            blockHeader.codecSeq = block.codecSeq;
+            blockHeader.codecQual = block.codecQual;
+            blockHeader.codecAux = block.codecAux;
+
+            // Use BlockCompressor to decompress all streams together
+            algo::BlockCompressor compressor(compressorConfig);
+            auto decompressResult = compressor.decompress(
+                blockHeader,
+                block.idStream,
+                block.seqStream,
+                block.qualStream,
+                block.auxStream
+            );
+
+            if (!decompressResult) {
+                throw DecompressionError(
+                    fmt::format("Failed to decompress block {}: {}",
+                               block.blockId, decompressResult.error().what()));
             }
 
-            // Decompress sequence stream
-            std::vector<std::string> sequences;
-            if (!block.seqStream.empty()) {
-                sequences = decompressSeqStream(block.seqStream, block.readCount, 
-                                                 block.uniformReadLength, seqCodecFamily);
-            }
-
-            // Decompress quality stream
-            std::vector<std::string> qualities;
-            if (!block.qualStream.empty()) {
-                qualities = decompressQualStream(block.qualStream, block.readCount,
-                                                  block.uniformReadLength, qualCodecFamily);
-            } else {
-                // Generate placeholder qualities
-                qualities.reserve(block.readCount);
-                for (std::uint32_t i = 0; i < block.readCount; ++i) {
-                    std::size_t len = sequences.empty() ? 0 : sequences[i].length();
-                    qualities.push_back(std::string(len, config_.placeholderQual));
-                }
-            }
-
-            // Decompress auxiliary stream (read lengths) if variable length
-            std::vector<std::uint32_t> readLengths;
-            if (block.uniformReadLength == 0 && !block.auxStream.empty()) {
-                readLengths = decompressAuxStream(block.auxStream, block.readCount, auxCodecFamily);
-            }
-
-            // Build read records
-            chunk.reads.reserve(block.readCount);
-            for (std::uint32_t i = 0; i < block.readCount; ++i) {
-                ReadRecord record;
-                record.id = (i < ids.size()) ? std::move(ids[i]) : "";
-                record.sequence = (i < sequences.size()) ? std::move(sequences[i]) : "";
-                record.quality = (i < qualities.size()) ? std::move(qualities[i]) : "";
-                chunk.reads.push_back(std::move(record));
-            }
+            // Move decompressed reads into chunk
+            chunk.reads = std::move(decompressResult->reads);
 
             ++totalBlocksDecompressed_;
             state_ = NodeState::kIdle;
@@ -1180,113 +1161,6 @@ public:
     const DecompressorNodeConfig& config() const noexcept { return config_; }
 
 private:
-    /// @brief Decompress ID stream
-    std::vector<std::string> decompressIdStream(
-        const std::vector<std::uint8_t>& data,
-        std::uint32_t count,
-        CodecFamily codecFamily) {
-        
-        std::vector<std::string> ids;
-        ids.reserve(count);
-
-        // Use IDCompressor for decompression
-        algo::IDCompressor idCompressor;
-        auto result = idCompressor.decompress(data, count);
-        if (result) {
-            return std::move(*result);
-        }
-
-        // Fallback: generate placeholder IDs
-        for (std::uint32_t i = 0; i < count; ++i) {
-            ids.push_back(config_.idPrefix + std::to_string(i + 1));
-        }
-        return ids;
-    }
-
-    /// @brief Decompress sequence stream
-    std::vector<std::string> decompressSeqStream(
-        const std::vector<std::uint8_t>& data,
-        std::uint32_t count,
-        std::uint32_t uniformLength,
-        CodecFamily codecFamily) {
-        
-        std::vector<std::string> sequences;
-        sequences.reserve(count);
-
-        // TODO: Implement proper sequence decompression using BlockCompressor::decompress
-        // For now, return placeholder sequences
-        for (std::uint32_t i = 0; i < count; ++i) {
-            sequences.emplace_back();
-        }
-        return sequences;
-    }
-
-    /// @brief Decompress quality stream
-    std::vector<std::string> decompressQualStream(
-        const std::vector<std::uint8_t>& data,
-        std::uint32_t count,
-        std::uint32_t uniformLength,
-        CodecFamily codecFamily) {
-        
-        std::vector<std::string> qualities;
-        qualities.reserve(count);
-
-        // Use QualityCompressor for decompression
-        algo::QualityCompressor qualCompressor;
-        auto result = qualCompressor.decompress(data, count, uniformLength);
-        if (result) {
-            return std::move(*result);
-        }
-
-        // Fallback: return placeholder qualities
-        for (std::uint32_t i = 0; i < count; ++i) {
-            qualities.push_back(std::string(uniformLength > 0 ? uniformLength : 100, 
-                                            config_.placeholderQual));
-        }
-        return qualities;
-    }
-
-    /// @brief Decompress auxiliary stream (read lengths)
-    std::vector<std::uint32_t> decompressAuxStream(
-        const std::vector<std::uint8_t>& data,
-        std::uint32_t count,
-        CodecFamily codecFamily) {
-        
-        std::vector<std::uint32_t> lengths;
-        lengths.reserve(count);
-
-        // Delta + Varint decoding
-        std::uint32_t prevLength = 0;
-        std::size_t pos = 0;
-        
-        while (pos < data.size() && lengths.size() < count) {
-            // Decode varint
-            std::int64_t delta = 0;
-            std::uint32_t shift = 0;
-            std::uint8_t byte;
-            do {
-                if (pos >= data.size()) break;
-                byte = data[pos++];
-                delta |= static_cast<std::int64_t>(byte & 0x7F) << shift;
-                shift += 7;
-            } while (byte & 0x80);
-            
-            // ZigZag decode for signed delta
-            delta = (delta >> 1) ^ -(delta & 1);
-            
-            prevLength = static_cast<std::uint32_t>(
-                static_cast<std::int64_t>(prevLength) + delta);
-            lengths.push_back(prevLength);
-        }
-
-        // Pad with zeros if needed
-        while (lengths.size() < count) {
-            lengths.push_back(0);
-        }
-
-        return lengths;
-    }
-
     DecompressorNodeConfig config_;
     NodeState state_ = NodeState::kIdle;
     std::atomic<std::uint32_t> totalBlocksDecompressed_{0};
