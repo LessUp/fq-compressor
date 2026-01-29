@@ -1,28 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls:*)",
-      "Bash(./scripts/build.sh:*)",
-      "Bash(python3:*)",
-      "Bash(wc:*)",
-      "Bash(cmake:*)",
-      "Bash(build/gcc-release/src/fqc:*)",
-      "Bash(build/clang-release/src/fqc:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\n添加 GCC vs Clang 编译器性能对比基准测试框架\n\n主要改进：\n1. 构建 GCC Release 和 Clang Release 两个优化版本\n2. 实现编译器性能对比基准测试（compiler_benchmark.py）\n3. 添加多维度可视化报告生成（5个关键指标）\n4. 生成 HTML、Markdown、JSON 格式的综合报告\n5. 创建详细的 Benchmark 文档和使用指南\n\n新增文件：\n- docs/BENCHMARK.md - 完整的 Benchmark 框架文档 \\(350+ 行\\)\n- docs/BENCHMARK_SUMMARY.md - 实现总结文档\n\n修改文件：\n- README.md - 添加 \"Performance Benchmarking\" 部分\n- 修复 4 个 C++ 文件中的 hex escape sequence 问题\n\n性能指标：\n- 压缩/解压速度对比\n- 压缩率和 bits/base\n- 峰值内存使用\n- 并行扩展性分析\n- 编译器优化效果对比\n\n生成的报告包括：\n- benchmark_report.html - 完整的可视化 HTML 报告\n- benchmark_report.md - Markdown 格式报告\n- 5 个 PNG 图表（速度、压缩率、内存、扩展性）\n- benchmark_results.json - 原始数据\n\nBenchmark 框架已就绪，待压缩功能完全实现后可获得完整的性能数据。\nEOF\n\\)\")",
-      "Bash(git commit:*)",
-      "Bash(zcat:*)",
-      "Bash(cloc:*)",
-      "Bash(g++:*)",
-      "Bash(conan install:*)",
-      "Bash(git checkout:*)",
-      "Bash(git reset:*)",
-      "Bash(grep:*)",
-      "Bash(ctest:*)",
-      "Bash(tee:*)",
-      "Bash(/usr/bin/cmake:*)",
-      "Bash(ninja:*)",
-      "Bash(/usr/local/bin/cmake --build:*)"
-    ]
+      "Bash",
+      "Bash(*:*)"
+    ],
+    "deny": []
   }
 }
