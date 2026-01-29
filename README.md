@@ -315,3 +315,20 @@ ctest --test-dir build/build/Release
 
 ## License
 [License TBD - Likely GPLv3 or similar due to Spring dependency]
+
+
+## 📊 Benchmark Results
+
+**Latest benchmark**: [report_latest.md](docs/benchmark/results/report_latest.md)
+**Visualization**: [charts_latest.html](docs/benchmark/results/charts_latest.html)
+
+### Performance Summary
+
+| Compiler | Compression | Decompression | Compression Ratio |
+|----------|-------------|---------------|-------------------|
+| GCC      | 11.30 MB/s | 60.10 MB/s | 3.9712x |
+| Clang    | 11.90 MB/s | 62.30 MB/s | 3.9712x |
+
+*Tested on Intel(R) Core(TM) i7-9700 CPU @ 3.00GHz with 8 cores, using 2.27M Illumina reads (511 MB uncompressed)*
+
+See [docs/benchmark/](docs/benchmark/) for detailed results and historical data.
