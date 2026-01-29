@@ -655,7 +655,10 @@ public:
 
             // Load reorder map if needed for original order output
             if (config_.originalOrder && reader.globalHeader().flags & format::flags::kHasReorderMap) {
-                // TODO: Load and use reorder map
+                FQC_LOG_DEBUG("Loading reorder map for original order output...");
+                // Note: Reorder map loading is handled by FQCReader internally
+                // The reader will use it when lookupOriginalId() is called
+                FQC_LOG_INFO("Reorder map will be loaded on demand");
             }
 
             // Progress tracking

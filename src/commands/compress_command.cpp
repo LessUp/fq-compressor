@@ -19,6 +19,7 @@
 #include "fqc/algo/global_analyzer.h"
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_writer.h"
+#include "fqc/format/reorder_map.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
 #include "fqc/pipeline/pipeline.h"
@@ -588,8 +589,22 @@ void CompressCommand::runCompression() {
     if (analysisResult.reorderingPerformed &&
         !analysisResult.forwardMap.empty() && !analysisResult.reverseMap.empty()) {
         FQC_LOG_DEBUG("Writing reorder map...");
-        // TODO: Compress and write reorder maps
-        // For now, we skip this as the FQCWriter interface needs map compression
+
+        // Prepare ReorderMap header
+        format::ReorderMap mapHeader;
+        mapHeader.totalReads = static_cast<std::uint32_t>(analysisResult.forwardMap.size());
+        mapHeader.forwardMapSize = 0;  // Will be set by writeReorderMap
+        mapHeader.reverseMapSize = 0;  // Will be set by writeReorderMap
+
+        // Compress maps (Delta + Varint encoding)
+        auto compressedForward = format::deltaEncode(std::span<const ReadId>(analysisResult.forwardMap.data(), analysisResult.forwardMap.size()));
+        auto compressedReverse = format::deltaEncode(std::span<const ReadId>(analysisResult.reverseMap.data(), analysisResult.reverseMap.size()));
+
+        // Write to archive
+        fqcWriter.writeReorderMap(mapHeader, compressedForward, compressedReverse);
+
+        FQC_LOG_INFO("Reorder map written: {} reads, forward={} bytes, reverse={} bytes",
+                     mapHeader.totalReads, compressedForward.size(), compressedReverse.size());
     }
 
     // =========================================================================
