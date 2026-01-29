@@ -111,16 +111,31 @@ FQCException Error::toException() const {
         case ErrorCode::kUsageError:
             return UsageError(message_);
         case ErrorCode::kIOError:
+        case ErrorCode::kFileNotFound:
+        case ErrorCode::kFileExists:
+        case ErrorCode::kFileOpenFailed:
+        case ErrorCode::kSeekFailed:
             return IOError(message_);
         case ErrorCode::kFormatError:
+        case ErrorCode::kInvalidFormat:
+        case ErrorCode::kInvalidArgument:
+        case ErrorCode::kInvalidState:
+        case ErrorCode::kCorruptedData:
             return FormatError(message_);
         case ErrorCode::kChecksumError:
+        case ErrorCode::kChecksumMismatch:
             return ChecksumError(message_);
         case ErrorCode::kUnsupportedCodec:
+        case ErrorCode::kUnsupportedFormat:
             return UnsupportedCodecError(message_);
         case ErrorCode::kSuccess:
-            // Should not happen, but handle gracefully
-            return FQCException(ErrorCode::kSuccess, message_);
+        case ErrorCode::kCancelled:
+        case ErrorCode::kDecompressionFailed:
+        case ErrorCode::kInternalError:
+        case ErrorCode::kCompressionFailed:
+        case ErrorCode::kDecompressionError:
+            // Handle gracefully with base exception
+            return FQCException(code_, message_);
     }
     // Fallback for unknown error codes
     return FQCException(code_, message_);
@@ -131,16 +146,31 @@ FQCException Error::toException() const {
         case ErrorCode::kUsageError:
             throw UsageError(message_);
         case ErrorCode::kIOError:
+        case ErrorCode::kFileNotFound:
+        case ErrorCode::kFileExists:
+        case ErrorCode::kFileOpenFailed:
+        case ErrorCode::kSeekFailed:
             throw IOError(message_);
         case ErrorCode::kFormatError:
+        case ErrorCode::kInvalidFormat:
+        case ErrorCode::kInvalidArgument:
+        case ErrorCode::kInvalidState:
+        case ErrorCode::kCorruptedData:
             throw FormatError(message_);
         case ErrorCode::kChecksumError:
+        case ErrorCode::kChecksumMismatch:
             throw ChecksumError(message_);
         case ErrorCode::kUnsupportedCodec:
+        case ErrorCode::kUnsupportedFormat:
             throw UnsupportedCodecError(message_);
         case ErrorCode::kSuccess:
-            // Should not happen, but throw base exception
-            throw FQCException(ErrorCode::kSuccess, message_);
+        case ErrorCode::kCancelled:
+        case ErrorCode::kDecompressionFailed:
+        case ErrorCode::kInternalError:
+        case ErrorCode::kCompressionFailed:
+        case ErrorCode::kDecompressionError:
+            // Handle gracefully with base exception
+            throw FQCException(code_, message_);
     }
     // Fallback for unknown error codes
     throw FQCException(code_, message_);

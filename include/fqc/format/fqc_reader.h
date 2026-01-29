@@ -100,8 +100,11 @@ struct BlockData {
 // Reorder Map Data Structure
 // =============================================================================
 
-/// @brief Represents loaded reorder map data.
-struct ReorderMapData {
+/// @brief Represents loaded reorder map data (internal to FQCReader).
+/// @note This is different from format::ReorderMapData in reorder_map.h which
+/// is used for serialization. This struct holds the decompressed maps for
+/// runtime lookups.
+struct LoadedReorderMapData {
     /// @brief Reorder map header.
     ReorderMap header;
 
@@ -276,7 +279,7 @@ public:
 
     /// @brief Get the loaded reorder map.
     /// @return Reorder map data, or nullopt if not loaded.
-    [[nodiscard]] const std::optional<ReorderMapData>& reorderMap() const noexcept {
+    [[nodiscard]] const std::optional<LoadedReorderMapData>& reorderMap() const noexcept {
         return reorderMap_;
     }
 
@@ -376,7 +379,7 @@ private:
     std::vector<IndexEntry> blockIndex_;
 
     /// @brief Loaded reorder map (optional).
-    std::optional<ReorderMapData> reorderMap_;
+    std::optional<LoadedReorderMapData> reorderMap_;
 
     /// @brief File size in bytes.
     std::uint64_t fileSize_ = 0;

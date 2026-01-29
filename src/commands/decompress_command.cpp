@@ -431,8 +431,8 @@ void DecompressCommand::runDecompressionParallel() {
                         progress,
                         info.readsProcessed,
                         info.currentBlock,
-                        info.bytesProcessed / (1024.0 * 1024.0) /
-                        (info.elapsedMs > 0 ? info.elapsedMs / 1000.0 : 1.0));
+                        static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
+                        (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
             return true;  // Continue
         };
         pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds

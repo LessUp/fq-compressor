@@ -128,7 +128,7 @@ TEST(MemoryEstimatorTest, EstimatePhase1) {
 
     // Should be approximately reads * 24 bytes * safety margin
     std::size_t expected = static_cast<std::size_t>(
-        reads * kMemoryPerReadPhase1 * kMemorySafetyMargin);
+        static_cast<double>(reads) * kMemoryPerReadPhase1 * kMemorySafetyMargin);
     EXPECT_EQ(estimated, expected);
 }
 
@@ -142,7 +142,7 @@ TEST(MemoryEstimatorTest, EstimatePhase2) {
 
     // Should be approximately readsPerBlock * 50 bytes * safety margin * threads
     std::size_t perBlock = static_cast<std::size_t>(
-        readsPerBlock * kMemoryPerReadPhase2 * kMemorySafetyMargin);
+        static_cast<double>(readsPerBlock) * kMemoryPerReadPhase2 * kMemorySafetyMargin);
     EXPECT_EQ(estimated, perBlock * numThreads);
 }
 
@@ -371,9 +371,7 @@ TEST(MemoryMonitorTest, ResetPeak) {
     MemoryMonitor monitor(budget);
 
     // Get initial usage to set peak
-    auto usage1 = monitor.currentUsage();
-
-    // Reset peak
+    [[maybe_unused]] auto usage1 = monitor.currentUsage();
     monitor.resetPeak();
 
     // Get usage again - peak should be reset

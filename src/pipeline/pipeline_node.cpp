@@ -344,11 +344,11 @@ private:
         try {
             auto fileSize = std::filesystem::file_size(path);
             // Estimate bytes per record from sample
-            double avgRecordSize = static_cast<double>(stats.totalBases) / stats.totalRecords;
+            double avgRecordSize = static_cast<double>(stats.totalBases) / static_cast<double>(stats.totalRecords);
             // FASTQ overhead: @ID\n + SEQ\n + +\n + QUAL\n ≈ 4 + ID_len + 2*seq_len
-            avgRecordSize = avgRecordSize * 2 + 20;  // Rough estimate
+            avgRecordSize = static_cast<double>(avgRecordSize) * 2 + 20;  // Rough estimate
             
-            return static_cast<std::uint64_t>(fileSize / avgRecordSize);
+            return static_cast<std::uint64_t>(static_cast<double>(fileSize) / avgRecordSize);
         } catch (...) {
             return 0;
         }

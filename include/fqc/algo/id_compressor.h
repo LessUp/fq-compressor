@@ -471,7 +471,10 @@ std::uint64_t uvarintDecode(std::span<const std::uint8_t> data, std::size_t& byt
 /// @param value ZigZag encoded unsigned integer
 /// @return Decoded signed integer
 [[nodiscard]] inline constexpr std::int64_t zigzagDecode(std::uint64_t value) noexcept {
-    return static_cast<std::int64_t>((value >> 1) ^ -(static_cast<std::int64_t>(value) & 1));
+    // Cast to avoid sign conversion warning: -(value & 1) needs explicit handling
+    // (value >> 1) is unsigned, XOR with signed result needs care
+    return static_cast<std::int64_t>(value >> 1) ^
+           -static_cast<std::int64_t>(value & 1);
 }
 
 }  // namespace fqc::algo

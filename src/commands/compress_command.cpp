@@ -337,7 +337,7 @@ void CompressCommand::runCompression() {
         algo::GlobalAnalyzerConfig analyzerConfig;
         analyzerConfig.readsPerBlock = options_.blockSize;
         analyzerConfig.enableReorder = true;
-        analyzerConfig.numThreads = options_.threads > 0 ? options_.threads : 0;
+        analyzerConfig.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
         analyzerConfig.memoryLimit = options_.memoryLimitMb > 0
             ? options_.memoryLimitMb * 1024 * 1024 : 0;
 
@@ -463,7 +463,7 @@ void CompressCommand::runCompression() {
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::system_clock::to_time_t(now);
 
-    fqcWriter.writeGlobalHeader(globalHeader, inputFilename, timestamp);
+    fqcWriter.writeGlobalHeader(globalHeader, inputFilename, static_cast<std::uint64_t>(timestamp));
 
     // =========================================================================
     // Phase 2: Block Compression
@@ -473,8 +473,8 @@ void CompressCommand::runCompression() {
 
     algo::BlockCompressorConfig compressorConfig;
     compressorConfig.readLengthClass = analysisResult.lengthClass;
-    compressorConfig.compressionLevel = options_.compressionLevel;
-    compressorConfig.numThreads = options_.threads > 0 ? options_.threads : 0;
+    compressorConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
+    compressorConfig.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
 
     // Convert quality mode
     {
@@ -576,8 +576,8 @@ void CompressCommand::runCompression() {
                          blockReads.size() * 100,  // Rough estimate
                          compressedBlock.totalCompressedSize(),
                          blockReads.empty() ? 0.0 :
-                            (100.0 * compressedBlock.totalCompressedSize() /
-                             (blockReads.size() * 100)));
+                            (100.0 * static_cast<double>(compressedBlock.totalCompressedSize()) /
+                             static_cast<double>(blockReads.size() * 100)));
         }
     }
 
@@ -655,8 +655,8 @@ void CompressCommand::runCompressionParallel() {
                         progress,
                         info.readsProcessed,
                         info.currentBlock,
-                        info.bytesProcessed / (1024.0 * 1024.0) /
-                        (info.elapsedMs > 0 ? info.elapsedMs / 1000.0 : 1.0));
+                        static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
+                        (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
             return true;  // Continue
         };
         pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds

@@ -80,11 +80,6 @@ GlobalOptions gOptions;
     return isatty(fileno(stdout)) != 0;
 }
 
-/// @brief Check if stdin is a TTY.
-[[nodiscard]] bool isStdinTty() noexcept {
-    return isatty(fileno(stdin)) != 0;
-}
-
 // =============================================================================
 // Compress Command Options
 // =============================================================================
