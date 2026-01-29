@@ -394,9 +394,9 @@ struct ReadRecordView {
     constexpr ReadRecordView() = default;
 
     /// @brief Construct from string_views.
-    constexpr ReadRecordView(std::string_view id, std::string_view sequence,
-                             std::string_view quality)
-        : id(id), sequence(sequence), quality(quality) {}
+    constexpr ReadRecordView(std::string_view id_, std::string_view sequence_,
+                             std::string_view quality_)
+        : id(id_), sequence(sequence_), quality(quality_) {}
 
     /// @brief Construct from a ReadRecord.
     ReadRecordView(const ReadRecord& record)  // NOLINT(google-explicit-constructor)
