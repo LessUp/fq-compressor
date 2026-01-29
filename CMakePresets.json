@@ -72,22 +72,34 @@
             }
         },
         {
-            "name": "conan-gcc-base",
+            "name": "conan-gcc-debug-base",
             "hidden": true,
             "inherits": "gcc-base",
             "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
         },
         {
-            "name": "conan-clang-base",
+            "name": "conan-gcc-release-base",
+            "hidden": true,
+            "inherits": "gcc-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Release/generators/conan_toolchain.cmake"
+        },
+        {
+            "name": "conan-clang-debug-base",
             "hidden": true,
             "inherits": "clang-base",
             "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
         },
         {
+            "name": "conan-clang-release-base",
+            "hidden": true,
+            "inherits": "clang-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Release/generators/conan_toolchain.cmake"
+        },
+        {
             "name": "gcc-debug",
             "displayName": "GCC Debug",
             "description": "Debug build with GCC",
-            "inherits": "conan-gcc-base",
+            "inherits": "conan-gcc-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
@@ -97,7 +109,7 @@
             "name": "gcc-release",
             "displayName": "GCC Release",
             "description": "Release build with GCC (recommended for production)",
-            "inherits": "conan-gcc-base",
+            "inherits": "conan-gcc-release-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto",
@@ -108,7 +120,7 @@
             "name": "gcc-relwithdebinfo",
             "displayName": "GCC RelWithDebInfo",
             "description": "Release build with debug info using GCC",
-            "inherits": "conan-gcc-base",
+            "inherits": "conan-gcc-release-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -DNDEBUG"
@@ -118,7 +130,7 @@
             "name": "clang-debug",
             "displayName": "Clang Debug",
             "description": "Debug build with Clang + libc++ (recommended for development)",
-            "inherits": "conan-clang-base",
+            "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG -stdlib=libc++"
@@ -128,7 +140,7 @@
             "name": "clang-release",
             "displayName": "Clang Release",
             "description": "Release build with Clang + libc++",
-            "inherits": "conan-clang-base",
+            "inherits": "conan-clang-release-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto -stdlib=libc++",
@@ -139,7 +151,7 @@
             "name": "clang-asan",
             "displayName": "Clang AddressSanitizer",
             "description": "Debug build with AddressSanitizer for memory error detection",
-            "inherits": "conan-clang-base",
+            "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer",
@@ -151,7 +163,7 @@
             "name": "clang-tsan",
             "displayName": "Clang ThreadSanitizer",
             "description": "Debug build with ThreadSanitizer for data race detection",
-            "inherits": "conan-clang-base",
+            "inherits": "conan-clang-debug-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -stdlib=libc++ -fsanitize=thread -fno-omit-frame-pointer",
