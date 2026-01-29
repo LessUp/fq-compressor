@@ -311,7 +311,7 @@ std::vector<Minimizer> extractMinimizers(std::string_view sequence,
 
     // Find minimizers using sliding window
     std::size_t windowSize = std::min(w, numKmers);
-    std::uint64_t prevMinHash = UINT64_MAX;
+    [[maybe_unused]] std::uint64_t prevMinHash = UINT64_MAX;
     std::size_t prevMinPos = SIZE_MAX;
 
     for (std::size_t windowStart = 0; windowStart + windowSize <= numKmers; ++windowStart) {
