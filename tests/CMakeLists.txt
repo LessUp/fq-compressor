@@ -44,6 +44,14 @@ function(fqc_add_test test_name)
             GTest::gtest_main
             ${ARG_LIBRARIES}
     )
+
+    # Workaround for GTest built with libstdc++ when using libc++
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+")
+        target_link_libraries(${test_name}
+            PRIVATE
+                stdc++
+        )
+    endif()
     
     # Add RapidCheck for property-based tests
     if(ARG_PROPERTY_BASED AND rapidcheck_FOUND)
