@@ -114,5 +114,5 @@ fq-data/.spec-workflow/user-templates/README.md
 fq-data/E150035817_L01_1201_1.sub10.fq.gz
 fq-data/E150035817_L01_1201_2.sub10.fq.gz
 
-
-/workspace/ref-projects/
+ref-projects/
+ref-projects/*
