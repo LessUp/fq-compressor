@@ -29,19 +29,9 @@ namespace fqc::commands {
 // Compression Options
 // =============================================================================
 
-/// @brief Quality compression mode.
-enum class QualityCompressionMode : std::uint8_t {
-    kLossless = 0,     ///< Preserve exact quality values
-    kIllumina8 = 1,    ///< Illumina 8-bin quantization
-    kQvz = 2,          ///< QVZ lossy compression
-    kDiscard = 3       ///< Discard quality values
-};
-
 /// @brief Parse quality mode from string.
-[[nodiscard]] QualityCompressionMode parseQualityMode(std::string_view str);
-
-/// @brief Get string representation of quality mode.
-[[nodiscard]] std::string_view qualityModeToString(QualityCompressionMode mode);
+/// @note Uses QualityMode from fqc/common/types.h.
+[[nodiscard]] QualityMode parseQualityMode(std::string_view str);
 
 /// @brief Configuration options for compression.
 struct CompressOptions {
@@ -70,7 +60,7 @@ struct CompressOptions {
     bool streamingMode = false;
 
     /// @brief Quality compression mode.
-    QualityCompressionMode qualityMode = QualityCompressionMode::kLossless;
+    QualityMode qualityMode = QualityMode::kLossless;
 
     /// @brief Long read handling mode.
     ReadLengthClass longReadMode = ReadLengthClass::kShort;
