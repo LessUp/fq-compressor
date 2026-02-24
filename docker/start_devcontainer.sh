@@ -149,7 +149,7 @@ main() {
     # 4. 启动 SSHD
     log_step "启动 SSHD..."
     compose -f "${COMPOSE_FILE}" exec -T -u developer dev bash -lc \
-        'bash /workspace/.devcontainer/start-sshd.sh'
+        'bash /workspace/.devcontainer/scripts/start-sshd.sh'
 
     # 5. 完成
     echo ""

@@ -114,7 +114,7 @@ setup_conan() {
 
 # 启动 SSHD
 start_sshd() {
-    local sshd_script="$WORKSPACE/.devcontainer/start-sshd.sh"
+    local sshd_script="$WORKSPACE/.devcontainer/scripts/start-sshd.sh"
     if [ -x "$sshd_script" ]; then
         bash "$sshd_script" || true
     fi
@@ -126,9 +126,10 @@ check_environment() {
         log_warn "建议使用 VS Code Remote - WSL 在 WSL2 中打开仓库，再执行 Reopen in Container"
     fi
 
-    if [ ! -S "/ssh-agent" ]; then
-        log_warn "未检测到 SSH agent。若需要访问私有仓库，请在 WSL 中执行："
-        log_warn "  eval \"$(ssh-agent -s)\" && ssh-add"
+    # 仅当 /ssh-agent 挂载点存在但不是有效 socket 时才警告
+    if [ -e "/ssh-agent" ] && [ ! -S "/ssh-agent" ]; then
+        log_warn "SSH agent socket 存在但不可用。若需要访问私有仓库，请在 WSL 中执行："
+        log_warn "  eval \"\$(ssh-agent -s)\" && ssh-add"
         log_warn "然后 Rebuild/Reopen Container"
     fi
 }
@@ -161,7 +162,7 @@ cmd_create() {
     setup_git
     setup_conan
 
-    local setup_script="$WORKSPACE/.devcontainer/setup-sshd.sh"
+    local setup_script="$WORKSPACE/.devcontainer/scripts/setup-sshd.sh"
     if [ -x "$setup_script" ]; then
         bash "$setup_script" || true
     fi
@@ -169,27 +170,23 @@ cmd_create() {
     log_info "postCreateCommand 完成"
 }
 
-cmd_start() {
-    log_info "执行 postStartCommand..."
-
+_sync_and_start() {
     sync_gitconfig
     sync_claude_config
     sync_codex_config
     setup_git
     start_sshd
+}
 
+cmd_start() {
+    log_info "执行 postStartCommand..."
+    _sync_and_start
     log_info "postStartCommand 完成"
 }
 
 cmd_attach() {
     log_info "执行 postAttachCommand..."
-
-    sync_gitconfig
-    sync_claude_config
-    sync_codex_config
-    setup_git
-    start_sshd
-
+    _sync_and_start
     log_info "postAttachCommand 完成"
 }
 

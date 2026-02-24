@@ -95,7 +95,12 @@ collect_keys() {
         done
     fi
 
-    return $keys_found
+    # bash: return 0 = 成功, return 1 = 失败
+    if [ "$keys_found" -eq 1 ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 if collect_keys; then
