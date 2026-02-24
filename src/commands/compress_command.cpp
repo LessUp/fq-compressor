@@ -30,36 +30,21 @@ namespace fqc::commands {
 // Quality Mode Parsing
 // =============================================================================
 
-QualityCompressionMode parseQualityMode(std::string_view str) {
+QualityMode parseQualityMode(std::string_view str) {
     if (str == "none" || str == "lossless") {
-        return QualityCompressionMode::kLossless;
+        return QualityMode::kLossless;
     }
     if (str == "illumina8") {
-        return QualityCompressionMode::kIllumina8;
+        return QualityMode::kIllumina8;
     }
     if (str == "qvz") {
-        return QualityCompressionMode::kQvz;
+        return QualityMode::kQvz;
     }
     if (str == "discard") {
-        return QualityCompressionMode::kDiscard;
+        return QualityMode::kDiscard;
     }
     throw ArgumentError(
                         "Invalid quality mode: " + std::string(str));
-}
-
-std::string_view qualityModeToString(QualityCompressionMode mode) {
-    switch (mode) {
-        case QualityCompressionMode::kLossless:
-            return "lossless";
-        case QualityCompressionMode::kIllumina8:
-            return "illumina8";
-        case QualityCompressionMode::kQvz:
-            return "qvz";
-        case QualityCompressionMode::kDiscard:
-            return "discard";
-        default:
-            return "unknown";
-    }
 }
 
 // =============================================================================
@@ -435,24 +420,7 @@ void CompressCommand::runCompression() {
     }
 
     // Set quality mode
-    {
-        QualityMode qualMode = QualityMode::kLossless;
-        switch (options_.qualityMode) {
-            case QualityCompressionMode::kLossless:
-                qualMode = QualityMode::kLossless;
-                break;
-            case QualityCompressionMode::kIllumina8:
-                qualMode = QualityMode::kIllumina8;
-                break;
-            case QualityCompressionMode::kQvz:
-                qualMode = QualityMode::kQvz;
-                break;
-            case QualityCompressionMode::kDiscard:
-                qualMode = QualityMode::kDiscard;
-                break;
-        }
-        flags |= (static_cast<std::uint64_t>(qualMode) << format::flags::kQualityModeShift);
-    }
+    flags |= (static_cast<std::uint64_t>(options_.qualityMode) << format::flags::kQualityModeShift);
 
     // Set read length class
     flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass) << format::flags::kReadLengthClassShift);
@@ -477,25 +445,7 @@ void CompressCommand::runCompression() {
     compressorConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
     compressorConfig.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
 
-    // Convert quality mode
-    {
-        QualityMode qualMode = QualityMode::kLossless;
-        switch (options_.qualityMode) {
-            case QualityCompressionMode::kLossless:
-                qualMode = QualityMode::kLossless;
-                break;
-            case QualityCompressionMode::kIllumina8:
-                qualMode = QualityMode::kIllumina8;
-                break;
-            case QualityCompressionMode::kQvz:
-                qualMode = QualityMode::kQvz;
-                break;
-            case QualityCompressionMode::kDiscard:
-                qualMode = QualityMode::kDiscard;
-                break;
-        }
-        compressorConfig.qualityMode = qualMode;
-    }
+    compressorConfig.qualityMode = options_.qualityMode;
 
     algo::BlockCompressor blockCompressor(compressorConfig);
 
@@ -643,23 +593,7 @@ void CompressCommand::runCompressionParallel() {
     pipelineConfig.streamingMode = options_.streamingMode;
     pipelineConfig.memoryLimitMB = options_.memoryLimitMb;
 
-    // Convert quality mode
-    QualityMode qualMode = QualityMode::kLossless;
-    switch (options_.qualityMode) {
-        case QualityCompressionMode::kLossless:
-            qualMode = QualityMode::kLossless;
-            break;
-        case QualityCompressionMode::kIllumina8:
-            qualMode = QualityMode::kIllumina8;
-            break;
-        case QualityCompressionMode::kQvz:
-            qualMode = QualityMode::kQvz;
-            break;
-        case QualityCompressionMode::kDiscard:
-            qualMode = QualityMode::kDiscard;
-            break;
-    }
-    pipelineConfig.qualityMode = qualMode;
+    pipelineConfig.qualityMode = options_.qualityMode;
     pipelineConfig.idMode = IDMode::kExact;  // TODO: Make configurable
 
     // Progress callback

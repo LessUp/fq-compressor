@@ -34,6 +34,7 @@
 #include "commands/compress_command.h"
 #include "commands/decompress_command.h"
 #include "commands/info_command.h"
+#include "commands/verify_command.h"
 
 // Forward declarations for command handlers
 namespace fqc::commands {
@@ -84,7 +85,7 @@ GlobalOptions gOptions;
 // Compress Command Options
 // =============================================================================
 
-struct CompressOptions {
+struct CliCompressOptions {
     std::string input;
     std::string input2;               // Second input for PE (R2)
     std::string output;
@@ -100,13 +101,13 @@ struct CompressOptions {
     bool force = false;               // Overwrite existing output
 };
 
-CompressOptions gCompressOpts;
+CliCompressOptions gCompressOpts;
 
 // =============================================================================
 // Decompress Command Options
 // =============================================================================
 
-struct DecompressOptions {
+struct CliDecompressOptions {
     std::string input;
     std::string output;
     std::string range;           // Read range (e.g., "1:1000")
@@ -117,31 +118,31 @@ struct DecompressOptions {
     bool splitPe = false;        // Split PE output
 };
 
-DecompressOptions gDecompressOpts;
+CliDecompressOptions gDecompressOpts;
 
 // =============================================================================
 // Info Command Options
 // =============================================================================
 
-struct InfoOptions {
+struct CliInfoOptions {
     std::string input;
     bool json = false;  // Output as JSON
     bool detailed = false;  // Show detailed block info
 };
 
-InfoOptions gInfoOpts;
+CliInfoOptions gInfoOpts;
 
 // =============================================================================
 // Verify Command Options
 // =============================================================================
 
-struct VerifyOptions {
+struct CliVerifyOptions {
     std::string input;
     bool failFast = false;  // Stop on first error
     bool verbose = false;   // Show detailed verification
 };
 
-VerifyOptions gVerifyOpts;
+CliVerifyOptions gVerifyOpts;
 
 // =============================================================================
 // Command Setup Functions
@@ -320,7 +321,7 @@ int main(int argc, char* argv[]) {
         } else if (gOptions.verbosity >= 2) {
             logLevel = fqc::log::Level::kDebug;
         } else if (gOptions.verbosity >= 1) {
-            logLevel = fqc::log::Level::kInfo;
+            logLevel = fqc::log::Level::kDebug;
         }
         fqc::log::init("", logLevel);
     } catch (const std::exception& e) {
@@ -367,18 +368,42 @@ namespace fqc::commands {
 
 int runCompress([[maybe_unused]] CLI::App* app) {
     try {
-        auto cmd = createCompressCommand(
-            gCompressOpts.input,
-            gCompressOpts.output,
-            gCompressOpts.level,
-            gCompressOpts.reorder,
-            gCompressOpts.streaming,
-            gCompressOpts.lossyQuality,
-            gCompressOpts.longReadMode,
-            0,  // threads (auto-detect)
-            0,  // memoryLimit (no limit)
-            gCompressOpts.force
-        );
+        CompressOptions opts;
+        opts.inputPath = gCompressOpts.input;
+        opts.input2Path = gCompressOpts.input2;
+        opts.outputPath = gCompressOpts.output;
+        opts.compressionLevel = gCompressOpts.level;
+        opts.threads = gOptions.threads;
+        opts.memoryLimitMb = gOptions.memoryLimit;
+        opts.enableReordering = gCompressOpts.reorder;
+        opts.streamingMode = gCompressOpts.streaming;
+        opts.qualityMode = parseQualityMode(gCompressOpts.lossyQuality);
+        opts.maxBlockBases = gCompressOpts.maxBlockBases;
+        opts.scanAllLengths = gCompressOpts.scanAllLengths;
+        opts.interleaved = gCompressOpts.interleaved;
+        opts.forceOverwrite = gCompressOpts.force;
+        opts.showProgress = !gOptions.noProgress;
+
+        // Parse long read mode
+        if (gCompressOpts.longReadMode == "auto") {
+            opts.autoDetectLongRead = true;
+        } else if (gCompressOpts.longReadMode == "short") {
+            opts.autoDetectLongRead = false;
+            opts.longReadMode = ReadLengthClass::kShort;
+        } else if (gCompressOpts.longReadMode == "medium") {
+            opts.autoDetectLongRead = false;
+            opts.longReadMode = ReadLengthClass::kMedium;
+        } else if (gCompressOpts.longReadMode == "long") {
+            opts.autoDetectLongRead = false;
+            opts.longReadMode = ReadLengthClass::kLong;
+        }
+
+        // Parse PE layout
+        if (gCompressOpts.peLayout == "consecutive") {
+            opts.peLayout = PELayout::kConsecutive;
+        }
+
+        auto cmd = std::make_unique<CompressCommand>(std::move(opts));
         return cmd->execute();
     } catch (const FQCException& e) {
         FQC_LOG_ERROR("Compression failed: {}", e.what());
@@ -391,18 +416,25 @@ int runCompress([[maybe_unused]] CLI::App* app) {
 
 int runDecompress([[maybe_unused]] CLI::App* app) {
     try {
-        auto cmd = createDecompressCommand(
-            gDecompressOpts.input,
-            gDecompressOpts.output,
-            gDecompressOpts.range,
-            gDecompressOpts.headerOnly,
-            gDecompressOpts.originalOrder,
-            gDecompressOpts.skipCorrupted,
-            gDecompressOpts.corruptedPlaceholder,
-            gDecompressOpts.splitPe,
-            0,  // threads (auto-detect)
-            false  // force (not in struct)
-        );
+        DecompressOptions opts;
+        opts.inputPath = gDecompressOpts.input;
+        opts.outputPath = gDecompressOpts.output;
+        opts.headerOnly = gDecompressOpts.headerOnly;
+        opts.originalOrder = gDecompressOpts.originalOrder;
+        opts.skipCorrupted = gDecompressOpts.skipCorrupted;
+        opts.splitPairedEnd = gDecompressOpts.splitPe;
+        opts.threads = gOptions.threads;
+        opts.showProgress = !gOptions.noProgress;
+
+        if (!gDecompressOpts.corruptedPlaceholder.empty()) {
+            opts.corruptedPlaceholder = gDecompressOpts.corruptedPlaceholder;
+        }
+
+        if (!gDecompressOpts.range.empty()) {
+            opts.range = parseRange(gDecompressOpts.range);
+        }
+
+        auto cmd = std::make_unique<DecompressCommand>(std::move(opts));
         return cmd->execute();
     } catch (const FQCException& e) {
         FQC_LOG_ERROR("Decompression failed: {}", e.what());
@@ -431,9 +463,21 @@ int runInfo([[maybe_unused]] CLI::App* app) {
 }
 
 int runVerify([[maybe_unused]] CLI::App* app) {
-    FQC_LOG_INFO("Verify command not yet implemented");
-    FQC_LOG_INFO("Input: {}", gVerifyOpts.input);
-    return EXIT_SUCCESS;
+    try {
+        VerifyOptions opts;
+        opts.inputPath = gVerifyOpts.input;
+        opts.failFast = gVerifyOpts.failFast;
+        opts.verbose = gVerifyOpts.verbose;
+
+        auto cmd = std::make_unique<VerifyCommand>(std::move(opts));
+        return cmd->execute();
+    } catch (const FQCException& e) {
+        FQC_LOG_ERROR("Verification failed: {}", e.what());
+        return static_cast<int>(e.code());
+    } catch (const std::exception& e) {
+        FQC_LOG_ERROR("Unexpected error: {}", e.what());
+        return EXIT_FAILURE;
+    }
 }
 
 }  // namespace fqc::commands
