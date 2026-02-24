@@ -93,6 +93,10 @@ main() {
 
     log_info "准备 devcontainer 宿主机文件..."
 
+    # 0. 确保 ~/.ssh 目录存在（devcontainer 需要 bind mount）
+    ensure_dir "$H/.ssh"
+    chmod 700 "$H/.ssh" 2>/dev/null || true
+
     # 1. 准备 gitconfig
     ensure_file "$H/.gitconfig"
     ensure_file "$H/.fqcompressor-host-gitconfig" "$H/.gitconfig"

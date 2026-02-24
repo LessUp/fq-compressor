@@ -10,19 +10,6 @@
 2. 打开项目目录
 3. 按 `F1` → `Dev Containers: Reopen in Container`
 
-#### 使用简化配置（devcontainer.simple.json）
-
-当你希望跳过 docker-compose、直接用 Dockerfile 构建时：
-
-1. 按 `F1` → `Dev Containers: Open Folder in Container...`
-2. 选择配置文件：`.devcontainer/devcontainer.simple.json`
-
-也可以使用 devcontainer CLI：
-
-```bash
-devcontainer up --workspace-folder . --config .devcontainer/devcontainer.simple.json
-```
-
 ### JetBrains CLion 用户
 
 CLion 对 devcontainer 的支持与 VS Code 有所不同，请使用专用配置：
@@ -53,15 +40,12 @@ ssh -p 2222 developer@<服务器IP>
 ```
 .devcontainer/
 ├── devcontainer.json        # 主配置（使用 docker-compose）
-├── devcontainer.simple.json # 简化配置（直接构建）
 ├── devcontainer.clion.json  # CLion 专用配置
-├── setup-sshd.sh            # SSHD 配置脚本
-├── start-sshd.sh            # SSHD 启动脚本
 ├── scripts/
 │   ├── host-prepare.sh      # 宿主机准备脚本（initializeCommand）
-│   └── container-setup.sh   # 容器内设置脚本（postXxxCommand）
-├── setup-sshd.sh            # SSHD 配置脚本
-├── start-sshd.sh            # SSHD 启动脚本
+│   ├── container-setup.sh   # 容器内设置脚本（postXxxCommand）
+│   ├── setup-sshd.sh        # SSHD 配置脚本
+│   └── start-sshd.sh        # SSHD 启动脚本
 └── README.md                # 本文件
 
 docker/
@@ -222,7 +206,6 @@ DEVCONTAINER_HTTPS_PROXY=http://host.docker.internal:10808
 ## 切换配置
 
 - `devcontainer.json` - 使用 docker-compose，支持持久化缓存（VS Code）
-- `devcontainer.simple.json` - 直接构建，更简单但无缓存持久化（VS Code）
 - `devcontainer.clion.json` - CLion 专用配置，解决路径解析兼容性问题
 
 切换方法：在 IDE 中选择对应的配置文件。

@@ -68,8 +68,7 @@
     // Port Forwarding
     // =========================================================================
     "forwardPorts": [
-        8080,
-        2222
+        8080
     ],
     "portsAttributes": {
         "2222": {
@@ -124,7 +123,6 @@
                     "--clang-tidy",
                     "--completion-style=detailed",
                     "--header-insertion=never",
-                    "--suggest-missing-includes",
                     "--all-scopes-completion",
                     "--pch-storage=memory",
                     "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/clang++,/usr/bin/clang"
