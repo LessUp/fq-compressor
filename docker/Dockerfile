@@ -9,19 +9,20 @@
 # -----------------------------------------------------------------------------
 FROM gcc:15.2-bookworm AS build
 
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG ALL_PROXY
-ARG NO_PROXY
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG ALL_PROXY=""
+ARG NO_PROXY="localhost,127.0.0.1"
 
-ENV HTTP_PROXY=${HTTP_PROXY}
-ENV HTTPS_PROXY=${HTTPS_PROXY}
-ENV ALL_PROXY=${ALL_PROXY}
-ENV NO_PROXY=${NO_PROXY}
-ENV http_proxy=${HTTP_PROXY}
-ENV https_proxy=${HTTPS_PROXY}
-ENV all_proxy=${ALL_PROXY}
-ENV no_proxy=${NO_PROXY}
+# 代理仅在构建阶段生效，不持久化到镜像
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    ALL_PROXY=${ALL_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY} \
+    all_proxy=${ALL_PROXY} \
+    no_proxy=${NO_PROXY}
 
 RUN set -eux; \
     if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then \
@@ -31,7 +32,7 @@ RUN set -eux; \
     fi
 
 # APT 镜像源配置 (中国大陆用户可启用国内镜像加速)
-ARG USE_CHINA_MIRROR=1
+ARG USE_CHINA_MIRROR=0
 RUN if [ "${USE_CHINA_MIRROR}" = "1" ]; then \
         sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
         sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true; \
@@ -42,30 +43,14 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
-# 安装构建依赖
+# 安装构建依赖（仅编译所需，不包含开发工具）
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     build-essential \
     ninja-build \
     pkg-config \
     git \
-    vim \
-    neovim \
-    less \
-    tree \
-    grep \
-    htop \
-    tmux \
-    ripgrep \
-    zip \
-    unzip \
-    jq \
     wget \
     ca-certificates \
-    tar \
-    xz-utils \
-    gnupg \
-    lsb-release \
-    software-properties-common \
     python3 \
     python3-pip \
     ccache \

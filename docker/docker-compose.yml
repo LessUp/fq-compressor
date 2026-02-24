@@ -46,8 +46,8 @@ services:
       - SYS_PTRACE
     # 健康检查
     healthcheck:
-      test: ["CMD", "pgrep", "-x", "bash"]
-      interval: 30s
+      test: ["CMD", "gcc", "--version"]
+      interval: 60s
       timeout: 5s
       retries: 3
       start_period: 10s
