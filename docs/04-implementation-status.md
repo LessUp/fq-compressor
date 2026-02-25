@@ -226,10 +226,10 @@ fq-compressor项目已完成约 **60%** 的开发工作。核心算法模块(473
 
 ### 立即行动 (本周)
 
-1. ✅ 创建问题清单 (`docs/ISSUES.md`) - **已完成**
+1. ✅ 创建问题清单 (`docs/issues.md`) - **已完成**
 2. ✅ 更新设计文档 (`CLAUDE.md`) - **已完成**
 3. ✅ 创建实现进度报告 (本文档) - **进行中**
-4. 📝 创建边界条件规范 (`docs/05_boundary_conditions.md`)
+4. 📝 创建边界条件规范 (`docs/05-boundary-conditions.md`)
 
 ### Week 1 - MVP核心打通
 
@@ -275,10 +275,10 @@ fq-compressor项目已完成约 **60%** 的开发工作。核心算法模块(473
 
 ## 参考资源
 
-- **问题清单**: `/workspace/docs/ISSUES.md`
+- **问题清单**: `/workspace/docs/issues.md`
 - **实施计划**: `/home/developer/.claude/plans/prancy-napping-moonbeam.md`
 - **设计文档**: `/workspace/CLAUDE.md`
-- **边界条件**: `/workspace/docs/05_boundary_conditions.md` (待创建)
+- **边界条件**: `/workspace/docs/05-boundary-conditions.md` (待创建)
 
 ---
 

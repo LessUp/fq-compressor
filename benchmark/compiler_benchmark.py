@@ -383,7 +383,7 @@ def main():
     # 保存 JSON（如果启用可视化，必须保存）
     json_path = args.json
     if args.visualize and not json_path:
-        json_path = str(Path(output_dir) / "benchmark_results.json")
+        json_path = str(Path(output_dir) / "benchmark-results.json")
 
     if json_path:
         benchmark.export_json(data, json_path)

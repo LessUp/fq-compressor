@@ -29,8 +29,8 @@ graph TD
     E --> E2["日志 (quill)"];
     E --> E3["构建 (CMake+Conan)"];
 
-    click B1 "./docs/03_algorithm_selection.md" "查看序列压缩设计"
-    click C1 "./docs/02_strategy_evaluation.md" "查看格式设计"
+    click B1 "./docs/03-algorithm-selection.md" "查看序列压缩设计"
+    click C1 "./docs/02-strategy-evaluation.md" "查看格式设计"
 ```
 
 ## 模块索引
@@ -196,14 +196,14 @@ FQC 是项目的自定义压缩格式，支持随机访问：
 - ✅ CI/CD配置
 
 **未完成部分** (主要是集成层):
-- ❌ compress命令核心逻辑 (目前只写8字节魔数, 见 `/workspace/docs/ISSUES.md` ISSUE-P0-001)
+- ❌ compress命令核心逻辑 (目前只写8字节魔数, 见 `/workspace/docs/issues.md` ISSUE-P0-001)
 - ❌ decompress命令核心逻辑 (目前只写注释, 见 ISSUE-P0-002)
 - ❌ FQCWriter/Reader 的实际使用集成
 - ⚠️ TBB并行流水线 (框架存在,节点逻辑部分完成)
 
-**核心问题**: 项目有优秀的核心引擎,但缺少集成胶水代码将各模块串联起来 (详见 `docs/ISSUES.md`)
+**核心问题**: 项目有优秀的核心引擎,但缺少集成胶水代码将各模块串联起来 (详见 `docs/issues.md`)
 
-**修复计划**: 详见 `docs/04_implementation_status.md` 和 `/home/developer/.claude/plans/prancy-napping-moonbeam.md`
+**修复计划**: 详见 `docs/04-implementation-status.md` 和 `/home/developer/.claude/plans/prancy-napping-moonbeam.md`
 
 ### 推荐的开发路线图
 
@@ -246,7 +246,7 @@ Total: 12-17 周 (约 3-4 个月)
 
 ### Q: 项目目前处于什么阶段？
 
-A: **开发中后期** (约60%完成)。核心算法模块(4735行代码)已基本完成,基础设施完善,但命令集成层存在35个占位符待实现。详细进度见 `docs/04_implementation_status.md` 和 `docs/ISSUES.md`。
+A: **开发中后期** (约60%完成)。核心算法模块(4735行代码)已基本完成,基础设施完善,但命令集成层存在35个占位符待实现。详细进度见 `docs/04-implementation-status.md` 和 `docs/issues.md`。
 
 ### Q: 为什么选择 Spring ABC 而非其他算法？
 
@@ -264,10 +264,10 @@ A: 计划使用 MIT 许可证，但 Spring 依赖可能导致非商业限制（�
 
 ### 设计文档
 
-- `docs/01_feasibility_analysis.md` - 可行性分析
-- `docs/02_strategy_evaluation.md` - 策略评估
-- `docs/03_algorithm_selection.md` - 算法选择
-- `docs/reivew/*.md` - 设计评审报告
+- `docs/01-feasibility-analysis.md` - 可行性分析
+- `docs/02-strategy-evaluation.md` - 策略评估
+- `docs/03-algorithm-selection.md` - 算法选择
+- `docs/review/*.md` - 设计评审报告
 
 ### 构建配置
 
@@ -287,5 +287,5 @@ A: 计划使用 MIT 许可证，但 Spring 依赖可能导致非商业限制（�
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
-| 2026-01-27 | 状态诊断 | 修正项目状态描述,实际进度约60%,详见docs/ISSUES.md |
+| 2026-01-27 | 状态诊断 | 修正项目状态描述,实际进度约60%,详见docs/issues.md |
 | 2026-01-15 | 初始化 | 项目 AI 上下文初始化 |

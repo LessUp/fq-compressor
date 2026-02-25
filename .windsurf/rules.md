@@ -33,7 +33,7 @@ fq-compressor 是一个高性能 FASTQ 压缩器，结合：
 ## 代码风格（权威文档）
 - 以 `docs/dev/coding-standards.md` 为准。
 - C++20；clang-format/clang-tidy 配置来自 `.clang-format` / `.clang-tidy`。
-- 文件/目录：`snake_case`；文档：`kebab-case`；类：`PascalCase`；函数/变量：`camelCase`。
+- 源码文件/目录：`snake_case`；文档文件：`kebab-case`（小写+中划线）；类：`PascalCase`；函数/变量：`camelCase`。
 - include 顺序：标准库 -> 第三方 -> 本项目。
 
 ## 目录约定

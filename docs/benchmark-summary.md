@@ -79,23 +79,23 @@ python3 benchmark/compiler_benchmark.py \
 
 自动生成三种格式的综合报告：
 
-1. **HTML 报告** (`benchmark_report.html`)
+1. **HTML 报告** (`benchmark-report.html`)
    - 完全自包含，包含所有 base64 编码的图表
    - 美观的样式和排版
    - 可以直接在浏览器中打开
 
-2. **Markdown 报告** (`benchmark_report.md`)
+2. **Markdown 报告** (`benchmark-report.md`)
    - 便于版本控制和文档集成
    - 包含数据表格和图表链接
 
-3. **JSON 原始数据** (`benchmark_results.json`)
+3. **JSON 原始数据** (`benchmark-results.json`)
    - 机器可读的测试结果
    - 便于自定义分析
 
 ### 5. ✅ 完整的文档更新
 
 #### 新增文档
-- **docs/BENCHMARK.md** - 完整的 Benchmark 框架文档 (350+ 行)
+- **docs/benchmark.md** - 完整的 Benchmark 框架文档 (350+ 行)
   - 框架概览
   - 快速开始指南
   - 工具使用说明
@@ -134,7 +134,7 @@ python3 benchmark/compiler_benchmark.py \
 
 ```
 docs/
-├── BENCHMARK.md                 # 新增：完整 Benchmark 文档
+├── benchmark.md                 # 新增：完整 Benchmark 文档
 
 benchmark/
 ├── compiler_benchmark.py         # 编译器对比脚本
@@ -144,13 +144,13 @@ benchmark/
 └── tools.yaml                    # 工具配置
 
 docs/benchmark/                   # 生成的报告目录
-├── benchmark_report.html         # HTML 格式报告
-├── benchmark_report.md           # Markdown 格式报告
-├── benchmark_results.json        # 原始数据
-├── compression_speed.png         # 图表 1
-├── decompression_speed.png       # 图表 2
-├── compression_ratio.png         # 图表 3
-├── memory_usage.png              # 图表 4
+├── benchmark-report.html         # HTML 格式报告
+├── benchmark-report.md           # Markdown 格式报告
+├── benchmark-results.json        # 原始数据
+├── compression-speed.png         # 图表 1
+├── decompression-speed.png       # 图表 2
+├── compression-ratio.png         # 图表 3
+├── memory-usage.png              # 图表 4
 └── scalability.png               # 图表 5
 ```
 
@@ -198,7 +198,7 @@ python3 benchmark/compiler_benchmark.py \
   --visualize
 
 # 3. 查看报告
-open docs/benchmark/benchmark_report.html
+open docs/benchmark/benchmark-report.html
 ```
 
 ### 后续运行
@@ -242,7 +242,7 @@ python3 benchmark/compiler_benchmark.py \
 - ✅ GCC 和 Clang 优化版本二进制
 - ✅ 编译器对比 Benchmark 脚本
 - ✅ 多维度可视化报告生成工具
-- ✅ 完整的 Benchmark 文档 (BENCHMARK.md)
+- ✅ 完整的 Benchmark 文档 (benchmark.md)
 - ✅ README 中的 Benchmark 部分
 - ✅ 示例报告文件和图表
 - ✅ JSON 原始数据格式
@@ -274,7 +274,7 @@ python3 benchmark/compiler_benchmark.py \
 
 如有问题，请查看：
 
-1. **docs/BENCHMARK.md** - 详细文档
+1. **docs/benchmark.md** - 详细文档
 2. **benchmark/compiler_benchmark.py** - 源代码注释
 3. **README.md** - Benchmark 部分
 

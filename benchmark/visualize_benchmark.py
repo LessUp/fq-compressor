@@ -99,8 +99,8 @@ class BenchmarkVisualizer:
         ax.set_xticks(sorted(set(sum([d['threads'] for d in compress_data.values()], []))))
 
         plt.tight_layout()
-        self.figures['compression_speed'] = fig
-        return 'compression_speed.png'
+        self.figures['compression-speed'] = fig
+        return 'compression-speed.png'
 
     def generate_decompression_speed_chart(self) -> str:
         """生成解压速度对比图"""
@@ -124,8 +124,8 @@ class BenchmarkVisualizer:
         ax.set_xticks(sorted(set(sum([d['threads'] for d in decompress_data.values()], []))))
 
         plt.tight_layout()
-        self.figures['decompression_speed'] = fig
-        return 'decompression_speed.png'
+        self.figures['decompression-speed'] = fig
+        return 'decompression-speed.png'
 
     def generate_compression_ratio_chart(self) -> str:
         """生成压缩率对比图"""
@@ -149,8 +149,8 @@ class BenchmarkVisualizer:
         ax.set_xticks(sorted(set(sum([d['threads'] for d in compress_data.values()], []))))
 
         plt.tight_layout()
-        self.figures['compression_ratio'] = fig
-        return 'compression_ratio.png'
+        self.figures['compression-ratio'] = fig
+        return 'compression-ratio.png'
 
     def generate_memory_usage_chart(self) -> str:
         """生成内存使用对比图"""
@@ -188,8 +188,8 @@ class BenchmarkVisualizer:
         ax2.set_xticks(sorted(set(sum([d['threads'] for d in decompress_data.values()], []))))
 
         plt.tight_layout()
-        self.figures['memory_usage'] = fig
-        return 'memory_usage.png'
+        self.figures['memory-usage'] = fig
+        return 'memory-usage.png'
 
     def generate_scalability_chart(self) -> str:
         """生成并行扩展性分析图"""
@@ -345,7 +345,7 @@ class BenchmarkVisualizer:
         report = "\n".join(lines)
 
         # 保存报告
-        report_path = output_dir / "benchmark_report.md"
+        report_path = output_dir / "benchmark-report.md"
         with open(report_path, 'w', encoding='utf-8') as f:
             f.write(report)
 
@@ -450,7 +450,7 @@ class BenchmarkVisualizer:
         html = "\n".join(html_parts)
 
         # 保存 HTML 报告
-        html_path = output_dir / "benchmark_report.html"
+        html_path = output_dir / "benchmark-report.html"
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html)
 
@@ -460,10 +460,10 @@ class BenchmarkVisualizer:
     def _get_chart_title(self, name: str) -> str:
         """获取图表标题"""
         titles = {
-            'compression_speed': '压缩速度对比',
-            'decompression_speed': '解压速度对比',
-            'compression_ratio': '压缩率对比',
-            'memory_usage': '内存使用对比',
+            'compression-speed': '压缩速度对比',
+            'decompression-speed': '解压速度对比',
+            'compression-ratio': '压缩率对比',
+            'memory-usage': '内存使用对比',
             'scalability': '并行扩展性分析'
         }
         return titles.get(name, name)
