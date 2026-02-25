@@ -1,21 +1,22 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # fq-compressor - Test Execution Script
 # =============================================================================
-# This script provides convenient test execution for the fq-compressor project.
+# Builds and runs tests using the CMake preset system.
 #
 # Usage:
 #   ./scripts/run_tests.sh [OPTIONS]
 #
 # Options:
-#   -c, --compiler <gcc|clang>   Compiler to use (default: gcc)
-#   -t, --type <Debug|Release>   Build type (default: Debug)
-#   -v, --verbose                Verbose test output
-#   -f, --filter <pattern>       Run only tests matching pattern
-#   -h, --help                   Show this help message
+#   -p, --preset <name>     CMake preset (default: clang-debug)
+#   -v, --verbose           Verbose test output
+#   -f, --filter <pattern>  Run only tests matching pattern (ctest -R regex)
+#   -l, --label <label>     Run only tests with label (unit|property)
+#   -b, --build-only        Build test targets without running
+#   -h, --help              Show this help message
 # =============================================================================
 
-set -e  # Exit on error
+set -euo pipefail
 
 # Color codes for output
 RED='\033[0;31m'
@@ -25,17 +26,19 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-COMPILER="gcc"
-BUILD_TYPE="Debug"
+PRESET="clang-debug"
 VERBOSE=""
 FILTER=""
-WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LABEL=""
+BUILD_ONLY=false
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Print colored message
 print_msg() {
     local color=$1
     shift
-    echo -e "${color}$@${NC}"
+    echo -e "${color}$*${NC}"
 }
 
 # Print usage
@@ -44,36 +47,36 @@ print_usage() {
 Usage: $0 [OPTIONS]
 
 Options:
-  -c, --compiler <gcc|clang>   Compiler to use (default: gcc)
-  -t, --type <Debug|Release>   Build type (default: Debug)
-  -v, --verbose                Verbose test output
-  -f, --filter <pattern>       Run only tests matching pattern (gtest format)
-  -h, --help                   Show this help message
+  -p, --preset <name>     CMake preset (default: clang-debug)
+  -v, --verbose           Verbose test output
+  -f, --filter <pattern>  Run only tests matching pattern (ctest -R regex)
+  -l, --label <label>     Run only tests with label (unit|property)
+  -b, --build-only        Build test targets without running
+  -h, --help              Show this help message
+
+Available presets:
+  gcc-debug          GCC Debug build
+  gcc-release        GCC Release build
+  clang-debug        Clang Debug build (default)
+  clang-release      Clang Release build
+  clang-asan         Clang with AddressSanitizer
+  clang-tsan         Clang with ThreadSanitizer
+  coverage           GCC with coverage analysis
 
 Examples:
-  # Run all tests with GCC Debug build
-  $0
-
-  # Run all tests with Clang Release build
-  $0 -c clang -t Release
-
-  # Run verbose tests with filter
-  $0 -v -f "MemoryBudgetTest.*"
-
-  # Run specific test case
-  $0 -f "MemoryBudgetTest.DefaultConstruction"
+  $0                              # Run all tests with clang-debug
+  $0 -p gcc-release               # Run all tests with gcc-release
+  $0 -v -f 'MemoryBudget'        # Run matching tests verbosely
+  $0 -l property                   # Run only property-based tests
+  $0 -b                            # Build test targets only
 EOF
 }
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -c|--compiler)
-            COMPILER="$2"
-            shift 2
-            ;;
-        -t|--type)
-            BUILD_TYPE="$2"
+        -p|--preset)
+            PRESET="$2"
             shift 2
             ;;
         -v|--verbose)
@@ -83,6 +86,14 @@ while [[ $# -gt 0 ]]; do
         -f|--filter)
             FILTER="$2"
             shift 2
+            ;;
+        -l|--label)
+            LABEL="$2"
+            shift 2
+            ;;
+        -b|--build-only)
+            BUILD_ONLY=true
+            shift
             ;;
         -h|--help)
             print_usage
@@ -96,66 +107,31 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate compiler
-if [[ "$COMPILER" != "gcc" && "$COMPILER" != "clang" ]]; then
-    print_msg "$RED" "Error: Invalid compiler '$COMPILER'. Must be 'gcc' or 'clang'."
-    exit 1
-fi
-
-# Validate build type
-if [[ "$BUILD_TYPE" != "Debug" && "$BUILD_TYPE" != "Release" ]]; then
-    print_msg "$RED" "Error: Invalid build type '$BUILD_TYPE'. Must be 'Debug' or 'Release'."
-    exit 1
-fi
-
-# Determine build directory
-if [[ "$COMPILER" == "gcc" ]]; then
-    if [[ "$BUILD_TYPE" == "Debug" ]]; then
-        BUILD_DIR="$WORKSPACE_DIR/build/Debug"
-    else
-        BUILD_DIR="$WORKSPACE_DIR/build/gcc-release"
-    fi
-else
-    BUILD_DIR="$WORKSPACE_DIR/build/clang-release"
-fi
+BUILD_DIR="${PROJECT_DIR}/build/${PRESET}"
 
 # Check if build directory exists
 if [[ ! -d "$BUILD_DIR" ]]; then
     print_msg "$RED" "Error: Build directory not found: $BUILD_DIR"
-    print_msg "$YELLOW" "Please run './scripts/build.sh $COMPILER $BUILD_TYPE' first."
+    print_msg "$YELLOW" "Please run './scripts/build.sh $PRESET' first."
     exit 1
 fi
-
-# Navigate to build directory
-cd "$BUILD_DIR"
 
 print_msg "$BLUE" "================================================"
 print_msg "$BLUE" "fq-compressor Test Execution"
 print_msg "$BLUE" "================================================"
-print_msg "$GREEN" "Compiler:    $COMPILER"
-print_msg "$GREEN" "Build Type:  $BUILD_TYPE"
-print_msg "$GREEN" "Build Dir:   $BUILD_DIR"
-if [[ -n "$FILTER" ]]; then
-    print_msg "$GREEN" "Test Filter: $FILTER"
-fi
+print_msg "$GREEN" "Preset:    $PRESET"
+print_msg "$GREEN" "Build Dir: $BUILD_DIR"
+[[ -n "$FILTER" ]] && print_msg "$GREEN" "Filter:    $FILTER"
+[[ -n "$LABEL" ]]  && print_msg "$GREEN" "Label:     $LABEL"
 print_msg "$BLUE" "================================================"
 echo
 
-# Check if testing is enabled
-if ! cmake -L . 2>/dev/null | grep -q "BUILD_TESTING:BOOL=ON"; then
-    print_msg "$YELLOW" "Warning: Testing is disabled. Enabling now..."
-    cmake -DBUILD_TESTING=ON . > /dev/null 2>&1
-fi
-
 # Build test targets
 print_msg "$BLUE" "Building test targets..."
-if [[ "$COMPILER" == "gcc" ]]; then
-    make placeholder_test memory_budget_test -j$(nproc) 2>&1 | tail -5
-else
-    ninja placeholder_test memory_budget_test 2>&1 | tail -5
-fi
+cmake --build --preset "$PRESET" 2>&1 | tail -10
+BUILD_EXIT=${PIPESTATUS[0]}
 
-if [[ $? -ne 0 ]]; then
+if [[ $BUILD_EXIT -ne 0 ]]; then
     print_msg "$RED" "Build failed!"
     exit 1
 fi
@@ -163,36 +139,31 @@ fi
 print_msg "$GREEN" "Build successful!"
 echo
 
-# Run tests
-if [[ -n "$FILTER" ]]; then
-    # Run with gtest filter directly
-    print_msg "$BLUE" "Running filtered tests: $FILTER"
-    echo
-
-    ./tests/placeholder_test --gtest_filter="$FILTER" 2>&1 || true
-    ./tests/memory_budget_test --gtest_filter="$FILTER" 2>&1 || true
-else
-    # Run all tests with ctest
-    print_msg "$BLUE" "Running all tests..."
-    echo
-
-    if [[ -n "$VERBOSE" ]]; then
-        ctest --verbose --output-on-failure
-    else
-        ctest --output-on-failure
-    fi
+if [[ "$BUILD_ONLY" == true ]]; then
+    print_msg "$GREEN" "Build-only mode: skipping test execution."
+    exit 0
 fi
 
-# Capture test result
+# Assemble ctest arguments
+CTEST_ARGS=(--test-dir "$BUILD_DIR" --output-on-failure)
+[[ -n "$VERBOSE" ]] && CTEST_ARGS+=("$VERBOSE")
+[[ -n "$FILTER" ]]  && CTEST_ARGS+=(-R "$FILTER")
+[[ -n "$LABEL" ]]   && CTEST_ARGS+=(-L "$LABEL")
+
+# Run tests
+print_msg "$BLUE" "Running tests..."
+echo
+
+ctest "${CTEST_ARGS[@]}"
 TEST_RESULT=$?
 
 echo
 print_msg "$BLUE" "================================================"
 
 if [[ $TEST_RESULT -eq 0 ]]; then
-    print_msg "$GREEN" "✓ All tests passed!"
+    print_msg "$GREEN" "All tests passed!"
 else
-    print_msg "$RED" "✗ Some tests failed!"
+    print_msg "$RED" "Some tests failed!"
 fi
 
 print_msg "$BLUE" "================================================"

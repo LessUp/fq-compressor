@@ -31,6 +31,12 @@ set(FQC_CORE_SOURCES
     algo/pe_optimizer.cpp
     pipeline/pipeline.cpp
     pipeline/pipeline_node.cpp
+    pipeline/reader_node.cpp
+    pipeline/compressor_node.cpp
+    pipeline/writer_node.cpp
+    pipeline/fqc_reader_node.cpp
+    pipeline/decompressor_node.cpp
+    pipeline/fastq_writer_node.cpp
 )
 
 # Command sources

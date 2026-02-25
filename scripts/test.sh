@@ -1,5 +1,5 @@
-#!/bin/bash
-# scripts/test.sh - 测试运行脚本
+#!/usr/bin/env bash
+# scripts/test.sh - 测试运行脚本（轻量版，直接调用 ctest）
 
 set -euo pipefail
 

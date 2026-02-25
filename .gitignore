@@ -18,6 +18,9 @@
 /obj/
 /out/
 
+# CTest 生成文件
+/Testing/
+
 # 忽略所有的临时文件
 *.tmp
 *.log

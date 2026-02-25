@@ -512,6 +512,49 @@ struct AsyncIOStats {
 };
 
 // =============================================================================
+// Async Stream Buffer Adapter
+// =============================================================================
+
+/// @brief Custom std::streambuf backed by AsyncReader prefetch.
+///
+/// Allows FastqParser (which uses std::istream) to transparently benefit
+/// from background prefetch I/O without any API changes.
+///
+/// Usage:
+/// @code
+/// auto stream = createAsyncInputStream(path, config);
+/// FastqParser parser(std::move(stream), parserOpts);
+/// @endcode
+class AsyncStreamBuf : public std::streambuf {
+public:
+    /// @brief Construct from an open AsyncReader (takes ownership)
+    /// @param reader Opened AsyncReader instance
+    explicit AsyncStreamBuf(std::unique_ptr<AsyncReader> reader);
+
+    ~AsyncStreamBuf() override;
+
+    // Non-copyable, non-movable (streambuf lifetime tied to istream)
+    AsyncStreamBuf(const AsyncStreamBuf&) = delete;
+    AsyncStreamBuf& operator=(const AsyncStreamBuf&) = delete;
+
+protected:
+    /// @brief Refill the get area from the next prefetched buffer
+    int_type underflow() override;
+
+private:
+    std::unique_ptr<AsyncReader> reader_;
+    std::optional<ManagedBuffer> currentBuffer_;
+};
+
+/// @brief Create an async-prefetching std::istream for a file path
+/// @param path File path to read
+/// @param config Optional async reader configuration
+/// @return unique_ptr<istream> backed by async prefetch, or nullptr on failure
+[[nodiscard]] std::unique_ptr<std::istream> createAsyncInputStream(
+    const std::filesystem::path& path,
+    AsyncReaderConfig config = {});
+
+// =============================================================================
 // Utility Functions
 // =============================================================================
 

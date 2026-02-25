@@ -960,6 +960,61 @@ const AsyncWriterConfig& AsyncWriter::config() const noexcept {
 }
 
 // =============================================================================
+// AsyncStreamBuf Implementation
+// =============================================================================
+
+AsyncStreamBuf::AsyncStreamBuf(std::unique_ptr<AsyncReader> reader)
+    : reader_(std::move(reader)) {}
+
+AsyncStreamBuf::~AsyncStreamBuf() = default;
+
+AsyncStreamBuf::int_type AsyncStreamBuf::underflow() {
+    // If the get area still has data, return current character
+    if (gptr() < egptr()) {
+        return traits_type::to_int_type(*gptr());
+    }
+
+    // Fetch the next prefetched buffer from AsyncReader
+    auto bufferOpt = reader_->read();
+    if (!bufferOpt || bufferOpt->empty()) {
+        return traits_type::eof();
+    }
+
+    // Take ownership of the new buffer
+    currentBuffer_ = std::move(*bufferOpt);
+
+    // Set the get area to the new buffer's data
+    auto* begin = reinterpret_cast<char*>(currentBuffer_->data());
+    auto* end = begin + currentBuffer_->size();
+    setg(begin, begin, end);
+
+    return traits_type::to_int_type(*gptr());
+}
+
+std::unique_ptr<std::istream> createAsyncInputStream(
+    const std::filesystem::path& path,
+    AsyncReaderConfig config) {
+    // Create and open AsyncReader
+    auto reader = std::make_unique<AsyncReader>(config);
+    auto result = reader->open(path);
+    if (!result) {
+        return nullptr;
+    }
+
+    // Create streambuf adapter (istream takes ownership via custom deleter)
+    // We need the streambuf to outlive the istream, so bundle them together.
+    struct AsyncInputStream : public std::istream {
+        std::unique_ptr<AsyncStreamBuf> buf;
+
+        explicit AsyncInputStream(std::unique_ptr<AsyncStreamBuf> b)
+            : std::istream(b.get()), buf(std::move(b)) {}
+    };
+
+    auto buf = std::make_unique<AsyncStreamBuf>(std::move(reader));
+    return std::make_unique<AsyncInputStream>(std::move(buf));
+}
+
+// =============================================================================
 // Utility Functions
 // =============================================================================
 
