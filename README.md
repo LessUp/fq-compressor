@@ -263,14 +263,14 @@ python3 benchmark/compiler_benchmark.py \
 
 The benchmarking framework automatically generates:
 
-- **benchmark_report.html** - Comprehensive HTML report with embedded visualizations
-- **benchmark_report.md** - Markdown format report
-- **benchmark_results.json** - Raw data in JSON format
+- **benchmark-report.html** - Comprehensive HTML report with embedded visualizations
+- **benchmark-report.md** - Markdown format report
+- **benchmark-results.json** - Raw data in JSON format
 - **PNG Charts** - Performance visualizations:
-  - `compression_speed.png` - Compression throughput comparison
-  - `decompression_speed.png` - Decompression throughput comparison
-  - `compression_ratio.png` - Compression efficiency comparison
-  - `memory_usage.png` - Peak memory usage analysis
+  - `compression-speed.png` - Compression throughput comparison
+  - `decompression-speed.png` - Decompression throughput comparison
+  - `compression-ratio.png` - Compression efficiency comparison
+  - `memory-usage.png` - Peak memory usage analysis
   - `scalability.png` - Parallel scalability metrics
 
 ### Key Metrics Evaluated
@@ -287,7 +287,7 @@ The benchmarking framework automatically generates:
 
 ### For Detailed Information
 
-See [BENCHMARK.md](docs/BENCHMARK.md) for:
+See [benchmark.md](docs/benchmark.md) for:
 - Complete benchmark framework documentation
 - Usage examples for different tools
 - How to interpret results
@@ -319,8 +319,8 @@ ctest --test-dir build/build/Release
 
 ## 📊 Benchmark Results
 
-**Latest benchmark**: [report_latest.md](docs/benchmark/results/report_latest.md)
-**Visualization**: [charts_latest.html](docs/benchmark/results/charts_latest.html)
+**Latest benchmark**: [report-latest.md](docs/benchmark/results/report-latest.md)
+**Visualization**: [charts-latest.html](docs/benchmark/results/charts-latest.html)
 
 ### Performance Summary
 

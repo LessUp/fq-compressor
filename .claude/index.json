@@ -42,9 +42,9 @@
   "key_paths": {
     "readme": "/home/shane/lessup/fq-compressor/fq-compressor/README.md",
     "docs": [
-      "/home/shane/lessup/fq-compressor/fq-compressor/docs/01_feasibility_analysis.md",
-      "/home/shane/lessup/fq-compressor/fq-compressor/docs/02_strategy_evaluation.md",
-      "/home/shane/lessup/fq-compressor/fq-compressor/docs/03_algorithm_selection.md"
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/01-feasibility-analysis.md",
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/02-strategy-evaluation.md",
+      "/home/shane/lessup/fq-compressor/fq-compressor/docs/03-algorithm-selection.md"
     ],
     "build_config": "/home/shane/lessup/fq-compressor/fq-compressor/CMakePresets.json",
     "dependencies": "/home/shane/lessup/fq-compressor/fq-compressor/conanfile.py",

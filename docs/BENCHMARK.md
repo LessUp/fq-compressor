@@ -72,20 +72,20 @@ Benchmark 框架评估以下关键指标：
 
 ```
 docs/benchmark/
-├── benchmark_results.json           # 原始数据（JSON格式）
-├── benchmark_report.md              # Markdown格式报告
-├── benchmark_report.html            # HTML格式报告（自包含）
-├── compression_speed.png            # 压缩速度对比图表
-├── decompression_speed.png          # 解压速度对比图表
-├── compression_ratio.png            # 压缩率对比图表
-├── memory_usage.png                 # 内存使用对比图表
+├── benchmark-results.json           # 原始数据（JSON格式）
+├── benchmark-report.md              # Markdown格式报告
+├── benchmark-report.html            # HTML格式报告（自包含）
+├── compression-speed.png            # 压缩速度对比图表
+├── decompression-speed.png          # 解压速度对比图表
+├── compression-ratio.png            # 压缩率对比图表
+├── memory-usage.png                 # 内存使用对比图表
 └── scalability.png                  # 并行扩展性分析图表
 ```
 
 ### 查看报告
 
-- **HTML报告**: 在浏览器中打开 `benchmark_report.html`（推荐，包含所有图表）
-- **Markdown报告**: 在任何Markdown查看器中打开 `benchmark_report.md`
+- **HTML报告**: 在浏览器中打开 `benchmark-report.html`（推荐，包含所有图表）
+- **Markdown报告**: 在任何Markdown查看器中打开 `benchmark-report.md`
 - **原始数据**: JSON 文件可用于自定义分析
 
 ## 🔬 基准测试工具
@@ -159,12 +159,12 @@ python3 benchmark/benchmark.py \
 ```bash
 # 生成所有格式（PNG、Markdown、HTML）
 python3 benchmark/visualize_benchmark.py \
-  --json benchmark_results.json \
+  --json benchmark-results.json \
   --output-dir docs/benchmark
 
 # 仅生成 PNG 图表
 python3 benchmark/visualize_benchmark.py \
-  --json benchmark_results.json \
+  --json benchmark-results.json \
   --output-dir docs/benchmark \
   --format png
 ```
@@ -266,7 +266,7 @@ Benchmark 测试可以集成到 CI/CD 流水线中：
 
 ### JSON 数据格式
 
-`benchmark_results.json` 包含以下结构：
+`benchmark-results.json` 包含以下结构：
 
 ```json
 {

@@ -288,7 +288,7 @@ Phase 4 当前实现的局限和后续优化方向：
 - [ ] **动态调度**: 根据块大小动态调整并行度
 - [ ] **内存池**: 复用缓冲区减少分配开销
 
-详见: `/workspace/docs/phase4_tbb_parallel_implementation.md`
+详见: `/workspace/docs/phase4-tbb-parallel-implementation.md`
 
 ## 参考资料
 

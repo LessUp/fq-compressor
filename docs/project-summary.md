@@ -340,13 +340,13 @@
 - [docs/benchmark/](benchmark/) - 性能测试
 
 ### 设计文档
-- [可行性分析](01_feasibility_analysis.md)
-- [策略评估](02_strategy_evaluation.md)
-- [算法选择](03_algorithm_selection.md)
+- [可行性分析](01-feasibility-analysis.md)
+- [策略评估](02-strategy-evaluation.md)
+- [算法选择](03-algorithm-selection.md)
 
 ### 测试报告
-- [Benchmark 报告](benchmark/results/report_latest.md)
-- [可视化图表](benchmark/results/charts_latest.html)
+- [Benchmark 报告](benchmark/results/report-latest.md)
+- [可视化图表](benchmark/results/charts-latest.html)
 
 ## 🎉 总结
 

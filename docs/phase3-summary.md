@@ -207,7 +207,7 @@ constexpr ReadRecordView(std::string_view id_, std::string_view sequence_,
 
 ### 7. 测试报告生成
 
-**文件**: `/workspace/docs/TEST_RESULTS.md`
+**文件**: `/workspace/docs/test-results.md`
 
 **包含内容**:
 - 测试执行摘要
@@ -285,8 +285,8 @@ constexpr ReadRecordView(std::string_view id_, std::string_view sequence_,
 ## 交付物
 
 ### 文档
-1. ✅ `/workspace/docs/TEST_RESULTS.md` - 详细测试报告
-2. ✅ `/workspace/docs/PHASE3_SUMMARY.md` - Phase 3执行总结（本文档）
+1. ✅ `/workspace/docs/test-results.md` - 详细测试报告
+2. ✅ `/workspace/docs/phase3-summary.md` - Phase 3执行总结（本文档）
 
 ### 脚本
 1. ✅ `/workspace/scripts/run_tests.sh` - 测试执行脚本

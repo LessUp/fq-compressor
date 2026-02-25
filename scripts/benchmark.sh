@@ -15,9 +15,9 @@
 #   --help        Show this help message
 #
 # Output:
-#   - JSON results: docs/benchmark/results_TIMESTAMP.json
-#   - Markdown report: docs/benchmark/report_TIMESTAMP.md
-#   - Visualization: docs/benchmark/charts_TIMESTAMP.html
+#   - JSON results: docs/benchmark/results-TIMESTAMP.json
+#   - Markdown report: docs/benchmark/report-TIMESTAMP.md
+#   - Visualization: docs/benchmark/charts-TIMESTAMP.html
 # =============================================================================
 
 set -euo pipefail
@@ -43,10 +43,10 @@ TEST_GCC=true
 TEST_CLANG=true
 
 # Output files
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_JSON="${RESULTS_DIR}/results_${TIMESTAMP}.json"
-REPORT_MD="${RESULTS_DIR}/report_${TIMESTAMP}.md"
-CHARTS_HTML="${RESULTS_DIR}/charts_${TIMESTAMP}.html"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+RESULTS_JSON="${RESULTS_DIR}/results-${TIMESTAMP}.json"
+REPORT_MD="${RESULTS_DIR}/report-${TIMESTAMP}.md"
+CHARTS_HTML="${RESULTS_DIR}/charts-${TIMESTAMP}.html"
 
 # =============================================================================
 # Helper Functions
@@ -66,7 +66,6 @@ log_success() {
 
 show_help() {
     sed -n '/^# Usage:/,/^# =/p' "$0" | sed 's/^# //; s/^#//'
-    exit 0
 }
 
 check_dependencies() {
@@ -124,10 +123,9 @@ setup_directories() {
 build_gcc() {
     log_info "Building with GCC..."
 
-    cd "$PROJECT_ROOT"
-    ./scripts/build.sh gcc-release > /dev/null 2>&1
+    "${SCRIPT_DIR}/build.sh" gcc-release > /dev/null 2>&1
 
-    if [ ! -f "build/gcc-release/src/fqc" ]; then
+    if [ ! -f "${PROJECT_ROOT}/build/gcc-release/src/fqc" ]; then
         log_error "GCC build failed"
         exit 1
     fi
@@ -138,10 +136,9 @@ build_gcc() {
 build_clang() {
     log_info "Building with Clang..."
 
-    cd "$PROJECT_ROOT"
-    ./scripts/build.sh clang-release > /dev/null 2>&1
+    "${SCRIPT_DIR}/build.sh" clang-release > /dev/null 2>&1
 
-    if [ ! -f "build/clang-release/src/fqc" ]; then
+    if [ ! -f "${PROJECT_ROOT}/build/clang-release/src/fqc" ]; then
         log_error "Clang build failed"
         exit 1
     fi
@@ -285,8 +282,8 @@ generate_json_report() {
   "metadata": {
     "timestamp": "$(date -Iseconds)",
     "hostname": "$(hostname)",
-    "cpu": "$(lscpu | grep 'Model name' | cut -d: -f2 | xargs)",
-    "cores": $(nproc),
+    "cpu": "$(lscpu 2>/dev/null | grep 'Model name' | cut -d: -f2 | xargs || echo 'unknown')",
+    "cores": $(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1),
     "iterations": $ITERATIONS,
     "test_files": [
       "$(basename "$TEST_FILE_1")",
@@ -372,10 +369,12 @@ main() {
                 ;;
             --help)
                 show_help
+                exit 0
                 ;;
             *)
                 log_error "Unknown option: $1"
                 show_help
+                exit 1
                 ;;
         esac
     done
