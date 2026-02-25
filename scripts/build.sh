@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/build.sh - 统一构建脚本
 
 set -euo pipefail
@@ -8,7 +8,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # 默认值
 PRESET="${1:-clang-debug}"
-JOBS="${2:-$(nproc)}"
+JOBS="${2:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 print_usage() {
     echo "Usage: $0 [preset] [jobs]"

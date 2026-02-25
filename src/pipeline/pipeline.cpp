@@ -224,9 +224,11 @@ public:
                 return writerOpenResult;
             }
 
-            // Create thread-local compressors for parallel processing
+            // Create one compressor per in-flight slot to prevent data races.
+            // TBB parallel_pipeline can have up to maxInFlightBlocks tokens
+            // in stage 2 simultaneously, so we need at least that many.
             std::vector<std::unique_ptr<CompressorNode>> compressors;
-            for (std::size_t i = 0; i < config_.effectiveThreads(); ++i) {
+            for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
                 compressors.push_back(std::make_unique<CompressorNode>(compressorConfig));
             }
 
@@ -453,8 +455,6 @@ public:
             compressorConfig.idMode = config_.idMode;
             compressorConfig.compressionLevel = config_.compressionLevel;
             
-            CompressorNode compressor(compressorConfig);
-            
             WriterNodeConfig writerConfig;
             writerConfig.bufferSize = config_.outputBufferSize;
             writerConfig.atomicWrite = true;
@@ -488,38 +488,141 @@ public:
                 return writerOpenResult;
             }
 
-            // Sequential pipeline for paired-end
-            std::uint32_t blockId = 0;
-            while (!cancelled_.load()) {
-                auto chunkResult = reader.readChunk();
-                if (!chunkResult) {
-                    running_.store(false);
-                    return std::unexpected(chunkResult.error());
-                }
-                
-                if (!chunkResult->has_value()) {
-                    break;
-                }
-                
-                auto& chunk = chunkResult->value();
-                chunk.chunkId = blockId++;
-                
-                auto compressResult = compressor.compress(std::move(chunk));
-                if (!compressResult) {
-                    running_.store(false);
-                    return std::unexpected(compressResult.error());
-                }
-                
-                auto writeResult = writer.writeBlock(std::move(*compressResult));
-                if (!writeResult) {
-                    running_.store(false);
-                    return writeResult;
-                }
-                
-                stats_.totalReads += chunk.reads.size();
-                ++stats_.totalBlocks;
+            // Create one compressor per in-flight slot to prevent data races.
+            std::vector<std::unique_ptr<CompressorNode>> compressors;
+            for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
+                compressors.push_back(std::make_unique<CompressorNode>(compressorConfig));
             }
-            
+
+            // Progress tracking
+            std::atomic<std::uint64_t> readsProcessed{0};
+            std::atomic<std::uint32_t> blocksProcessed{0};
+            auto lastProgressTime = std::chrono::steady_clock::now();
+
+            // =================================================================
+            // TBB Parallel Pipeline for Paired-End Compression
+            // =================================================================
+            std::atomic<std::uint32_t> blockId{0};
+            std::atomic<bool> readerError{false};
+            std::atomic<bool> writerError{false};
+            std::optional<Error> pipelineError;
+            std::mutex errorMutex;
+            std::atomic<std::size_t> compressorIndex{0};
+
+            tbb::task_arena arena(static_cast<int>(config_.effectiveThreads()));
+
+            arena.execute([&] {
+                tbb::parallel_pipeline(
+                    config_.maxInFlightBlocks,
+
+                    // Stage 1: Reader (serial, in-order)
+                    tbb::make_filter<void, std::optional<ReadChunk>>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](tbb::flow_control& fc) -> std::optional<ReadChunk> {
+                            if (cancelled_.load() || readerError.load() || writerError.load()) {
+                                fc.stop();
+                                return std::nullopt;
+                            }
+
+                            auto chunkResult = reader.readChunk();
+                            if (!chunkResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = chunkResult.error();
+                                readerError.store(true);
+                                fc.stop();
+                                return std::nullopt;
+                            }
+
+                            if (!chunkResult->has_value()) {
+                                fc.stop();
+                                return std::nullopt;
+                            }
+
+                            auto chunk = std::move(chunkResult->value());
+                            chunk.chunkId = blockId.fetch_add(1);
+                            return chunk;
+                        }
+                    ) &
+
+                    // Stage 2: Compressor (parallel)
+                    tbb::make_filter<std::optional<ReadChunk>, std::optional<CompressedBlock>>(
+                        tbb::filter_mode::parallel,
+                        [&](std::optional<ReadChunk> chunkOpt) -> std::optional<CompressedBlock> {
+                            if (!chunkOpt.has_value()) {
+                                return std::nullopt;
+                            }
+
+                            auto& chunk = *chunkOpt;
+                            std::size_t readCount = chunk.reads.size();
+
+                            std::size_t idx = compressorIndex.fetch_add(1) % compressors.size();
+
+                            auto compressResult = compressors[idx]->compress(std::move(chunk));
+                            if (!compressResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = compressResult.error();
+                                readerError.store(true);
+                                return std::nullopt;
+                            }
+
+                            readsProcessed.fetch_add(readCount);
+
+                            return std::move(*compressResult);
+                        }
+                    ) &
+
+                    // Stage 3: Writer (serial, in-order)
+                    tbb::make_filter<std::optional<CompressedBlock>, void>(
+                        tbb::filter_mode::serial_in_order,
+                        [&](std::optional<CompressedBlock> blockOpt) {
+                            if (!blockOpt.has_value()) {
+                                return;
+                            }
+
+                            auto writeResult = writer.writeBlock(std::move(*blockOpt));
+                            if (!writeResult) {
+                                std::lock_guard<std::mutex> lock(errorMutex);
+                                pipelineError = writeResult.error();
+                                writerError.store(true);
+                                return;
+                            }
+
+                            blocksProcessed.fetch_add(1);
+
+                            // Report progress
+                            if (config_.progressCallback) {
+                                auto now = std::chrono::steady_clock::now();
+                                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    now - lastProgressTime).count();
+
+                                if (elapsed >= config_.progressIntervalMs) {
+                                    ProgressInfo info;
+                                    info.readsProcessed = readsProcessed.load();
+                                    info.totalReads = reader.estimatedTotalReads();
+                                    info.bytesProcessed = reader.totalBytesRead();
+                                    info.currentBlock = blocksProcessed.load();
+                                    info.elapsedMs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        now - startTime).count());
+
+                                    if (!config_.progressCallback(info)) {
+                                        cancelled_.store(true);
+                                    }
+
+                                    lastProgressTime = now;
+                                }
+                            }
+                        }
+                    )
+                );
+            });
+
+            // Check for pipeline errors
+            if (readerError.load() || writerError.load()) {
+                running_.store(false);
+                return std::unexpected(*pipelineError);
+            }
+
+            // Finalize
             if (!cancelled_.load()) {
                 auto finalizeResult = writer.finalize(std::nullopt);
                 if (!finalizeResult) {
@@ -527,7 +630,10 @@ public:
                     return finalizeResult;
                 }
             }
-            
+
+            // Update statistics
+            stats_.totalReads = readsProcessed.load();
+            stats_.totalBlocks = blocksProcessed.load();
             stats_.inputBytes = reader.totalBytesRead();
             stats_.outputBytes = writer.totalBytesWritten();
             
@@ -682,9 +788,9 @@ public:
             // Store global header reference for decompressor
             const auto& globalHeader = reader.globalHeader();
             
-            // Create multiple decompressors for parallel processing
+            // Create one decompressor per in-flight slot to prevent data races.
             std::vector<std::unique_ptr<DecompressorNode>> decompressors;
-            for (std::size_t i = 0; i < config_.effectiveThreads(); ++i) {
+            for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
                 decompressors.push_back(std::make_unique<DecompressorNode>(decompressorConfig));
             }
             std::atomic<std::size_t> decompressorIndex{0};

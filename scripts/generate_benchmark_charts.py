@@ -11,8 +11,23 @@ from statistics import mean
 
 def load_results(json_file):
     """Load benchmark results from JSON file."""
-    with open(json_file, 'r') as f:
-        return json.load(f)
+    path = Path(json_file)
+    if not path.exists():
+        print(f"Error: Input file not found: {json_file}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {json_file}: {e}", file=sys.stderr)
+        sys.exit(1)
+    for key in ('metadata', 'results'):
+        if key not in data:
+            print(f"Error: Missing required key '{key}' in {json_file}", file=sys.stderr)
+            sys.exit(1)
+    if not data['results']:
+        print(f"Warning: No benchmark results found in {json_file}", file=sys.stderr)
+    return data
 
 
 def generate_html(data, output_file):
@@ -370,14 +385,23 @@ def generate_html(data, output_file):
 
 def main():
     if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <input.json> <output.html>")
+        print(f"Usage: {sys.argv[0]} <input.json> <output.html>", file=sys.stderr)
         sys.exit(1)
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
     data = load_results(input_file)
-    generate_html(data, output_file)
+
+    if not data['results']:
+        print("No results to visualize. Skipping chart generation.")
+        return
+
+    try:
+        generate_html(data, output_file)
+    except (KeyError, TypeError) as e:
+        print(f"Error generating charts: {e}", file=sys.stderr)
+        sys.exit(1)
 
     print(f"HTML charts generated: {output_file}")
 

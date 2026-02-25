@@ -1,31 +1,17 @@
 // =============================================================================
-// fq-compressor - Pipeline Node Implementation
+// fq-compressor - Pipeline Node Shared Implementation
 // =============================================================================
-// Implements the individual pipeline stages for TBB parallel_pipeline.
+// Contains configuration validation and BackpressureController.
+// Individual node implementations are in separate files:
+//   reader_node.cpp, compressor_node.cpp, writer_node.cpp,
+//   fqc_reader_node.cpp, decompressor_node.cpp, fastq_writer_node.cpp
 //
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
 #include "fqc/pipeline/pipeline_node.h"
 
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <iostream>
-
 #include <fmt/format.h>
-#include <zstd.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/io/fastq_parser.h"
-#include "fqc/format/fqc_reader.h"
-#include "fqc/format/fqc_writer.h"
-#include "fqc/format/reorder_map.h"
-#include "fqc/algo/block_compressor.h"
-#include "fqc/algo/id_compressor.h"
-#include "fqc/algo/quality_compressor.h"
-
-#include <map>
 
 namespace fqc::pipeline {
 
@@ -91,10 +77,51 @@ VoidResult FASTQWriterNodeConfig::validate() const {
 }
 
 // =============================================================================
-// ReaderNodeImpl
+// BackpressureController Implementation
 // =============================================================================
 
-class ReaderNodeImpl {
+BackpressureController::BackpressureController(std::size_t maxInFlight)
+    : maxInFlight_(maxInFlight) {}
+
+void BackpressureController::acquire() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return inFlight_.load() < maxInFlight_; });
+    ++inFlight_;
+}
+
+bool BackpressureController::tryAcquire() {
+    std::size_t current = inFlight_.load();
+    while (current < maxInFlight_) {
+        if (inFlight_.compare_exchange_weak(current, current + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void BackpressureController::release() {
+    --inFlight_;
+    cv_.notify_one();
+}
+
+std::size_t BackpressureController::inFlight() const noexcept {
+    return inFlight_.load();
+}
+
+std::size_t BackpressureController::maxInFlight() const noexcept {
+    return maxInFlight_;
+}
+
+void BackpressureController::reset() noexcept {
+    inFlight_.store(0);
+}
+
+}  // namespace fqc::pipeline
+// END OF FILE — Node implementations moved to individual files.
+#if 0
+// Dead code placeholder to suppress remaining lines in this translation unit.
+// TODO: Delete everything below after verifying the split files compile.
+class DeadCode_ {
 public:
     explicit ReaderNodeImpl(ReaderNodeConfig config)
         : config_(std::move(config)) {}
@@ -103,33 +130,70 @@ public:
         try {
             inputPath_ = path;
             
-            // Create parser with options
             io::ParserOptions parserOpts;
             parserOpts.bufferSize = config_.bufferSize;
             parserOpts.collectStats = true;
             parserOpts.validateSequence = true;
             parserOpts.validateQuality = true;
             
-            parser_ = std::make_unique<io::FastqParser>(path, parserOpts);
-            parser_->open();
+            // Detect if file is compressed (async prefetch only for plain files)
+            bool isStdin = (path == "-");
+            bool isCompressed = false;
+            if (!isStdin) {
+                auto fmt = io::detectCompressionFormatFromExtension(path);
+                isCompressed = (fmt != io::CompressionFormat::kNone);
+            }
             
-            // Sample records to estimate total and detect read length class
-            if (parser_->canSeek()) {
-                auto sampleStats = parser_->sampleRecords(1000);
-                estimatedTotalReads_ = estimateTotalReads(path, sampleStats);
-                detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
+            bool useAsync = !isStdin && !isCompressed;
+            
+            if (useAsync) {
+                // Phase 1: Sample with a temporary seekable parser
+                {
+                    io::FastqParser sampler(path, parserOpts);
+                    sampler.open();
+                    if (sampler.canSeek()) {
+                        auto sampleStats = sampler.sampleRecords(1000);
+                        estimatedTotalReads_ = estimateTotalReads(path, sampleStats);
+                        detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
+                    }
+                }  // sampler closes here
                 
-                // Adjust block size based on detected length class if not explicitly set
+                // Phase 2: Create async-backed parser for actual reading
+                io::AsyncReaderConfig asyncCfg;
+                asyncCfg.bufferSize = io::optimalBufferSize(path);
+                asyncCfg.prefetchDepth = io::optimalPrefetchDepth();
+                
+                asyncStream_ = io::createAsyncInputStream(path, asyncCfg);
+                if (!asyncStream_) {
+                    return std::unexpected(Error{ErrorCode::kIOError,
+                        fmt::format("Failed to create async reader for: {}", path.string())});
+                }
+                parser_ = std::make_unique<io::FastqParser>(std::move(asyncStream_), parserOpts);
+                // Note: stream-constructed parser is already open
+                
+                FQC_LOG_DEBUG("ReaderNode opened with async prefetch: path={}", path.string());
+            } else {
+                // Fallback: synchronous I/O (stdin or compressed files)
+                parser_ = std::make_unique<io::FastqParser>(path, parserOpts);
+                parser_->open();
+                
+                if (parser_->canSeek()) {
+                    auto sampleStats = parser_->sampleRecords(1000);
+                    estimatedTotalReads_ = estimateTotalReads(path, sampleStats);
+                    detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
+                }
+            }
+            
+            // Set effective block size from detected or configured length class
+            if (estimatedTotalReads_ > 0) {
                 if (config_.readLengthClass == ReadLengthClass::kShort) {
-                    // Use detected class
                     effectiveBlockSize_ = recommendedBlockSize(detectedLengthClass_);
                 } else {
                     effectiveBlockSize_ = recommendedBlockSize(config_.readLengthClass);
                 }
             } else {
                 // Streaming mode - use conservative defaults
-                estimatedTotalReads_ = 0;
-                detectedLengthClass_ = ReadLengthClass::kMedium;  // Conservative default
+                detectedLengthClass_ = ReadLengthClass::kMedium;
                 effectiveBlockSize_ = config_.blockSize;
             }
             
@@ -139,8 +203,8 @@ public:
             totalBytesRead_ = 0;
             nextReadId_ = 1;  // 1-based indexing
             
-            FQC_LOG_DEBUG("ReaderNode opened: path={}, estimated_reads={}, block_size={}",
-                      path.string(), estimatedTotalReads_, effectiveBlockSize_);
+            FQC_LOG_DEBUG("ReaderNode opened: path={}, estimated_reads={}, block_size={}, async={}",
+                      path.string(), estimatedTotalReads_, effectiveBlockSize_, useAsync);
             
             return {};
         } catch (const FQCException& e) {
@@ -320,6 +384,7 @@ public:
             parser2_->close();
             parser2_.reset();
         }
+        asyncStream_.reset();
         state_ = NodeState::kIdle;
     }
 
@@ -361,6 +426,7 @@ private:
     std::filesystem::path inputPath2_;  // For paired-end
     std::unique_ptr<io::FastqParser> parser_;
     std::unique_ptr<io::FastqParser> parser2_;  // For paired-end
+    std::unique_ptr<std::istream> asyncStream_;  // Async prefetch stream (kept alive for parser)
     NodeState state_ = NodeState::kIdle;
     std::uint32_t chunkId_ = 0;
     std::uint64_t totalReadsRead_ = 0;
@@ -547,17 +613,16 @@ private:
         // For short reads, use BlockCompressor (ABC algorithm)
         // For medium/long reads, use Zstd directly
         if (config_.readLengthClass == ReadLengthClass::kShort) {
-            // Convert to ReadRecord for BlockCompressor
-            std::vector<ReadRecord> reads;
-            reads.reserve(sequences.size());
+            // Use zero-copy ReadRecordView — only seqStream is extracted.
+            // Reuse seq as quality placeholder (same length, no allocation).
+            std::vector<ReadRecordView> views;
+            views.reserve(sequences.size());
             for (const auto& seq : sequences) {
-                ReadRecord r;
-                r.sequence = std::string(seq);
-                r.quality = std::string(seq.size(), '!');  // Placeholder
-                reads.push_back(std::move(r));
+                views.emplace_back(std::string_view{}, seq, seq);
             }
             
-            auto result = blockCompressor_->compress(reads, 0);
+            auto result = blockCompressor_->compress(
+                std::span<const ReadRecordView>(views), 0);
             if (!result) {
                 return std::unexpected(result.error());
             }
@@ -646,30 +711,24 @@ private:
         std::span<const std::string_view> sequences,
         std::span<const std::string_view> qualities,
         std::span<const std::uint32_t> lengths) {
-        // Simple checksum calculation (placeholder)
-        // In production, this would use xxHash64
-        std::uint64_t hash = 0;
-        
+        XXH3_state_t state;
+        XXH3_64bits_reset(&state);
+
         for (const auto& id : ids) {
-            for (char c : id) {
-                hash = hash * 31 + static_cast<std::uint64_t>(c);
-            }
+            XXH3_64bits_update(&state, id.data(), id.size());
         }
         for (const auto& seq : sequences) {
-            for (char c : seq) {
-                hash = hash * 31 + static_cast<std::uint64_t>(c);
-            }
+            XXH3_64bits_update(&state, seq.data(), seq.size());
         }
         for (const auto& qual : qualities) {
-            for (char c : qual) {
-                hash = hash * 31 + static_cast<std::uint64_t>(c);
-            }
+            XXH3_64bits_update(&state, qual.data(), qual.size());
         }
-        for (auto len : lengths) {
-            hash = hash * 31 + static_cast<std::uint64_t>(len);
+        if (!lengths.empty()) {
+            XXH3_64bits_update(&state, lengths.data(),
+                               lengths.size() * sizeof(std::uint32_t));
         }
-        
-        return hash;
+
+        return XXH3_64bits_digest(&state);
     }
 
     std::uint8_t getIdCodec() const noexcept {
@@ -1133,12 +1192,15 @@ public:
         chunk.isLast = block.isLast;
 
         try {
-            // Configure BlockCompressor for decompression
-            algo::BlockCompressorConfig compressorConfig;
-            compressorConfig.readLengthClass = format::getReadLengthClass(globalHeader.flags);
-            compressorConfig.qualityMode = format::getQualityMode(globalHeader.flags);
-            compressorConfig.idMode = format::getIdMode(globalHeader.flags);
-            compressorConfig.numThreads = 1;  // Single-threaded per block
+            // Lazily initialize cached compressor on first call
+            if (!cachedCompressor_) {
+                algo::BlockCompressorConfig compressorConfig;
+                compressorConfig.readLengthClass = format::getReadLengthClass(globalHeader.flags);
+                compressorConfig.qualityMode = format::getQualityMode(globalHeader.flags);
+                compressorConfig.idMode = format::getIdMode(globalHeader.flags);
+                compressorConfig.numThreads = 1;  // Single-threaded per block
+                cachedCompressor_ = std::make_unique<algo::BlockCompressor>(compressorConfig);
+            }
 
             // Create block header from compressed block metadata
             format::BlockHeader blockHeader;
@@ -1150,9 +1212,8 @@ public:
             blockHeader.codecQual = block.codecQual;
             blockHeader.codecAux = block.codecAux;
 
-            // Use BlockCompressor to decompress all streams together
-            algo::BlockCompressor compressor(compressorConfig);
-            auto decompressResult = compressor.decompress(
+            // Reuse cached compressor for decompression
+            auto decompressResult = cachedCompressor_->decompress(
                 blockHeader,
                 block.idStream,
                 block.seqStream,
@@ -1199,6 +1260,7 @@ public:
     void reset() noexcept {
         state_ = NodeState::kIdle;
         totalBlocksDecompressed_ = 0;
+        cachedCompressor_.reset();
     }
 
     const DecompressorNodeConfig& config() const noexcept { return config_; }
@@ -1207,6 +1269,7 @@ private:
     DecompressorNodeConfig config_;
     NodeState state_ = NodeState::kIdle;
     std::atomic<std::uint32_t> totalBlocksDecompressed_{0};
+    std::unique_ptr<algo::BlockCompressor> cachedCompressor_;
 };
 
 // =============================================================================
@@ -1742,3 +1805,4 @@ const FASTQWriterNodeConfig& FASTQWriterNode::config() const noexcept {
 }
 
 }  // namespace fqc::pipeline
+#endif  // #if 0 dead code block

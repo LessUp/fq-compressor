@@ -23,7 +23,7 @@
 set -euo pipefail
 
 # Default settings
-THREADS=$(nproc 2>/dev/null || echo 4)
+THREADS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 OUTPUT_DIR="./compare_results"
 KEEP_FILES=false
 VERBOSE=false
@@ -141,9 +141,10 @@ find_binary() {
 
 # Find fqc binary
 FQC_BIN=$(find_binary "fqc" \
-    "./build/build/Release/bin/fqc" \
-    "../build/build/Release/bin/fqc" \
-    "./build/Release/bin/fqc") || {
+    "./build/clang-release/src/fqc" \
+    "./build/gcc-release/src/fqc" \
+    "./build/clang-debug/src/fqc" \
+    "./build/gcc-debug/src/fqc") || {
     log_error "fqc binary not found. Build the project first."
     exit 1
 }
@@ -211,12 +212,12 @@ log_info "  Decompression time: ${FQC_DECOMPRESS_TIME}s"
 log_info "Verifying fqc decompression..."
 FQC_DECOMPRESSED_MD5=$(md5sum "$FQC_DECOMPRESSED" | cut -d' ' -f1)
 if [[ "$INPUT_MD5" == "$FQC_DECOMPRESSED_MD5" ]]; then
-    log_info "  ${GREEN}PASS${NC}: Decompressed output matches original"
+    echo -e "  ${GREEN}[PASS]${NC} Decompressed output matches original"
     FQC_VERIFY="PASS"
 else
-    log_error "  ${RED}FAIL${NC}: Decompressed output differs from original"
-    log_error "  Original MD5:     $INPUT_MD5"
-    log_error "  Decompressed MD5: $FQC_DECOMPRESSED_MD5"
+    echo -e "  ${RED}[FAIL]${NC} Decompressed output differs from original"
+    echo -e "  Original MD5:     $INPUT_MD5"
+    echo -e "  Decompressed MD5: $FQC_DECOMPRESSED_MD5"
     FQC_VERIFY="FAIL"
 fi
 
@@ -265,10 +266,10 @@ if [[ -n "$SPRING_BIN" ]]; then
     log_info "Verifying spring decompression..."
     SPRING_DECOMPRESSED_MD5=$(md5sum "$SPRING_DECOMPRESSED" | cut -d' ' -f1)
     if [[ "$INPUT_MD5" == "$SPRING_DECOMPRESSED_MD5" ]]; then
-        log_info "  ${GREEN}PASS${NC}: Decompressed output matches original"
+        echo -e "  ${GREEN}[PASS]${NC} Decompressed output matches original"
         SPRING_VERIFY="PASS"
     else
-        log_warn "  ${YELLOW}NOTE${NC}: Spring decompressed output differs (may reorder reads)"
+        echo -e "  ${YELLOW}[NOTE]${NC} Spring decompressed output differs (may reorder reads)"
         SPRING_VERIFY="REORDERED"
     fi
 fi
@@ -329,9 +330,9 @@ fi
 
 # Exit with appropriate code
 if [[ "$FQC_VERIFY" == "PASS" ]]; then
-    log_info "${GREEN}Comparison complete - FQC verification passed${NC}"
+    echo -e "${GREEN}[INFO]${NC} Comparison complete - FQC verification passed"
     exit 0
 else
-    log_error "${RED}Comparison complete - FQC verification failed${NC}"
+    echo -e "${RED}[ERROR]${NC} Comparison complete - FQC verification failed"
     exit 1
 fi

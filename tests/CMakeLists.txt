@@ -7,9 +7,6 @@
 # RapidCheck for property-based testing.
 # =============================================================================
 
-# Enable testing
-enable_testing()
-
 # =============================================================================
 # Test Configuration
 # =============================================================================
@@ -71,12 +68,15 @@ function(fqc_add_test test_name)
     # Set test properties
     set_tests_properties(${test_name} PROPERTIES
         TIMEOUT 300
-        LABELS "unit"
     )
     
     if(ARG_PROPERTY_BASED)
         set_tests_properties(${test_name} PROPERTIES
             LABELS "property"
+        )
+    else()
+        set_tests_properties(${test_name} PROPERTIES
+            LABELS "unit"
         )
     endif()
 endfunction()
@@ -85,33 +85,7 @@ endfunction()
 # Unit Tests
 # =============================================================================
 
-# Placeholder test to verify the build system works
-# Real tests will be added as modules are implemented
-
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/placeholder_test.cpp")
-    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/placeholder_test.cpp"
-"// =============================================================================
-// Placeholder test to verify the build system
-// =============================================================================
-
-#include <gtest/gtest.h>
-
-TEST(BuildSystemTest, Placeholder) {
-    // This test verifies that the build system is correctly configured
-    EXPECT_TRUE(true);
-}
-
-TEST(BuildSystemTest, CppStandard) {
-    // Verify C++20 is enabled
-    #if __cplusplus >= 202002L
-        EXPECT_TRUE(true);
-    #else
-        FAIL() << \"C++20 is not enabled\";
-    #endif
-}
-")
-endif()
-
+# Build system verification test
 fqc_add_test(placeholder_test
     SOURCES placeholder_test.cpp
 )
@@ -183,6 +157,22 @@ if(rapidcheck_FOUND)
     # Validates: Requirements 1.1.3
     fqc_add_test(pe_property_test
         SOURCES algo/pe_property_test.cpp
+        PROPERTY_BASED
+    )
+    
+    # FASTQ Parser Property Tests
+    # **Property 2: FASTQ 解析往返一致性**
+    # Validates: Requirements 1.1.1
+    fqc_add_test(fastq_parser_property_test
+        SOURCES io/fastq_parser_property_test.cpp
+        PROPERTY_BASED
+    )
+    
+    # Pipeline Round-Trip Property Tests
+    # **Property 6: 完整压缩往返一致性**
+    # Validates: Requirements 1.1, 2.1, 2.2, 4.1
+    fqc_add_test(pipeline_property_test
+        SOURCES pipeline/pipeline_property_test.cpp
         PROPERTY_BASED
     )
 endif()

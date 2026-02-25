@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/install_deps.sh - Conan 依赖安装脚本
 
 set -euo pipefail
@@ -88,12 +88,13 @@ echo "Output: $BUILD_DIR"
 echo ""
 
 # 安装依赖
+# shellcheck disable=SC2086
 conan install . \
     --output-folder="$BUILD_DIR" \
     --build=missing \
     -s build_type="$BUILD_TYPE" \
     -s compiler.cppstd=20 \
-    $COMPILER_SETTINGS
+    ${COMPILER_SETTINGS:-}
 
 echo ""
 echo "=== Dependencies installed ==="
