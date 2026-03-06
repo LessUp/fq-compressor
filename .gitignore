@@ -104,6 +104,12 @@ __pycache__/
 venv/
 .env
 
+# Honkit / GitBook
+node_modules/
+_book/
+.honkit/
+.cache/
+
 # 压缩测试数据
 *.fqc
 *.fqc.idx
