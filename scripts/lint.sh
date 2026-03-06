@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 ACTION="${1:-lint}"
+PRESET="${2:-clang-debug}"
 
 # 查找源文件
 find_sources() {
@@ -65,10 +66,10 @@ case $ACTION in
         ;;
     lint)
         echo "Running $CLANG_TIDY..."
-        BUILD_DIR="$PROJECT_DIR/build/clang-debug"
+        BUILD_DIR="$PROJECT_DIR/build/$PRESET"
         if [ ! -f "$BUILD_DIR/compile_commands.json" ]; then
             echo "Error: compile_commands.json not found in $BUILD_DIR"
-            echo "Please run './scripts/build.sh clang-debug' first."
+            echo "Please run './scripts/build.sh $PRESET' first."
             exit 1
         fi
         mapfile -t sources < <(find_sources)
@@ -80,17 +81,20 @@ case $ACTION in
         fi
         ;;
     all)
-        "$0" format-check
-        "$0" lint
+        "$0" format-check "$PRESET"
+        "$0" lint "$PRESET"
         ;;
     *)
-        echo "Usage: $0 {format|format-check|lint|all}"
+        echo "Usage: $0 {format|format-check|lint|all} [preset]"
         echo ""
         echo "Commands:"
         echo "  format       - Format all source files in place"
         echo "  format-check - Check formatting without modifying files"
         echo "  lint         - Run clang-tidy static analysis"
         echo "  all          - Run format-check and lint"
+        echo ""
+        echo "Preset:"
+        echo "  Optional for lint/all, defaults to clang-debug"
         exit 1
         ;;
 esac

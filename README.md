@@ -1,6 +1,15 @@
 # fq-compressor
 
-**fq-compressor** is a high-performance, next-generation FASTQ compression tool designed for the sequencing era. It combines state-of-the-art **Assembly-based Compression (ABC)** strategies with robust industrial-grade engineering to deliver extreme compression ratios, fast parallel processing, and native random access.
+ [English](README.md) | [简体中文](README.zh-CN.md)
+
+ **Documentation**
+
+ - [GitBook / Docs Site](https://lessup.github.io/fq-compressor/)
+ - [中文文档总览](docs/README.md)
+ - [Benchmark Documentation](docs/BENCHMARK.md)
+ - [Latest Benchmark Report](docs/benchmark/results/report-latest.md)
+
+ **fq-compressor** is a high-performance, next-generation FASTQ compression tool designed for the sequencing era. It combines state-of-the-art **Assembly-based Compression (ABC)** strategies with robust industrial-grade engineering to deliver extreme compression ratios, fast parallel processing, and native random access.
 
 ## 🚀 Key Features
 
@@ -59,7 +68,7 @@ Files are composed of independent **Blocks** (e.g., 10MB unpackaged).
 The `.fqc` format is **already highly compressed** using domain-specific algorithms (ABC for sequences, SCM for quality scores). Adding an external compression layer (like gzip or xz) provides minimal additional benefit while introducing significant drawbacks:
 
 1. **Marginal Compression Gain**: External compression typically adds only 1-5% additional compression on already-compressed `.fqc` files.
-2. **Breaks Random Access**: The `.fqc` format supports O(1) random access to any read range. External compression destroys this capability.
+2. **Breaks Random Access**: The `.fqc` format supports O(1) random access to any part of the file (Scatter-Gather ready). External compression destroys this capability.
 3. **Increased Latency**: Decompression requires two passes (external decompression + FQC decompression).
 4. **Complexity**: Managing nested compression adds operational complexity.
 
@@ -137,105 +146,12 @@ The binary will be at `build/build/Release/bin/fqc`.
 
 ---
 
-## 📖 Usage
+## � Documentation Map
 
-### Basic Compression
-
-```bash
-# Compress a FASTQ file
-fqc compress -i input.fastq -o output.fqc
-
-# Compress with specific options
-fqc compress -i input.fastq -o output.fqc -t 8 -l 6
-```
-
-### Basic Decompression
-
-```bash
-# Decompress to FASTQ
-fqc decompress -i archive.fqc -o output.fastq
-
-# Extract specific read range
-fqc decompress -i archive.fqc -o subset.fastq --range 1000:2000
-
-# Output to stdout
-fqc decompress -i archive.fqc -o -
-```
-
-### Paired-End Support
-
-```bash
-# Compress paired-end files
-fqc compress -i read1.fastq -2 read2.fastq -o paired.fqc
-
-# Decompress with split output
-fqc decompress -i paired.fqc --split-pe -o reads.fastq
-# Creates reads_R1.fastq and reads_R2.fastq
-```
-
-### Verification
-
-```bash
-# Verify archive integrity
-fqc verify archive.fqc
-
-# Verbose verification
-fqc verify archive.fqc -v
-
-# Quick verification (magic + footer only)
-fqc verify archive.fqc --quick
-```
-
-### Archive Information
-
-```bash
-# Show archive metadata
-fqc info archive.fqc
-```
-
----
-
-## ⚙️ CLI Reference
-
-### Global Options
-| Option | Description |
-|--------|-------------|
-| `-t, --threads <N>` | Number of threads (0 = auto) |
-| `-v, --verbose` | Increase verbosity |
-| `-q, --quiet` | Suppress output |
-| `--version` | Show version |
-| `-h, --help` | Show help |
-
-### Compress Options
-| Option | Description |
-|--------|-------------|
-| `-i, --input <file>` | Input FASTQ file (required) |
-| `-o, --output <file>` | Output .fqc file (required) |
-| `-2 <file>` | Second input file for paired-end |
-| `-l, --level <1-9>` | Compression level (default: 6) |
-| `--quality-mode <mode>` | Quality handling: lossless, illumina8, qvz, discard |
-| `--id-mode <mode>` | ID handling: exact, tokenize, discard |
-| `-f, --force` | Overwrite existing output |
-
-### Decompress Options
-| Option | Description |
-|--------|-------------|
-| `-i, --input <file>` | Input .fqc file (required) |
-| `-o, --output <file>` | Output FASTQ file (required, or "-" for stdout) |
-| `--range <start:end>` | Extract read range (1-based) |
-| `--split-pe` | Split paired-end to separate files |
-| `--original-order` | Output in original order (if reorder map present) |
-| `--skip-corrupted` | Skip corrupted blocks instead of failing |
-| `-f, --force` | Overwrite existing output |
-
-### Verify Options
-| Option | Description |
-|--------|-------------|
-| `--fail-fast` | Stop on first error |
-| `--quick` | Quick mode (magic + footer only) |
-| `-v, --verbose` | Show detailed progress |
-
----
+- **Chinese project docs**: [docs/README.md](docs/README.md)
+- **GitBook (bilingual)**: [https://lessup.github.io/fq-compressor/](https://lessup.github.io/fq-compressor/)
+- **Specs and design notes**: [docs/specs/README.md](docs/specs/README.md)
+- **Reference project analysis**: [docs/design/reference-projects.md](docs/design/reference-projects.md)
 
 ## 📊 Performance Benchmarking
 

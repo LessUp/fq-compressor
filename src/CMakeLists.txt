@@ -115,8 +115,9 @@ target_include_directories(fqc
 # =============================================================================
 
 # Install libraries
-install(TARGETS fqc_core fqc_cli
+install(TARGETS fqc fqc_core fqc_cli
     EXPORT FQCompressorTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

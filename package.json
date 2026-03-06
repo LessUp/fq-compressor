@@ -1,0 +1,14 @@
+{
+  "name": "fq-compressor-docs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Documentation tooling for fq-compressor",
+  "scripts": {
+    "docs:build": "honkit build docs/gitbook docs/.site",
+    "docs:serve": "honkit serve docs/gitbook",
+    "docs:pdf": "honkit pdf docs/gitbook docs/.site/fq-compressor.pdf"
+  },
+  "devDependencies": {
+    "honkit": "^5.1.4"
+  }
+}
