@@ -8,8 +8,7 @@
 // - Automatic format detection (gzip, bzip2, xz)
 // - Streaming decompression for memory efficiency
 //
-// Phase 1: gzip support (libdeflate/zlib)
-// Phase 2: bzip2, xz support (planned)
+// Supported formats: gzip (zlib), bzip2 (libbz2), xz (liblzma)
 //
 // Usage:
 //   auto stream = CompressedStream::open("/path/to/reads.fastq.gz");
@@ -42,9 +41,9 @@ namespace fqc::io {
 enum class CompressionFormat : std::uint8_t {
     kNone = 0,   ///< Uncompressed (plain text)
     kGzip = 1,   ///< gzip (.gz)
-    kBzip2 = 2,  ///< bzip2 (.bz2) - Phase 2
-    kXz = 3,     ///< xz/lzma (.xz) - Phase 2
-    kZstd = 4,   ///< zstd (.zst) - Phase 2
+    kBzip2 = 2,  ///< bzip2 (.bz2)
+    kXz = 3,     ///< xz/lzma (.xz)
+    kZstd = 4,   ///< zstd (.zst) - not yet supported
     kUnknown = 255
 };
 

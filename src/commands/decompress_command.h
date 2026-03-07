@@ -77,8 +77,18 @@ struct DecompressOptions {
     /// @brief Read range to extract (nullopt = all).
     std::optional<ReadRange> range;
 
+    /// @brief Paired read range to extract (nullopt = all).
+    /// Each pair counts as one unit.
+    std::optional<ReadRange> rangePairs;
+
     /// @brief Output only read headers (IDs).
     bool headerOnly = false;
+
+    /// @brief Streams to decode (comma-separated: id,seq,qual or "all").
+    std::string streams = "all";
+
+    /// @brief Output format override (fastq, fasta, tsv, raw).
+    std::string outputFormat;
 
     /// @brief Output in original order (requires reorder map).
     bool originalOrder = false;
@@ -97,6 +107,12 @@ struct DecompressOptions {
 
     /// @brief Verify checksums during decompression.
     bool verifyChecksums = true;
+
+    /// @brief Placeholder quality character for Quality Discard mode.
+    char placeholderQual = '!';
+
+    /// @brief ID prefix for ID Discard mode reconstruction.
+    std::string idPrefix;
 
     /// @brief Show progress bar.
     bool showProgress = true;

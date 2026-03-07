@@ -3,8 +3,7 @@
 // =============================================================================
 // Transparent decompression support implementation.
 //
-// Phase 1: gzip support using zlib
-// Phase 2: bzip2, xz support (planned)
+// Supported formats: gzip (zlib), bzip2 (libbz2), xz (liblzma)
 //
 // Requirements: 1.1.1
 // =============================================================================
@@ -154,9 +153,9 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
     switch (format) {
         case CompressionFormat::kNone:
         case CompressionFormat::kGzip:
-            return true;
         case CompressionFormat::kBzip2:
         case CompressionFormat::kXz:
+            return true;
         case CompressionFormat::kZstd:
             return false;  // Not yet implemented
         default:
@@ -165,7 +164,8 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
 }
 
 std::vector<CompressionFormat> supportedCompressionFormats() {
-    return {CompressionFormat::kNone, CompressionFormat::kGzip};
+    return {CompressionFormat::kNone, CompressionFormat::kGzip,
+            CompressionFormat::kBzip2, CompressionFormat::kXz};
 }
 
 // =============================================================================
@@ -290,6 +290,250 @@ std::size_t GzipStreamBuf::decompress() {
 }
 
 // =============================================================================
+// Bzip2StreamBuf Implementation
+// =============================================================================
+
+Bzip2StreamBuf::Bzip2StreamBuf(std::istream& source, std::size_t bufferSize)
+    : source_(&source), inputBuffer_(bufferSize), outputBuffer_(bufferSize) {
+    initBzip2();
+}
+
+Bzip2StreamBuf::~Bzip2StreamBuf() { cleanupBzip2(); }
+
+Bzip2StreamBuf::Bzip2StreamBuf(Bzip2StreamBuf&& other) noexcept
+    : std::streambuf(std::move(other)),
+      source_(other.source_),
+      inputBuffer_(std::move(other.inputBuffer_)),
+      outputBuffer_(std::move(other.outputBuffer_)),
+      bzStream_(other.bzStream_),
+      initialized_(other.initialized_),
+      streamEnd_(other.streamEnd_) {
+    other.source_ = nullptr;
+    other.bzStream_ = nullptr;
+    other.initialized_ = false;
+}
+
+Bzip2StreamBuf& Bzip2StreamBuf::operator=(Bzip2StreamBuf&& other) noexcept {
+    if (this != &other) {
+        cleanupBzip2();
+
+        source_ = other.source_;
+        inputBuffer_ = std::move(other.inputBuffer_);
+        outputBuffer_ = std::move(other.outputBuffer_);
+        bzStream_ = other.bzStream_;
+        initialized_ = other.initialized_;
+        streamEnd_ = other.streamEnd_;
+
+        other.source_ = nullptr;
+        other.bzStream_ = nullptr;
+        other.initialized_ = false;
+    }
+    return *this;
+}
+
+void Bzip2StreamBuf::initBzip2() {
+    auto* stream = new bz_stream;
+    std::memset(stream, 0, sizeof(bz_stream));
+
+    int ret = BZ2_bzDecompressInit(stream, 0 /* verbosity */, 0 /* small */);  
+    if (ret != BZ_OK) {
+        delete stream;
+        throw IOError("Failed to initialize bzip2 decompressor (error: " +
+                      std::to_string(ret) + ")");
+    }
+
+    bzStream_ = stream;
+    initialized_ = true;
+}
+
+void Bzip2StreamBuf::cleanupBzip2() {
+    if (bzStream_) {
+        auto* stream = static_cast<bz_stream*>(bzStream_);
+        BZ2_bzDecompressEnd(stream);
+        delete stream;
+        bzStream_ = nullptr;
+    }
+    initialized_ = false;
+}
+
+Bzip2StreamBuf::int_type Bzip2StreamBuf::underflow() {
+    if (gptr() < egptr()) {
+        return traits_type::to_int_type(*gptr());
+    }
+
+    if (streamEnd_) {
+        return traits_type::eof();
+    }
+
+    std::size_t decompressed = decompress();
+    if (decompressed == 0) {
+        return traits_type::eof();
+    }
+
+    setg(outputBuffer_.data(), outputBuffer_.data(), outputBuffer_.data() + decompressed);
+    return traits_type::to_int_type(*gptr());
+}
+
+std::size_t Bzip2StreamBuf::decompress() {
+    if (!initialized_ || !source_) {
+        return 0;
+    }
+
+    auto* stream = static_cast<bz_stream*>(bzStream_);
+
+    // Read more compressed data if needed
+    if (stream->avail_in == 0 && !source_->eof()) {
+        source_->read(inputBuffer_.data(),
+                      static_cast<std::streamsize>(inputBuffer_.size()));
+        auto bytesRead = static_cast<std::size_t>(source_->gcount());
+        if (bytesRead > 0) {
+            stream->avail_in = static_cast<unsigned int>(bytesRead);
+            stream->next_in = inputBuffer_.data();
+        }
+    }
+
+    // Setup output buffer
+    stream->avail_out = static_cast<unsigned int>(outputBuffer_.size());
+    stream->next_out = outputBuffer_.data();
+
+    // Decompress
+    int ret = BZ2_bzDecompress(stream);
+
+    if (ret == BZ_STREAM_END) {
+        streamEnd_ = true;
+    } else if (ret != BZ_OK) {
+        throw IOError("Bzip2 decompression failed (error: " +
+                      std::to_string(ret) + ")");
+    }
+
+    return outputBuffer_.size() - stream->avail_out;
+}
+
+// =============================================================================
+// XzStreamBuf Implementation
+// =============================================================================
+
+XzStreamBuf::XzStreamBuf(std::istream& source, std::size_t bufferSize)
+    : source_(&source), inputBuffer_(bufferSize), outputBuffer_(bufferSize) {
+    initLzma();
+}
+
+XzStreamBuf::~XzStreamBuf() { cleanupLzma(); }
+
+XzStreamBuf::XzStreamBuf(XzStreamBuf&& other) noexcept
+    : std::streambuf(std::move(other)),
+      source_(other.source_),
+      inputBuffer_(std::move(other.inputBuffer_)),
+      outputBuffer_(std::move(other.outputBuffer_)),
+      lzmaStream_(other.lzmaStream_),
+      initialized_(other.initialized_),
+      streamEnd_(other.streamEnd_) {
+    other.source_ = nullptr;
+    other.lzmaStream_ = nullptr;
+    other.initialized_ = false;
+}
+
+XzStreamBuf& XzStreamBuf::operator=(XzStreamBuf&& other) noexcept {
+    if (this != &other) {
+        cleanupLzma();
+
+        source_ = other.source_;
+        inputBuffer_ = std::move(other.inputBuffer_);
+        outputBuffer_ = std::move(other.outputBuffer_);
+        lzmaStream_ = other.lzmaStream_;
+        initialized_ = other.initialized_;
+        streamEnd_ = other.streamEnd_;
+
+        other.source_ = nullptr;
+        other.lzmaStream_ = nullptr;
+        other.initialized_ = false;
+    }
+    return *this;
+}
+
+void XzStreamBuf::initLzma() {
+    auto* stream = new lzma_stream;
+    *stream = LZMA_STREAM_INIT;
+
+    // Use auto decoder which handles both xz and lzma formats
+    // Memory limit: 256 MB
+    constexpr std::uint64_t kMemLimit = 256ULL * 1024 * 1024;
+    lzma_ret ret = lzma_auto_decoder(stream, kMemLimit, 0);
+    if (ret != LZMA_OK) {
+        delete stream;
+        throw IOError("Failed to initialize lzma decompressor (error: " +
+                      std::to_string(static_cast<int>(ret)) + ")");
+    }
+
+    lzmaStream_ = stream;
+    initialized_ = true;
+}
+
+void XzStreamBuf::cleanupLzma() {
+    if (lzmaStream_) {
+        auto* stream = static_cast<lzma_stream*>(lzmaStream_);
+        lzma_end(stream);
+        delete stream;
+        lzmaStream_ = nullptr;
+    }
+    initialized_ = false;
+}
+
+XzStreamBuf::int_type XzStreamBuf::underflow() {
+    if (gptr() < egptr()) {
+        return traits_type::to_int_type(*gptr());
+    }
+
+    if (streamEnd_) {
+        return traits_type::eof();
+    }
+
+    std::size_t decompressed = decompress();
+    if (decompressed == 0) {
+        return traits_type::eof();
+    }
+
+    setg(outputBuffer_.data(), outputBuffer_.data(), outputBuffer_.data() + decompressed);
+    return traits_type::to_int_type(*gptr());
+}
+
+std::size_t XzStreamBuf::decompress() {
+    if (!initialized_ || !source_) {
+        return 0;
+    }
+
+    auto* stream = static_cast<lzma_stream*>(lzmaStream_);
+
+    // Read more compressed data if needed
+    if (stream->avail_in == 0 && !source_->eof()) {
+        source_->read(reinterpret_cast<char*>(inputBuffer_.data()),
+                      static_cast<std::streamsize>(inputBuffer_.size()));
+        auto bytesRead = static_cast<std::size_t>(source_->gcount());
+        if (bytesRead > 0) {
+            stream->avail_in = bytesRead;
+            stream->next_in = inputBuffer_.data();
+        }
+    }
+
+    // Setup output buffer
+    stream->avail_out = outputBuffer_.size();
+    stream->next_out = reinterpret_cast<std::uint8_t*>(outputBuffer_.data());
+
+    // Decompress
+    lzma_action action = source_->eof() ? LZMA_FINISH : LZMA_RUN;
+    lzma_ret ret = lzma_code(stream, action);
+
+    if (ret == LZMA_STREAM_END) {
+        streamEnd_ = true;
+    } else if (ret != LZMA_OK) {
+        throw IOError("XZ decompression failed (error: " +
+                      std::to_string(static_cast<int>(ret)) + ")");
+    }
+
+    return outputBuffer_.size() - stream->avail_out;
+}
+
+// =============================================================================
 // CompressedInputStream Implementation
 // =============================================================================
 
@@ -361,7 +605,17 @@ void CompressedInputStream::setup() {
             break;
 
         case CompressionFormat::kBzip2:
+            decompressBuf_ = std::make_unique<Bzip2StreamBuf>(*source);
+            rdbuf(decompressBuf_.get());
+            FQC_LOG_DEBUG("Opened bzip2 compressed stream");
+            break;
+
         case CompressionFormat::kXz:
+            decompressBuf_ = std::make_unique<XzStreamBuf>(*source);
+            rdbuf(decompressBuf_.get());
+            FQC_LOG_DEBUG("Opened xz compressed stream");
+            break;
+
         case CompressionFormat::kZstd:
             throw IOError(
                           "Compression format not yet supported: " +

@@ -38,7 +38,10 @@ struct InfoOptions {
     /// @brief Show detailed block information.
     bool detailed = false;
 
-    /// @brief Show codec information.
+    /// @brief Show index summary (block count, ranges, offsets).
+    bool showIndex = false;
+
+    /// @brief Show codec statistics and distribution.
     bool showCodecs = false;
 };
 
@@ -90,7 +93,9 @@ private:
 [[nodiscard]] std::unique_ptr<InfoCommand> createInfoCommand(
     const std::string& inputPath,
     bool jsonOutput,
-    bool detailed);
+    bool detailed,
+    bool showIndex = false,
+    bool showCodecs = false);
 
 }  // namespace fqc::commands
 

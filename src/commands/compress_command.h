@@ -33,6 +33,10 @@ namespace fqc::commands {
 /// @note Uses QualityMode from fqc/common/types.h.
 [[nodiscard]] QualityMode parseQualityMode(std::string_view str);
 
+/// @brief Parse ID mode from string.
+/// @note Uses IDMode from fqc/common/types.h.
+[[nodiscard]] IDMode parseIdMode(std::string_view str);
+
 /// @brief Configuration options for compression.
 struct CompressOptions {
     /// @brief Input file path (or "-" for stdin).
@@ -62,6 +66,9 @@ struct CompressOptions {
     /// @brief Quality compression mode.
     QualityMode qualityMode = QualityMode::kLossless;
 
+    /// @brief ID handling mode.
+    IDMode idMode = IDMode::kExact;
+
     /// @brief Long read handling mode.
     ReadLengthClass longReadMode = ReadLengthClass::kShort;
 
@@ -74,6 +81,9 @@ struct CompressOptions {
     /// @brief Maximum bases per block (for long reads).
     std::size_t maxBlockBases = 0;
 
+    /// @brief Input is paired-end data.
+    bool paired = false;
+
     /// @brief Input is interleaved paired-end.
     bool interleaved = false;
 
@@ -82,6 +92,12 @@ struct CompressOptions {
 
     /// @brief Block size in reads.
     std::size_t blockSize = 100000;
+
+    /// @brief Save reorder map for original order reconstruction.
+    bool saveReorderMap = true;
+
+    /// @brief Checksum algorithm type.
+    ChecksumType checksumType = ChecksumType::kXxHash64;
 
     /// @brief Overwrite existing output file.
     bool forceOverwrite = false;

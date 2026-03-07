@@ -497,9 +497,38 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
 }
 
 void VerifyCommand::printSummary() const {
+    if (options_.jsonOutput) {
+        // JSON output
+        std::cout << "{" << std::endl;
+        std::cout << "  \"file\": \"" << options_.inputPath.string() << "\"," << std::endl;
+        std::cout << "  \"status\": \"" << (summary_.passed() ? "ok" : "failed") << "\"," << std::endl;
+        std::cout << "  \"total_checks\": " << summary_.totalChecks << "," << std::endl;
+        std::cout << "  \"passed_checks\": " << summary_.passedChecks << "," << std::endl;
+        std::cout << "  \"failed_checks\": " << summary_.failedChecks << "," << std::endl;
+        std::cout << "  \"mode\": \"" << (options_.quickMode ? "quick" : "full") << "\"," << std::endl;
+        std::cout << "  \"results\": [" << std::endl;
+        for (std::size_t i = 0; i < summary_.results.size(); ++i) {
+            const auto& result = summary_.results[i];
+            std::cout << "    {\"check\": \"" << result.checkName
+                      << "\", \"passed\": " << (result.passed ? "true" : "false");
+            if (!result.passed && !result.errorMessage.empty()) {
+                std::cout << ", \"error\": \"" << result.errorMessage << "\"";
+            }
+            if (!result.details.empty()) {
+                std::cout << ", \"details\": \"" << result.details << "\"";
+            }
+            std::cout << "}" << (i + 1 < summary_.results.size() ? "," : "") << std::endl;
+        }
+        std::cout << "  ]" << std::endl;
+        std::cout << "}" << std::endl;
+        return;
+    }
+
+    // Text output
     std::cout << std::endl;
     std::cout << "=== Verification Summary ===" << std::endl;
     std::cout << "File:    " << options_.inputPath.string() << std::endl;
+    std::cout << "Mode:    " << (options_.quickMode ? "quick" : "full") << std::endl;
     std::cout << "Checks:  " << summary_.passedChecks << "/" << summary_.totalChecks << " passed"
               << std::endl;
 

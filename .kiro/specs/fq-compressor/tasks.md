@@ -354,15 +354,15 @@
     - 在 README/帮助信息中说明：不提供 `.fqc.gz` 内置封装（会破坏随机访问），如需分发可由用户在归档外部自行二次压缩
     - _Requirements: 6.3_
 
-- [-] 17. 扩展输入格式支持 (Phase 2)
-  - [ ] 17.1 实现 bzip2 输入支持
+- [x] 17. 扩展输入格式支持 (Phase 2)
+  - [x] 17.1 实现 bzip2 输入支持
     - 集成 libbz2
-    - 扩展 CompressedStream
+    - 扩展 CompressedStream (Bzip2StreamBuf)
     - _Requirements: 1.1.1_
 
-  - [ ] 17.2 实现 xz 输入支持
+  - [x] 17.2 实现 xz 输入支持
     - 集成 liblzma
-    - 扩展 CompressedStream
+    - 扩展 CompressedStream (XzStreamBuf)
     - _Requirements: 1.1.1_
 
 - [x] 18. 长读支持

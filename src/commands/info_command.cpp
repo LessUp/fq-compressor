@@ -163,12 +163,16 @@ void InfoCommand::printBlockDetails() {
 std::unique_ptr<InfoCommand> createInfoCommand(
     const std::string& inputPath,
     bool jsonOutput,
-    bool detailed) {
+    bool detailed,
+    bool showIndex,
+    bool showCodecs) {
 
     InfoOptions opts;
     opts.inputPath = inputPath;
     opts.jsonOutput = jsonOutput;
     opts.detailed = detailed;
+    opts.showIndex = showIndex;
+    opts.showCodecs = showCodecs;
 
     return std::make_unique<InfoCommand>(std::move(opts));
 }

@@ -795,6 +795,13 @@ Result<CompressedQualityData> QualityCompressorImpl::compress(
         return result;
     }
 
+    // QVZ mode is not yet implemented
+    if (config_.qualityMode == QualityMode::kQvz) {
+        return makeError<CompressedQualityData>(
+            ErrorCode::kInvalidArgument,
+            "QVZ lossy compression is not yet implemented");
+    }
+
     // Use SCM compression
     auto compressResult = compressSCM(qualities);
     if (!compressResult) {
