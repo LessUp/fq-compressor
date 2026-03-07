@@ -72,7 +72,13 @@ case $PRESET in
         ;;
     clang-*)
         # Clang 使用 libc++（与 CMakePresets.json 中 -stdlib=libc++ 保持一致）
-        COMPILER_SETTINGS="-s compiler.libcxx=libc++"
+        # 必须显式指定 compiler=clang，否则默认 profile 检测到的 GCC 不接受 libc++
+        CLANG_VER=$(clang --version 2>/dev/null | head -1 | grep -oP '\d+' | head -1)
+        if [[ -z "$CLANG_VER" ]]; then
+            echo "Error: Could not detect Clang version"
+            exit 1
+        fi
+        COMPILER_SETTINGS="-s compiler=clang -s compiler.version=${CLANG_VER} -s compiler.libcxx=libc++"
         ;;
     coverage)
         COMPILER_SETTINGS=""
