@@ -296,12 +296,12 @@ void CompressCommand::runCompression() {
 
     std::uint64_t totalBases = 0;
     for (auto& fastqRec : allRecords) {
+        totalBases += fastqRec.length();  // read length BEFORE move
         readRecords.emplace_back(
             std::move(fastqRec.id),
             std::move(fastqRec.sequence),
             std::move(fastqRec.quality)
         );
-        totalBases += fastqRec.length();
     }
 
     // Update basic stats
@@ -542,9 +542,8 @@ void CompressCommand::runCompression() {
 
         // Prepare ReorderMap header
         format::ReorderMap mapHeader;
-        mapHeader.totalReads = static_cast<std::uint32_t>(analysisResult.forwardMap.size());
-        mapHeader.forwardMapSize = 0;  // Will be set by writeReorderMap
-        mapHeader.reverseMapSize = 0;  // Will be set by writeReorderMap
+        mapHeader.totalReads = static_cast<std::uint64_t>(analysisResult.forwardMap.size());
+        // forwardMapSize / reverseMapSize are filled from actual span sizes by FQCWriter::writeReorderMap
 
         // Compress maps (Delta + Varint encoding)
         auto compressedForward = format::deltaEncode(std::span<const ReadId>(analysisResult.forwardMap.data(), analysisResult.forwardMap.size()));
@@ -637,7 +636,7 @@ void CompressCommand::runCompressionParallel() {
         result = pipeline.run(options_.inputPath, options_.outputPath);
     } else {
         // Paired-end mode
-        result = pipeline.runPaired(options_.input2Path, options_.input2Path, options_.outputPath);
+        result = pipeline.runPaired(options_.inputPath, options_.input2Path, options_.outputPath);
     }
 
     if (!result) {

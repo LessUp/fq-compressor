@@ -221,7 +221,6 @@ RC_GTEST_PROP(FQCFormatProperty, GlobalHeaderRoundTrip, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(header, filename, timestamp);
         writer.finalize();
     }
@@ -257,7 +256,6 @@ RC_GTEST_PROP(FQCFormatProperty, EmptyArchiveRoundTrip, ()) {
     // Write empty archive
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(header, "empty.fastq", 0);
         writer.finalize();
     }
@@ -295,9 +293,11 @@ RC_GTEST_PROP(FQCFormatProperty, SingleBlockRoundTrip, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(globalHeader, "test.fastq", 12345);
-        writer.writeBlock(blockHeader, idsData, seqData, qualData, auxData);
+        BlockPayload payload0;
+        payload0.idsData = idsData; payload0.seqData = seqData;
+        payload0.qualData = qualData; payload0.auxData = auxData;
+        writer.writeBlock(blockHeader, payload0);
         writer.finalize();
     }
 
@@ -355,12 +355,13 @@ RC_GTEST_PROP(FQCFormatProperty, MultipleBlocksRoundTrip, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(globalHeader, "multi.fastq", 67890);
 
         for (int i = 0; i < numBlocks; ++i) {
-            writer.writeBlock(blockHeaders[i], allIdsData[i], allSeqData[i], allQualData[i],
-                              allAuxData[i]);
+            BlockPayload bp;
+            bp.idsData = allIdsData[i]; bp.seqData = allSeqData[i];
+            bp.qualData = allQualData[i]; bp.auxData = allAuxData[i];
+            writer.writeBlock(blockHeaders[i], bp);
         }
 
         writer.finalize();
@@ -412,9 +413,10 @@ RC_GTEST_PROP(FQCFormatProperty, SelectiveStreamReading, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(globalHeader, "selective.fastq", 0);
-        writer.writeBlock(blockHeader, idsData, seqData, qualData, {});
+        BlockPayload payload1;
+        payload1.idsData = idsData; payload1.seqData = seqData; payload1.qualData = qualData;
+        writer.writeBlock(blockHeader, payload1);
         writer.finalize();
     }
 
@@ -466,12 +468,13 @@ RC_GTEST_PROP(FQCFormatProperty, BlockIndexRandomAccess, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(globalHeader, "random.fastq", 0);
 
         for (int i = 0; i < numBlocks; ++i) {
             auto data = *gen::randomStreamData(50, 500);
-            writer.writeBlock(blockHeaders[i], data, data, data, {});
+            BlockPayload bprand;
+            bprand.idsData = data; bprand.seqData = data; bprand.qualData = data;
+            writer.writeBlock(blockHeaders[i], bprand);
         }
 
         writer.finalize();
@@ -520,9 +523,10 @@ RC_GTEST_PROP(FQCFormatProperty, ChecksumVerification, ()) {
     // Write
     {
         FQCWriter writer(tempPath);
-        writer.open();
         writer.writeGlobalHeader(globalHeader, "checksum.fastq", 0);
-        writer.writeBlock(blockHeader, idsData, seqData, qualData, {});
+        BlockPayload payload2;
+        payload2.idsData = idsData; payload2.seqData = seqData; payload2.qualData = qualData;
+        writer.writeBlock(blockHeader, payload2);
         writer.finalize();
     }
 
@@ -551,9 +555,8 @@ TEST(FQCFormatTest, MagicHeaderValidation) {
     // Create valid archive
     {
         FQCWriter writer(tempPath);
-        writer.open();
         GlobalHeader header{};
-        header.headerSize = sizeof(GlobalHeader);
+        header.headerSize = static_cast<std::uint32_t>(GlobalHeader::kMinSize);
         header.flags = 0;
         header.compressionAlgo = 0;
         header.checksumType = 0;
@@ -579,9 +582,8 @@ TEST(FQCFormatTest, FooterMagicValidation) {
     // Create valid archive
     {
         FQCWriter writer(tempPath);
-        writer.open();
         GlobalHeader header{};
-        header.headerSize = sizeof(GlobalHeader);
+        header.headerSize = static_cast<std::uint32_t>(GlobalHeader::kMinSize);
         writer.writeGlobalHeader(header, "test.fq", 0);
         writer.finalize();
     }
@@ -591,7 +593,7 @@ TEST(FQCFormatTest, FooterMagicValidation) {
         FQCReader reader(tempPath);
         reader.open();
         const auto& footer = reader.footer();
-        EXPECT_EQ(std::memcmp(footer.magicEnd, kMagicEnd, sizeof(kMagicEnd)), 0);
+        EXPECT_EQ(footer.magicEnd, kMagicEnd);
     }
 }
 

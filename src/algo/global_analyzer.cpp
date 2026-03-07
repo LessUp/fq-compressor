@@ -259,16 +259,6 @@ std::size_t InMemoryReadProvider::maxLength() const { return maxLength_; }
 // Minimizer Extraction Functions
 // =============================================================================
 
-inline std::string reverseComplement(std::string_view sequence) {
-    std::string result;
-    result.reserve(sequence.length());
-    for (auto it = sequence.rbegin(); it != sequence.rend(); ++it) {
-        char c = kComplement[static_cast<unsigned char>(*it)];
-        result.push_back(c ? c : 'N');
-    }
-    return result;
-}
-
 std::uint64_t computeKmerHash(std::string_view sequence) {
     // Use a simple rolling hash for k-mers
     // This is a basic implementation; could be optimized with NTHash or similar
