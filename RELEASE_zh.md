@@ -80,14 +80,16 @@ fqc verify -i output.fqc
 
 ### 平台支持
 
-| 平台 | 文件 | 说明 |
-|---|---|---|
-| Linux x64 (glibc) | `fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz` | 动态链接 (glibc) |
-| Linux x64 (musl) | `fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz` | **静态链接，任意 Linux 可运行** |
-| Linux arm64 (glibc) | `fq-compressor-v0.1.0-linux-aarch64-glibc.tar.gz` | 动态链接 (glibc) |
-| Linux arm64 (musl) | `fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz` | **静态链接，任意 Linux 可运行** |
-| macOS x64 | `fq-compressor-v0.1.0-macos-x86_64.tar.gz` | Intel Mac |
-| macOS arm64 | `fq-compressor-v0.1.0-macos-arm64.tar.gz` | Apple Silicon |
+| 平台 | 文件 | 编译器 | 说明 |
+|---|---|---|---|
+| Linux x64 (GCC glibc) | `fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz` | GCC 15.2 | 动态链接 (glibc) |
+| Linux x64 (GCC musl) | `fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz` | GCC 15.2 | **静态链接，任意 Linux 可运行** |
+| Linux x64 (Clang) | `fq-compressor-v0.1.0-linux-x86_64-clang.tar.gz` | Clang 21 + libc++ | 动态链接 |
+| Linux arm64 (GCC glibc) | `fq-compressor-v0.1.0-linux-aarch64-glibc.tar.gz` | GCC 15.2 | 动态链接 (glibc) |
+| Linux arm64 (GCC musl) | `fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz` | GCC 15.2 | **静态链接，任意 Linux 可运行** |
+| Linux arm64 (Clang) | `fq-compressor-v0.1.0-linux-aarch64-clang.tar.gz` | Clang 21 + libc++ | 动态链接 |
+| macOS x64 | `fq-compressor-v0.1.0-macos-x86_64.tar.gz` | GCC 15 | Intel Mac |
+| macOS arm64 | `fq-compressor-v0.1.0-macos-arm64.tar.gz` | GCC 15 | Apple Silicon |
 
 ### 校验文件完整性
 

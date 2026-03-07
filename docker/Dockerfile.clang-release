@@ -1,0 +1,98 @@
+# =============================================================================
+# FQCompressor Clang Release Build
+# =============================================================================
+# 使用 Clang 21 + libc++ (Debian Bookworm) 构建发布版二进制文件。
+# 与开发环境使用相同的 Clang 版本，确保一致性。
+#
+# Usage (CI):
+#   docker build -f docker/Dockerfile.clang-release -o out .
+#   # 产物: out/fqc
+# =============================================================================
+
+FROM gcc:15.2-bookworm AS build
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
+    ninja-build \
+    pkg-config \
+    git \
+    wget \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    lsb-release \
+    software-properties-common \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# CMake 4.x
+RUN CMAKE_VERSION=4.0.2 && \
+    ARCH="$(dpkg --print-architecture)" && \
+    case "$ARCH" in \
+        amd64) CMAKE_ARCH="x86_64" ;; \
+        arm64) CMAKE_ARCH="aarch64" ;; \
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
+    esac && \
+    wget -q "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}.tar.gz" -O /tmp/cmake.tar.gz && \
+    tar -C /opt -xzf /tmp/cmake.tar.gz && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cmake" /usr/local/bin/cmake && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/ctest" /usr/local/bin/ctest && \
+    ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
+    rm -f /tmp/cmake.tar.gz
+
+# LLVM/Clang 21
+RUN wget -q https://apt.llvm.org/llvm.sh && \
+    chmod +x llvm.sh && \
+    ./llvm.sh 21 && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        clang-21 \
+        lld-21 \
+        libc++-21-dev \
+        libc++abi-21-dev \
+    && rm -f llvm.sh \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
+
+# Conan 2.x
+RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+
+ENV CC=clang
+ENV CXX=clang++
+ENV CONAN_HOME=/root/.conan2
+
+WORKDIR /src
+COPY . .
+
+# Conan：检测 profile 并安装依赖
+# Clang + libc++ 需要指定 compiler.libcxx
+RUN conan profile detect --force
+RUN conan install . \
+    --output-folder=build/clang-release \
+    --build=missing \
+    -s build_type=Release \
+    -s compiler.cppstd=23 \
+    -s compiler.libcxx=libc++
+
+# CMake 配置（Clang + libc++ + LTO thin）
+RUN cmake -B build/clang-release -S . -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=build/clang-release/build/Release/generators/conan_toolchain.cmake \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -stdlib=libc++" \
+    -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++abi -fuse-ld=lld" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++ -lc++abi" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+    -DFQC_PORTABLE=ON \
+    -DBUILD_TESTING=OFF \
+    -DENABLE_COVERAGE=OFF
+
+# 构建
+RUN cmake --build build/clang-release -j "$(nproc)"
+
+# 导出构建产物
+FROM scratch AS export
+COPY --from=build /src/build/clang-release/src/fqc /fqc
