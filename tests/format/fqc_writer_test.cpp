@@ -17,12 +17,29 @@
 #include <string>
 #include <vector>
 
+#include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
 #include "fqc/format/fqc_reader.h"
 #include "fqc/format/fqc_writer.h"
 #include "fqc/format/reorder_map.h"
 
 namespace fqc::format::test {
+
+// Initialize Quill logger once for all tests in this file.
+class FQCWriterTestEnvironment : public ::testing::Environment {
+public:
+    void SetUp() override {
+        if (!fqc::log::isInitialized()) {
+            fqc::log::init("", fqc::log::Level::kWarning);
+        }
+    }
+    void TearDown() override {
+        fqc::log::flush();
+    }
+};
+
+static auto* const gEnv [[maybe_unused]] =
+    ::testing::AddGlobalTestEnvironment(new FQCWriterTestEnvironment);
 
 // =============================================================================
 // Helpers
