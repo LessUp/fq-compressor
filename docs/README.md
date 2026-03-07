@@ -7,47 +7,50 @@
 - [项目中文 README](../README.zh-CN.md)
 - [项目英文 README](../README.md)
 - [GitBook 双语文档](https://lessup.github.io/fq-compressor/)
-- [Benchmark 框架说明](BENCHMARK.md)
+- [Benchmark 框架说明](benchmark/BENCHMARK.md)
 - [最新 Benchmark 报告](benchmark/results/report-latest.md)
 - [规格文档入口](specs/README.md)
 
 ## 文档结构
 
-### 1. 使用与项目概览
-
-- `project-summary.md`
-- `phase4-usage-guide.md`
-- `test-results.md`
-
-### 2. 设计与规格
+### 1. 设计与规格 (`specs/`, `design/`)
 
 - `specs/requirements.md`
 - `specs/design.md`
 - `specs/tasks.md`
 - `specs/reference-projects.md`
 - `design/reference-projects.md`
+- `design/01-feasibility-analysis.md`
+- `design/02-strategy-evaluation.md`
+- `design/03-algorithm-selection.md`
 
-### 3. Benchmark 与性能
+### 2. Benchmark 与性能 (`benchmark/`)
 
-- `BENCHMARK.md`
-- `benchmark-summary.md`
+- `benchmark/BENCHMARK.md`
+- `benchmark/benchmark-summary.md`
 - `benchmark/README.md`
 - `benchmark/results/`
 
-### 4. 开发与工程化
+### 3. 开发与工程化 (`dev/`)
 
 - `dev/project-setup.md`
 - `dev/coding-standards.md`
 - `dev/spring-source-analysis.md`
+- `dev/project-summary.md`
+- `dev/04-implementation-status.md`
+- `dev/05-boundary-conditions.md`
+- `dev/phase3-summary.md`
+- `dev/phase4-tbb-parallel-implementation.md`
+- `dev/phase4-usage-guide.md`
+- `dev/test-results.md`
+- `dev/ISSUES.md`
+- `dev/issues-detailed.md`
+- `dev/comprehensive-diagnosis.md`
+- `dev/repair-progress.md`
 
-### 5. 评审与历史记录
+### 4. 评审与历史记录 (`review/`)
 
 - `review/`
-- `ISSUES.md`
-- `issues-detailed.md`
-- `repair-progress.md`
-- `phase3-summary.md`
-- `phase4-tbb-parallel-implementation.md`
 
 ## 目录治理结论
 

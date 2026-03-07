@@ -4,7 +4,7 @@
   "project": {
     "name": "fq-compressor",
     "description": "高性能 FASTQ 压缩工具，支持随机访问",
-    "language": "C++20",
+    "language": "C++23",
     "build_system": "CMake + Conan",
     "status": "design_phase"
   },

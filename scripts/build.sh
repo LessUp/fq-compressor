@@ -51,8 +51,9 @@ echo "Jobs: $JOBS"
 echo ""
 
 # 检查 Conan 依赖是否已安装
+# Conan 2.x 生成的 toolchain 文件位于嵌套路径 build/<preset>/build/<BuildType>/generators/
 BUILD_DIR="build/$PRESET"
-if [ ! -f "$BUILD_DIR/conan_toolchain.cmake" ]; then
+if ! find "$BUILD_DIR" -name "conan_toolchain.cmake" -print -quit 2>/dev/null | grep -q .; then
     echo "Installing Conan dependencies..."
     ./scripts/install_deps.sh "$PRESET"
 fi

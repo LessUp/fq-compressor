@@ -31,10 +31,10 @@
 #include "fqc/common/types.h"
 
 // Command implementations
-#include "commands/compress_command.h"
-#include "commands/decompress_command.h"
-#include "commands/info_command.h"
-#include "commands/verify_command.h"
+#include "fqc/commands/compress_command.h"
+#include "fqc/commands/decompress_command.h"
+#include "fqc/commands/info_command.h"
+#include "fqc/commands/verify_command.h"
 
 namespace {
 
@@ -45,7 +45,7 @@ namespace {
 constexpr const char* kVersion = "0.1.0";
 constexpr const char* kDescription =
     "fq-compressor: High-performance FASTQ compressor with random access support\n"
-    "Combines Spring's ABC algorithm with modern C++20 and TBB parallelism.\n\n"
+    "Combines Spring's ABC algorithm with modern C++23 and TBB parallelism.\n\n"
     "Note: The .fqc format is already highly compressed (0.4-0.6 bits/base).\n"
     "External compression (gzip/xz) provides minimal benefit and breaks random access.\n"
     "For distribution, wrap with 'xz' externally and unwrap before use.";

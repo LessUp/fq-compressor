@@ -10,7 +10,7 @@
 | **混合质量压缩** | 统计上下文混合 (SCM) 处理质量值，兼顾压缩比和速度 |
 | **并行引擎** | 基于 Intel oneTBB 的可扩展 Producer-Consumer 流水线 |
 | **随机访问** | 原生 block-based 格式（类似 BGZF），支持任意位置快速访问 |
-| **现代工程** | C++20 标准，Modern CMake + Conan 2.x + GitHub Actions CI/CD |
+| **现代工程** | C++23 标准，Modern CMake + Conan 2.x + GitHub Actions CI/CD |
 
 ## 为什么选择 fq-compressor？
 

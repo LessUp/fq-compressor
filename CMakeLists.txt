@@ -3,7 +3,7 @@
 # =============================================================================
 # CMake build configuration for fq-compressor project
 # 
-# Requirements: CMake 3.20+, C++20 compiler (GCC 11+ or Clang 12+)
+# Requirements: CMake 3.20+, C++23 compiler (GCC 11+ or Clang 12+)
 # Dependencies: CLI11, Quill, xxHash, TBB, GTest, RapidCheck (via Conan 2.x)
 #
 # Build presets are defined in CMakePresets.json for consistent builds.
@@ -52,18 +52,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "11.0")
         message(FATAL_ERROR 
             "GCC version ${CMAKE_CXX_COMPILER_VERSION} is too old. "
-            "fq-compressor requires GCC 11.0 or newer for C++20 support.")
+            "fq-compressor requires GCC 11.0 or newer for C++23 support.")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12.0")
         message(FATAL_ERROR 
             "Clang version ${CMAKE_CXX_COMPILER_VERSION} is too old. "
-            "fq-compressor requires Clang 12.0 or newer for C++20 support.")
+            "fq-compressor requires Clang 12.0 or newer for C++23 support.")
     endif()
 else()
     message(WARNING 
         "Compiler ${CMAKE_CXX_COMPILER_ID} is not officially supported. "
-        "Your build may fail due to lack of C++20 support.")
+        "Your build may fail due to lack of C++23 support.")
 endif()
 
 # =============================================================================
@@ -199,7 +199,9 @@ set(FQC_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_subdirectory(src)
 
 # Vendor dependencies (Spring core, etc.)
-# add_subdirectory(vendor)  # Uncomment when vendor dependencies are added
+# NOTE: vendor/spring-core contains the extracted Spring ABC algorithm.
+# It is not yet linked into fqc_core. Uncomment below when integration is ready.
+# add_subdirectory(vendor/spring-core)
 
 # =============================================================================
 # Testing Configuration

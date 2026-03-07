@@ -121,6 +121,6 @@ class FQCompressorConan(ConanFile):
 
     def package_info(self):
         """Define package information for consumers."""
-        self.cpp_info.libs = ["fqcomp_core", "fqcomp_cli"]
+        self.cpp_info.libs = ["fqc_core", "fqc_cli"]
         self.cpp_info.set_property("cmake_file_name", "FQCompressor")
         self.cpp_info.set_property("cmake_target_name", "FQCompressor::FQCompressor")

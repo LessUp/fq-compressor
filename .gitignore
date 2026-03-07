@@ -44,6 +44,7 @@ Makefile
 
 # 忽略所有的自动生成的文档
 docs/generated/
+docs/api/
 
 # 忽略所有的覆盖率报告
 coverage/
@@ -115,15 +116,6 @@ package-lock.json
 # 压缩测试数据
 *.fqc
 *.fqc.idx
-fq-data/.spec-workflow/templates/design-template.md
-fq-data/.spec-workflow/templates/product-template.md
-fq-data/.spec-workflow/templates/requirements-template.md
-fq-data/.spec-workflow/templates/structure-template.md
-fq-data/.spec-workflow/templates/tasks-template.md
-fq-data/.spec-workflow/templates/tech-template.md
-fq-data/.spec-workflow/user-templates/README.md
-fq-data/E150035817_L01_1201_1.sub10.fq.gz
-fq-data/E150035817_L01_1201_2.sub10.fq.gz
 
 ref-projects/
 ref-projects/*

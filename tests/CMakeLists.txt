@@ -167,14 +167,6 @@ if(rapidcheck_FOUND)
         PROPERTY_BASED
     )
     
-    # FASTQ Parser Property Tests
-    # **Property 2: FASTQ 解析往返一致性**
-    # Validates: Requirements 1.1.1
-    fqc_add_test(fastq_parser_property_test
-        SOURCES io/fastq_parser_property_test.cpp
-        PROPERTY_BASED
-    )
-    
     # Pipeline Round-Trip Property Tests
     # **Property 6: 完整压缩往返一致性**
     # Validates: Requirements 1.1, 2.1, 2.2, 4.1

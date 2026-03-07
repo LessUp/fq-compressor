@@ -17,7 +17,7 @@
 *   **Hybrid Quality Compression**: Uses **Statistical Context Mixing (SCM)** (similar to fqzcomp5) for quality scores, balancing ratio and speed.
 *   **Parallel Powerhouse**: Built on **Intel oneTBB** with a scalable Producer-Consumer pipeline, maximizing multicore utilization.
 *   **Random Access**: Native **Block-based** format (like BGZF) allows instant access to any part of the file (Scatter-Gather ready).
-*   **Standard Compliant**: Written in **C++20**, using Modern CMake and efficient I/O.
+*   **Standard Compliant**: Written in **C++23**, using Modern CMake and efficient I/O.
 
 ---
 
@@ -120,7 +120,7 @@ This project stands on the shoulders of giants. We explicitly acknowledge and re
 ## 🔧 Installation
 
 ### Prerequisites
-- C++20 compatible compiler (GCC 13+, Clang 16+)
+- C++23 compatible compiler (GCC 13+, Clang 16+)
 - CMake 3.20+
 - Conan 2.x package manager
 
