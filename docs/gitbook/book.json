@@ -1,5 +1,19 @@
 {
   "title": "fq-compressor",
-  "description": "Bilingual documentation for fq-compressor",
-  "author": "LessUp"
+  "description": "High-performance FASTQ compression tool with random access",
+  "author": "LessUp",
+  "language": "en",
+  "gitbook": ">=3.0.0",
+  "links": {
+    "sidebar": {
+      "GitHub": "https://github.com/LessUp/fq-compressor"
+    }
+  },
+  "plugins": [
+    "-sharing"
+  ],
+  "structure": {
+    "readme": "README.md",
+    "summary": "SUMMARY.md"
+  }
 }
