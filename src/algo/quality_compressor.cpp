@@ -106,12 +106,13 @@ public:
     void update(std::size_t symbol) {
         frequencies_[symbol] += kAdaptIncrement;
 
-        // Rescale if total exceeds maximum
-        if (getTotal() + kAdaptIncrement > kMaxFrequency) {
-            rescale();
-        }
-
         updateCumulative();
+
+        // Rescale if total exceeds maximum after this update
+        if (getTotal() > kMaxFrequency) {
+            rescale();
+            updateCumulative();
+        }
     }
 
     /// @brief Reset model to initial state
@@ -735,11 +736,17 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressZstd(
     qualities.reserve(lengths.size());
 
     const std::uint8_t* ptr = buffer.data();
+    const std::uint8_t* bufEnd = buffer.data() + actualSize;
     for (std::uint32_t len : lengths) {
         std::string quality;
         quality.reserve(len);
 
         for (std::uint32_t i = 0; i < len; ++i) {
+            if (ptr >= bufEnd) {
+                return makeError<std::vector<std::string>>(
+                    ErrorCode::kFormatError,
+                    "Zstd decompressed data too short for specified quality lengths");
+            }
             std::uint8_t qualValue = *ptr++;
 
             // Convert back from Illumina 8-bin if needed
