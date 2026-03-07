@@ -227,12 +227,7 @@ endif()
 # Installation Configuration
 # =============================================================================
 
-# Install the main executable
-install(TARGETS fqc
-    EXPORT FQCompressorTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT Runtime
-)
+# Note: fqc, fqc_core, fqc_cli targets are installed via src/CMakeLists.txt
 
 # Install public headers
 install(DIRECTORY ${FQC_INCLUDE_DIR}/fqc/
