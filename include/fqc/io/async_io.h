@@ -185,10 +185,16 @@ public:
     void reset();
 
 private:
-    /// @brief Custom deleter for aligned memory
+    /// @brief Custom deleter for aligned memory (platform-aware)
     struct AlignedDeleter {
         void operator()(std::uint8_t* ptr) const noexcept {
-            if (ptr) { std::free(ptr); }
+            if (ptr) {
+#ifdef _WIN32
+                _aligned_free(ptr);
+#else
+                std::free(ptr);
+#endif
+            }
         }
     };
     
