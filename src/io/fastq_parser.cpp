@@ -188,15 +188,20 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
         return {};
     }
 
+    // For non-seekable streams, sampling would consume data that cannot
+    // be re-read. Return empty stats to avoid silently losing records.
+    if (!canSeek()) {
+        FQC_LOG_DEBUG("Cannot sample non-seekable stream, returning empty stats");
+        return {};
+    }
+
     // Save current state
     auto savedLineNumber = lineNumber_;
     auto savedRecordNumber = recordNumber_;
     auto savedStats = stats_;
 
     // Reset for sampling
-    if (canSeek()) {
-        reset();
-    }
+    reset();
 
     ParserStats sampleStats;
     std::size_t sampled = 0;
@@ -211,13 +216,11 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
         ++sampled;
     }
 
-    // Restore state if possible
-    if (canSeek()) {
-        reset();
-        lineNumber_ = savedLineNumber;
-        recordNumber_ = savedRecordNumber;
-        stats_ = savedStats;
-    }
+    // Restore state
+    reset();
+    lineNumber_ = savedLineNumber;
+    recordNumber_ = savedRecordNumber;
+    stats_ = savedStats;
 
     return sampleStats;
 }

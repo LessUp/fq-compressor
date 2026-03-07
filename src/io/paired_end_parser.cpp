@@ -291,8 +291,9 @@ bool detectInterleavedFormat(const std::filesystem::path& filePath, std::size_t 
             }
         }
 
-        // If most pairs have matching IDs, it's likely interleaved
-        return totalPairs > 0 && (matchedPairs * 2 >= totalPairs);
+        // Require at least 90% of sampled pairs to have matching IDs
+        // to reliably detect interleaved format (50% could be coincidental)
+        return totalPairs > 0 && (matchedPairs * 10 >= totalPairs * 9);
 
     } catch (const std::exception& e) {
         FQC_LOG_DEBUG("Failed to detect interleaved format: {}", e.what());

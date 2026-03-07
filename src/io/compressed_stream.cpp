@@ -154,9 +154,9 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
     switch (format) {
         case CompressionFormat::kNone:
         case CompressionFormat::kGzip:
+            return true;
         case CompressionFormat::kBzip2:
         case CompressionFormat::kXz:
-            return true;
         case CompressionFormat::kZstd:
             return false;  // Not yet implemented
         default:
@@ -165,8 +165,7 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
 }
 
 std::vector<CompressionFormat> supportedCompressionFormats() {
-    return {CompressionFormat::kNone, CompressionFormat::kGzip,
-            CompressionFormat::kBzip2, CompressionFormat::kXz};
+    return {CompressionFormat::kNone, CompressionFormat::kGzip};
 }
 
 // =============================================================================

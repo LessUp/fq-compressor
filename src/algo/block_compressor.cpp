@@ -167,7 +167,7 @@ char getNoiseDecode(char refBase, char noiseChar) noexcept {
 // Utility Functions Implementation
 // =============================================================================
 
-inline std::string reverseComplement(std::string_view sequence) {
+std::string reverseComplement(std::string_view sequence) {
     std::string result;
     result.reserve(sequence.length());
     for (auto it = sequence.rbegin(); it != sequence.rend(); ++it) {
@@ -227,11 +227,15 @@ std::optional<std::pair<int, bool>> findBestAlignment(
 
         std::size_t compareLen = std::min(reference.length() - refStart,
                                           read.length() - readStart);
+        if (compareLen == 0) continue;
+
+        // Penalty for non-overlapping regions
+        std::size_t penalty = read.length() - compareLen;
 
         std::size_t dist = hammingDistance(
             reference.substr(refStart, compareLen),
             read.substr(readStart, compareLen),
-            hammingThreshold);
+            hammingThreshold) + penalty;
 
         if (dist < bestDistance) {
             bestDistance = dist;
@@ -254,11 +258,15 @@ std::optional<std::pair<int, bool>> findBestAlignment(
 
         std::size_t compareLen = std::min(reference.length() - refStart,
                                           rcRead.length() - readStart);
+        if (compareLen == 0) continue;
+
+        // Penalty for non-overlapping regions
+        std::size_t penalty = rcRead.length() - compareLen;
 
         std::size_t dist = hammingDistance(
             reference.substr(refStart, compareLen),
             rcRead.substr(readStart, compareLen),
-            hammingThreshold);
+            hammingThreshold) + penalty;
 
         if (dist < bestDistance) {
             bestDistance = dist;
@@ -315,12 +323,12 @@ void ConsensusSequence::addRead(std::string_view read, int shift, bool isReverse
     }
 
     // Shift existing counts if needed
-    if (shift < 0) {
-        // Shift counts to the right
-        for (std::size_t i = baseCounts.size() - 1; i >= newStart; --i) {
-            if (i >= newStart) {
-                baseCounts[i] = baseCounts[i - newStart];
-            }
+    if (shift < 0 && newStart > 0) {
+        // Shift counts to the right by newStart positions
+        // Use reverse iteration with proper unsigned underflow guard
+        for (std::size_t i = baseCounts.size(); i > newStart; ) {
+            --i;
+            baseCounts[i] = baseCounts[i - newStart];
         }
         for (std::size_t i = 0; i < newStart; ++i) {
             baseCounts[i] = {0, 0, 0, 0};
@@ -383,13 +391,20 @@ DeltaEncodedRead computeDelta(std::string_view read, std::string_view consensus,
 
     // Find mismatches
     for (std::size_t i = 0; i < alignedRead.length(); ++i) {
-        std::size_t consPos = consStart + i - readStart;
+        if (i < readStart) {
+            // Position before alignment overlap - treat as mismatch
+            delta.mismatchPositions.push_back(static_cast<std::uint16_t>(i));
+            delta.mismatchChars.push_back(alignedRead[i]);
+            continue;
+        }
+
+        std::size_t consPos = consStart + (i - readStart);
 
         if (consPos >= consensus.length()) {
             // Read extends beyond consensus - treat as mismatch
             delta.mismatchPositions.push_back(static_cast<std::uint16_t>(i));
             delta.mismatchChars.push_back(alignedRead[i]);
-        } else if (i >= readStart && alignedRead[i] != consensus[consPos]) {
+        } else if (alignedRead[i] != consensus[consPos]) {
             delta.mismatchPositions.push_back(static_cast<std::uint16_t>(i));
             delta.mismatchChars.push_back(
                 getNoiseEncode(consensus[consPos], alignedRead[i]));
@@ -412,24 +427,30 @@ std::string reconstructFromDelta(const DeltaEncodedRead& delta,
     result.resize(delta.readLength);
 
     for (std::size_t i = 0; i < delta.readLength; ++i) {
-        std::size_t consPos = consStart + i - readStart;
-        if (consPos < consensus.length() && i >= readStart) {
-            result[i] = consensus[consPos];
+        if (i >= readStart) {
+            std::size_t consPos = consStart + (i - readStart);
+            if (consPos < consensus.length()) {
+                result[i] = consensus[consPos];
+            } else {
+                result[i] = 'N';  // Default for positions outside consensus
+            }
         } else {
-            result[i] = 'N';  // Default for positions outside consensus
+            result[i] = 'N';  // Default for positions before alignment overlap
         }
     }
 
     // Apply mismatches
     for (std::size_t j = 0; j < delta.mismatchPositions.size(); ++j) {
         std::uint16_t pos = delta.mismatchPositions[j];
-        if (pos < result.length()) {
-            std::size_t consPos = consStart + pos - readStart;
+        if (pos < result.length() && pos >= readStart) {
+            std::size_t consPos = consStart + (pos - readStart);
             if (consPos < consensus.length()) {
                 result[pos] = getNoiseDecode(consensus[consPos], delta.mismatchChars[j]);
             } else {
                 result[pos] = delta.mismatchChars[j];  // Direct character
             }
+        } else if (pos < result.length()) {
+            result[pos] = delta.mismatchChars[j];  // Direct character for pre-overlap
         }
     }
 
@@ -616,6 +637,13 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
 
     if (reads.empty()) return;
 
+    // Temporary struct to track alignment info before final delta recomputation
+    struct AlignInfo {
+        std::size_t readIndex;
+        int shift;
+        bool isRC;
+    };
+
     // Track which reads have been assigned to contigs
     std::vector<bool> assigned(reads.size(), false);
 
@@ -626,12 +654,9 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
         Contig contig;
         contig.consensus.initFromRead(reads[i].sequence);
 
-        DeltaEncodedRead delta;
-        delta.positionOffset = 0;
-        delta.isReverseComplement = false;
-        delta.readLength = static_cast<std::uint16_t>(reads[i].sequence.length());
-        delta.originalOrder = static_cast<std::uint32_t>(i);
-        contig.deltas.push_back(std::move(delta));
+        // Save alignment info for all reads in this contig
+        std::vector<AlignInfo> alignInfos;
+        alignInfos.push_back({i, 0, false});
         assigned[i] = true;
 
         // Try to add similar reads to this contig
@@ -647,18 +672,21 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
             if (alignment.has_value()) {
                 auto [shift, isRC] = *alignment;
 
-                // Add read to contig
+                // Add read to contig (updates consensus)
                 contig.consensus.addRead(reads[j].sequence, shift, isRC);
-
-                DeltaEncodedRead readDelta = computeDelta(
-                    reads[j].sequence,
-                    contig.consensus.sequence,
-                    shift, isRC);
-                readDelta.originalOrder = static_cast<std::uint32_t>(j);
-                contig.deltas.push_back(std::move(readDelta));
-
+                alignInfos.push_back({j, shift, isRC});
                 assigned[j] = true;
             }
+        }
+
+        // Recompute all deltas against the final consensus
+        for (const auto& info : alignInfos) {
+            DeltaEncodedRead readDelta = computeDelta(
+                reads[info.readIndex].sequence,
+                contig.consensus.sequence,
+                info.shift, info.isRC);
+            readDelta.originalOrder = static_cast<std::uint32_t>(info.readIndex);
+            contig.deltas.push_back(std::move(readDelta));
         }
 
         contigs_.push_back(std::move(contig));
