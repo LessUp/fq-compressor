@@ -308,10 +308,17 @@ void ConsensusSequence::addRead(std::string_view read, int shift, bool isReverse
         alignedRead = std::string(read);
     }
 
-    // Calculate new consensus length
-    std::size_t newStart = (shift < 0) ? static_cast<std::size_t>(-shift) : 0;
-    std::size_t readStart = (shift >= 0) ? static_cast<std::size_t>(shift) : 0;
-    std::size_t newLen = std::max(baseCounts.size(), readStart + alignedRead.length());
+    // cons_start: where in consensus the overlap begins
+    // align_start: where in the aligned read the overlap begins
+    std::size_t consStart = (shift >= 0) ? static_cast<std::size_t>(shift) : 0;
+    std::size_t alignStart = (shift < 0) ? static_cast<std::size_t>(-shift) : 0;
+
+    if (alignStart >= alignedRead.length()) {
+        return;  // No overlap
+    }
+
+    std::size_t overlapLen = alignedRead.length() - alignStart;
+    std::size_t newLen = std::max(baseCounts.size(), consStart + overlapLen);
 
     // Resize if needed
     if (newLen > baseCounts.size()) {
@@ -322,24 +329,11 @@ void ConsensusSequence::addRead(std::string_view read, int shift, bool isReverse
         }
     }
 
-    // Shift existing counts if needed
-    if (shift < 0 && newStart > 0) {
-        // Shift counts to the right by newStart positions
-        // Use reverse iteration with proper unsigned underflow guard
-        for (std::size_t i = baseCounts.size(); i > newStart; ) {
-            --i;
-            baseCounts[i] = baseCounts[i - newStart];
-        }
-        for (std::size_t i = 0; i < newStart; ++i) {
-            baseCounts[i] = {0, 0, 0, 0};
-        }
-    }
-
-    // Add read bases to counts
-    for (std::size_t i = 0; i < alignedRead.length(); ++i) {
-        std::size_t pos = readStart + i;
+    // Add overlapping read bases to counts (no shifting of existing counts)
+    for (std::size_t k = 0; k < overlapLen; ++k) {
+        std::size_t pos = consStart + k;
         if (pos < baseCounts.size()) {
-            std::uint8_t idx = kBaseToIndex[static_cast<unsigned char>(alignedRead[i])];
+            std::uint8_t idx = kBaseToIndex[static_cast<unsigned char>(alignedRead[alignStart + k])];
             baseCounts[pos][idx]++;
         }
     }
