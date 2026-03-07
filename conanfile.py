@@ -38,6 +38,9 @@ class FQCompressorConan(ConanFile):
         if self.settings.os == "Windows":
             del self.options.fPIC
 
+    def configure(self):
+        self.options["hwloc/*"].shared = True
+
     def layout(self):
         cmake_layout(self)
 
