@@ -69,6 +69,7 @@ esac
 CONAN_EXTRA_ARGS=()
 case $PRESET in
     gcc-*)
+        CONAN_EXTRA_ARGS+=(-s compiler.cppstd=23)
         ;;
     clang-*)
         # Clang 使用 libc++（与 CMakePresets.json 中 -stdlib=libc++ 保持一致）
@@ -106,7 +107,7 @@ EOF
         echo "Generated temporary Clang profile (version=${CLANG_VER}):"
         cat "$TMPPROFILE"
         echo ""
-        CONAN_EXTRA_ARGS+=(--profile "$TMPPROFILE")
+        CONAN_EXTRA_ARGS+=(--profile:host "$TMPPROFILE" --profile:build "$TMPPROFILE")
         ;;
     coverage)
         ;;

@@ -87,6 +87,12 @@ jobs:
           pip install conan==${{ env.CONAN_VERSION }}
           conan profile detect --force
 
+      - name: Set Clang compiler environment
+        if: startsWith(matrix.preset, 'clang')
+        run: |
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+
       - name: Build via script
         run: ./scripts/build.sh ${{ matrix.preset }}
 
