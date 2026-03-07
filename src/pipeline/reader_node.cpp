@@ -201,8 +201,8 @@ public:
                         break;  // One or both files exhausted
                     }
                     
-                    chunk.reads.emplace_back(std::move(r1->id), std::move(r1->sequence), std::move(r1->quality));
-                    chunk.reads.emplace_back(std::move(r2->id), std::move(r2->sequence), std::move(r2->quality));
+                    chunk.reads.emplace_back(std::move(r1->id), std::move(r1->comment), std::move(r1->sequence), std::move(r1->quality));
+                    chunk.reads.emplace_back(std::move(r2->id), std::move(r2->comment), std::move(r2->sequence), std::move(r2->quality));
                     
                     totalBases += chunk.reads[chunk.reads.size()-2].sequence.size() +
                                   chunk.reads[chunk.reads.size()-1].sequence.size();
@@ -222,7 +222,7 @@ public:
                     }
                     
                     totalBases += record->sequence.size();
-                    chunk.reads.emplace_back(std::move(record->id), std::move(record->sequence), std::move(record->quality));
+                    chunk.reads.emplace_back(std::move(record->id), std::move(record->comment), std::move(record->sequence), std::move(record->quality));
                     
                     // Check bases limit for long reads
                     if (config_.readLengthClass == ReadLengthClass::kLong &&
@@ -237,6 +237,21 @@ public:
                 return std::nullopt;
             }
 
+            // Detect if this is the last chunk: the chunk is smaller than
+            // the target size, which means the parser has reached EOF.
+            bool reachedEof = false;
+            if (isPaired_) {
+                reachedEof = chunk.reads.size() < targetReads * 2;
+            } else {
+                reachedEof = chunk.reads.size() < targetReads;
+            }
+            // Also check bases-limited long read blocks
+            if (!reachedEof && config_.readLengthClass == ReadLengthClass::kLong &&
+                totalBases < config_.maxBlockBases) {
+                reachedEof = true;
+            }
+            chunk.isLast = reachedEof;
+
             totalReadsRead_ += chunk.reads.size();
             nextReadId_ += chunk.reads.size();
             ++chunkId_;
@@ -246,8 +261,8 @@ public:
                 totalBytesRead_ += read.id.size() + read.sequence.size() + read.quality.size() + 10;
             }
 
-            FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, total_reads={}", 
-                      chunk.chunkId, chunk.reads.size(), totalReadsRead_);
+            FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, total_reads={}, isLast={}", 
+                      chunk.chunkId, chunk.reads.size(), totalReadsRead_, chunk.isLast);
             
             return chunk;
 

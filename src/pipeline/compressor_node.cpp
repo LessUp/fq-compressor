@@ -61,11 +61,13 @@ public:
 
             // Prepare data for compression
             std::vector<std::string_view> ids;
+            std::vector<std::string_view> comments;
             std::vector<std::string_view> sequences;
             std::vector<std::string_view> qualities;
             std::vector<std::uint32_t> lengths;
             
             ids.reserve(chunk.reads.size());
+            comments.reserve(chunk.reads.size());
             sequences.reserve(chunk.reads.size());
             qualities.reserve(chunk.reads.size());
             if (!uniformLength) {
@@ -74,6 +76,7 @@ public:
 
             for (const auto& read : chunk.reads) {
                 ids.push_back(read.id);
+                comments.push_back(read.comment);
                 sequences.push_back(read.sequence);
                 qualities.push_back(read.quality);
                 if (!uniformLength) {
@@ -81,13 +84,13 @@ public:
                 }
             }
 
-            // Compress ID stream
-            auto idResult = compressIds(ids);
+            // Compress ID stream (with comments, BlockCompressor-compatible format)
+            auto idResult = compressIds(ids, comments);
             if (!idResult) {
                 state_ = NodeState::kError;
                 return std::unexpected(idResult.error());
             }
-            block.idStream = std::move(idResult->data);
+            block.idStream = std::move(*idResult);
             block.codecIds = getIdCodec();
 
             // Compress sequence stream
@@ -120,7 +123,7 @@ public:
             block.codecAux = format::encodeCodec(CodecFamily::kDeltaVarint, 0);
 
             // Calculate block checksum (over uncompressed logical streams)
-            block.checksum = calculateBlockChecksum(ids, sequences, qualities, lengths);
+            block.checksum = calculateBlockChecksum(ids, comments, sequences, qualities, lengths);
 
             ++totalBlocksCompressed_;
             state_ = NodeState::kIdle;
@@ -188,8 +191,53 @@ private:
         blockCompressor_ = std::make_unique<algo::BlockCompressor>(blockConfig);
     }
 
-    Result<algo::CompressedIDData> compressIds(std::span<const std::string_view> ids) {
-        return idCompressor_->compress(ids);
+    Result<std::vector<std::uint8_t>> compressIds(
+        std::span<const std::string_view> ids,
+        std::span<const std::string_view> comments) {
+
+        if (config_.idMode == IDMode::kDiscard) {
+            return std::vector<std::uint8_t>{};
+        }
+
+        // Build buffer in BlockCompressor-compatible format:
+        // [uint32 idLen][id bytes][uint32 commentLen][comment bytes] per read
+        std::vector<std::uint8_t> buffer;
+        buffer.reserve(ids.size() * 50);
+
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            std::uint32_t idLen = static_cast<std::uint32_t>(ids[i].length());
+            buffer.insert(buffer.end(),
+                          reinterpret_cast<const std::uint8_t*>(&idLen),
+                          reinterpret_cast<const std::uint8_t*>(&idLen) + sizeof(idLen));
+            buffer.insert(buffer.end(), ids[i].begin(), ids[i].end());
+
+            std::uint32_t commentLen = (i < comments.size())
+                ? static_cast<std::uint32_t>(comments[i].length()) : 0;
+            buffer.insert(buffer.end(),
+                          reinterpret_cast<const std::uint8_t*>(&commentLen),
+                          reinterpret_cast<const std::uint8_t*>(&commentLen) + sizeof(commentLen));
+            if (commentLen > 0) {
+                buffer.insert(buffer.end(), comments[i].begin(), comments[i].end());
+            }
+        }
+
+        // Compress with Zstd
+        std::size_t compressBound = ZSTD_compressBound(buffer.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        std::size_t compressedSize = ZSTD_compress(
+            compressed.data(), compressed.size(),
+            buffer.data(), buffer.size(),
+            config_.zstdLevel > 0 ? config_.zstdLevel : 3);
+
+        if (ZSTD_isError(compressedSize)) {
+            return makeError<std::vector<std::uint8_t>>(
+                ErrorCode::kIOError,
+                "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
     }
 
     Result<std::vector<std::uint8_t>> compressSequences(
@@ -292,27 +340,33 @@ private:
 
     std::uint64_t calculateBlockChecksum(
         std::span<const std::string_view> ids,
+        std::span<const std::string_view> comments,
         std::span<const std::string_view> sequences,
         std::span<const std::string_view> qualities,
         std::span<const std::uint32_t> lengths) {
-        XXH3_state_t state;
-        XXH3_64bits_reset(&state);
+        XXH64_state_t* state = XXH64_createState();
+        if (!state) {
+            return 0;
+        }
+        XXH64_reset(state, 0);
 
         for (const auto& id : ids) {
-            XXH3_64bits_update(&state, id.data(), id.size());
+            XXH64_update(state, id.data(), id.size());
         }
         for (const auto& seq : sequences) {
-            XXH3_64bits_update(&state, seq.data(), seq.size());
+            XXH64_update(state, seq.data(), seq.size());
         }
         for (const auto& qual : qualities) {
-            XXH3_64bits_update(&state, qual.data(), qual.size());
+            XXH64_update(state, qual.data(), qual.size());
         }
         if (!lengths.empty()) {
-            XXH3_64bits_update(&state, lengths.data(),
-                               lengths.size() * sizeof(std::uint32_t));
+            XXH64_update(state, lengths.data(),
+                         lengths.size() * sizeof(std::uint32_t));
         }
 
-        return XXH3_64bits_digest(&state);
+        std::uint64_t checksum = XXH64_digest(state);
+        XXH64_freeState(state);
+        return checksum;
     }
 
     std::uint8_t getIdCodec() const noexcept {

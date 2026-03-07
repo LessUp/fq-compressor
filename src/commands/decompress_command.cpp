@@ -336,7 +336,11 @@ void DecompressCommand::runDecompression() {
                 }
 
                 // Write FASTQ record (only header if headerOnly)
-                *output << "@" << read.id << "\n";
+                if (read.comment.empty()) {
+                    *output << "@" << read.id << "\n";
+                } else {
+                    *output << "@" << read.id << " " << read.comment << "\n";
+                }
                 if (!options_.headerOnly) {
                     *output << read.sequence << "\n";
                     *output << "+\n";

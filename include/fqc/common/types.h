@@ -336,6 +336,9 @@ struct ReadRecord {
     /// @brief Read identifier (without '@' prefix).
     std::string id;
 
+    /// @brief Optional comment after ID (space-separated on the FASTQ header line).
+    std::string comment;
+
     /// @brief DNA sequence (A, C, G, T, N characters).
     std::string sequence;
 
@@ -346,12 +349,21 @@ struct ReadRecord {
     /// @brief Default constructor.
     ReadRecord() = default;
 
-    /// @brief Construct a ReadRecord with all fields.
+    /// @brief Construct a ReadRecord with id, sequence, quality (no comment).
     /// @param id_ Read identifier.
     /// @param sequence_ DNA sequence.
     /// @param quality_ Quality scores.
     ReadRecord(std::string id_, std::string sequence_, std::string quality_)
         : id(std::move(id_)), sequence(std::move(sequence_)), quality(std::move(quality_)) {}
+
+    /// @brief Construct a ReadRecord with all fields including comment.
+    /// @param id_ Read identifier.
+    /// @param comment_ Comment from FASTQ header.
+    /// @param sequence_ DNA sequence.
+    /// @param quality_ Quality scores.
+    ReadRecord(std::string id_, std::string comment_, std::string sequence_, std::string quality_)
+        : id(std::move(id_)), comment(std::move(comment_)),
+          sequence(std::move(sequence_)), quality(std::move(quality_)) {}
 
     /// @brief Check if the record is valid.
     /// @return true if sequence and quality have matching non-zero lengths.
@@ -366,6 +378,7 @@ struct ReadRecord {
     /// @brief Clear all fields.
     void clear() noexcept {
         id.clear();
+        comment.clear();
         sequence.clear();
         quality.clear();
     }
@@ -384,6 +397,9 @@ struct ReadRecordView {
     /// @brief Read identifier (without '@' prefix).
     std::string_view id;
 
+    /// @brief Optional comment after ID.
+    std::string_view comment;
+
     /// @brief DNA sequence.
     std::string_view sequence;
 
@@ -393,14 +409,20 @@ struct ReadRecordView {
     /// @brief Default constructor.
     constexpr ReadRecordView() = default;
 
-    /// @brief Construct from string_views.
+    /// @brief Construct from string_views (without comment).
     constexpr ReadRecordView(std::string_view id_, std::string_view sequence_,
                              std::string_view quality_)
         : id(id_), sequence(sequence_), quality(quality_) {}
 
+    /// @brief Construct from string_views (with comment).
+    constexpr ReadRecordView(std::string_view id_, std::string_view comment_,
+                             std::string_view sequence_, std::string_view quality_)
+        : id(id_), comment(comment_), sequence(sequence_), quality(quality_) {}
+
     /// @brief Construct from a ReadRecord.
     ReadRecordView(const ReadRecord& record)  // NOLINT(google-explicit-constructor)
-        : id(record.id), sequence(record.sequence), quality(record.quality) {}
+        : id(record.id), comment(record.comment),
+          sequence(record.sequence), quality(record.quality) {}
 
     /// @brief Check if the view is valid.
     [[nodiscard]] constexpr bool isValid() const noexcept {
@@ -412,7 +434,8 @@ struct ReadRecordView {
 
     /// @brief Convert to owning ReadRecord.
     [[nodiscard]] ReadRecord toRecord() const {
-        return ReadRecord{std::string(id), std::string(sequence), std::string(quality)};
+        return ReadRecord{std::string(id), std::string(comment),
+                          std::string(sequence), std::string(quality)};
     }
 };
 
