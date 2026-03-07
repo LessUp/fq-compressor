@@ -95,9 +95,13 @@ BufferPool::BufferPool(std::size_t bufferSize, std::size_t bufferCount)
     // Allocate all buffers upfront with cache line alignment
     buffers_.reserve(bufferCount);
     for (std::size_t i = 0; i < bufferCount; ++i) {
-        // Use aligned_alloc for cache-line aligned memory
+        // Use platform-aware aligned allocation for cache-line aligned memory
         // This improves SIMD performance and reduces cache line bouncing
+#ifdef _WIN32
+        void* ptr = _aligned_malloc(alignedSize, kCacheLineSize);
+#else
         void* ptr = std::aligned_alloc(kCacheLineSize, alignedSize);
+#endif
         if (!ptr) {
             throw std::bad_alloc();
         }
