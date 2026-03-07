@@ -170,6 +170,10 @@ public:
         } else {
             outputBit(1);
         }
+        // Flush remaining partial byte
+        if (bitCount_ > 0) {
+            output_.push_back(static_cast<std::uint8_t>(bitBuffer_ << (8 - bitCount_)));
+        }
     }
 
     /// @brief Get encoded data

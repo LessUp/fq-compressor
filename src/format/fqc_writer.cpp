@@ -19,7 +19,6 @@
 #include <csignal>
 #include <cstring>
 #include <mutex>
-#include <set>
 
 #include <xxhash.h>
 
@@ -33,11 +32,15 @@ namespace fqc::format {
 
 namespace {
 
-/// @brief Global mutex for signal handler state.
-std::mutex gSignalMutex;
+/// @brief Maximum number of concurrently registered writers for signal cleanup.
+constexpr std::size_t kMaxRegisteredWriters = 16;
 
-/// @brief Set of registered writers for cleanup.
-std::set<FQCWriter*> gRegisteredWriters;
+/// @brief Lock-free array of registered writers (async-signal-safe).
+/// @note Uses std::atomic<FQCWriter*> so signal handler can safely read.
+std::atomic<FQCWriter*> gRegisteredWriters[kMaxRegisteredWriters] = {};
+
+/// @brief Mutex for registration/unregistration (NOT used in signal handler).
+std::mutex gRegistrationMutex;
 
 /// @brief Whether signal handlers have been installed.
 std::atomic<bool> gSignalHandlersInstalled{false};
@@ -48,18 +51,17 @@ void (*gPreviousSigintHandler)(int) = nullptr;
 /// @brief Previous SIGTERM handler.
 void (*gPreviousSigtermHandler)(int) = nullptr;
 
-/// @brief Signal handler function.
+/// @brief Signal handler function (async-signal-safe).
 /// @param signum Signal number.
 void signalHandler(int signum) {
-    // Abort all registered writers
-    {
-        std::lock_guard<std::mutex> lock(gSignalMutex);
-        for (auto* writer : gRegisteredWriters) {
-            if (writer != nullptr) {
-                writer->abort();
-            }
+    // Abort all registered writers using lock-free reads only.
+    // FQCWriter::abort() sets an atomic flag, which is async-signal-safe.
+    for (auto& slot : gRegisteredWriters) {
+        FQCWriter* writer = slot.load(std::memory_order_relaxed);
+        if (writer != nullptr) {
+            writer->abort();
+            slot.store(nullptr, std::memory_order_relaxed);
         }
-        gRegisteredWriters.clear();
     }
 
     // Call previous handler or use default behavior
@@ -79,13 +81,23 @@ void signalHandler(int signum) {
 }  // namespace
 
 void registerWriterForCleanup(FQCWriter* writer) {
-    std::lock_guard<std::mutex> lock(gSignalMutex);
-    gRegisteredWriters.insert(writer);
+    std::lock_guard<std::mutex> lock(gRegistrationMutex);
+    for (auto& slot : gRegisteredWriters) {
+        FQCWriter* expected = nullptr;
+        if (slot.compare_exchange_strong(expected, writer, std::memory_order_release)) {
+            return;
+        }
+    }
+    FQC_LOG_WARNING("Too many concurrent FQCWriters registered for signal cleanup (max {})",
+                    kMaxRegisteredWriters);
 }
 
 void unregisterWriterForCleanup(FQCWriter* writer) {
-    std::lock_guard<std::mutex> lock(gSignalMutex);
-    gRegisteredWriters.erase(writer);
+    std::lock_guard<std::mutex> lock(gRegistrationMutex);
+    for (auto& slot : gRegisteredWriters) {
+        FQCWriter* expected = writer;
+        slot.compare_exchange_strong(expected, nullptr, std::memory_order_release);
+    }
 }
 
 void installSignalHandlers() {
@@ -95,7 +107,7 @@ void installSignalHandlers() {
         return;  // Already installed
     }
 
-    std::lock_guard<std::mutex> lock(gSignalMutex);
+    std::lock_guard<std::mutex> lock(gRegistrationMutex);
 
     // Install SIGINT handler
     gPreviousSigintHandler = std::signal(SIGINT, signalHandler);
