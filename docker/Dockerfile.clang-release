@@ -11,6 +11,40 @@
 
 FROM gcc:15.2-bookworm AS build
 
+# 代理配置
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG ALL_PROXY=""
+ARG NO_PROXY="localhost,127.0.0.1"
+
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    ALL_PROXY=${ALL_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY} \
+    all_proxy=${ALL_PROXY} \
+    no_proxy=${NO_PROXY}
+
+RUN set -eux; \
+    if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then \
+        : > /etc/apt/apt.conf.d/99proxy; \
+        if [ -n "${HTTP_PROXY:-}" ]; then echo "Acquire::http::Proxy \"${HTTP_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+        if [ -n "${HTTPS_PROXY:-}" ]; then echo "Acquire::https::Proxy \"${HTTPS_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+    fi
+
+# APT 镜像源配置 (中国大陆用户可启用国内镜像加速)
+ARG USE_CHINA_MIRROR=0
+RUN if [ "${USE_CHINA_MIRROR}" = "1" ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true; \
+    fi
+
+# APT 重试配置
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
+
 # 安装构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ninja-build \
@@ -26,7 +60,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     && rm -rf /var/lib/apt/lists/*
 
 # CMake 4.x
-RUN CMAKE_VERSION=4.0.2 && \
+ARG CMAKE_VERSION=4.0.2
+RUN \
     ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
         amd64) CMAKE_ARCH="x86_64" ;; \
@@ -57,7 +92,8 @@ RUN wget -q https://apt.llvm.org/llvm.sh && \
     && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
 
 # Conan 2.x
-RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+ARG CONAN_VERSION=2.24.0
+RUN pip3 install --no-cache-dir --break-system-packages conan==${CONAN_VERSION}
 
 ENV CC=clang
 ENV CXX=clang++

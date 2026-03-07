@@ -106,7 +106,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     # 其他
     procps \
     sudo \
-    skopeo \
     locales \
     && rm -rf /var/lib/apt/lists/*
 
@@ -262,6 +261,18 @@ EOF
 RUN if [ -f /etc/bash.bashrc ] && ! grep -Fxq 'source /etc/profile.d/fqcompressor-env.sh' /etc/bash.bashrc; then \
     echo 'source /etc/profile.d/fqcompressor-env.sh' >> /etc/bash.bashrc; \
 fi
+
+# =============================================================================
+# 清除构建阶段的代理设置，避免运行时残留
+# =============================================================================
+ENV HTTP_PROXY="" \
+    HTTPS_PROXY="" \
+    ALL_PROXY="" \
+    NO_PROXY="" \
+    http_proxy="" \
+    https_proxy="" \
+    all_proxy="" \
+    no_proxy=""
 
 # =============================================================================
 # 环境变量配置

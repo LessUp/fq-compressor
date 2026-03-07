@@ -14,6 +14,13 @@ on:
   pull_request:
     branches: [ "master", "main" ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CONAN_VERSION: 2.24.0
 
@@ -52,8 +59,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.preset }}-${{ github.ref }}
+          key: ${{ runner.os }}-ccache-${{ matrix.preset }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.preset }}-
             ${{ runner.os }}-ccache-
 
       - name: Setup Python for Conan

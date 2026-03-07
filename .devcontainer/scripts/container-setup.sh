@@ -122,8 +122,10 @@ start_sshd() {
 
 # 检查环境警告
 check_environment() {
-    if [ -z "${WSL_DISTRO_NAME:-}" ]; then
-        log_warn "建议使用 VS Code Remote - WSL 在 WSL2 中打开仓库，再执行 Reopen in Container"
+    # 仅当宿主机是 Windows（非 WSL）时才提示
+    # 原生 Linux 无需 WSL，不应警告
+    if [ -z "${WSL_DISTRO_NAME:-}" ] && [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
+        log_warn "检测到 Windows Docker Desktop 环境，建议使用 VS Code Remote - WSL 在 WSL2 中打开仓库，再执行 Reopen in Container"
     fi
 
     # 仅当 /ssh-agent 挂载点存在但不是有效 socket 时才警告

@@ -57,6 +57,7 @@ services:
   # ===========================================================================
   prod:
     image: fqcompressor-prod:latest
+    pull_policy: never
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -65,8 +66,8 @@ services:
         - USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-0}
     container_name: fqcompressor-prod
     volumes:
-      - ./data:/app/data:ro
-      - ./output:/app/output
+      - ../data:/app/data:ro
+      - ../output:/app/output
     environment:
       - FQCOMPRESSOR_DATA_DIR=/app/data
       - FQCOMPRESSOR_OUTPUT_DIR=/app/output
@@ -85,6 +86,7 @@ services:
   # ===========================================================================
   test:
     image: fqcompressor-test:latest
+    pull_policy: never
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
@@ -109,6 +111,7 @@ services:
   # ===========================================================================
   build:
     image: fqcompressor-build:latest
+    pull_policy: never
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -118,8 +121,8 @@ services:
     container_name: fqcompressor-build
     volumes:
       - ..:/workspace:cached
-      - conan_cache:/root/.conan2:cached
-      - ccache_cache:/root/.ccache:cached
+      - build_conan_cache:/root/.conan2:cached
+      - build_ccache_cache:/root/.ccache:cached
     command: /workspace/scripts/build.sh --release
     working_dir: /workspace
     init: true
@@ -134,3 +137,8 @@ volumes:
     name: fqcompressor_ccache_cache
   vscode_extensions:
     name: fqcompressor_vscode_extensions
+  # build 服务以 root 运行，需要独立卷避免与 dev/test (uid 1000) 权限冲突
+  build_conan_cache:
+    name: fqcompressor_build_conan_cache
+  build_ccache_cache:
+    name: fqcompressor_build_ccache_cache

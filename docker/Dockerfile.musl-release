@@ -6,11 +6,45 @@
 # 生成的二进制无任何外部依赖，可在任意 Linux 发行版上运行。
 #
 # Usage (CI):
-#   docker build -f docker/Dockerfile.alpine-release -o out .
+#   docker build -f docker/Dockerfile.musl-release -o out .
 #   # 产物: out/fqc
 # =============================================================================
 
 FROM gcc:15.2-bookworm AS build
+
+# 代理配置
+ARG HTTP_PROXY=""
+ARG HTTPS_PROXY=""
+ARG ALL_PROXY=""
+ARG NO_PROXY="localhost,127.0.0.1"
+
+ENV HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY} \
+    ALL_PROXY=${ALL_PROXY} \
+    NO_PROXY=${NO_PROXY} \
+    http_proxy=${HTTP_PROXY} \
+    https_proxy=${HTTPS_PROXY} \
+    all_proxy=${ALL_PROXY} \
+    no_proxy=${NO_PROXY}
+
+RUN set -eux; \
+    if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then \
+        : > /etc/apt/apt.conf.d/99proxy; \
+        if [ -n "${HTTP_PROXY:-}" ]; then echo "Acquire::http::Proxy \"${HTTP_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+        if [ -n "${HTTPS_PROXY:-}" ]; then echo "Acquire::https::Proxy \"${HTTPS_PROXY}\";" >> /etc/apt/apt.conf.d/99proxy; fi; \
+    fi
+
+# APT 镜像源配置 (中国大陆用户可启用国内镜像加速)
+ARG USE_CHINA_MIRROR=0
+RUN if [ "${USE_CHINA_MIRROR}" = "1" ]; then \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true; \
+    fi
+
+# APT 重试配置
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # 安装构建依赖 + musl 工具链
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
@@ -26,7 +60,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     && rm -rf /var/lib/apt/lists/*
 
 # CMake 4.x
-RUN CMAKE_VERSION=4.0.2 && \
+ARG CMAKE_VERSION=4.0.2
+RUN \
     ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
         amd64) CMAKE_ARCH="x86_64" ;; \
@@ -45,7 +80,8 @@ RUN printf '#!/bin/sh\nexec g++ "$@" -specs /usr/lib/*/musl-gcc.specs -static\n'
     chmod +x /usr/local/bin/musl-g++
 
 # Conan 2.x
-RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+ARG CONAN_VERSION=2.24.0
+RUN pip3 install --no-cache-dir --break-system-packages conan==${CONAN_VERSION}
 
 ENV CC=musl-gcc
 ENV CXX=musl-g++
@@ -81,11 +117,16 @@ RUN cmake -B build/musl-release -S . -G Ninja \
 # 构建
 RUN cmake --build build/musl-release -j "$(nproc)"
 
-# 验证静态链接
-RUN file build/musl-release/src/fqc && \
-    ldd build/musl-release/src/fqc 2>&1 | grep -q "not a dynamic executable" || \
-    ldd build/musl-release/src/fqc 2>&1 | grep -q "statically linked" || \
-    echo "Warning: binary may not be fully static"
+# 验证静态链接（非静态则构建失败）
+RUN set -eux; \
+    file build/musl-release/src/fqc; \
+    if ldd build/musl-release/src/fqc 2>&1 | grep -q "not a dynamic executable"; then \
+        echo "OK: binary is statically linked"; \
+    elif ldd build/musl-release/src/fqc 2>&1 | grep -q "statically linked"; then \
+        echo "OK: binary is statically linked"; \
+    else \
+        echo "ERROR: binary is NOT fully static"; exit 1; \
+    fi
 
 # 导出构建产物
 FROM scratch AS export
