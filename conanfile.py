@@ -39,7 +39,10 @@ class FQCompressorConan(ConanFile):
             del self.options.fPIC
 
     def configure(self):
-        self.options["hwloc/*"].shared = True
+        # hwloc must be shared when building shared libraries (TBB requirement).
+        # For fully static builds (e.g. musl), allow static hwloc.
+        if self.options.shared:
+            self.options["hwloc/*"].shared = True
 
     def layout(self):
         cmake_layout(self)

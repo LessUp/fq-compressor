@@ -103,11 +103,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         )
     endif()
     
+    # Portable build option: disable -march=native for distributable binaries
+    option(FQC_PORTABLE "Build portable binaries without -march=native" OFF)
+
     # Build type specific flags
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-g -O0)
     elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3 -march=native)
+        if(FQC_PORTABLE)
+            add_compile_options(-O3)
+        else()
+            add_compile_options(-O3 -march=native)
+        endif()
     elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
         add_compile_options(-O2 -g)
     endif()

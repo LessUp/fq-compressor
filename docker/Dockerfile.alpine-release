@@ -1,0 +1,73 @@
+# =============================================================================
+# FQCompressor Alpine/musl Static Release Build
+# =============================================================================
+# 使用 Alpine Linux (musl libc) 构建完全静态链接的二进制文件。
+# 生成的二进制无任何外部依赖，可在任意 Linux 发行版上运行。
+#
+# Usage (CI):
+#   docker build -f docker/Dockerfile.alpine-release -o out .
+#   # 产物: out/fqc
+# =============================================================================
+
+FROM alpine:3.20 AS build
+
+# 安装构建依赖
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    ninja \
+    python3 \
+    py3-pip \
+    git \
+    linux-headers \
+    perl \
+    pkgconf \
+    bash \
+    wget
+
+# Conan 2.x
+RUN pip install --no-cache-dir --break-system-packages conan==2.24.0
+
+# 设置编译器
+ENV CC=gcc
+ENV CXX=g++
+ENV CONAN_HOME=/root/.conan2
+
+WORKDIR /src
+COPY . .
+
+# Conan 配置：检测 profile 并安装依赖（静态构建）
+RUN conan profile detect --force
+
+# 安装 Conan 依赖（所有库静态链接）
+RUN conan install . \
+    --output-folder=build/alpine-release \
+    --build=missing \
+    -s build_type=Release \
+    -s compiler.cppstd=23 \
+    -o "*:shared=False"
+
+# CMake 配置（不使用 -march=native，确保可移植性）
+RUN cmake -B build/alpine-release -S . -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE=build/alpine-release/build/Release/generators/conan_toolchain.cmake \
+    -DCMAKE_C_COMPILER=gcc \
+    -DCMAKE_CXX_COMPILER=g++ \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
+    -DCMAKE_EXE_LINKER_FLAGS="-static" \
+    -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DFQC_PORTABLE=ON \
+    -DBUILD_TESTING=OFF \
+    -DENABLE_COVERAGE=OFF
+
+# 构建
+RUN cmake --build build/alpine-release -j "$(nproc)"
+
+# 验证静态链接
+RUN file build/alpine-release/src/fqc && \
+    ! ldd build/alpine-release/src/fqc 2>/dev/null || true
+
+# 导出构建产物
+FROM scratch AS export
+COPY --from=build /src/build/alpine-release/src/fqc /fqc
