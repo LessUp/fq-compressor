@@ -380,10 +380,96 @@ std::unique_ptr<std::istream> openCompressedFile(const std::filesystem::path& pa
     return std::make_unique<CompressedInputStream>(path);
 }
 
+/// @brief A streambuf that prepends buffered bytes before delegating to another streambuf.
+/// @note Enables streaming stdin without loading the entire input into memory.
+class PrependStreamBuf : public std::streambuf {
+public:
+    PrependStreamBuf(const std::uint8_t* prefix, std::size_t prefixLen,
+                     std::streambuf* underlying)
+        : prefix_(reinterpret_cast<const char*>(prefix),
+                  reinterpret_cast<const char*>(prefix) + prefixLen)
+        , underlying_(underlying)
+        , phase_(prefixLen > 0 ? Phase::kPrefix : Phase::kUnderlying) {
+        if (phase_ == Phase::kPrefix) {
+            setg(prefix_.data(), prefix_.data(),
+                 prefix_.data() + static_cast<std::ptrdiff_t>(prefix_.size()));
+        }
+    }
+
+protected:
+    int_type underflow() override {
+        if (gptr() < egptr()) {
+            return traits_type::to_int_type(*gptr());
+        }
+        if (phase_ == Phase::kPrefix) {
+            phase_ = Phase::kUnderlying;
+        }
+        if (phase_ == Phase::kUnderlying && underlying_) {
+            return underlying_->sgetc();
+        }
+        return traits_type::eof();
+    }
+
+    int_type uflow() override {
+        if (gptr() < egptr()) {
+            char_type ch = *gptr();
+            gbump(1);
+            return traits_type::to_int_type(ch);
+        }
+        if (phase_ == Phase::kPrefix) {
+            phase_ = Phase::kUnderlying;
+        }
+        if (phase_ == Phase::kUnderlying && underlying_) {
+            return underlying_->sbumpc();
+        }
+        return traits_type::eof();
+    }
+
+    std::streamsize xsgetn(char_type* s, std::streamsize count) override {
+        std::streamsize totalRead = 0;
+        // Drain prefix first
+        if (phase_ == Phase::kPrefix) {
+            std::streamsize avail = egptr() - gptr();
+            std::streamsize toCopy = std::min(count, avail);
+            std::memcpy(s, gptr(), static_cast<std::size_t>(toCopy));
+            gbump(static_cast<int>(toCopy));
+            totalRead += toCopy;
+            s += toCopy;
+            count -= toCopy;
+            if (gptr() >= egptr()) {
+                phase_ = Phase::kUnderlying;
+            }
+        }
+        // Read from underlying
+        if (count > 0 && phase_ == Phase::kUnderlying && underlying_) {
+            totalRead += underlying_->sgetn(s, count);
+        }
+        return totalRead;
+    }
+
+private:
+    enum class Phase { kPrefix, kUnderlying };
+    std::vector<char> prefix_;
+    std::streambuf* underlying_;
+    Phase phase_;
+};
+
+/// @brief An istream that owns a PrependStreamBuf for streaming stdin.
+class PrependInputStream : public std::istream {
+public:
+    PrependInputStream(const std::uint8_t* prefix, std::size_t prefixLen,
+                       std::streambuf* underlying)
+        : std::istream(nullptr)
+        , buf_(prefix, prefixLen, underlying) {
+        rdbuf(&buf_);
+    }
+private:
+    PrependStreamBuf buf_;
+};
+
 std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
     if (path == "-") {
         // stdin - check if compressed
-        // Note: For stdin, we can't seek back, so we need to buffer
         FQC_LOG_DEBUG("Opening stdin for input");
 
         // Read magic bytes
@@ -394,14 +480,9 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
         auto format = detectCompressionFormat({magic, bytesRead});
 
         if (format == CompressionFormat::kNone) {
-            // Create a stream that prepends the magic bytes
-            auto ss = std::make_unique<std::stringstream>();
-            ss->write(reinterpret_cast<const char*>(magic), static_cast<std::streamsize>(bytesRead));
-
-            // Copy rest of stdin
-            *ss << std::cin.rdbuf();
-
-            return ss;
+            // Stream stdin with prepended magic bytes (no full-copy into memory)
+            return std::make_unique<PrependInputStream>(
+                magic, bytesRead, std::cin.rdbuf());
         }
 
         // Compressed stdin - need to handle specially
@@ -411,7 +492,7 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
                               std::string(compressionFormatName(format)));
         }
 
-        // Create a stream with the magic bytes prepended
+        // Compressed stdin: must buffer fully for decompression seek support
         auto ss = std::make_unique<std::stringstream>();
         ss->write(reinterpret_cast<const char*>(magic), static_cast<std::streamsize>(bytesRead));
         *ss << std::cin.rdbuf();
