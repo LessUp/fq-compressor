@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v[0-9]+.*"
   workflow_dispatch:
 
 permissions:
@@ -11,28 +11,43 @@ permissions:
 
 env:
   CONAN_VERSION: 2.24.0
+  BINARY_NAME: fqc
+  PROJECT_NAME: fq-compressor
 
 jobs:
-  release-linux:
-    name: Build and Release Linux Artifact
+  # ── Validate version consistency ──────────────────────────────────
+  validate:
+    name: Validate Tag
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Check CMakeLists.txt version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CMAKE_VERSION=$(grep 'VERSION [0-9]' CMakeLists.txt | head -1 | sed 's/.*VERSION \([0-9][0-9.]*\).*/\1/')
+          if [ "$TAG_VERSION" != "$CMAKE_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match CMakeLists.txt version ($CMAKE_VERSION)"
+            exit 1
+          fi
+          echo "Version: $TAG_VERSION ✓"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+  # ── Pre-release test ──────────────────────────────────────────────
+  test:
+    name: Pre-release Test
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Cache Conan
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.conan2
-          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.py') }}
-          restore-keys: |
-            ${{ runner.os }}-conan-
+          key: ${{ runner.os }}-conan-release-test-${{ hashFiles('conanfile.py') }}
+          restore-keys: ${{ runner.os }}-conan-
 
       - name: Install system dependencies
         run: |
@@ -41,29 +56,309 @@ jobs:
 
       - name: Install Conan
         run: |
-          python -m pip install --upgrade pip
           pip install conan==${{ env.CONAN_VERSION }}
           conan profile detect --force
 
-      - name: Build release binary
-        run: ./scripts/build.sh gcc-release
-
-      - name: Run release tests
-        run: ./scripts/test.sh gcc-release
-
-      - name: Prepare release artifacts
+      - name: Build & test
         run: |
-          VERSION="${GITHUB_REF_NAME:-manual}"
-          ARTIFACT_DIR="release-artifacts"
-          mkdir -p "$ARTIFACT_DIR"
-          cp build/gcc-release/src/fqc "$ARTIFACT_DIR/fqc"
-          tar -C "$ARTIFACT_DIR" -czf "$ARTIFACT_DIR/fq-compressor-${VERSION}-linux-x86_64.tar.gz" fqc
-          sha256sum "$ARTIFACT_DIR/fq-compressor-${VERSION}-linux-x86_64.tar.gz" > "$ARTIFACT_DIR/fq-compressor-${VERSION}-linux-x86_64.tar.gz.sha256"
+          ./scripts/build.sh gcc-release
+          ./scripts/test.sh gcc-release
 
-      - name: Publish GitHub Release
+  # ── Linux glibc builds (x86_64 + aarch64) ────────────────────────
+  build-linux-glibc:
+    name: Build Linux glibc (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: ${{ runner.os }}-${{ matrix.arch }}-conan-glibc-${{ hashFiles('conanfile.py') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-conan-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc g++ ninja-build ccache cmake
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      - name: Install Conan dependencies
+        run: |
+          conan install . \
+            --output-folder=build/release \
+            --build=missing \
+            -s build_type=Release \
+            -s compiler.cppstd=23
+
+      - name: CMake configure
+        run: |
+          cmake -B build/release -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=build/release/build/Release/generators/conan_toolchain.cmake \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+            -DFQC_PORTABLE=ON \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_COVERAGE=OFF
+
+      - name: Build
+        run: cmake --build build/release -j "$(nproc)"
+
+      - name: Prepare archive
+        run: |
+          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-glibc"
+          mkdir -p "$STAGING"
+          cp build/release/src/${{ env.BINARY_NAME }} "$STAGING/"
+          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
+          tar czf "$STAGING.tar.gz" "$STAGING"
+          echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-glibc
+          path: ${{ env.ASSET }}
+
+  # ── Linux musl static builds (x86_64 + aarch64) ──────────────────
+  build-linux-musl:
+    name: Build Linux musl (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build static binary via Alpine Docker
+        run: |
+          docker build \
+            -f docker/Dockerfile.alpine-release \
+            --output type=local,dest=out \
+            .
+
+      - name: Verify static binary
+        run: |
+          file out/fqc
+          chmod +x out/fqc
+
+      - name: Prepare archive
+        run: |
+          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-musl"
+          mkdir -p "$STAGING"
+          cp out/${{ env.BINARY_NAME }} "$STAGING/"
+          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
+          tar czf "$STAGING.tar.gz" "$STAGING"
+          echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-musl
+          path: ${{ env.ASSET }}
+
+  # ── macOS builds (x86_64 + arm64) ────────────────────────────────
+  build-macos:
+    name: Build macOS (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-13
+          - arch: arm64
+            runner: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py') }}
+          restore-keys: macos-${{ matrix.arch }}-conan-
+
+      - name: Install system dependencies
+        run: brew install cmake ninja ccache
+
+      - name: Install Conan
+        run: |
+          pip install conan==${{ env.CONAN_VERSION }}
+          conan profile detect --force
+
+      - name: Install Conan dependencies
+        run: |
+          conan install . \
+            --output-folder=build/release \
+            --build=missing \
+            -s build_type=Release \
+            -s compiler.cppstd=23
+
+      - name: CMake configure
+        run: |
+          cmake -B build/release -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=build/release/build/Release/generators/conan_toolchain.cmake \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+            -DFQC_PORTABLE=ON \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_COVERAGE=OFF
+
+      - name: Build
+        run: cmake --build build/release -j "$(sysctl -n hw.ncpu)"
+
+      - name: Prepare archive
+        run: |
+          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-macos-${{ matrix.arch }}"
+          mkdir -p "$STAGING"
+          cp build/release/src/${{ env.BINARY_NAME }} "$STAGING/"
+          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
+          tar czf "$STAGING.tar.gz" "$STAGING"
+          echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: ${{ env.ASSET }}
+
+  # ── Create GitHub Release ─────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [build-linux-glibc, build-linux-musl, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release-assets/ \;
+          ls -la release-assets/
+
+      - name: Generate checksums
+        working-directory: release-assets
+        run: |
+          sha256sum * > checksums-sha256.txt
+          cat checksums-sha256.txt
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^$TAG$" | tail -1)
+          {
+            echo "body<<EOF"
+            if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$TAG" ]; then
+              echo "## What's New / 更新内容"
+              echo ""
+              echo "Initial release of \`fq-compressor\` — High-Performance FASTQ Compressor (C++ implementation)."
+              echo ""
+              echo "\`fq-compressor\` 首次发布 — 高性能 FASTQ 压缩工具（C++ 实现）。"
+            else
+              echo "## Changes since $PREV_TAG / 自 $PREV_TAG 以来的变更"
+              echo ""
+              git log --pretty=format:"- %s (%h)" "$PREV_TAG".."$TAG"
+              echo ""
+              echo ""
+              echo "**Full Changelog / 完整变更记录**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+            fi
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Installation / 安装说明"
+            echo ""
+            echo "Download the binary for your platform from the assets below."
+            echo ""
+            echo "请从下方资源中下载适合您平台的二进制文件。"
+            echo ""
+            echo "- **musl (static)** builds have **zero runtime dependencies** and run on any Linux distribution."
+            echo "- **glibc** builds require a compatible glibc version (typically any recent Linux distro)."
+            echo ""
+            echo "- **musl（静态）** 版本**无任何运行时依赖**，可在任意 Linux 发行版上直接运行。"
+            echo "- **glibc** 版本需要兼容的 glibc 版本（通常任何近期 Linux 发行版均可）。"
+            echo ""
+            echo "| Platform / 平台 | File / 文件 | Note / 说明 |"
+            echo "|---|---|---|"
+            echo "| Linux x64 (glibc) | \`fq-compressor-${TAG}-linux-x86_64-glibc.tar.gz\` | Dynamic (glibc) / 动态链接 |"
+            echo "| Linux x64 (musl) | \`fq-compressor-${TAG}-linux-x86_64-musl.tar.gz\` | **Static, runs anywhere / 静态链接** |"
+            echo "| Linux arm64 (glibc) | \`fq-compressor-${TAG}-linux-aarch64-glibc.tar.gz\` | Dynamic (glibc) / 动态链接 |"
+            echo "| Linux arm64 (musl) | \`fq-compressor-${TAG}-linux-aarch64-musl.tar.gz\` | **Static, runs anywhere / 静态链接** |"
+            echo "| macOS x64 | \`fq-compressor-${TAG}-macos-x86_64.tar.gz\` | Intel Mac |"
+            echo "| macOS arm64 | \`fq-compressor-${TAG}-macos-arm64.tar.gz\` | Apple Silicon |"
+            echo ""
+            echo "### Quick Start / 快速开始"
+            echo ""
+            echo "\`\`\`bash"
+            echo "# Linux / macOS"
+            echo "tar xzf fq-compressor-${TAG}-<platform>.tar.gz"
+            echo "chmod +x fqc"
+            echo "./fqc --help"
+            echo ""
+            echo "# Compress / 压缩"
+            echo "./fqc compress input.fastq -o output.fqc"
+            echo ""
+            echo "# Decompress / 解压"
+            echo "./fqc decompress output.fqc -o restored.fastq"
+            echo "\`\`\`"
+            echo ""
+            echo "### Verify Checksums / 校验文件完整性"
+            echo ""
+            echo "\`\`\`bash"
+            echo "sha256sum -c checksums-sha256.txt"
+            echo "\`\`\`"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: |
-            release-artifacts/fq-compressor-${{ github.ref_name }}-linux-x86_64.tar.gz
-            release-artifacts/fq-compressor-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
+          name: "fq-compressor ${{ github.ref_name }}"
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          files: release-assets/*
+          generate_release_notes: false
