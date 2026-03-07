@@ -21,6 +21,10 @@
 
 #include "fqc/common/error.h"
 
+namespace fqc::format {
+class FQCReader;
+}  // namespace fqc::format
+
 namespace fqc::commands {
 
 // =============================================================================
@@ -80,6 +84,9 @@ private:
 
     /// @brief Print detailed block information.
     void printBlockDetails();
+
+    /// @brief Print codec statistics.
+    void printCodecStats(format::FQCReader& reader);
 
     /// @brief Options.
     InfoOptions options_;
