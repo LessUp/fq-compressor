@@ -600,7 +600,7 @@ private:
         std::uint32_t readCount,
         std::uint32_t uniformLength,
         std::span<const std::uint32_t> lengths);
-    Result<std::vector<std::string>> decompressIds(
+    Result<std::vector<std::pair<std::string, std::string>>> decompressIds(
         std::span<const std::uint8_t> data,
         std::uint32_t readCount);
     Result<std::vector<std::uint32_t>> decompressAux(
@@ -722,7 +722,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
 
     for (const auto& contig : contigs_) {
         // Write consensus
-        std::uint16_t consLen = static_cast<std::uint16_t>(contig.consensus.sequence.length());
+        std::uint32_t consLen = static_cast<std::uint32_t>(contig.consensus.sequence.length());
         buffer.insert(buffer.end(),
                       reinterpret_cast<const std::uint8_t*>(&consLen),
                       reinterpret_cast<const std::uint8_t*>(&consLen) + sizeof(consLen));
@@ -903,16 +903,29 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
     buffer.reserve(reads.size() * 50);
 
     for (const auto& read : reads) {
-        // Write length as uint16
-        std::uint16_t len = static_cast<std::uint16_t>(read.id.length());
+        // Write ID length as uint32
+        std::uint32_t idLen = static_cast<std::uint32_t>(read.id.length());
         buffer.insert(buffer.end(),
-                      reinterpret_cast<const std::uint8_t*>(&len),
-                      reinterpret_cast<const std::uint8_t*>(&len) + sizeof(len));
+                      reinterpret_cast<const std::uint8_t*>(&idLen),
+                      reinterpret_cast<const std::uint8_t*>(&idLen) + sizeof(idLen));
 
         // Write ID
         buffer.insert(buffer.end(),
                       read.id.begin(),
                       read.id.end());
+
+        // Write comment length as uint32
+        std::uint32_t commentLen = static_cast<std::uint32_t>(read.comment.length());
+        buffer.insert(buffer.end(),
+                      reinterpret_cast<const std::uint8_t*>(&commentLen),
+                      reinterpret_cast<const std::uint8_t*>(&commentLen) + sizeof(commentLen));
+
+        // Write comment
+        if (commentLen > 0) {
+            buffer.insert(buffer.end(),
+                          read.comment.begin(),
+                          read.comment.end());
+        }
     }
 
     // Compress with Zstd
@@ -1015,11 +1028,21 @@ std::uint64_t BlockCompressorImpl::computeBlockChecksum(
     std::span<const ReadRecord> reads) const {
 
     XXH64_state_t* state = XXH64_createState();
+    if (!state) {
+        return 0;
+    }
     XXH64_reset(state, 0);
 
     // Hash IDs
     for (const auto& read : reads) {
         XXH64_update(state, read.id.data(), read.id.size());
+    }
+
+    // Hash comments
+    for (const auto& read : reads) {
+        if (!read.comment.empty()) {
+            XXH64_update(state, read.comment.data(), read.comment.size());
+        }
     }
 
     // Hash sequences
@@ -1184,11 +1207,11 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
 
     for (std::uint32_t c = 0; c < numContigs; ++c) {
         // Read consensus
-        if (ptr + sizeof(std::uint16_t) > end) {
+        if (ptr + sizeof(std::uint32_t) > end) {
             return makeError<std::vector<std::string>>(
                 ErrorCode::kFormatError, "Truncated ABC data");
         }
-        std::uint16_t consLen;
+        std::uint32_t consLen;
         std::memcpy(&consLen, ptr, sizeof(consLen));
         ptr += sizeof(consLen);
 
@@ -1391,20 +1414,22 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressQuality(
     return compressor.decompress(data, lengthsVec);
 }
 
-Result<std::vector<std::string>> BlockCompressorImpl::decompressIds(
+Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::decompressIds(
     std::span<const std::uint8_t> data,
     std::uint32_t readCount) {
 
+    using IdComment = std::pair<std::string, std::string>;
+
     if (data.empty()) {
         // IDs were discarded - return empty strings
-        return std::vector<std::string>(readCount);
+        return std::vector<IdComment>(readCount);
     }
 
     // Decompress with Zstd
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
+        return makeError<std::vector<IdComment>>(
             ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
@@ -1414,35 +1439,57 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressIds(
         data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
+        return makeError<std::vector<IdComment>>(
             ErrorCode::kIOError,
             "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
     }
 
-    // Parse IDs
-    std::vector<std::string> ids;
+    // Parse IDs and comments
+    std::vector<IdComment> ids;
     ids.reserve(readCount);
 
     const std::uint8_t* ptr = buffer.data();
     const std::uint8_t* end = buffer.data() + actualSize;
 
     for (std::uint32_t i = 0; i < readCount; ++i) {
-        // Read length
-        if (ptr + sizeof(std::uint16_t) > end) {
-            return makeError<std::vector<std::string>>(
+        // Read ID length
+        if (ptr + sizeof(std::uint32_t) > end) {
+            return makeError<std::vector<IdComment>>(
                 ErrorCode::kFormatError, "Truncated ID data");
         }
-        std::uint16_t len;
-        std::memcpy(&len, ptr, sizeof(len));
-        ptr += sizeof(len);
+        std::uint32_t idLen;
+        std::memcpy(&idLen, ptr, sizeof(idLen));
+        ptr += sizeof(idLen);
 
         // Read ID
-        if (ptr + len > end) {
-            return makeError<std::vector<std::string>>(
+        if (ptr + idLen > end) {
+            return makeError<std::vector<IdComment>>(
                 ErrorCode::kFormatError, "Truncated ID data");
         }
-        ids.emplace_back(reinterpret_cast<const char*>(ptr), len);
-        ptr += len;
+        std::string id(reinterpret_cast<const char*>(ptr), idLen);
+        ptr += idLen;
+
+        // Read comment length
+        if (ptr + sizeof(std::uint32_t) > end) {
+            return makeError<std::vector<IdComment>>(
+                ErrorCode::kFormatError, "Truncated ID data");
+        }
+        std::uint32_t commentLen;
+        std::memcpy(&commentLen, ptr, sizeof(commentLen));
+        ptr += sizeof(commentLen);
+
+        // Read comment
+        std::string comment;
+        if (commentLen > 0) {
+            if (ptr + commentLen > end) {
+                return makeError<std::vector<IdComment>>(
+                    ErrorCode::kFormatError, "Truncated ID data");
+            }
+            comment.assign(reinterpret_cast<const char*>(ptr), commentLen);
+            ptr += commentLen;
+        }
+
+        ids.emplace_back(std::move(id), std::move(comment));
     }
 
     return ids;
@@ -1562,7 +1609,8 @@ Result<DecompressedBlockData> BlockCompressorImpl::decompress(
 
     // Assemble reads
     for (std::uint32_t i = 0; i < data.readCount; ++i) {
-        result.reads[i].id = std::move((*idResult)[i]);
+        result.reads[i].id = std::move((*idResult)[i].first);
+        result.reads[i].comment = std::move((*idResult)[i].second);
         result.reads[i].sequence = std::move((*seqResult)[i]);
         result.reads[i].quality = std::move((*qualResult)[i]);
     }
