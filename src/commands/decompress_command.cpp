@@ -317,7 +317,7 @@ void DecompressCommand::runDecompression() {
                     stats_.corruptedBlocks++;
                     continue;
                 } else {
-                    throw decompressResult.error();
+                    decompressResult.error().throwException();
                 }
             }
 

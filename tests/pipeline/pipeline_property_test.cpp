@@ -59,7 +59,7 @@ rc::Gen<std::string> dnaSequence(std::size_t minLen = 50, std::size_t maxLen = 3
         [](std::size_t len) {
             return rc::gen::container<std::string>(
                 len,
-                rc::gen::elementOf('A', 'C', 'G', 'T', 'N'));
+                rc::gen::element('A', 'C', 'G', 'T', 'N'));
         });
 }
 
@@ -450,7 +450,7 @@ namespace gen {
         [](std::size_t len) {
             return rc::gen::container<std::string>(
                 len,
-                rc::gen::elementOf('A', 'C', 'G', 'T', 'N'));
+                rc::gen::element('A', 'C', 'G', 'T', 'N'));
         });
 }
 

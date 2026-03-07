@@ -96,6 +96,13 @@ fqc_add_test(memory_budget_test
     SOURCES common/memory_budget_test.cpp
 )
 
+# FQCWriter Unit Tests
+# Regression: reorder map size fields written correctly (forwardMapSize/reverseMapSize)
+# Validates: Requirements 2.1, 5.1
+fqc_add_test(fqc_writer_test
+    SOURCES format/fqc_writer_test.cpp
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================

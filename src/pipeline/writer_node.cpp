@@ -123,21 +123,33 @@ public:
             if (reorderMap.has_value() && !reorderMap->empty()) {
                 const auto& mapData = reorderMap.value();
 
-                fqc::format::ReorderMap mapHeader;
-                mapHeader.totalReads = static_cast<std::uint32_t>(mapData.size());
-                mapHeader.forwardMapSize = 0;
-                mapHeader.reverseMapSize = 0;
+                // mapData blob layout: [forwardIds... | reverseIds...] each half is N ReadIds
+                const std::size_t totalBytes = mapData.size();
+                const std::size_t halfBytes  = totalBytes / 2;
+                const std::size_t numReads   = halfBytes / sizeof(fqc::ReadId);
 
-                std::vector<fqc::ReadId> ids;
-                ids.reserve(mapData.size() / sizeof(fqc::ReadId));
-                for (std::size_t i = 0; i + sizeof(fqc::ReadId) <= mapData.size(); i += sizeof(fqc::ReadId)) {
+                fqc::format::ReorderMap mapHeader;
+                mapHeader.totalReads = static_cast<std::uint64_t>(numReads);
+                // forwardMapSize / reverseMapSize filled from span sizes by FQCWriter
+
+                std::vector<fqc::ReadId> forwardIds, reverseIds;
+                forwardIds.reserve(numReads);
+                reverseIds.reserve(numReads);
+                for (std::size_t i = 0; i < halfBytes; i += sizeof(fqc::ReadId)) {
                     fqc::ReadId id;
                     std::memcpy(&id, mapData.data() + i, sizeof(fqc::ReadId));
-                    ids.push_back(id);
+                    forwardIds.push_back(id);
+                }
+                for (std::size_t i = halfBytes; i + sizeof(fqc::ReadId) <= totalBytes; i += sizeof(fqc::ReadId)) {
+                    fqc::ReadId id;
+                    std::memcpy(&id, mapData.data() + i, sizeof(fqc::ReadId));
+                    reverseIds.push_back(id);
                 }
 
-                auto compressedForward = fqc::format::deltaEncode(std::span<const fqc::ReadId>(ids.data(), ids.size()));
-                auto compressedReverse = fqc::format::deltaEncode(std::span<const fqc::ReadId>(ids.data(), ids.size()));
+                auto compressedForward = fqc::format::deltaEncode(
+                    std::span<const fqc::ReadId>(forwardIds.data(), forwardIds.size()));
+                auto compressedReverse = fqc::format::deltaEncode(
+                    std::span<const fqc::ReadId>(reverseIds.data(), reverseIds.size()));
 
                 writer_->writeReorderMap(mapHeader, compressedForward, compressedReverse);
 

@@ -102,12 +102,16 @@ int VerifyCommand::execute() {
         if (shouldContinue && options_.verifyBlocks) {
             auto blockResults = verifyBlockChecksums();
             for (auto& result : blockResults) {
+                // Save values before move
+                bool passed = result.passed;
+                std::string checkName = result.checkName;
+                std::string errorMessage = result.errorMessage;
                 summary_.addResult(std::move(result));
-                if (options_.verbose && !result.passed) {
-                    std::cout << "[FAIL] " << result.checkName << ": " << result.errorMessage
+                if (options_.verbose && !passed) {
+                    std::cout << "[FAIL] " << checkName << ": " << errorMessage
                               << std::endl;
                 }
-                if (!result.passed && options_.failFast) {
+                if (!passed && options_.failFast) {
                     break;
                 }
             }

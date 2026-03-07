@@ -410,12 +410,17 @@ void FQCWriter::writeReorderMap(const ReorderMap& mapHeader,
     // Record reorder map position
     reorderMapOffset_ = static_cast<std::uint64_t>(stream_.tellp());
 
+    // Build a corrected header: always use actual payload sizes
+    ReorderMap header = mapHeader;
+    header.forwardMapSize = static_cast<std::uint64_t>(forwardMapData.size());
+    header.reverseMapSize = static_cast<std::uint64_t>(reverseMapData.size());
+
     // Write reorder map header
-    writeLEWithChecksum(mapHeader.headerSize);
-    writeLEWithChecksum(mapHeader.version);
-    writeLEWithChecksum(mapHeader.totalReads);
-    writeLEWithChecksum(mapHeader.forwardMapSize);
-    writeLEWithChecksum(mapHeader.reverseMapSize);
+    writeLEWithChecksum(header.headerSize);
+    writeLEWithChecksum(header.version);
+    writeLEWithChecksum(header.totalReads);
+    writeLEWithChecksum(header.forwardMapSize);
+    writeLEWithChecksum(header.reverseMapSize);
 
     // Write forward map data
     if (!forwardMapData.empty()) {
