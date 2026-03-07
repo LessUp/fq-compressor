@@ -56,7 +56,7 @@ target_include_directories(fqc_core
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(fqc_core PUBLIC cxx_std_20)
+target_compile_features(fqc_core PUBLIC cxx_std_23)
 
 # Link dependencies
 target_link_libraries(fqc_core
@@ -83,7 +83,6 @@ add_library(fqc_cli STATIC ${FQC_COMMAND_SOURCES})
 
 target_include_directories(fqc_cli
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
 )
 

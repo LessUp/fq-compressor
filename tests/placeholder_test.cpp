@@ -17,6 +17,6 @@ TEST(BuildSystemTest, CppStandard) {
         // C++20 is acceptable (some compilers report C++20 for C++23 mode)
         EXPECT_TRUE(true);
     #else
-        FAIL() << "C++20 or later is not enabled";
+        FAIL() << "C++23 or later is not enabled";
     #endif
 }

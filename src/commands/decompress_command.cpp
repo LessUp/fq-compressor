@@ -6,7 +6,7 @@
 // Requirements: 6.2, 8.5
 // =============================================================================
 
-#include "decompress_command.h"
+#include "fqc/commands/decompress_command.h"
 
 #include <chrono>
 #include <filesystem>

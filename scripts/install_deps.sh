@@ -71,8 +71,8 @@ case $PRESET in
         COMPILER_SETTINGS=""
         ;;
     clang-*)
-        # Clang 使用 libstdc++11（兼容性更好）
-        COMPILER_SETTINGS="-s compiler.libcxx=libstdc++11"
+        # Clang 使用 libc++（与 CMakePresets.json 中 -stdlib=libc++ 保持一致）
+        COMPILER_SETTINGS="-s compiler.libcxx=libc++"
         ;;
     coverage)
         COMPILER_SETTINGS=""
@@ -93,7 +93,7 @@ conan install . \
     --output-folder="$BUILD_DIR" \
     --build=missing \
     -s build_type="$BUILD_TYPE" \
-    -s compiler.cppstd=20 \
+    -s compiler.cppstd=23 \
     ${COMPILER_SETTINGS:-}
 
 echo ""

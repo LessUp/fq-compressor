@@ -6,7 +6,7 @@
 // Requirements: 6.2
 // =============================================================================
 
-#include "compress_command.h"
+#include "fqc/commands/compress_command.h"
 
 #include <chrono>
 #include <ctime>

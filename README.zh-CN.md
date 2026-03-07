@@ -33,7 +33,7 @@
   - 基于 Intel oneTBB 组织 `read -> compress -> write` 流水线。
 
 - **现代工程化**
-  - C++20、Modern CMake、Conan 2.x、GitHub Actions。
+  - C++23、Modern CMake、Conan 2.x、GitHub Actions。
 
 - **多模式支持**
   - 支持单端、双端、保序/重排、无损/部分有损质量值处理。

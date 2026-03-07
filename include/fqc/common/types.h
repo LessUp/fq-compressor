@@ -11,7 +11,7 @@
 // - PELayout: Enum for paired-end layout
 // - CompressionLevel: Compression level type
 // - BlockId, ReadId: Type aliases for IDs
-// - C++20 Concepts for type constraints
+// - C++23 Concepts for type constraints
 //
 // Naming Conventions (per project style guide):
 // - Enums: PascalCase with kConstant values
@@ -440,7 +440,7 @@ struct ReadRecordView {
 };
 
 // =============================================================================
-// C++20 Concepts
+// C++23 Concepts
 // =============================================================================
 
 /// @brief Concept for types that can be used as DNA bases.

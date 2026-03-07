@@ -6,7 +6,7 @@
 // Requirements: 5.1, 5.2, 5.3, 8.5
 // =============================================================================
 
-#include "verify_command.h"
+#include "fqc/commands/verify_command.h"
 
 #include <cstring>
 #include <fstream>

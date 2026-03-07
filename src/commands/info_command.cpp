@@ -6,7 +6,7 @@
 // Requirements: 5.3, 6.2
 // =============================================================================
 
-#include "info_command.h"
+#include "fqc/commands/info_command.h"
 
 #include <fstream>
 #include <iomanip>

@@ -10,7 +10,7 @@
 | **Hybrid Quality Compression** | Statistical Context Mixing (SCM) for quality scores, balancing ratio and speed |
 | **Parallel Powerhouse** | Built on Intel oneTBB with a scalable Producer-Consumer pipeline |
 | **Random Access** | Native block-based format (like BGZF) enables instant access to any part of the file |
-| **Standard Compliant** | Written in C++20, using Modern CMake, Conan 2.x, and GitHub Actions CI/CD |
+| **Standard Compliant** | Written in C++23, using Modern CMake, Conan 2.x, and GitHub Actions CI/CD |
 
 ## Why fq-compressor?
 

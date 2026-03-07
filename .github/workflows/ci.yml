@@ -19,36 +19,15 @@ env:
 
 jobs:
   # ===========================================================================
-  # Format Check Job
-  # ===========================================================================
-  # Validates code formatting against .clang-format rules.
-  # Requirement 7.3: Code style enforcement
-  # ===========================================================================
-  format-check:
-    name: Format Check (clang-format)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
-
-      - name: Check formatting
-        run: ./scripts/lint.sh format-check
-
-  # ===========================================================================
   # Build and Test Job
   # ===========================================================================
   # Builds the project with multiple compilers and runs unit tests.
+  # Format checking is handled by the separate quality.yml workflow.
   # Requirement 7.5: Reproducible builds via CMakePresets.json
   # ===========================================================================
   build-and-test:
     name: Build & Test (${{ matrix.preset }})
     runs-on: ubuntu-latest
-    needs: format-check
     strategy:
       fail-fast: false
       matrix:
