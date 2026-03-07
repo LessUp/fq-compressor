@@ -38,13 +38,29 @@ QualityMode parseQualityMode(std::string_view str) {
         return QualityMode::kIllumina8;
     }
     if (str == "qvz") {
-        return QualityMode::kQvz;
+        throw ArgumentError(
+            "QVZ lossy compression is not yet implemented. "
+            "Please use 'illumina8' for lossy or 'discard' to drop quality values.");
     }
     if (str == "discard") {
         return QualityMode::kDiscard;
     }
     throw ArgumentError(
                         "Invalid quality mode: " + std::string(str));
+}
+
+IDMode parseIdMode(std::string_view str) {
+    if (str == "exact") {
+        return IDMode::kExact;
+    }
+    if (str == "tokenize") {
+        return IDMode::kTokenize;
+    }
+    if (str == "discard") {
+        return IDMode::kDiscard;
+    }
+    throw ArgumentError(
+                        "Invalid ID mode: " + std::string(str));
 }
 
 // =============================================================================
@@ -119,10 +135,11 @@ void CompressCommand::validateOptions() {
                             "Compression level must be 1-9");
     }
 
-    // Streaming mode implies no reordering
+    // Streaming mode implies no reordering and no reorder map
     if (options_.streamingMode) {
         options_.enableReordering = false;
-        FQC_LOG_DEBUG("Streaming mode enabled, disabling reordering");
+        options_.saveReorderMap = false;
+        FQC_LOG_DEBUG("Streaming mode enabled, disabling reordering and reorder map");
     }
 
     // stdin implies streaming mode
@@ -130,6 +147,12 @@ void CompressCommand::validateOptions() {
         FQC_LOG_WARNING("stdin input detected, enabling streaming mode");
         options_.streamingMode = true;
         options_.enableReordering = false;
+        options_.saveReorderMap = false;
+    }
+
+    // No reordering implies no reorder map needed
+    if (!options_.enableReordering) {
+        options_.saveReorderMap = false;
     }
 
     FQC_LOG_DEBUG("Compression options validated");
@@ -139,6 +162,10 @@ void CompressCommand::validateOptions() {
     FQC_LOG_DEBUG("  Reordering: {}", options_.enableReordering);
     FQC_LOG_DEBUG("  Streaming: {}", options_.streamingMode);
     FQC_LOG_DEBUG("  Quality mode: {}", qualityModeToString(options_.qualityMode));
+    FQC_LOG_DEBUG("  ID mode: {}", idModeToString(options_.idMode));
+    FQC_LOG_DEBUG("  Block size: {}", options_.blockSize);
+    FQC_LOG_DEBUG("  Save reorder map: {}", options_.saveReorderMap);
+    FQC_LOG_DEBUG("  Paired: {}", options_.paired);
 }
 
 void CompressCommand::detectReadLengthClass() {
@@ -405,14 +432,15 @@ void CompressCommand::runCompression() {
 
     // Set flags
     std::uint64_t flags = 0;
-    if (options_.interleaved) {
+    if (options_.paired || options_.interleaved) {
         flags |= format::flags::kIsPaired;
         flags |= (static_cast<std::uint64_t>(options_.peLayout) << format::flags::kPeLayoutShift);
     }
     if (!analysisResult.reorderingPerformed) {
         flags |= format::flags::kPreserveOrder;
     }
-    if (analysisResult.reorderingPerformed && analysisResult.forwardMap.size() > 0) {
+    if (options_.saveReorderMap && analysisResult.reorderingPerformed &&
+        analysisResult.forwardMap.size() > 0) {
         flags |= format::flags::kHasReorderMap;
     }
     if (options_.streamingMode) {
@@ -421,6 +449,9 @@ void CompressCommand::runCompression() {
 
     // Set quality mode
     flags |= (static_cast<std::uint64_t>(options_.qualityMode) << format::flags::kQualityModeShift);
+
+    // Set ID mode
+    flags |= (static_cast<std::uint64_t>(options_.idMode) << format::flags::kIdModeShift);
 
     // Set read length class
     flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass) << format::flags::kReadLengthClassShift);
@@ -593,7 +624,7 @@ void CompressCommand::runCompressionParallel() {
     pipelineConfig.memoryLimitMB = options_.memoryLimitMb;
 
     pipelineConfig.qualityMode = options_.qualityMode;
-    pipelineConfig.idMode = IDMode::kExact;  // TODO: Make configurable
+    pipelineConfig.idMode = options_.idMode;
 
     // Progress callback
     if (options_.showProgress) {

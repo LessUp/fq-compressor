@@ -96,6 +96,9 @@ struct VerifyOptions {
 
     /// @brief Verify global checksum.
     bool verifyGlobal = true;
+
+    /// @brief Output results as JSON.
+    bool jsonOutput = false;
 };
 
 // =============================================================================

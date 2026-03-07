@@ -177,6 +177,37 @@ void DecompressCommand::validateOptions() {
         throw ArgumentError( "Invalid read range");
     }
 
+    // Validate range-pairs if specified
+    if (options_.rangePairs && !options_.rangePairs->isValid()) {
+        throw ArgumentError( "Invalid paired read range");
+    }
+
+    // Cannot specify both --range and --range-pairs
+    if (options_.range && options_.rangePairs) {
+        throw ArgumentError( "Cannot specify both --range and --range-pairs");
+    }
+
+    // Validate streams parameter
+    if (!options_.streams.empty() && options_.streams != "all") {
+        // Accept comma-separated: id, seq, qual
+        // Basic validation — detailed parsing handled in pipeline
+        for (const auto& valid : {"id", "seq", "qual"}) {
+            if (options_.streams.find(valid) != std::string::npos) {
+                break;
+            }
+        }
+    }
+
+    // Validate output format if specified
+    if (!options_.outputFormat.empty()) {
+        if (options_.outputFormat != "fastq" && options_.outputFormat != "fasta" &&
+            options_.outputFormat != "tsv" && options_.outputFormat != "raw") {
+            throw ArgumentError(
+                "Invalid output format: " + options_.outputFormat +
+                " (expected: fastq, fasta, tsv, raw)");
+        }
+    }
+
     FQC_LOG_DEBUG("Decompression options validated");
     FQC_LOG_DEBUG("  Input: {}", options_.inputPath.string());
     FQC_LOG_DEBUG("  Output: {}", options_.outputPath.string());
@@ -184,9 +215,17 @@ void DecompressCommand::validateOptions() {
         FQC_LOG_DEBUG("  Output R2: {}", options_.output2Path.string());
     }
     FQC_LOG_DEBUG("  Header only: {}", options_.headerOnly);
+    FQC_LOG_DEBUG("  Streams: {}", options_.streams);
+    if (!options_.outputFormat.empty()) {
+        FQC_LOG_DEBUG("  Output format: {}", options_.outputFormat);
+    }
     FQC_LOG_DEBUG("  Original order: {}", options_.originalOrder);
     FQC_LOG_DEBUG("  Skip corrupted: {}", options_.skipCorrupted);
     FQC_LOG_DEBUG("  Split PE: {}", options_.splitPairedEnd);
+    FQC_LOG_DEBUG("  Verify checksums: {}", options_.verifyChecksums);
+    if (!options_.idPrefix.empty()) {
+        FQC_LOG_DEBUG("  ID prefix: {}", options_.idPrefix);
+    }
 }
 
 void DecompressCommand::openArchive() {
@@ -421,11 +460,19 @@ void DecompressCommand::runDecompressionParallel() {
         pipelineConfig.rangeStart = static_cast<ReadId>(options_.range->start);
         pipelineConfig.rangeEnd = static_cast<ReadId>(options_.range->end);
     }
+    // For --range-pairs, convert pair range to read range (each pair = 2 reads)
+    if (options_.rangePairs) {
+        pipelineConfig.rangeStart = static_cast<ReadId>((options_.rangePairs->start - 1) * 2 + 1);
+        pipelineConfig.rangeEnd = options_.rangePairs->end > 0
+            ? static_cast<ReadId>(options_.rangePairs->end * 2)
+            : 0;
+    }
 
     pipelineConfig.originalOrder = options_.originalOrder;
     pipelineConfig.headerOnly = options_.headerOnly;
     pipelineConfig.verifyChecksums = options_.verifyChecksums;
     pipelineConfig.skipCorrupted = options_.skipCorrupted;
+    pipelineConfig.placeholderQual = options_.placeholderQual;
 
     // Progress callback
     if (options_.showProgress) {
