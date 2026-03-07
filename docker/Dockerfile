@@ -62,8 +62,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# CMake 4.x (最新版本)
-RUN CMAKE_VERSION=4.0.2 && \
+# CMake 4.x
+ARG CMAKE_VERSION=4.0.2
+RUN \
     ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
         amd64) CMAKE_ARCH="x86_64" ;; \
@@ -78,8 +79,9 @@ RUN CMAKE_VERSION=4.0.2 && \
     ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
     rm -f /tmp/cmake.tar.gz
 
-# Conan 2.x (最新版本)
-RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
+# Conan 2.x
+ARG CONAN_VERSION=2.24.0
+RUN pip3 install --no-cache-dir --break-system-packages conan==${CONAN_VERSION}
 
 # 设置编译器
 ENV CC=gcc
@@ -93,13 +95,16 @@ COPY . .
 
 # 安装依赖并构建
 RUN conan profile detect --force
-RUN conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 -of=build/gcc-release
+RUN conan install . --build=missing -s build_type=Release -s compiler.cppstd=23 -of=build/gcc-release
 
 RUN cmake -B build/gcc-release -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=build/gcc-release/conan_toolchain.cmake \
     -DCMAKE_C_COMPILER=gcc \
     -DCMAKE_CXX_COMPILER=g++ \
+    -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+    -DFQC_PORTABLE=ON \
     -DENABLE_COVERAGE=OFF \
     -DBUILD_TESTING=OFF \
     -DCMAKE_INSTALL_PREFIX=/opt/fqcompressor

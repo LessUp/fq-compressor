@@ -57,6 +57,11 @@ jobs:
             --output type=local,dest=out \
             .
 
+      - name: Verify binary
+        run: |
+          file out/${{ env.BINARY_NAME }}
+          chmod +x out/${{ env.BINARY_NAME }}
+
       - name: Prepare archive
         run: |
           STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-glibc"
@@ -95,7 +100,7 @@ jobs:
       - name: Build static binary via Docker (GCC 15 + musl)
         run: |
           docker build \
-            -f docker/Dockerfile.alpine-release \
+            -f docker/Dockerfile.musl-release \
             --output type=local,dest=out \
             .
 
@@ -144,6 +149,11 @@ jobs:
             -f docker/Dockerfile.clang-release \
             --output type=local,dest=out \
             .
+
+      - name: Verify binary
+        run: |
+          file out/${{ env.BINARY_NAME }}
+          chmod +x out/${{ env.BINARY_NAME }}
 
       - name: Prepare archive
         run: |

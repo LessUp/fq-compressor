@@ -49,8 +49,9 @@
         "type=bind,source=${localEnv:HOME}/.ssh,target=/home/developer/.ssh,readonly",
         "type=bind,source=${localEnv:HOME}/.fqcompressor-host-gitconfig,target=/tmp/host-gitconfig,readonly",
         "type=bind,source=${localEnv:HOME}/.fqcompressor-host-claude,target=/tmp/host-claude,readonly",
-        "type=bind,source=${localEnv:HOME}/.fqcompressor-host-codex,target=/tmp/host-codex,readonly",
-        "type=bind,source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent"
+        "type=bind,source=${localEnv:HOME}/.fqcompressor-host-codex,target=/tmp/host-codex,readonly"
+        // SSH agent 转发：仅 Linux/WSL2 有效，Windows/macOS 需注释掉此行
+        // "type=bind,source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent"
     ],
 
     // =========================================================================

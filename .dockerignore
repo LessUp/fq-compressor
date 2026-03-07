@@ -35,6 +35,9 @@ fq-data/
 # DevContainer 相关（构建时不需要）
 .devcontainer/
 
+# Docker 环境变量文件（可能含敏感信息）
+docker/.env
+
 # 文档和日志
 docs/generated/
 changelog/
