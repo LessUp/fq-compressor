@@ -1,9 +1,8 @@
 # fq-compressor
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [Rust 版本 (fq-compressor-rust)](https://github.com/LessUp/fq-compressor-rust)
 
-> **🦀 Also available in Rust** — This project has a parallel Rust implementation: [fq-compressor-rust](../fq-compressor-rust/README.md) ([中文发布说明](../fq-compressor-rust/RELEASE_zh.md)).
-> The Rust version shares the same FQC format and ABC/SCM algorithms, but replaces Intel TBB with Rayon + crossbeam and adds async I/O.
+> 🦀 本项目同时提供 **[Rust 实现](https://github.com/LessUp/fq-compressor-rust)**，共享相同的 `.fqc` 归档格式与 ABC/SCM 压缩算法，以 Rayon + crossbeam 替代 Intel TBB 并引入异步 I/O。
 
 **Documentation**
 
