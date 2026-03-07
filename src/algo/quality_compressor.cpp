@@ -104,15 +104,15 @@ public:
 
     /// @brief Update model after encoding/decoding a symbol
     void update(std::size_t symbol) {
-        frequencies_[symbol] += kAdaptIncrement;
-
-        updateCumulative();
-
-        // Rescale if total exceeds maximum after this update
-        if (getTotal() > kMaxFrequency) {
+        // Rescale BEFORE increment if adding would exceed maximum,
+        // to prevent transient overflow in arithmetic coding range calculations.
+        if (getTotal() + kAdaptIncrement > kMaxFrequency) {
             rescale();
             updateCumulative();
         }
+
+        frequencies_[symbol] += kAdaptIncrement;
+        updateCumulative();
     }
 
     /// @brief Reset model to initial state
