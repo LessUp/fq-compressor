@@ -65,23 +65,50 @@ case $PRESET in
         ;;
 esac
 
-# 根据 preset 确定编译器
+# 根据 preset 确定编译器，使用数组避免引号/转义问题
+CONAN_EXTRA_ARGS=()
 case $PRESET in
     gcc-*)
-        COMPILER_SETTINGS=""
         ;;
     clang-*)
         # Clang 使用 libc++（与 CMakePresets.json 中 -stdlib=libc++ 保持一致）
-        # 必须显式指定 compiler=clang，否则默认 profile 检测到的 GCC 不接受 libc++
+        # 检测系统 Clang 版本，生成临时 profile 确保：
+        #   1. compiler settings 正确（clang + libc++）
+        #   2. [buildenv] 设置 CC/CXX 环境变量，Conan 构建依赖时使用 Clang
+        #   3. compiler_executables 在 conan_toolchain.cmake 中设置 CMAKE_CXX_COMPILER
         CLANG_VER=$(clang --version 2>/dev/null | head -1 | sed 's/[^0-9]*\([0-9]*\).*/\1/')
         if [[ -z "$CLANG_VER" ]]; then
             echo "Error: Could not detect Clang version"
             exit 1
         fi
-        COMPILER_SETTINGS="-s compiler=clang -s compiler.version=${CLANG_VER} -s compiler.libcxx=libc++"
+        export CC=clang
+        export CXX=clang++
+        # 生成临时 profile，包含正确的 Clang 版本和编译器路径
+        TMPPROFILE=$(mktemp)
+        trap 'rm -f "$TMPPROFILE"' EXIT
+        cat > "$TMPPROFILE" <<EOF
+[settings]
+os=Linux
+arch=x86_64
+compiler=clang
+compiler.version=${CLANG_VER}
+compiler.libcxx=libc++
+compiler.cppstd=23
+
+[buildenv]
+CC=clang
+CXX=clang++
+
+[conf]
+tools.build:compiler_executables={"c": "clang", "cpp": "clang++"}
+tools.build:skip_test=True
+EOF
+        echo "Generated temporary Clang profile (version=${CLANG_VER}):"
+        cat "$TMPPROFILE"
+        echo ""
+        CONAN_EXTRA_ARGS+=(--profile "$TMPPROFILE")
         ;;
     coverage)
-        COMPILER_SETTINGS=""
         ;;
 esac
 
@@ -94,13 +121,11 @@ echo "Output: $BUILD_DIR"
 echo ""
 
 # 安装依赖
-# shellcheck disable=SC2086
 conan install . \
     --output-folder="$BUILD_DIR" \
     --build=missing \
     -s build_type="$BUILD_TYPE" \
-    -s compiler.cppstd=23 \
-    ${COMPILER_SETTINGS:-}
+    "${CONAN_EXTRA_ARGS[@]}"
 
 echo ""
 echo "=== Dependencies installed ==="
