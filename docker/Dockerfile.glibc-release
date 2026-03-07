@@ -1,18 +1,17 @@
 # =============================================================================
-# FQCompressor musl Static Release Build
+# FQCompressor glibc Release Build
 # =============================================================================
-# 使用 GCC 15 + musl-tools 构建完全静态链接的二进制文件。
-# 通过 Debian musl-tools 提供 musl libc，配合 GCC 15 确保 C++23 完整支持。
-# 生成的二进制无任何外部依赖，可在任意 Linux 发行版上运行。
+# 使用 GCC 15 + glibc (Debian Bookworm) 构建发布版二进制文件。
+# 与生产 Dockerfile 使用相同编译器版本，确保一致性。
 #
 # Usage (CI):
-#   docker build -f docker/Dockerfile.alpine-release -o out .
+#   docker build -f docker/Dockerfile.glibc-release -o out .
 #   # 产物: out/fqc
 # =============================================================================
 
 FROM gcc:15.2-bookworm AS build
 
-# 安装构建依赖 + musl 工具链
+# 安装构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ninja-build \
     pkg-config \
@@ -21,8 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
     python3 \
     python3-pip \
-    musl-dev \
-    musl-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # CMake 4.x
@@ -40,53 +37,39 @@ RUN CMAKE_VERSION=4.0.2 && \
     ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
     rm -f /tmp/cmake.tar.gz
 
-# 创建 musl-g++ 包装脚本（musl-tools 仅提供 musl-gcc）
-RUN printf '#!/bin/sh\nexec g++ "$@" -specs /usr/lib/*/musl-gcc.specs -static\n' > /usr/local/bin/musl-g++ && \
-    chmod +x /usr/local/bin/musl-g++
-
 # Conan 2.x
 RUN pip3 install --no-cache-dir --break-system-packages conan==2.24.0
 
-ENV CC=musl-gcc
-ENV CXX=musl-g++
+ENV CC=gcc
+ENV CXX=g++
 ENV CONAN_HOME=/root/.conan2
 
 WORKDIR /src
 COPY . .
 
-# Conan：检测 profile 并安装依赖（全部静态）
+# Conan：检测 profile 并安装依赖
 RUN conan profile detect --force
-
 RUN conan install . \
-    --output-folder=build/musl-release \
+    --output-folder=build/release \
     --build=missing \
     -s build_type=Release \
-    -s compiler.cppstd=23 \
-    -o "*:shared=False"
+    -s compiler.cppstd=23
 
-# CMake 配置（musl 静态链接 + 可移植）
-RUN cmake -B build/musl-release -S . -G Ninja \
+# CMake 配置（FQC_PORTABLE=ON 禁用 -march=native）
+RUN cmake -B build/release -S . -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=build/musl-release/build/Release/generators/conan_toolchain.cmake \
-    -DCMAKE_C_COMPILER=musl-gcc \
-    -DCMAKE_CXX_COMPILER=musl-g++ \
+    -DCMAKE_TOOLCHAIN_FILE=build/release/build/Release/generators/conan_toolchain.cmake \
+    -DCMAKE_C_COMPILER=gcc \
+    -DCMAKE_CXX_COMPILER=g++ \
     -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
-    -DCMAKE_EXE_LINKER_FLAGS="-static" \
-    -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
-    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
     -DFQC_PORTABLE=ON \
     -DBUILD_TESTING=OFF \
     -DENABLE_COVERAGE=OFF
 
 # 构建
-RUN cmake --build build/musl-release -j "$(nproc)"
-
-# 验证静态链接
-RUN file build/musl-release/src/fqc && \
-    ldd build/musl-release/src/fqc 2>&1 | grep -q "not a dynamic executable" || \
-    ldd build/musl-release/src/fqc 2>&1 | grep -q "statically linked" || \
-    echo "Warning: binary may not be fully static"
+RUN cmake --build build/release -j "$(nproc)"
 
 # 导出构建产物
 FROM scratch AS export
-COPY --from=build /src/build/musl-release/src/fqc /fqc
+COPY --from=build /src/build/release/src/fqc /fqc

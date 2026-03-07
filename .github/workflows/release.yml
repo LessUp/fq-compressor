@@ -31,43 +31,10 @@ jobs:
           fi
           echo "Version: $TAG_VERSION ✓"
 
-  # ── Pre-release test ──────────────────────────────────────────────
-  test:
-    name: Pre-release Test
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.conan2
-          key: ${{ runner.os }}-conan-release-test-${{ hashFiles('conanfile.py') }}
-          restore-keys: ${{ runner.os }}-conan-
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gcc g++ ninja-build ccache cmake
-
-      - name: Install Conan
-        run: |
-          pip install conan==${{ env.CONAN_VERSION }}
-          conan profile detect --force
-
-      - name: Build & test
-        run: |
-          ./scripts/build.sh gcc-release
-          ./scripts/test.sh gcc-release
-
-  # ── Linux glibc builds (x86_64 + aarch64) ────────────────────────
+  # ── Linux glibc builds (Docker GCC 15 × x86_64 + aarch64) ───────
   build-linux-glibc:
     name: Build Linux glibc (${{ matrix.arch }})
-    needs: test
+    needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -80,55 +47,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - uses: actions/cache@v4
-        with:
-          path: ~/.conan2
-          key: ${{ runner.os }}-${{ matrix.arch }}-conan-glibc-${{ hashFiles('conanfile.py') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.arch }}-conan-
-
-      - name: Install system dependencies
+      - name: Build via Docker (GCC 15 + glibc)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gcc g++ ninja-build ccache cmake
-
-      - name: Install Conan
-        run: |
-          pip install conan==${{ env.CONAN_VERSION }}
-          conan profile detect --force
-
-      - name: Install Conan dependencies
-        run: |
-          conan install . \
-            --output-folder=build/release \
-            --build=missing \
-            -s build_type=Release \
-            -s compiler.cppstd=23
-
-      - name: CMake configure
-        run: |
-          cmake -B build/release -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE=build/release/build/Release/generators/conan_toolchain.cmake \
-            -DCMAKE_C_COMPILER=gcc \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
-            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-            -DFQC_PORTABLE=ON \
-            -DBUILD_TESTING=OFF \
-            -DENABLE_COVERAGE=OFF
-
-      - name: Build
-        run: cmake --build build/release -j "$(nproc)"
+          docker build \
+            -f docker/Dockerfile.glibc-release \
+            --output type=local,dest=out \
+            .
 
       - name: Prepare archive
         run: |
           STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-glibc"
           mkdir -p "$STAGING"
-          cp build/release/src/${{ env.BINARY_NAME }} "$STAGING/"
+          cp out/${{ env.BINARY_NAME }} "$STAGING/"
+          chmod +x "$STAGING/${{ env.BINARY_NAME }}"
           cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
           tar czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
@@ -139,10 +73,10 @@ jobs:
           name: linux-${{ matrix.arch }}-glibc
           path: ${{ env.ASSET }}
 
-  # ── Linux musl static builds (x86_64 + aarch64) ──────────────────
+  # ── Linux musl static builds (Docker GCC 15 + musl-tools) ───────
   build-linux-musl:
     name: Build Linux musl (${{ matrix.arch }})
-    needs: test
+    needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -150,17 +84,15 @@ jobs:
         include:
           - arch: x86_64
             runner: ubuntu-latest
-            platform: linux/amd64
           - arch: aarch64
             runner: ubuntu-24.04-arm
-            platform: linux/arm64
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build static binary via Alpine Docker
+      - name: Build static binary via Docker (GCC 15 + musl)
         run: |
           docker build \
             -f docker/Dockerfile.alpine-release \
@@ -187,10 +119,10 @@ jobs:
           name: linux-${{ matrix.arch }}-musl
           path: ${{ env.ASSET }}
 
-  # ── macOS builds (x86_64 + arm64) ────────────────────────────────
+  # ── macOS builds (Homebrew GCC 15 × x86_64 + arm64) ─────────────
   build-macos:
     name: Build macOS (${{ matrix.arch }})
-    needs: test
+    needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -213,8 +145,11 @@ jobs:
           key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py') }}
           restore-keys: macos-${{ matrix.arch }}-conan-
 
-      - name: Install system dependencies
-        run: brew install cmake ninja ccache
+      - name: Install build tools & GCC 15
+        run: |
+          brew install cmake ninja ccache gcc@15
+          echo "CC=$(brew --prefix gcc@15)/bin/gcc-15" >> "$GITHUB_ENV"
+          echo "CXX=$(brew --prefix gcc@15)/bin/g++-15" >> "$GITHUB_ENV"
 
       - name: Install Conan
         run: |
@@ -234,6 +169,8 @@ jobs:
           cmake -B build/release -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=build/release/build/Release/generators/conan_toolchain.cmake \
+            -DCMAKE_C_COMPILER=${{ env.CC }} \
+            -DCMAKE_CXX_COMPILER=${{ env.CXX }} \
             -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
             -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
             -DFQC_PORTABLE=ON \
@@ -308,6 +245,12 @@ jobs:
             fi
             echo ""
             echo "---"
+            echo ""
+            echo "### Build Environment / 构建环境"
+            echo ""
+            echo "All binaries built with **GCC 15.2** and C++23."
+            echo ""
+            echo "所有二进制文件均使用 **GCC 15.2** 和 C++23 构建。"
             echo ""
             echo "### Installation / 安装说明"
             echo ""
