@@ -2,7 +2,8 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> **🦀 Rust 实现**: 本项目的 Rust 重写版本已发布，详见 [fq-compressor-rust（英文 README）](../fq-compressor-rust/README.md)，以及 [中文发布说明](../fq-compressor-rust/RELEASE_zh.md)。Rust 版本采用 Rayon 并行、crossbeam 管线和异步 I/O。
+> **🦀 Rust 版本同步开发中** — 本项目同时提供 Rust 实现：[fq-compressor-rust](../fq-compressor-rust/README.md)（[中文发布说明](../fq-compressor-rust/RELEASE_zh.md)）。
+> 两个版本共享相同的 FQC 归档格式与 ABC/SCM 压缩算法，Rust 版本以 Rayon + crossbeam 替代 Intel TBB，并引入异步 I/O 层。
 
 **fq-compressor** 是一个面向 FASTQ 数据的高性能压缩工具，目标是在二代/三代测序场景下，同时兼顾高压缩比、可维护工程架构、并行处理能力与随机访问能力。
 
