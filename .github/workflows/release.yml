@@ -119,6 +119,48 @@ jobs:
           name: linux-${{ matrix.arch }}-musl
           path: ${{ env.ASSET }}
 
+  # ── Linux Clang builds (Docker Clang 21 + libc++ × x86_64 + aarch64)
+  build-linux-clang:
+    name: Build Linux Clang (${{ matrix.arch }})
+    needs: validate
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build via Docker (Clang 21 + libc++)
+        run: |
+          docker build \
+            -f docker/Dockerfile.clang-release \
+            --output type=local,dest=out \
+            .
+
+      - name: Prepare archive
+        run: |
+          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-clang"
+          mkdir -p "$STAGING"
+          cp out/${{ env.BINARY_NAME }} "$STAGING/"
+          chmod +x "$STAGING/${{ env.BINARY_NAME }}"
+          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
+          tar czf "$STAGING.tar.gz" "$STAGING"
+          echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}-clang
+          path: ${{ env.ASSET }}
+
   # ── macOS builds (Homebrew GCC 15 × x86_64 + arm64) ─────────────
   build-macos:
     name: Build macOS (${{ matrix.arch }})
@@ -198,7 +240,7 @@ jobs:
   # ── Create GitHub Release ─────────────────────────────────────────
   release:
     name: Create Release
-    needs: [build-linux-glibc, build-linux-musl, build-macos]
+    needs: [build-linux-glibc, build-linux-musl, build-linux-clang, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -248,9 +290,11 @@ jobs:
             echo ""
             echo "### Build Environment / 构建环境"
             echo ""
-            echo "All binaries built with **GCC 15.2** and C++23."
+            echo "- **GCC 15.2** builds: glibc (dynamic) and musl (static)"
+            echo "- **Clang 21** builds: glibc + libc++ (dynamic)"
             echo ""
-            echo "所有二进制文件均使用 **GCC 15.2** 和 C++23 构建。"
+            echo "- **GCC 15.2** 构建：glibc（动态）和 musl（静态）"
+            echo "- **Clang 21** 构建：glibc + libc++（动态）"
             echo ""
             echo "### Installation / 安装说明"
             echo ""
@@ -266,12 +310,14 @@ jobs:
             echo ""
             echo "| Platform / 平台 | File / 文件 | Note / 说明 |"
             echo "|---|---|---|"
-            echo "| Linux x64 (glibc) | \`fq-compressor-${TAG}-linux-x86_64-glibc.tar.gz\` | Dynamic (glibc) / 动态链接 |"
-            echo "| Linux x64 (musl) | \`fq-compressor-${TAG}-linux-x86_64-musl.tar.gz\` | **Static, runs anywhere / 静态链接** |"
-            echo "| Linux arm64 (glibc) | \`fq-compressor-${TAG}-linux-aarch64-glibc.tar.gz\` | Dynamic (glibc) / 动态链接 |"
-            echo "| Linux arm64 (musl) | \`fq-compressor-${TAG}-linux-aarch64-musl.tar.gz\` | **Static, runs anywhere / 静态链接** |"
-            echo "| macOS x64 | \`fq-compressor-${TAG}-macos-x86_64.tar.gz\` | Intel Mac |"
-            echo "| macOS arm64 | \`fq-compressor-${TAG}-macos-arm64.tar.gz\` | Apple Silicon |"
+            echo "| Linux x64 (GCC glibc) | \`fq-compressor-${TAG}-linux-x86_64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
+            echo "| Linux x64 (GCC musl) | \`fq-compressor-${TAG}-linux-x86_64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
+            echo "| Linux x64 (Clang) | \`fq-compressor-${TAG}-linux-x86_64-clang.tar.gz\` | Clang 21 + libc++ |"
+            echo "| Linux arm64 (GCC glibc) | \`fq-compressor-${TAG}-linux-aarch64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
+            echo "| Linux arm64 (GCC musl) | \`fq-compressor-${TAG}-linux-aarch64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
+            echo "| Linux arm64 (Clang) | \`fq-compressor-${TAG}-linux-aarch64-clang.tar.gz\` | Clang 21 + libc++ |"
+            echo "| macOS x64 | \`fq-compressor-${TAG}-macos-x86_64.tar.gz\` | GCC 15, Intel Mac |"
+            echo "| macOS arm64 | \`fq-compressor-${TAG}-macos-arm64.tar.gz\` | GCC 15, Apple Silicon |"
             echo ""
             echo "### Quick Start / 快速开始"
             echo ""
