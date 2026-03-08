@@ -43,6 +43,7 @@
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+compile_commands.json
 Makefile
 
 # 忽略所有的自动生成的文档
@@ -71,12 +72,10 @@ CMakeUserPresets.json
 .DS_Store
 Thumbs.db
 
+# 编辑器/LSP 缓存
+.clangd/
+
 # 通用构建与安装输出
-build-clang-debug/
-build-clang-release/
-build-gcc-debug/
-build-gcc-release/
-build-logs/
 build*/
 install/
 install-*/
@@ -121,4 +120,3 @@ package-lock.json
 *.fqc.idx
 
 ref-projects/
-ref-projects/*
