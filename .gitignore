@@ -30,6 +30,9 @@
 # 忽略所有的 IDE 配置文件
 .vscode/*
 !.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 .idea/
 *.suo
 *.user

@@ -1,0 +1,273 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        // =====================================================================
+        // Conan 依赖安装
+        // =====================================================================
+        {
+            "label": "Conan: Install (GCC Debug)",
+            "type": "shell",
+            "command": "conan install . --build=missing -s build_type=Debug -s compiler=gcc -of build/gcc-debug/build/Debug",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "安装 GCC Debug 构建的 Conan 依赖"
+        },
+        {
+            "label": "Conan: Install (GCC Release)",
+            "type": "shell",
+            "command": "conan install . --build=missing -s build_type=Release -s compiler=gcc -of build/gcc-release/build/Release",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "安装 GCC Release 构建的 Conan 依赖"
+        },
+        {
+            "label": "Conan: Install (Clang Debug)",
+            "type": "shell",
+            "command": "conan install . --build=missing -s build_type=Debug -s compiler=clang -of build/clang-debug/build/Debug",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "安装 Clang Debug 构建的 Conan 依赖"
+        },
+        // =====================================================================
+        // CMake Configure
+        // =====================================================================
+        {
+            "label": "CMake: Configure gcc-debug",
+            "type": "shell",
+            "command": "cmake --preset gcc-debug",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "CMake 配置 GCC Debug preset"
+        },
+        {
+            "label": "CMake: Configure gcc-release",
+            "type": "shell",
+            "command": "cmake --preset gcc-release",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "CMake 配置 GCC Release preset"
+        },
+        {
+            "label": "CMake: Configure clang-debug",
+            "type": "shell",
+            "command": "cmake --preset clang-debug",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "CMake 配置 Clang Debug preset"
+        },
+        {
+            "label": "CMake: Configure clang-asan",
+            "type": "shell",
+            "command": "cmake --preset clang-asan",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "CMake 配置 Clang AddressSanitizer preset"
+        },
+        // =====================================================================
+        // CMake Build
+        // =====================================================================
+        {
+            "label": "CMake: Build gcc-debug",
+            "type": "shell",
+            "command": "cmake --build --preset gcc-debug",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc",
+            "detail": "构建 GCC Debug"
+        },
+        {
+            "label": "CMake: Build gcc-release",
+            "type": "shell",
+            "command": "cmake --build --preset gcc-release",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 GCC Release"
+        },
+        {
+            "label": "CMake: Build clang-debug",
+            "type": "shell",
+            "command": "cmake --build --preset clang-debug",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 Clang Debug"
+        },
+        {
+            "label": "CMake: Build clang-release",
+            "type": "shell",
+            "command": "cmake --build --preset clang-release",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 Clang Release"
+        },
+        {
+            "label": "CMake: Build clang-asan",
+            "type": "shell",
+            "command": "cmake --build --preset clang-asan",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 Clang AddressSanitizer"
+        },
+        {
+            "label": "CMake: Build clang-tsan",
+            "type": "shell",
+            "command": "cmake --build --preset clang-tsan",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 Clang ThreadSanitizer"
+        },
+        {
+            "label": "CMake: Build coverage",
+            "type": "shell",
+            "command": "cmake --build --preset coverage",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "构建 Coverage 版本"
+        },
+        // =====================================================================
+        // CTest 测试
+        // =====================================================================
+        {
+            "label": "CTest: Run gcc-debug",
+            "type": "shell",
+            "command": "ctest --preset gcc-debug --output-on-failure",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc",
+            "detail": "运行 GCC Debug 全部测试"
+        },
+        {
+            "label": "CTest: Run gcc-release",
+            "type": "shell",
+            "command": "ctest --preset gcc-release --output-on-failure",
+            "group": "test",
+            "problemMatcher": "$gcc",
+            "detail": "运行 GCC Release 全部测试"
+        },
+        {
+            "label": "CTest: Run clang-asan",
+            "type": "shell",
+            "command": "ctest --preset clang-asan --output-on-failure",
+            "group": "test",
+            "problemMatcher": "$gcc",
+            "detail": "运行 Clang ASan 测试 (内存错误检测)"
+        },
+        {
+            "label": "CTest: Run clang-tsan",
+            "type": "shell",
+            "command": "ctest --preset clang-tsan --output-on-failure",
+            "group": "test",
+            "problemMatcher": "$gcc",
+            "detail": "运行 Clang TSan 测试 (数据竞争检测)"
+        },
+        // =====================================================================
+        // 代码质量
+        // =====================================================================
+        {
+            "label": "Format: Check (clang-format)",
+            "type": "shell",
+            "command": "find src include tests -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | xargs clang-format --dry-run --Werror",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "检查代码格式是否符合 .clang-format 规范"
+        },
+        {
+            "label": "Format: Fix (clang-format)",
+            "type": "shell",
+            "command": "find src include tests -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | xargs clang-format -i",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "自动修复代码格式"
+        },
+        {
+            "label": "Lint: clang-tidy (当前文件)",
+            "type": "shell",
+            "command": "clang-tidy -p build/clang-debug ${file}",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "对当前打开的文件运行 clang-tidy 静态分析"
+        },
+        // =====================================================================
+        // 清理
+        // =====================================================================
+        {
+            "label": "Clean: gcc-debug",
+            "type": "shell",
+            "command": "cmake --build --preset gcc-debug --target clean",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "清理 GCC Debug 构建产物"
+        },
+        {
+            "label": "Clean: All builds",
+            "type": "shell",
+            "command": "rm -rf build/*/",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "清理所有构建目录"
+        },
+        // =====================================================================
+        // 脚本快捷方式
+        // =====================================================================
+        {
+            "label": "Script: Build (gcc-release)",
+            "type": "shell",
+            "command": "./scripts/build.sh gcc-release",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "通过项目脚本执行 GCC Release 构建"
+        },
+        {
+            "label": "Script: Test (gcc-release)",
+            "type": "shell",
+            "command": "./scripts/test.sh gcc-release",
+            "group": "test",
+            "problemMatcher": "$gcc",
+            "detail": "通过项目脚本执行 GCC Release 测试"
+        },
+        {
+            "label": "Script: Lint format-check",
+            "type": "shell",
+            "command": "./scripts/lint.sh format-check",
+            "group": "none",
+            "problemMatcher": [],
+            "detail": "通过项目脚本检查代码格式"
+        },
+        {
+            "label": "Script: Lint (clang-debug)",
+            "type": "shell",
+            "command": "./scripts/lint.sh lint clang-debug",
+            "group": "none",
+            "problemMatcher": "$gcc",
+            "detail": "通过项目脚本执行静态分析"
+        },
+        // =====================================================================
+        // 组合任务
+        // =====================================================================
+        {
+            "label": "Full: Build & Test (gcc-debug)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "CMake: Build gcc-debug",
+                "CTest: Run gcc-debug"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "完整流程：构建 + 测试 (GCC Debug)"
+        },
+        {
+            "label": "Full: Configure & Build (gcc-debug)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "CMake: Configure gcc-debug",
+                "CMake: Build gcc-debug"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "完整流程：配置 + 构建 (GCC Debug)"
+        }
+    ]
+}
