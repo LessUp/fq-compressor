@@ -516,7 +516,7 @@ int main(int argc, char* argv[]) {
         }
     } catch (const FQCException& ex) {
         FQC_LOG_ERROR("Error: {}", ex.what());
-        return static_cast<int>(ex.code());
+        return toExitCode(ex.code());
     } catch (const std::exception& ex) {
         FQC_LOG_ERROR("Unexpected error: {}", ex.what());
         return EXIT_FAILURE;

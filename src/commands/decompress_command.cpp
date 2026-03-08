@@ -112,7 +112,7 @@ int DecompressCommand::execute() {
 
     } catch (const FQCException& e) {
         FQC_LOG_ERROR("Decompression failed: {}", e.what());
-        return static_cast<int>(e.code());
+        return toExitCode(e.code());
     } catch (const std::exception& e) {
         FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;

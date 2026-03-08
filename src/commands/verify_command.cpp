@@ -118,11 +118,11 @@ int VerifyCommand::execute() {
         // Print summary
         printSummary();
 
-        return summary_.passed() ? 0 : static_cast<int>(ErrorCode::kChecksumMismatch);
+        return summary_.passed() ? 0 : toExitCode(ErrorCode::kChecksumMismatch);
 
     } catch (const FQCException& e) {
         FQC_LOG_ERROR("Verification failed: {}", e.what());
-        return static_cast<int>(e.code());
+        return toExitCode(e.code());
     } catch (const std::exception& e) {
         FQC_LOG_ERROR("Unexpected error: {}", e.what());
         return 1;
