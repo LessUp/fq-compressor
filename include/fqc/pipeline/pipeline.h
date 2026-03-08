@@ -20,6 +20,9 @@
 #ifndef FQC_PIPELINE_PIPELINE_H
 #define FQC_PIPELINE_PIPELINE_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -30,9 +33,6 @@
 #include <span>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::pipeline {
 
@@ -81,7 +81,9 @@ public:
 
     /// @brief Check if stage is ready to process
     /// @return true if ready
-    [[nodiscard]] virtual bool isReady() const noexcept { return true; }
+    [[nodiscard]] virtual bool isReady() const noexcept {
+        return true;
+    }
 
     /// @brief Reset stage state
     virtual void reset() noexcept {}
@@ -117,10 +119,14 @@ struct ReadChunk {
     }
 
     /// @brief Get number of reads
-    [[nodiscard]] std::size_t size() const noexcept { return reads.size(); }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return reads.size();
+    }
 
     /// @brief Check if empty
-    [[nodiscard]] bool empty() const noexcept { return reads.empty(); }
+    [[nodiscard]] bool empty() const noexcept {
+        return reads.empty();
+    }
 };
 
 /// @brief A compressed block ready for writing
@@ -211,22 +217,25 @@ struct PipelineStats {
 
     /// @brief Get compression ratio
     [[nodiscard]] double compressionRatio() const noexcept {
-        if (inputBytes == 0) return 1.0;
+        if (inputBytes == 0)
+            return 1.0;
         return static_cast<double>(outputBytes) / static_cast<double>(inputBytes);
     }
 
     /// @brief Get bits per base (for sequence compression)
     [[nodiscard]] double bitsPerBase() const noexcept {
-        if (inputBytes == 0) return 0.0;
+        if (inputBytes == 0)
+            return 0.0;
         // Approximate: assume ~50% of input is sequence
         return (static_cast<double>(outputBytes) * 8.0) / (static_cast<double>(inputBytes) * 0.5);
     }
 
     /// @brief Get throughput (MB/s)
     [[nodiscard]] double throughputMBps() const noexcept {
-        if (processingTimeMs == 0) return 0.0;
+        if (processingTimeMs == 0)
+            return 0.0;
         return (static_cast<double>(inputBytes) / (1024.0 * 1024.0)) /
-               (static_cast<double>(processingTimeMs) / 1000.0);
+            (static_cast<double>(processingTimeMs) / 1000.0);
     }
 };
 
@@ -268,7 +277,8 @@ struct ProgressInfo {
     /// @brief Get estimated time remaining (milliseconds)
     [[nodiscard]] std::uint64_t estimatedRemainingMs() const noexcept {
         double r = ratio();
-        if (r <= 0.0 || r >= 1.0) return 0;
+        if (r <= 0.0 || r >= 1.0)
+            return 0;
         return static_cast<std::uint64_t>(static_cast<double>(elapsedMs) * (1.0 - r) / r);
     }
 };
@@ -427,19 +437,17 @@ public:
     /// @param inputPath Input FASTQ file path (or "-" for stdin)
     /// @param outputPath Output FQC file path
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult run(
-        const std::filesystem::path& inputPath,
-        const std::filesystem::path& outputPath);
+    [[nodiscard]] VoidResult run(const std::filesystem::path& inputPath,
+                                 const std::filesystem::path& outputPath);
 
     /// @brief Run compression with paired-end input
     /// @param input1Path First input file (R1)
     /// @param input2Path Second input file (R2)
     /// @param outputPath Output FQC file path
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult runPaired(
-        const std::filesystem::path& input1Path,
-        const std::filesystem::path& input2Path,
-        const std::filesystem::path& outputPath);
+    [[nodiscard]] VoidResult runPaired(const std::filesystem::path& input1Path,
+                                       const std::filesystem::path& input2Path,
+                                       const std::filesystem::path& outputPath);
 
     /// @brief Cancel running pipeline
     void cancel() noexcept;
@@ -503,19 +511,17 @@ public:
     /// @param inputPath Input FQC file path
     /// @param outputPath Output FASTQ file path (or "-" for stdout)
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult run(
-        const std::filesystem::path& inputPath,
-        const std::filesystem::path& outputPath);
+    [[nodiscard]] VoidResult run(const std::filesystem::path& inputPath,
+                                 const std::filesystem::path& outputPath);
 
     /// @brief Run decompression with paired-end output
     /// @param inputPath Input FQC file path
     /// @param output1Path First output file (R1)
     /// @param output2Path Second output file (R2)
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult runPaired(
-        const std::filesystem::path& inputPath,
-        const std::filesystem::path& output1Path,
-        const std::filesystem::path& output2Path);
+    [[nodiscard]] VoidResult runPaired(const std::filesystem::path& inputPath,
+                                       const std::filesystem::path& output1Path,
+                                       const std::filesystem::path& output2Path);
 
     /// @brief Cancel running pipeline
     void cancel() noexcept;
@@ -561,17 +567,15 @@ private:
 /// @param config Pipeline configuration
 /// @param estimatedReads Estimated number of reads
 /// @return Estimated memory usage (bytes)
-[[nodiscard]] std::size_t estimateMemoryUsage(
-    const CompressionPipelineConfig& config,
-    std::size_t estimatedReads);
+[[nodiscard]] std::size_t estimateMemoryUsage(const CompressionPipelineConfig& config,
+                                              std::size_t estimatedReads);
 
 /// @brief Check if system has enough memory for configuration
 /// @param config Pipeline configuration
 /// @param estimatedReads Estimated number of reads
 /// @return true if memory is sufficient
-[[nodiscard]] bool hasEnoughMemory(
-    const CompressionPipelineConfig& config,
-    std::size_t estimatedReads);
+[[nodiscard]] bool hasEnoughMemory(const CompressionPipelineConfig& config,
+                                   std::size_t estimatedReads);
 
 }  // namespace fqc::pipeline
 

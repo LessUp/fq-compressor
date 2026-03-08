@@ -9,9 +9,7 @@
 // **Validates: Requirements 3.1**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/algo/quality_compressor.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -19,7 +17,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/algo/quality_compressor.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::algo::test {
 
@@ -42,7 +43,7 @@ namespace gen {
 
 /// @brief Generate a valid quality string with variable length.
 [[nodiscard]] rc::Gen<std::string> validQualityVariable(std::size_t minLen = 50,
-                                                         std::size_t maxLen = 300) {
+                                                        std::size_t maxLen = 300) {
     return rc::gen::mapcat(rc::gen::inRange(minLen, maxLen + 1),
                            [](std::size_t len) { return validQuality(len); });
 }
@@ -76,19 +77,17 @@ namespace gen {
 }
 
 /// @brief Generate a vector of quality strings with uniform length.
-[[nodiscard]] rc::Gen<std::vector<std::string>> uniformQualityStrings(
-    std::size_t numStrings,
-    std::size_t length) {
+[[nodiscard]] rc::Gen<std::vector<std::string>> uniformQualityStrings(std::size_t numStrings,
+                                                                      std::size_t length) {
     return rc::gen::container<std::vector<std::string>>(numStrings, validQuality(length));
 }
 
 /// @brief Generate a vector of quality strings with variable lengths.
-[[nodiscard]] rc::Gen<std::vector<std::string>> variableQualityStrings(
-    std::size_t numStrings,
-    std::size_t minLen = 50,
-    std::size_t maxLen = 300) {
+[[nodiscard]] rc::Gen<std::vector<std::string>> variableQualityStrings(std::size_t numStrings,
+                                                                       std::size_t minLen = 50,
+                                                                       std::size_t maxLen = 300) {
     return rc::gen::container<std::vector<std::string>>(numStrings,
-                                                         validQualityVariable(minLen, maxLen));
+                                                        validQualityVariable(minLen, maxLen));
 }
 
 }  // namespace gen

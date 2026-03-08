@@ -6,6 +6,9 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/common/logger.h"
+#include "fqc/format/fqc_writer.h"
+#include "fqc/format/reorder_map.h"
 #include "fqc/pipeline/pipeline_node.h"
 
 #include <chrono>
@@ -13,10 +16,6 @@
 #include <map>
 
 #include <fmt/format.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/format/fqc_writer.h"
-#include "fqc/format/reorder_map.h"
 
 namespace fqc::pipeline {
 
@@ -26,38 +25,36 @@ namespace fqc::pipeline {
 
 class WriterNodeImpl {
 public:
-    explicit WriterNodeImpl(WriterNodeConfig config)
-        : config_(std::move(config)) {}
+    explicit WriterNodeImpl(WriterNodeConfig config) : config_(std::move(config)) {}
 
-    VoidResult open(
-        const std::filesystem::path& path,
-        const format::GlobalHeader& globalHeader) {
+    VoidResult open(const std::filesystem::path& path, const format::GlobalHeader& globalHeader) {
         try {
             outputPath_ = path;
             globalHeader_ = globalHeader;
-            
+
             writer_ = std::make_unique<format::FQCWriter>(path);
-            
+
             std::string filename = path.filename().string();
             auto timestamp = static_cast<std::uint64_t>(
                 std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
-            
+
             writer_->writeGlobalHeader(globalHeader, filename, timestamp);
-            
+
             state_ = NodeState::kRunning;
             totalBlocksWritten_ = 0;
             totalBytesWritten_ = 0;
             nextExpectedBlockId_ = 0;
-            
+
             FQC_LOG_DEBUG("WriterNode opened: path={}", path.string());
-            
+
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open output: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to open output: {}", e.what())});
         }
     }
 
@@ -71,34 +68,35 @@ public:
                 pendingBlocks_[block.blockId] = std::move(block);
                 return {};
             }
-            
+
             auto result = writeBlockInternal(block);
             if (!result) {
                 return result;
             }
-            
+
             while (true) {
                 auto it = pendingBlocks_.find(nextExpectedBlockId_);
                 if (it == pendingBlocks_.end()) {
                     break;
                 }
-                
+
                 result = writeBlockInternal(it->second);
                 if (!result) {
                     return result;
                 }
-                
+
                 pendingBlocks_.erase(it);
             }
-            
+
             return {};
-            
+
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to write block: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to write block: {}", e.what())});
         }
     }
 
@@ -109,7 +107,8 @@ public:
 
         try {
             if (!pendingBlocks_.empty()) {
-                FQC_LOG_WARNING("WriterNode finalize with {} pending blocks", pendingBlocks_.size());
+                FQC_LOG_WARNING("WriterNode finalize with {} pending blocks",
+                                pendingBlocks_.size());
                 while (!pendingBlocks_.empty()) {
                     auto it = pendingBlocks_.begin();
                     auto result = writeBlockInternal(it->second);
@@ -119,14 +118,14 @@ public:
                     pendingBlocks_.erase(it);
                 }
             }
-            
+
             if (reorderMap.has_value() && !reorderMap->empty()) {
                 const auto& mapData = reorderMap.value();
 
                 // mapData blob layout: [forwardIds... | reverseIds...] each half is N ReadIds
                 const std::size_t totalBytes = mapData.size();
-                const std::size_t halfBytes  = totalBytes / 2;
-                const std::size_t numReads   = halfBytes / sizeof(fqc::ReadId);
+                const std::size_t halfBytes = totalBytes / 2;
+                const std::size_t numReads = halfBytes / sizeof(fqc::ReadId);
 
                 fqc::format::ReorderMap mapHeader;
                 mapHeader.totalReads = static_cast<std::uint64_t>(numReads);
@@ -140,7 +139,8 @@ public:
                     std::memcpy(&id, mapData.data() + i, sizeof(fqc::ReadId));
                     forwardIds.push_back(id);
                 }
-                for (std::size_t i = halfBytes; i + sizeof(fqc::ReadId) <= totalBytes; i += sizeof(fqc::ReadId)) {
+                for (std::size_t i = halfBytes; i + sizeof(fqc::ReadId) <= totalBytes;
+                     i += sizeof(fqc::ReadId)) {
                     fqc::ReadId id;
                     std::memcpy(&id, mapData.data() + i, sizeof(fqc::ReadId));
                     reverseIds.push_back(id);
@@ -155,28 +155,36 @@ public:
 
                 FQC_LOG_DEBUG("WriterNode: Reorder map written ({} reads)", mapHeader.totalReads);
             }
-            
+
             writer_->finalize();
-            
+
             state_ = NodeState::kFinished;
-            
+
             FQC_LOG_DEBUG("WriterNode finalized: blocks={}, bytes={}",
-                      totalBlocksWritten_, totalBytesWritten_);
-            
+                          totalBlocksWritten_,
+                          totalBytesWritten_);
+
             return {};
-            
+
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to finalize: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to finalize: {}", e.what())});
         }
     }
 
-    NodeState state() const noexcept { return state_; }
-    std::uint32_t totalBlocksWritten() const noexcept { return totalBlocksWritten_; }
-    std::uint64_t totalBytesWritten() const noexcept { return totalBytesWritten_; }
+    NodeState state() const noexcept {
+        return state_;
+    }
+    std::uint32_t totalBlocksWritten() const noexcept {
+        return totalBlocksWritten_;
+    }
+    std::uint64_t totalBytesWritten() const noexcept {
+        return totalBytesWritten_;
+    }
 
     void close() noexcept {
         if (writer_ && !writer_->isFinalized()) {
@@ -194,7 +202,9 @@ public:
         pendingBlocks_.clear();
     }
 
-    const WriterNodeConfig& config() const noexcept { return config_; }
+    const WriterNodeConfig& config() const noexcept {
+        return config_;
+    }
 
 private:
     VoidResult writeBlockInternal(const CompressedBlock& block) {
@@ -209,7 +219,7 @@ private:
         header.blockXxhash64 = block.checksum;
         header.uncompressedCount = block.readCount;
         header.uniformReadLength = block.uniformReadLength;
-        
+
         header.offsetIds = 0;
         header.sizeIds = block.idStream.size();
         header.offsetSeq = header.sizeIds;
@@ -219,21 +229,21 @@ private:
         header.offsetAux = header.offsetQual + header.sizeQual;
         header.sizeAux = block.auxStream.size();
         header.compressedSize = block.totalSize();
-        
+
         format::BlockPayload payload;
         payload.idsData = block.idStream;
         payload.seqData = block.seqStream;
         payload.qualData = block.qualStream;
         payload.auxData = block.auxStream;
-        
+
         writer_->writeBlock(header, payload);
-        
+
         ++totalBlocksWritten_;
         totalBytesWritten_ += format::BlockHeader::kSize + block.totalSize();
         ++nextExpectedBlockId_;
-        
+
         FQC_LOG_DEBUG("WriterNode wrote block: id={}, size={}", block.blockId, block.totalSize());
-        
+
         return {};
     }
 
@@ -260,9 +270,8 @@ WriterNode::~WriterNode() = default;
 WriterNode::WriterNode(WriterNode&&) noexcept = default;
 WriterNode& WriterNode::operator=(WriterNode&&) noexcept = default;
 
-VoidResult WriterNode::open(
-    const std::filesystem::path& path,
-    const format::GlobalHeader& globalHeader) {
+VoidResult WriterNode::open(const std::filesystem::path& path,
+                            const format::GlobalHeader& globalHeader) {
     return impl_->open(path, globalHeader);
 }
 

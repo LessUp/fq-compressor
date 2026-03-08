@@ -12,9 +12,10 @@
 // **Validates: Requirements 1.1.2, 2.1**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/algo/block_compressor.h"
+#include "fqc/algo/global_analyzer.h"
+#include "fqc/common/types.h"
+#include "fqc/format/reorder_map.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -23,10 +24,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/algo/block_compressor.h"
-#include "fqc/algo/global_analyzer.h"
-#include "fqc/common/types.h"
-#include "fqc/format/reorder_map.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::algo::test {
 
@@ -53,28 +54,26 @@ namespace gen {
 
 /// @brief Generate a valid DNA sequence with variable length.
 [[nodiscard]] rc::Gen<std::string> validSequenceRange(std::size_t minLen, std::size_t maxLen) {
-    return rc::gen::mapcat(
-        rc::gen::inRange(minLen, maxLen + 1),
-        [](std::size_t len) { return validSequence(len); });
+    return rc::gen::mapcat(rc::gen::inRange(minLen, maxLen + 1),
+                           [](std::size_t len) { return validSequence(len); });
 }
 
 /// @brief Generate a valid quality string of specified length.
 [[nodiscard]] rc::Gen<std::string> validQuality(std::size_t length) {
-    return rc::gen::container<std::string>(
-        length,
-        rc::gen::map(rc::gen::inRange(0, 42),
-                     [](int phred) { return static_cast<char>('!' + phred); }));
+    return rc::gen::container<std::string>(length,
+                                           rc::gen::map(rc::gen::inRange(0, 42), [](int phred) {
+                                               return static_cast<char>('!' + phred);
+                                           }));
 }
 
 /// @brief Generate a valid read ID.
 [[nodiscard]] rc::Gen<std::string> validReadId() {
     return rc::gen::map(
-        rc::gen::container<std::string>(
-            rc::gen::inRange(5, 30),
-            rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
-                           rc::gen::inRange('A', 'Z' + 1),
-                           rc::gen::inRange('0', '9' + 1),
-                           rc::gen::element('_', '-', ':', '.'))),
+        rc::gen::container<std::string>(rc::gen::inRange(5, 30),
+                                        rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
+                                                       rc::gen::inRange('A', 'Z' + 1),
+                                                       rc::gen::inRange('0', '9' + 1),
+                                                       rc::gen::element('_', '-', ':', '.'))),
         [](std::string s) {
             if (!s.empty() && std::isdigit(static_cast<unsigned char>(s[0]))) {
                 s[0] = 'R';
@@ -99,7 +98,7 @@ namespace gen {
 
 /// @brief Generate a vector of ReadRecords with uniform length.
 [[nodiscard]] rc::Gen<std::vector<ReadRecord>> validReadRecords(std::size_t count,
-                                                                  std::size_t seqLength) {
+                                                                std::size_t seqLength) {
     return rc::gen::container<std::vector<ReadRecord>>(count, validReadRecord(seqLength));
 }
 
@@ -114,8 +113,8 @@ namespace gen {
 }
 
 /// @brief Generate a forward/reverse map pair (consistent permutation).
-[[nodiscard]] rc::Gen<std::pair<std::vector<ReadId>, std::vector<ReadId>>>
-validReorderMapPair(std::size_t size) {
+[[nodiscard]] rc::Gen<std::pair<std::vector<ReadId>, std::vector<ReadId>>> validReorderMapPair(
+    std::size_t size) {
     return rc::gen::map(validPermutation(size), [](std::vector<ReadId> forwardMap) {
         std::vector<ReadId> reverseMap(forwardMap.size());
         for (std::size_t i = 0; i < forwardMap.size(); ++i) {

@@ -11,6 +11,10 @@
 #ifndef FQC_IO_PAIRED_END_PARSER_H
 #define FQC_IO_PAIRED_END_PARSER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/io/fastq_parser.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -18,10 +22,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/io/fastq_parser.h"
 
 namespace fqc::io {
 
@@ -98,7 +98,9 @@ struct PairedEndStats {
     std::uint64_t mismatchedPairs = 0;
 
     /// @brief Reset statistics.
-    void reset() noexcept { *this = PairedEndStats{}; }
+    void reset() noexcept {
+        *this = PairedEndStats{};
+    }
 };
 
 // =============================================================================
@@ -138,8 +140,7 @@ public:
     /// @brief Construct for interleaved input.
     /// @param interleavedPath Path to interleaved file.
     /// @param options Parser options (inputMode should be kInterleaved).
-    PairedEndParser(std::filesystem::path interleavedPath,
-                    PairedEndParserOptions options = {});
+    PairedEndParser(std::filesystem::path interleavedPath, PairedEndParserOptions options = {});
 
     /// @brief Construct from streams (dual file mode).
     /// @param r1Stream R1 input stream.
@@ -176,10 +177,14 @@ public:
     void close() noexcept;
 
     /// @brief Check if the parser is open.
-    [[nodiscard]] bool isOpen() const noexcept { return isOpen_; }
+    [[nodiscard]] bool isOpen() const noexcept {
+        return isOpen_;
+    }
 
     /// @brief Check if end of file has been reached.
-    [[nodiscard]] bool eof() const noexcept { return eof_; }
+    [[nodiscard]] bool eof() const noexcept {
+        return eof_;
+    }
 
     // =========================================================================
     // Parsing Methods
@@ -206,10 +211,14 @@ public:
     // =========================================================================
 
     /// @brief Get current parsing statistics.
-    [[nodiscard]] const PairedEndStats& stats() const noexcept { return stats_; }
+    [[nodiscard]] const PairedEndStats& stats() const noexcept {
+        return stats_;
+    }
 
     /// @brief Get the input mode.
-    [[nodiscard]] PEInputMode inputMode() const noexcept { return options_.inputMode; }
+    [[nodiscard]] PEInputMode inputMode() const noexcept {
+        return options_.inputMode;
+    }
 
     /// @brief Check if input is from stdin.
     [[nodiscard]] bool isStdin() const noexcept;
@@ -237,7 +246,7 @@ private:
     std::unique_ptr<FastqParser> r1Parser_;
     std::unique_ptr<FastqParser> r2Parser_;  // nullptr for interleaved mode
     std::filesystem::path r1Path_;
-    std::filesystem::path r2Path_;           // empty for interleaved mode
+    std::filesystem::path r2Path_;  // empty for interleaved mode
     PairedEndStats stats_;
     bool isOpen_ = false;
     bool eof_ = false;

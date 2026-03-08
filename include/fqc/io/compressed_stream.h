@@ -20,6 +20,8 @@
 #ifndef FQC_IO_COMPRESSED_STREAM_H
 #define FQC_IO_COMPRESSED_STREAM_H
 
+#include "fqc/common/error.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -28,8 +30,6 @@
 #include <streambuf>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
 
 namespace fqc::io {
 
@@ -270,10 +270,14 @@ public:
     CompressedInputStream& operator=(CompressedInputStream&&) = delete;
 
     /// @brief Get the detected compression format.
-    [[nodiscard]] CompressionFormat format() const noexcept { return format_; }
+    [[nodiscard]] CompressionFormat format() const noexcept {
+        return format_;
+    }
 
     /// @brief Check if the stream is compressed.
-    [[nodiscard]] bool isCompressed() const noexcept { return format_ != CompressionFormat::kNone; }
+    [[nodiscard]] bool isCompressed() const noexcept {
+        return format_ != CompressionFormat::kNone;
+    }
 
 private:
     /// @brief Detect format and setup decompression.

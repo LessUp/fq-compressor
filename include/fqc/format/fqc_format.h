@@ -39,12 +39,12 @@
 #ifndef FQC_FORMAT_FQC_FORMAT_H
 #define FQC_FORMAT_FQC_FORMAT_H
 
+#include "fqc/common/types.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
-
-#include "fqc/common/types.h"
 
 namespace fqc::format {
 
@@ -61,8 +61,7 @@ namespace fqc::format {
 ///       - 0x1A: Ctrl-Z to stop DOS TYPE command
 ///       - 0x0A: LF to detect CR-LF to LF conversion
 inline constexpr std::array<std::uint8_t, 8> kMagicBytes = {
-    0x89, 'F', 'Q', 'C', 0x0D, 0x0A, 0x1A, 0x0A
-};
+    0x89, 'F', 'Q', 'C', 0x0D, 0x0A, 0x1A, 0x0A};
 
 /// @brief Magic header size (magic bytes + version).
 inline constexpr std::size_t kMagicHeaderSize = 9;
@@ -79,7 +78,8 @@ inline constexpr std::uint8_t kFormatVersionMinor = 0;
 /// @param major Major version (0-15).
 /// @param minor Minor version (0-15).
 /// @return Encoded version byte.
-[[nodiscard]] constexpr std::uint8_t encodeVersion(std::uint8_t major, std::uint8_t minor) noexcept {
+[[nodiscard]] constexpr std::uint8_t encodeVersion(std::uint8_t major,
+                                                   std::uint8_t minor) noexcept {
     return static_cast<std::uint8_t>((major << 4) | (minor & 0x0F));
 }
 
@@ -98,7 +98,8 @@ inline constexpr std::uint8_t kFormatVersionMinor = 0;
 }
 
 /// @brief Current format version (encoded).
-inline constexpr std::uint8_t kCurrentVersion = encodeVersion(kFormatVersionMajor, kFormatVersionMinor);
+inline constexpr std::uint8_t kCurrentVersion =
+    encodeVersion(kFormatVersionMajor, kFormatVersionMinor);
 
 // =============================================================================
 // File Footer Constants
@@ -106,9 +107,7 @@ inline constexpr std::uint8_t kCurrentVersion = encodeVersion(kFormatVersionMajo
 
 /// @brief File footer magic end marker.
 /// @note "FQC_EOF\0" (8 bytes): 0x46 0x51 0x43 0x5F 0x45 0x4F 0x46 0x00
-inline constexpr std::array<std::uint8_t, 8> kMagicEnd = {
-    'F', 'Q', 'C', '_', 'E', 'O', 'F', '\0'
-};
+inline constexpr std::array<std::uint8_t, 8> kMagicEnd = {'F', 'Q', 'C', '_', 'E', 'O', 'F', '\0'};
 
 /// @brief File footer size (fixed).
 inline constexpr std::size_t kFileFooterSize = 32;
@@ -203,32 +202,30 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @param flagsValue The flags field value.
 /// @return QualityMode enum value.
 [[nodiscard]] constexpr QualityMode getQualityMode(std::uint64_t flagsValue) noexcept {
-    return static_cast<QualityMode>(
-        (flagsValue & flags::kQualityModeMask) >> flags::kQualityModeShift);
+    return static_cast<QualityMode>((flagsValue & flags::kQualityModeMask) >>
+                                    flags::kQualityModeShift);
 }
 
 /// @brief Extract ID mode from flags.
 /// @param flagsValue The flags field value.
 /// @return IDMode enum value.
 [[nodiscard]] constexpr IDMode getIdMode(std::uint64_t flagsValue) noexcept {
-    return static_cast<IDMode>(
-        (flagsValue & flags::kIdModeMask) >> flags::kIdModeShift);
+    return static_cast<IDMode>((flagsValue & flags::kIdModeMask) >> flags::kIdModeShift);
 }
 
 /// @brief Extract PE layout from flags.
 /// @param flagsValue The flags field value.
 /// @return PELayout enum value.
 [[nodiscard]] constexpr PELayout getPeLayout(std::uint64_t flagsValue) noexcept {
-    return static_cast<PELayout>(
-        (flagsValue & flags::kPeLayoutMask) >> flags::kPeLayoutShift);
+    return static_cast<PELayout>((flagsValue & flags::kPeLayoutMask) >> flags::kPeLayoutShift);
 }
 
 /// @brief Extract read length class from flags.
 /// @param flagsValue The flags field value.
 /// @return ReadLengthClass enum value.
 [[nodiscard]] constexpr ReadLengthClass getReadLengthClass(std::uint64_t flagsValue) noexcept {
-    return static_cast<ReadLengthClass>(
-        (flagsValue & flags::kReadLengthClassMask) >> flags::kReadLengthClassShift);
+    return static_cast<ReadLengthClass>((flagsValue & flags::kReadLengthClassMask) >>
+                                        flags::kReadLengthClassShift);
 }
 
 /// @brief Set quality mode in flags.
@@ -236,9 +233,9 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @param mode The quality mode to set.
 /// @return Modified flags value.
 [[nodiscard]] constexpr std::uint64_t setQualityMode(std::uint64_t flagsValue,
-                                                      QualityMode mode) noexcept {
+                                                     QualityMode mode) noexcept {
     return (flagsValue & ~flags::kQualityModeMask) |
-           (static_cast<std::uint64_t>(mode) << flags::kQualityModeShift);
+        (static_cast<std::uint64_t>(mode) << flags::kQualityModeShift);
 }
 
 /// @brief Set ID mode in flags.
@@ -247,7 +244,7 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @return Modified flags value.
 [[nodiscard]] constexpr std::uint64_t setIdMode(std::uint64_t flagsValue, IDMode mode) noexcept {
     return (flagsValue & ~flags::kIdModeMask) |
-           (static_cast<std::uint64_t>(mode) << flags::kIdModeShift);
+        (static_cast<std::uint64_t>(mode) << flags::kIdModeShift);
 }
 
 /// @brief Set PE layout in flags.
@@ -255,9 +252,9 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @param layout The PE layout to set.
 /// @return Modified flags value.
 [[nodiscard]] constexpr std::uint64_t setPeLayout(std::uint64_t flagsValue,
-                                                   PELayout layout) noexcept {
+                                                  PELayout layout) noexcept {
     return (flagsValue & ~flags::kPeLayoutMask) |
-           (static_cast<std::uint64_t>(layout) << flags::kPeLayoutShift);
+        (static_cast<std::uint64_t>(layout) << flags::kPeLayoutShift);
 }
 
 /// @brief Set read length class in flags.
@@ -265,9 +262,9 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @param lengthClass The read length class to set.
 /// @return Modified flags value.
 [[nodiscard]] constexpr std::uint64_t setReadLengthClass(std::uint64_t flagsValue,
-                                                          ReadLengthClass lengthClass) noexcept {
+                                                         ReadLengthClass lengthClass) noexcept {
     return (flagsValue & ~flags::kReadLengthClassMask) |
-           (static_cast<std::uint64_t>(lengthClass) << flags::kReadLengthClassShift);
+        (static_cast<std::uint64_t>(lengthClass) << flags::kReadLengthClassShift);
 }
 
 /// @brief Build flags value from individual settings.
@@ -280,24 +277,27 @@ inline constexpr std::uint64_t kReservedMask = ~((1ULL << 13) - 1);
 /// @param readLengthClass Read length classification.
 /// @param streamingMode Streaming mode flag.
 /// @return Combined flags value.
-[[nodiscard]] constexpr std::uint64_t buildFlags(
-    bool isPaired,
-    bool preserveOrder,
-    QualityMode qualityMode,
-    IDMode idMode,
-    bool hasReorderMap,
-    PELayout peLayout,
-    ReadLengthClass readLengthClass,
-    bool streamingMode) noexcept {
+[[nodiscard]] constexpr std::uint64_t buildFlags(bool isPaired,
+                                                 bool preserveOrder,
+                                                 QualityMode qualityMode,
+                                                 IDMode idMode,
+                                                 bool hasReorderMap,
+                                                 PELayout peLayout,
+                                                 ReadLengthClass readLengthClass,
+                                                 bool streamingMode) noexcept {
     std::uint64_t result = 0;
-    if (isPaired) result |= flags::kIsPaired;
-    if (preserveOrder) result |= flags::kPreserveOrder;
+    if (isPaired)
+        result |= flags::kIsPaired;
+    if (preserveOrder)
+        result |= flags::kPreserveOrder;
     result = setQualityMode(result, qualityMode);
     result = setIdMode(result, idMode);
-    if (hasReorderMap) result |= flags::kHasReorderMap;
+    if (hasReorderMap)
+        result |= flags::kHasReorderMap;
     result = setPeLayout(result, peLayout);
     result = setReadLengthClass(result, readLengthClass);
-    if (streamingMode) result |= flags::kStreamingMode;
+    if (streamingMode)
+        result |= flags::kStreamingMode;
     return result;
 }
 
@@ -313,7 +313,8 @@ inline constexpr std::uint8_t kCodecParamsTerminator = 0xFF;
 /// @param family Codec family (0-15).
 /// @param version Codec version (0-15).
 /// @return Encoded codec byte.
-[[nodiscard]] constexpr std::uint8_t encodeCodec(CodecFamily family, std::uint8_t version) noexcept {
+[[nodiscard]] constexpr std::uint8_t encodeCodec(CodecFamily family,
+                                                 std::uint8_t version) noexcept {
     return static_cast<std::uint8_t>((static_cast<std::uint8_t>(family) << 4) | (version & 0x0F));
 }
 
@@ -381,26 +382,28 @@ struct GlobalHeader {
     // - codec_params: optional, ends with 0xFF
 
     /// @brief Minimum header size (fixed fields only, no filename).
-    static constexpr std::size_t kMinSize = 
-        sizeof(headerSize) +           // 4
-        sizeof(flags) +                // 8
-        sizeof(compressionAlgo) +      // 1
-        sizeof(checksumType) +         // 1
-        sizeof(reserved) +             // 2
-        sizeof(totalReadCount) +       // 8
-        sizeof(originalFilenameLen) +  // 2
-        sizeof(std::uint64_t);         // timestamp: 8
+    static constexpr std::size_t kMinSize = sizeof(headerSize) +  // 4
+        sizeof(flags) +                                           // 8
+        sizeof(compressionAlgo) +                                 // 1
+        sizeof(checksumType) +                                    // 1
+        sizeof(reserved) +                                        // 2
+        sizeof(totalReadCount) +                                  // 8
+        sizeof(originalFilenameLen) +                             // 2
+        sizeof(std::uint64_t);                                    // timestamp: 8
     // Total: 34 bytes
 
     /// @brief Check if the header is valid.
     /// @return true if header passes basic validation.
     [[nodiscard]] bool isValid() const noexcept {
         // Reserved must be 0
-        if (reserved != 0) return false;
+        if (reserved != 0)
+            return false;
         // Legacy long read mode bit must be 0
-        if ((flags & flags::kLegacyLongReadMode) != 0) return false;
+        if ((flags & flags::kLegacyLongReadMode) != 0)
+            return false;
         // Header size must be at least minimum
-        if (headerSize < kMinSize) return false;
+        if (headerSize < kMinSize)
+            return false;
         return true;
     }
 };
@@ -495,9 +498,11 @@ struct BlockHeader {
     /// @return true if header passes basic validation.
     [[nodiscard]] bool isValid() const noexcept {
         // Reserved fields must be 0
-        if (reserved1 != 0 || reserved2 != 0) return false;
+        if (reserved1 != 0 || reserved2 != 0)
+            return false;
         // Header size must match expected
-        if (headerSize < kSize) return false;
+        if (headerSize < kSize)
+            return false;
         return true;
     }
 
@@ -595,9 +600,11 @@ struct BlockIndex {
     /// @return true if header passes basic validation.
     [[nodiscard]] bool isValid() const noexcept {
         // Header size must be at least minimum
-        if (headerSize < kHeaderSize) return false;
+        if (headerSize < kHeaderSize)
+            return false;
         // Entry size must be at least minimum required
-        if (entrySize < kMinEntrySize) return false;
+        if (entrySize < kMinEntrySize)
+            return false;
         return true;
     }
 
@@ -655,9 +662,11 @@ struct ReorderMap {
     /// @return true if header passes basic validation.
     [[nodiscard]] bool isValid() const noexcept {
         // Header size must be at least minimum
-        if (headerSize < kHeaderSize) return false;
+        if (headerSize < kHeaderSize)
+            return false;
         // Version must be supported
-        if (version > kCurrentVersion) return false;
+        if (version > kCurrentVersion)
+            return false;
         return true;
     }
 
@@ -726,7 +735,8 @@ static_assert(FileFooter::kSize == 32, "FileFooter::kSize must be 32");
 /// @return true if magic bytes match expected.
 [[nodiscard]] inline bool validateMagic(const std::uint8_t* data) noexcept {
     for (std::size_t i = 0; i < kMagicBytes.size(); ++i) {
-        if (data[i] != kMagicBytes[i]) return false;
+        if (data[i] != kMagicBytes[i])
+            return false;
     }
     return true;
 }
@@ -753,8 +763,10 @@ static_assert(FileFooter::kSize == 32, "FileFooter::kSize must be 32");
 [[nodiscard]] inline bool isVersionNewer(std::uint8_t version) noexcept {
     const auto major = decodeMajorVersion(version);
     const auto minor = decodeMinorVersion(version);
-    if (major > kFormatVersionMajor) return true;
-    if (major == kFormatVersionMajor && minor > kFormatVersionMinor) return true;
+    if (major > kFormatVersionMajor)
+        return true;
+    if (major == kFormatVersionMajor && minor > kFormatVersionMinor)
+        return true;
     return false;
 }
 

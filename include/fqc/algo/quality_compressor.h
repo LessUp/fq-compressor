@@ -17,6 +17,9 @@
 #ifndef FQC_ALGO_QUALITY_COMPRESSOR_H
 #define FQC_ALGO_QUALITY_COMPRESSOR_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,9 +28,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::algo {
 
@@ -126,14 +126,11 @@ struct Illumina8BinMapper {
 
     /// @brief Illumina 8-bin boundaries
     /// Bins: [0-1], [2-9], [10-19], [20-24], [25-29], [30-34], [35-39], [40+]
-    static constexpr std::array<std::uint8_t, 8> kBinBoundaries = {
-        2, 10, 20, 25, 30, 35, 40, 94
-    };
+    static constexpr std::array<std::uint8_t, 8> kBinBoundaries = {2, 10, 20, 25, 30, 35, 40, 94};
 
     /// @brief Representative quality values for each bin
     static constexpr std::array<std::uint8_t, 8> kBinRepresentatives = {
-        0, 6, 15, 22, 27, 33, 37, 40
-    };
+        0, 6, 15, 22, 27, 33, 37, 40};
 };
 
 // =============================================================================
@@ -166,7 +163,8 @@ struct CompressedQualityData {
 
     /// @brief Get compression ratio
     [[nodiscard]] double compressionRatio() const noexcept {
-        if (uncompressedSize == 0) return 1.0;
+        if (uncompressedSize == 0)
+            return 1.0;
         return static_cast<double>(data.size()) / static_cast<double>(uncompressedSize);
     }
 };
@@ -225,26 +223,23 @@ public:
     /// @param sequences Vector of DNA sequences (for base context)
     /// @return Compressed quality data or error
     [[nodiscard]] Result<CompressedQualityData> compress(
-        std::span<const std::string_view> qualities,
-        std::span<const std::string_view> sequences);
+        std::span<const std::string_view> qualities, std::span<const std::string_view> sequences);
 
     /// @brief Decompress quality data
     /// @param data Compressed data
     /// @param lengths Length of each quality string
     /// @return Decompressed quality strings or error
     [[nodiscard]] Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::span<const std::uint32_t> lengths);
+        std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths);
 
     /// @brief Decompress quality data with uniform length
     /// @param data Compressed data
     /// @param numStrings Number of quality strings
     /// @param uniformLength Length of each quality string
     /// @return Decompressed quality strings or error
-    [[nodiscard]] Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numStrings,
-        std::uint32_t uniformLength);
+    [[nodiscard]] Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                              std::uint32_t numStrings,
+                                                              std::uint32_t uniformLength);
 
     /// @brief Get current configuration
     [[nodiscard]] const QualityCompressorConfig& config() const noexcept;
@@ -284,11 +279,11 @@ private:
 /// @param readLength Total read length
 /// @param numBins Number of position bins
 /// @return Position bin index
-[[nodiscard]] inline std::size_t computePositionBin(
-    std::size_t position,
-    std::size_t readLength,
-    std::size_t numBins) noexcept {
-    if (readLength == 0 || numBins == 0) return 0;
+[[nodiscard]] inline std::size_t computePositionBin(std::size_t position,
+                                                    std::size_t readLength,
+                                                    std::size_t numBins) noexcept {
+    if (readLength == 0 || numBins == 0)
+        return 0;
     return (position * numBins) / readLength;
 }
 

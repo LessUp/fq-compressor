@@ -27,6 +27,9 @@
 #ifndef FQC_COMMON_MEMORY_BUDGET_H
 #define FQC_COMMON_MEMORY_BUDGET_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -34,9 +37,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc {
 
@@ -108,8 +108,10 @@ struct MemoryBudget {
     /// @param phase1MB Phase 1 reserve in MB
     /// @param blockMB Block buffer pool in MB
     /// @param workerMB Per-worker stack in MB
-    constexpr MemoryBudget(std::size_t totalMB, std::size_t phase1MB,
-                           std::size_t blockMB, std::size_t workerMB) noexcept
+    constexpr MemoryBudget(std::size_t totalMB,
+                           std::size_t phase1MB,
+                           std::size_t blockMB,
+                           std::size_t workerMB) noexcept
         : maxTotalMB(totalMB),
           phase1ReserveMB(phase1MB),
           blockBufferMB(blockMB),
@@ -217,8 +219,8 @@ public:
     /// @param numThreads Number of compression threads
     /// @return Memory estimate
     [[nodiscard]] MemoryEstimate estimate(std::size_t totalReads,
-                                           std::size_t readsPerBlock,
-                                           std::size_t numThreads = 1) const noexcept;
+                                          std::size_t readsPerBlock,
+                                          std::size_t numThreads = 1) const noexcept;
 
     /// @brief Estimate memory for Phase 1 only
     /// @param totalReads Total number of reads
@@ -230,7 +232,7 @@ public:
     /// @param numThreads Number of concurrent blocks being processed
     /// @return Phase 2 memory requirement in bytes
     [[nodiscard]] std::size_t estimatePhase2(std::size_t readsPerBlock,
-                                              std::size_t numThreads = 1) const noexcept;
+                                             std::size_t numThreads = 1) const noexcept;
 
     /// @brief Calculate maximum reads that fit in Phase 1 memory
     /// @return Maximum number of reads
@@ -242,11 +244,15 @@ public:
     [[nodiscard]] std::size_t optimalBlockSize(std::size_t numThreads = 1) const noexcept;
 
     /// @brief Get the memory budget
-    [[nodiscard]] const MemoryBudget& budget() const noexcept { return budget_; }
+    [[nodiscard]] const MemoryBudget& budget() const noexcept {
+        return budget_;
+    }
 
     /// @brief Update the memory budget
     /// @param budget New memory budget
-    void setBudget(MemoryBudget budget) noexcept { budget_ = budget; }
+    void setBudget(MemoryBudget budget) noexcept {
+        budget_ = budget;
+    }
 
 private:
     MemoryBudget budget_;
@@ -294,7 +300,9 @@ struct ChunkPlan {
     std::vector<ChunkInfo> chunks;
 
     /// @brief Whether chunking is required
-    [[nodiscard]] bool requiresChunking() const noexcept { return numChunks > 1; }
+    [[nodiscard]] bool requiresChunking() const noexcept {
+        return numChunks > 1;
+    }
 
     /// @brief Get chunk containing a specific read index
     /// @param readIndex Read index (0-based)
@@ -319,8 +327,8 @@ public:
     /// @param numThreads Number of compression threads
     /// @return Chunk plan
     [[nodiscard]] ChunkPlan plan(std::uint64_t totalReads,
-                                  std::size_t readsPerBlock,
-                                  std::size_t numThreads = 1) const;
+                                 std::size_t readsPerBlock,
+                                 std::size_t numThreads = 1) const;
 
     /// @brief Plan chunks with estimated average read length
     /// @param totalReads Total number of reads
@@ -329,9 +337,9 @@ public:
     /// @param numThreads Number of compression threads
     /// @return Chunk plan
     [[nodiscard]] ChunkPlan planWithReadLength(std::uint64_t totalReads,
-                                                std::size_t avgReadLength,
-                                                std::size_t readsPerBlock,
-                                                std::size_t numThreads = 1) const;
+                                               std::size_t avgReadLength,
+                                               std::size_t readsPerBlock,
+                                               std::size_t numThreads = 1) const;
 
     /// @brief Calculate optimal chunk size
     /// @param numThreads Number of compression threads
@@ -339,11 +347,15 @@ public:
     [[nodiscard]] std::size_t optimalChunkSize(std::size_t numThreads = 1) const noexcept;
 
     /// @brief Get the memory budget
-    [[nodiscard]] const MemoryBudget& budget() const noexcept { return budget_; }
+    [[nodiscard]] const MemoryBudget& budget() const noexcept {
+        return budget_;
+    }
 
     /// @brief Update the memory budget
     /// @param budget New memory budget
-    void setBudget(MemoryBudget budget) noexcept { budget_ = budget; }
+    void setBudget(MemoryBudget budget) noexcept {
+        budget_ = budget;
+    }
 
 private:
     MemoryBudget budget_;
@@ -427,11 +439,15 @@ public:
     void checkAlert();
 
     /// @brief Get the memory budget
-    [[nodiscard]] const MemoryBudget& budget() const noexcept { return budget_; }
+    [[nodiscard]] const MemoryBudget& budget() const noexcept {
+        return budget_;
+    }
 
     /// @brief Update the memory budget
     /// @param budget New memory budget
-    void setBudget(MemoryBudget budget) noexcept { budget_ = budget; }
+    void setBudget(MemoryBudget budget) noexcept {
+        budget_ = budget;
+    }
 
     /// @brief Reset peak memory tracking
     void resetPeak() noexcept;

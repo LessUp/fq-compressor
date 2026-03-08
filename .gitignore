@@ -111,7 +111,6 @@ venv/
 node_modules/
 _book/
 docs/.site/
-package-lock.json
 .honkit/
 .cache/
 

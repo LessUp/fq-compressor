@@ -14,12 +14,12 @@
 #ifndef FQC_COMMANDS_INFO_COMMAND_H
 #define FQC_COMMANDS_INFO_COMMAND_H
 
+#include "fqc/common/error.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
-
-#include "fqc/common/error.h"
 
 namespace fqc::format {
 class FQCReader;
@@ -73,7 +73,9 @@ public:
     [[nodiscard]] int execute();
 
     /// @brief Get the options.
-    [[nodiscard]] const InfoOptions& options() const noexcept { return options_; }
+    [[nodiscard]] const InfoOptions& options() const noexcept {
+        return options_;
+    }
 
 private:
     /// @brief Print info in text format.
@@ -97,12 +99,11 @@ private:
 // =============================================================================
 
 /// @brief Create an info command from CLI options.
-[[nodiscard]] std::unique_ptr<InfoCommand> createInfoCommand(
-    const std::string& inputPath,
-    bool jsonOutput,
-    bool detailed,
-    bool showIndex = false,
-    bool showCodecs = false);
+[[nodiscard]] std::unique_ptr<InfoCommand> createInfoCommand(const std::string& inputPath,
+                                                             bool jsonOutput,
+                                                             bool detailed,
+                                                             bool showIndex = false,
+                                                             bool showCodecs = false);
 
 }  // namespace fqc::commands
 

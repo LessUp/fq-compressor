@@ -19,6 +19,16 @@
 #ifndef FQC_PIPELINE_PIPELINE_NODE_H
 #define FQC_PIPELINE_PIPELINE_NODE_H
 
+#include "fqc/algo/block_compressor.h"
+#include "fqc/algo/id_compressor.h"
+#include "fqc/algo/quality_compressor.h"
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/format/fqc_reader.h"
+#include "fqc/format/fqc_writer.h"
+#include "fqc/io/fastq_parser.h"
+#include "fqc/pipeline/pipeline.h"
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -31,16 +41,6 @@
 #include <queue>
 #include <string>
 #include <vector>
-
-#include "fqc/algo/block_compressor.h"
-#include "fqc/algo/id_compressor.h"
-#include "fqc/algo/quality_compressor.h"
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/format/fqc_reader.h"
-#include "fqc/format/fqc_writer.h"
-#include "fqc/io/fastq_parser.h"
-#include "fqc/pipeline/pipeline.h"
 
 namespace fqc::pipeline {
 
@@ -80,11 +80,16 @@ enum class NodeState : std::uint8_t {
 /// @brief Convert NodeState to string
 [[nodiscard]] constexpr std::string_view nodeStateToString(NodeState state) noexcept {
     switch (state) {
-        case NodeState::kIdle: return "idle";
-        case NodeState::kRunning: return "running";
-        case NodeState::kFinished: return "finished";
-        case NodeState::kError: return "error";
-        case NodeState::kCancelled: return "cancelled";
+        case NodeState::kIdle:
+            return "idle";
+        case NodeState::kRunning:
+            return "running";
+        case NodeState::kFinished:
+            return "finished";
+        case NodeState::kError:
+            return "error";
+        case NodeState::kCancelled:
+            return "cancelled";
     }
     return "unknown";
 }
@@ -145,9 +150,8 @@ public:
     /// @param path1 First input file (R1)
     /// @param path2 Second input file (R2)
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult openPaired(
-        const std::filesystem::path& path1,
-        const std::filesystem::path& path2);
+    [[nodiscard]] VoidResult openPaired(const std::filesystem::path& path1,
+                                        const std::filesystem::path& path2);
 
     /// @brief Read next chunk of reads
     /// @return ReadChunk or nullopt if EOF, or error
@@ -295,9 +299,8 @@ public:
     /// @param path Output file path
     /// @param globalHeader Global header to write
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult open(
-        const std::filesystem::path& path,
-        const format::GlobalHeader& globalHeader);
+    [[nodiscard]] VoidResult open(const std::filesystem::path& path,
+                                  const format::GlobalHeader& globalHeader);
 
     /// @brief Write a compressed block
     /// @param block Compressed block to write
@@ -459,9 +462,8 @@ public:
     /// @param block Compressed block
     /// @param globalHeader Global header for context
     /// @return Decompressed read chunk or error
-    [[nodiscard]] Result<ReadChunk> decompress(
-        CompressedBlock block,
-        const format::GlobalHeader& globalHeader);
+    [[nodiscard]] Result<ReadChunk> decompress(CompressedBlock block,
+                                               const format::GlobalHeader& globalHeader);
 
     /// @brief Get current state
     [[nodiscard]] NodeState state() const noexcept;
@@ -528,9 +530,8 @@ public:
     /// @param path1 First output file (R1)
     /// @param path2 Second output file (R2)
     /// @return VoidResult indicating success or error
-    [[nodiscard]] VoidResult openPaired(
-        const std::filesystem::path& path1,
-        const std::filesystem::path& path2);
+    [[nodiscard]] VoidResult openPaired(const std::filesystem::path& path1,
+                                        const std::filesystem::path& path2);
 
     /// @brief Write a chunk of reads
     /// @param chunk Read chunk to write
@@ -576,8 +577,7 @@ class OrderedQueue {
 public:
     /// @brief Construct with expected starting ID
     /// @param startId Starting block/chunk ID
-    explicit OrderedQueue(std::uint32_t startId = 0)
-        : nextExpectedId_(startId) {}
+    explicit OrderedQueue(std::uint32_t startId = 0) : nextExpectedId_(startId) {}
 
     /// @brief Push an item with its ID
     /// @param id Item ID

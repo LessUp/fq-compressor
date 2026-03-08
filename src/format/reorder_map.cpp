@@ -38,8 +38,9 @@ std::size_t encodeVarint(std::uint64_t value, std::uint8_t* output) noexcept {
     return bytesWritten;
 }
 
-std::size_t decodeVarint(const std::uint8_t* input, std::size_t inputSize,
-                          std::uint64_t& value) noexcept {
+std::size_t decodeVarint(const std::uint8_t* input,
+                         std::size_t inputSize,
+                         std::uint64_t& value) noexcept {
     value = 0;
     std::size_t shift = 0;
     std::size_t bytesRead = 0;
@@ -69,8 +70,9 @@ std::size_t encodeSignedVarint(std::int64_t value, std::uint8_t* output) noexcep
     return encodeVarint(zigzag, output);
 }
 
-std::size_t decodeSignedVarint(const std::uint8_t* input, std::size_t inputSize,
-                                std::int64_t& value) noexcept {
+std::size_t decodeSignedVarint(const std::uint8_t* input,
+                               std::size_t inputSize,
+                               std::int64_t& value) noexcept {
     std::uint64_t zigzag = 0;
     const std::size_t bytesRead = decodeVarint(input, inputSize, zigzag);
 
@@ -80,8 +82,7 @@ std::size_t decodeSignedVarint(const std::uint8_t* input, std::size_t inputSize,
 
     // Decode zigzag: reverse the encoding
     // Cast to avoid sign conversion warning
-    value = static_cast<std::int64_t>(zigzag >> 1) ^
-            -static_cast<std::int64_t>(zigzag & 1);
+    value = static_cast<std::int64_t>(zigzag >> 1) ^ -static_cast<std::int64_t>(zigzag & 1);
     return bytesRead;
 }
 
@@ -106,7 +107,8 @@ std::vector<std::uint8_t> deltaEncode(std::span<const ReadId> ids) {
 
     // Subsequent values stored as signed deltas
     for (std::size_t i = 1; i < ids.size(); ++i) {
-        const auto delta = static_cast<std::int64_t>(ids[i]) - static_cast<std::int64_t>(ids[i - 1]);
+        const auto delta =
+            static_cast<std::int64_t>(ids[i]) - static_cast<std::int64_t>(ids[i - 1]);
         bytes = encodeSignedVarint(delta, buffer);
         result.insert(result.end(), buffer, buffer + bytes);
     }
@@ -115,14 +117,14 @@ std::vector<std::uint8_t> deltaEncode(std::span<const ReadId> ids) {
 }
 
 Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
-                                         std::uint64_t count) {
+                                        std::uint64_t count) {
     if (count == 0) {
         return std::vector<ReadId>{};
     }
 
     if (encoded.empty()) {
         return makeError<std::vector<ReadId>>(ErrorCode::kFormatError,
-                                               "Empty encoded data for non-zero count");
+                                              "Empty encoded data for non-zero count");
     }
 
     std::vector<ReadId> result;
@@ -136,7 +138,7 @@ Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
     std::size_t bytesRead = decodeVarint(ptr, static_cast<std::size_t>(end - ptr), firstValue);
     if (bytesRead == 0) {
         return makeError<std::vector<ReadId>>(ErrorCode::kFormatError,
-                                               "Failed to decode first varint");
+                                              "Failed to decode first varint");
     }
     ptr += bytesRead;
     result.push_back(firstValue);
@@ -145,25 +147,25 @@ Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
     std::int64_t currentValue = static_cast<std::int64_t>(firstValue);
     for (std::uint64_t i = 1; i < count; ++i) {
         if (ptr >= end) {
-            return makeError<std::vector<ReadId>>(
-                ErrorCode::kFormatError,
-                "Unexpected end of encoded data at index " + std::to_string(i));
+            return makeError<std::vector<ReadId>>(ErrorCode::kFormatError,
+                                                  "Unexpected end of encoded data at index " +
+                                                      std::to_string(i));
         }
 
         std::int64_t delta = 0;
         bytesRead = decodeSignedVarint(ptr, static_cast<std::size_t>(end - ptr), delta);
         if (bytesRead == 0) {
-            return makeError<std::vector<ReadId>>(
-                ErrorCode::kFormatError,
-                "Failed to decode delta varint at index " + std::to_string(i));
+            return makeError<std::vector<ReadId>>(ErrorCode::kFormatError,
+                                                  "Failed to decode delta varint at index " +
+                                                      std::to_string(i));
         }
         ptr += bytesRead;
 
         currentValue += delta;
         if (currentValue < 0) {
-            return makeError<std::vector<ReadId>>(
-                ErrorCode::kFormatError,
-                "Negative read ID after delta decode at index " + std::to_string(i));
+            return makeError<std::vector<ReadId>>(ErrorCode::kFormatError,
+                                                  "Negative read ID after delta decode at index " +
+                                                      std::to_string(i));
         }
         result.push_back(static_cast<ReadId>(currentValue));
     }
@@ -258,15 +260,13 @@ Result<ReorderMapData> ReorderMapData::deserialize(std::span<const std::uint8_t>
     // Check minimum size for header
     if (data.size() < ReorderMap::kHeaderSize) {
         return makeError<ReorderMapData>(ErrorCode::kFormatError,
-                                          "Data too small for reorder map header");
+                                         "Data too small for reorder map header");
     }
 
     // Read header (little-endian)
     auto readU32 = [](const std::uint8_t* ptr) -> std::uint32_t {
-        return static_cast<std::uint32_t>(ptr[0]) |
-               (static_cast<std::uint32_t>(ptr[1]) << 8) |
-               (static_cast<std::uint32_t>(ptr[2]) << 16) |
-               (static_cast<std::uint32_t>(ptr[3]) << 24);
+        return static_cast<std::uint32_t>(ptr[0]) | (static_cast<std::uint32_t>(ptr[1]) << 8) |
+            (static_cast<std::uint32_t>(ptr[2]) << 16) | (static_cast<std::uint32_t>(ptr[3]) << 24);
     };
 
     auto readU64 = [](const std::uint8_t* ptr) -> std::uint64_t {
@@ -298,12 +298,13 @@ Result<ReorderMapData> ReorderMapData::deserialize(std::span<const std::uint8_t>
     }
 
     // Check data size
-    const std::size_t expectedSize = header.headerSize + header.forwardMapSize + header.reverseMapSize;
+    const std::size_t expectedSize =
+        header.headerSize + header.forwardMapSize + header.reverseMapSize;
     if (data.size() < expectedSize) {
-        return makeError<ReorderMapData>(
-            ErrorCode::kFormatError,
-            "Data size mismatch: expected " + std::to_string(expectedSize) +
-                ", got " + std::to_string(data.size()));
+        return makeError<ReorderMapData>(ErrorCode::kFormatError,
+                                         "Data size mismatch: expected " +
+                                             std::to_string(expectedSize) + ", got " +
+                                             std::to_string(data.size()));
     }
 
     // Skip any extra header bytes (forward compatibility)
@@ -314,8 +315,8 @@ Result<ReorderMapData> ReorderMapData::deserialize(std::span<const std::uint8_t>
     auto forwardResult = deltaDecode(forwardData, header.totalReads);
     if (!forwardResult) {
         return makeError<ReorderMapData>(forwardResult.error().code(),
-                                          "Failed to decode forward map: " +
-                                              forwardResult.error().message());
+                                         "Failed to decode forward map: " +
+                                             forwardResult.error().message());
     }
     ptr += header.forwardMapSize;
 
@@ -324,8 +325,8 @@ Result<ReorderMapData> ReorderMapData::deserialize(std::span<const std::uint8_t>
     auto reverseResult = deltaDecode(reverseData, header.totalReads);
     if (!reverseResult) {
         return makeError<ReorderMapData>(reverseResult.error().code(),
-                                          "Failed to decode reverse map: " +
-                                              reverseResult.error().message());
+                                         "Failed to decode reverse map: " +
+                                             reverseResult.error().message());
     }
 
     return ReorderMapData(std::move(*forwardResult), std::move(*reverseResult));
@@ -337,8 +338,9 @@ std::size_t ReorderMapData::estimateSerializedSize() const noexcept {
     return ReorderMap::kHeaderSize + forwardMap_.size() * 2 + reverseMap_.size() * 2;
 }
 
-void ReorderMapData::appendChunk(const ReorderMapData& other, ReadId archiveIdOffset,
-                                  ReadId originalIdOffset) {
+void ReorderMapData::appendChunk(const ReorderMapData& other,
+                                 ReadId archiveIdOffset,
+                                 ReadId originalIdOffset) {
     const std::size_t currentSize = forwardMap_.size();
 
     // Reserve space
@@ -357,7 +359,7 @@ void ReorderMapData::appendChunk(const ReorderMapData& other, ReadId archiveIdOf
 }
 
 ReorderMapData ReorderMapData::combineChunks(std::span<const ReorderMapData> chunks,
-                                              std::span<const std::uint64_t> chunkSizes) {
+                                             std::span<const std::uint64_t> chunkSizes) {
     if (chunks.empty()) {
         return ReorderMapData{};
     }
@@ -411,11 +413,12 @@ ReorderMapData::CompressionStats ReorderMapData::getCompressionStats() const {
     stats.totalReads = forwardMap_.size();
     stats.forwardMapCompressedSize = forwardEncoded.size();
     stats.reverseMapCompressedSize = reverseEncoded.size();
-    stats.totalCompressedSize = ReorderMap::kHeaderSize + forwardEncoded.size() + reverseEncoded.size();
+    stats.totalCompressedSize =
+        ReorderMap::kHeaderSize + forwardEncoded.size() + reverseEncoded.size();
 
     if (stats.totalReads > 0) {
-        stats.bytesPerRead = static_cast<double>(stats.totalCompressedSize) /
-                             static_cast<double>(stats.totalReads);
+        stats.bytesPerRead =
+            static_cast<double>(stats.totalCompressedSize) / static_cast<double>(stats.totalReads);
     } else {
         stats.bytesPerRead = 0.0;
     }
@@ -423,8 +426,8 @@ ReorderMapData::CompressionStats ReorderMapData::getCompressionStats() const {
     // Uncompressed size: 2 maps * 8 bytes per ReadId * totalReads
     const std::size_t uncompressedSize = 2 * sizeof(ReadId) * stats.totalReads;
     if (stats.totalCompressedSize > 0) {
-        stats.compressionRatio = static_cast<double>(uncompressedSize) /
-                                 static_cast<double>(stats.totalCompressedSize);
+        stats.compressionRatio =
+            static_cast<double>(uncompressedSize) / static_cast<double>(stats.totalCompressedSize);
     } else {
         stats.compressionRatio = 1.0;
     }
@@ -451,16 +454,13 @@ Result<ReorderMapData> ReorderMapIO::read(std::istream& stream) {
     // Read header first
     std::array<std::uint8_t, ReorderMap::kHeaderSize> headerBytes{};
     if (!stream.read(reinterpret_cast<char*>(headerBytes.data()), ReorderMap::kHeaderSize)) {
-        return makeError<ReorderMapData>(ErrorCode::kIOError,
-                                          "Failed to read reorder map header");
+        return makeError<ReorderMapData>(ErrorCode::kIOError, "Failed to read reorder map header");
     }
 
     // Parse header
     auto readU32 = [](const std::uint8_t* ptr) -> std::uint32_t {
-        return static_cast<std::uint32_t>(ptr[0]) |
-               (static_cast<std::uint32_t>(ptr[1]) << 8) |
-               (static_cast<std::uint32_t>(ptr[2]) << 16) |
-               (static_cast<std::uint32_t>(ptr[3]) << 24);
+        return static_cast<std::uint32_t>(ptr[0]) | (static_cast<std::uint32_t>(ptr[1]) << 8) |
+            (static_cast<std::uint32_t>(ptr[2]) << 16) | (static_cast<std::uint32_t>(ptr[3]) << 24);
     };
 
     auto readU64 = [](const std::uint8_t* ptr) -> std::uint64_t {
@@ -496,7 +496,7 @@ Result<ReorderMapData> ReorderMapIO::read(std::istream& stream) {
                      std::ios::cur);
         if (!stream) {
             return makeError<ReorderMapData>(ErrorCode::kIOError,
-                                              "Failed to skip extra header bytes");
+                                             "Failed to skip extra header bytes");
         }
     }
 
@@ -505,8 +505,7 @@ Result<ReorderMapData> ReorderMapIO::read(std::istream& stream) {
     std::vector<std::uint8_t> mapData(mapDataSize);
     if (!stream.read(reinterpret_cast<char*>(mapData.data()),
                      static_cast<std::streamsize>(mapDataSize))) {
-        return makeError<ReorderMapData>(ErrorCode::kIOError,
-                                          "Failed to read reorder map data");
+        return makeError<ReorderMapData>(ErrorCode::kIOError, "Failed to read reorder map data");
     }
 
     // Decode forward map
@@ -514,18 +513,18 @@ Result<ReorderMapData> ReorderMapIO::read(std::istream& stream) {
     auto forwardResult = deltaDecode(forwardData, header.totalReads);
     if (!forwardResult) {
         return makeError<ReorderMapData>(forwardResult.error().code(),
-                                          "Failed to decode forward map: " +
-                                              forwardResult.error().message());
+                                         "Failed to decode forward map: " +
+                                             forwardResult.error().message());
     }
 
     // Decode reverse map
     std::span<const std::uint8_t> reverseData(mapData.data() + header.forwardMapSize,
-                                               header.reverseMapSize);
+                                              header.reverseMapSize);
     auto reverseResult = deltaDecode(reverseData, header.totalReads);
     if (!reverseResult) {
         return makeError<ReorderMapData>(reverseResult.error().code(),
-                                          "Failed to decode reverse map: " +
-                                              reverseResult.error().message());
+                                         "Failed to decode reverse map: " +
+                                             reverseResult.error().message());
     }
 
     return ReorderMapData(std::move(*forwardResult), std::move(*reverseResult));
@@ -534,15 +533,12 @@ Result<ReorderMapData> ReorderMapIO::read(std::istream& stream) {
 Result<ReorderMap> ReorderMapIO::readHeader(std::istream& stream) {
     std::array<std::uint8_t, ReorderMap::kHeaderSize> headerBytes{};
     if (!stream.read(reinterpret_cast<char*>(headerBytes.data()), ReorderMap::kHeaderSize)) {
-        return makeError<ReorderMap>(ErrorCode::kIOError,
-                                      "Failed to read reorder map header");
+        return makeError<ReorderMap>(ErrorCode::kIOError, "Failed to read reorder map header");
     }
 
     auto readU32 = [](const std::uint8_t* ptr) -> std::uint32_t {
-        return static_cast<std::uint32_t>(ptr[0]) |
-               (static_cast<std::uint32_t>(ptr[1]) << 8) |
-               (static_cast<std::uint32_t>(ptr[2]) << 16) |
-               (static_cast<std::uint32_t>(ptr[3]) << 24);
+        return static_cast<std::uint32_t>(ptr[0]) | (static_cast<std::uint32_t>(ptr[1]) << 8) |
+            (static_cast<std::uint32_t>(ptr[2]) << 16) | (static_cast<std::uint32_t>(ptr[3]) << 24);
     };
 
     auto readU64 = [](const std::uint8_t* ptr) -> std::uint64_t {
@@ -589,18 +585,18 @@ Result<ReorderMapData> ReorderMapIO::fromBytes(std::span<const std::uint8_t> dat
 VoidResult validateReorderMapHeader(const ReorderMap& header) {
     // Check header size
     if (header.headerSize < ReorderMap::kHeaderSize) {
-        return makeVoidError(ErrorCode::kFormatError,
-                             "Invalid reorder map header size: " +
-                                 std::to_string(header.headerSize) +
-                                 " (minimum: " + std::to_string(ReorderMap::kHeaderSize) + ")");
+        return makeVoidError(
+            ErrorCode::kFormatError,
+            "Invalid reorder map header size: " + std::to_string(header.headerSize) +
+                " (minimum: " + std::to_string(ReorderMap::kHeaderSize) + ")");
     }
 
     // Check version
     if (header.version > kReorderMapVersion) {
         return makeVoidError(ErrorCode::kFormatError,
-                             "Unsupported reorder map version: " +
-                                 std::to_string(header.version) +
-                                 " (maximum supported: " + std::to_string(kReorderMapVersion) + ")");
+                             "Unsupported reorder map version: " + std::to_string(header.version) +
+                                 " (maximum supported: " + std::to_string(kReorderMapVersion) +
+                                 ")");
     }
 
     // Check for reasonable map sizes (sanity check)
@@ -608,15 +604,13 @@ VoidResult validateReorderMapHeader(const ReorderMap& header) {
     // and at most ~10 bytes per read (varint maximum)
     if (header.totalReads > 0) {
         if (header.forwardMapSize == 0 || header.reverseMapSize == 0) {
-            return makeVoidError(ErrorCode::kFormatError,
-                                 "Empty map data for non-zero read count");
+            return makeVoidError(ErrorCode::kFormatError, "Empty map data for non-zero read count");
         }
 
         // Sanity check: map size should be reasonable
         const std::size_t maxMapSize = header.totalReads * kMaxVarintBytes;
         if (header.forwardMapSize > maxMapSize || header.reverseMapSize > maxMapSize) {
-            return makeVoidError(ErrorCode::kFormatError,
-                                 "Map size exceeds maximum expected size");
+            return makeVoidError(ErrorCode::kFormatError, "Map size exceeds maximum expected size");
         }
     }
 
@@ -625,8 +619,7 @@ VoidResult validateReorderMapHeader(const ReorderMap& header) {
 
 VoidResult validateReorderMapData(const ReorderMapData& mapData) {
     if (!mapData.isValid()) {
-        return makeVoidError(ErrorCode::kFormatError,
-                             "Forward and reverse map sizes do not match");
+        return makeVoidError(ErrorCode::kFormatError, "Forward and reverse map sizes do not match");
     }
 
     // Verify map consistency
@@ -634,12 +627,12 @@ VoidResult validateReorderMapData(const ReorderMapData& mapData) {
 }
 
 VoidResult verifyMapConsistency(std::span<const ReadId> forwardMap,
-                                 std::span<const ReadId> reverseMap) {
+                                std::span<const ReadId> reverseMap) {
     if (forwardMap.size() != reverseMap.size()) {
-        return makeVoidError(ErrorCode::kFormatError,
-                             "Forward and reverse map sizes do not match: " +
-                                 std::to_string(forwardMap.size()) + " vs " +
-                                 std::to_string(reverseMap.size()));
+        return makeVoidError(
+            ErrorCode::kFormatError,
+            "Forward and reverse map sizes do not match: " + std::to_string(forwardMap.size()) +
+                " vs " + std::to_string(reverseMap.size()));
     }
 
     const std::size_t size = forwardMap.size();
@@ -652,19 +645,19 @@ VoidResult verifyMapConsistency(std::span<const ReadId> forwardMap,
     for (std::size_t originalId = 0; originalId < size; ++originalId) {
         const ReadId archiveId = forwardMap[originalId];
         if (archiveId >= size) {
-            return makeVoidError(ErrorCode::kFormatError,
-                                 "Forward map contains out-of-range archive ID: " +
-                                     std::to_string(archiveId) + " at original ID " +
-                                     std::to_string(originalId));
+            return makeVoidError(
+                ErrorCode::kFormatError,
+                "Forward map contains out-of-range archive ID: " + std::to_string(archiveId) +
+                    " at original ID " + std::to_string(originalId));
         }
 
         const ReadId recoveredOriginalId = reverseMap[archiveId];
         if (recoveredOriginalId != originalId) {
             return makeVoidError(ErrorCode::kFormatError,
                                  "Map consistency check failed: reverse[forward[" +
-                                     std::to_string(originalId) + "]] = " +
-                                     std::to_string(recoveredOriginalId) +
-                                     " (expected " + std::to_string(originalId) + ")");
+                                     std::to_string(originalId) +
+                                     "]] = " + std::to_string(recoveredOriginalId) + " (expected " +
+                                     std::to_string(originalId) + ")");
         }
     }
 
@@ -673,19 +666,19 @@ VoidResult verifyMapConsistency(std::span<const ReadId> forwardMap,
     for (std::size_t archiveId = 0; archiveId < size; ++archiveId) {
         const ReadId originalId = reverseMap[archiveId];
         if (originalId >= size) {
-            return makeVoidError(ErrorCode::kFormatError,
-                                 "Reverse map contains out-of-range original ID: " +
-                                     std::to_string(originalId) + " at archive ID " +
-                                     std::to_string(archiveId));
+            return makeVoidError(
+                ErrorCode::kFormatError,
+                "Reverse map contains out-of-range original ID: " + std::to_string(originalId) +
+                    " at archive ID " + std::to_string(archiveId));
         }
 
         const ReadId recoveredArchiveId = forwardMap[originalId];
         if (recoveredArchiveId != archiveId) {
             return makeVoidError(ErrorCode::kFormatError,
                                  "Map consistency check failed: forward[reverse[" +
-                                     std::to_string(archiveId) + "]] = " +
-                                     std::to_string(recoveredArchiveId) +
-                                     " (expected " + std::to_string(archiveId) + ")");
+                                     std::to_string(archiveId) +
+                                     "]] = " + std::to_string(recoveredArchiveId) + " (expected " +
+                                     std::to_string(archiveId) + ")");
         }
     }
 

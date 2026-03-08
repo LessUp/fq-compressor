@@ -6,12 +6,11 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/algo/block_compressor.h"
+#include "fqc/common/logger.h"
 #include "fqc/pipeline/pipeline_node.h"
 
 #include <fmt/format.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/algo/block_compressor.h"
 
 namespace fqc::pipeline {
 
@@ -21,12 +20,9 @@ namespace fqc::pipeline {
 
 class DecompressorNodeImpl {
 public:
-    explicit DecompressorNodeImpl(DecompressorNodeConfig config)
-        : config_(std::move(config)) {}
+    explicit DecompressorNodeImpl(DecompressorNodeConfig config) : config_(std::move(config)) {}
 
-    Result<ReadChunk> decompress(
-        CompressedBlock block,
-        const format::GlobalHeader& globalHeader) {
+    Result<ReadChunk> decompress(CompressedBlock block, const format::GlobalHeader& globalHeader) {
         state_ = NodeState::kRunning;
 
         ReadChunk chunk;
@@ -57,17 +53,12 @@ public:
 
             // Reuse cached compressor for decompression
             auto decompressResult = cachedCompressor_->decompress(
-                blockHeader,
-                block.idStream,
-                block.seqStream,
-                block.qualStream,
-                block.auxStream
-            );
+                blockHeader, block.idStream, block.seqStream, block.qualStream, block.auxStream);
 
             if (!decompressResult) {
-                throw std::runtime_error(
-                    fmt::format("Failed to decompress block {}: {}",
-                               block.blockId, decompressResult.error().message()));
+                throw std::runtime_error(fmt::format("Failed to decompress block {}: {}",
+                                                     block.blockId,
+                                                     decompressResult.error().message()));
             }
 
             // Move decompressed reads into chunk
@@ -92,13 +83,17 @@ public:
                 return chunk;
             }
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kDecompressionError, 
-                             fmt::format("Failed to decompress block: {}", e.what())});
+            return std::unexpected(Error{ErrorCode::kDecompressionError,
+                                         fmt::format("Failed to decompress block: {}", e.what())});
         }
     }
 
-    NodeState state() const noexcept { return state_; }
-    std::uint32_t totalBlocksDecompressed() const noexcept { return totalBlocksDecompressed_; }
+    NodeState state() const noexcept {
+        return state_;
+    }
+    std::uint32_t totalBlocksDecompressed() const noexcept {
+        return totalBlocksDecompressed_;
+    }
 
     void reset() noexcept {
         state_ = NodeState::kIdle;
@@ -106,7 +101,9 @@ public:
         cachedCompressor_.reset();
     }
 
-    const DecompressorNodeConfig& config() const noexcept { return config_; }
+    const DecompressorNodeConfig& config() const noexcept {
+        return config_;
+    }
 
 private:
     DecompressorNodeConfig config_;
@@ -127,9 +124,8 @@ DecompressorNode::~DecompressorNode() = default;
 DecompressorNode::DecompressorNode(DecompressorNode&&) noexcept = default;
 DecompressorNode& DecompressorNode::operator=(DecompressorNode&&) noexcept = default;
 
-Result<ReadChunk> DecompressorNode::decompress(
-    CompressedBlock block,
-    const format::GlobalHeader& globalHeader) {
+Result<ReadChunk> DecompressorNode::decompress(CompressedBlock block,
+                                               const format::GlobalHeader& globalHeader) {
     return impl_->decompress(std::move(block), globalHeader);
 }
 

@@ -611,4 +611,3 @@ TEST(FQCFormatTest, FooterMagicValidation) {
 }
 
 }  // namespace fqc::format::test
-

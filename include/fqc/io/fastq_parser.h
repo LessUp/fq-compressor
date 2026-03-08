@@ -24,6 +24,9 @@
 #ifndef FQC_IO_FASTQ_PARSER_H
 #define FQC_IO_FASTQ_PARSER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -34,9 +37,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::io {
 
@@ -71,7 +71,9 @@ struct FastqRecord {
     }
 
     /// @brief Get the read length.
-    [[nodiscard]] std::size_t length() const noexcept { return sequence.size(); }
+    [[nodiscard]] std::size_t length() const noexcept {
+        return sequence.size();
+    }
 
     /// @brief Clear the record.
     void clear() noexcept {
@@ -121,7 +123,8 @@ struct ParserStats {
         // Count N bases
         std::size_t nCount = 0;
         for (char c : record.sequence) {
-            if (c == 'N' || c == 'n') ++nCount;
+            if (c == 'N' || c == 'n')
+                ++nCount;
         }
         if (nCount > 0) {
             ++recordsWithN;
@@ -131,11 +134,14 @@ struct ParserStats {
 
     /// @brief Get average read length.
     [[nodiscard]] double averageLength() const noexcept {
-        return totalRecords > 0 ? static_cast<double>(lengthSum) / static_cast<double>(totalRecords) : 0.0;
+        return totalRecords > 0 ? static_cast<double>(lengthSum) / static_cast<double>(totalRecords)
+                                : 0.0;
     }
 
     /// @brief Reset statistics.
-    void reset() noexcept { *this = ParserStats{}; }
+    void reset() noexcept {
+        *this = ParserStats{};
+    }
 };
 
 // =============================================================================
@@ -244,10 +250,14 @@ public:
     void close() noexcept;
 
     /// @brief Check if the parser is open.
-    [[nodiscard]] bool isOpen() const noexcept { return isOpen_; }
+    [[nodiscard]] bool isOpen() const noexcept {
+        return isOpen_;
+    }
 
     /// @brief Check if end of file has been reached.
-    [[nodiscard]] bool eof() const noexcept { return eof_; }
+    [[nodiscard]] bool eof() const noexcept {
+        return eof_;
+    }
 
     // =========================================================================
     // Parsing Methods
@@ -291,22 +301,34 @@ public:
     // =========================================================================
 
     /// @brief Get current parsing statistics.
-    [[nodiscard]] const ParserStats& stats() const noexcept { return stats_; }
+    [[nodiscard]] const ParserStats& stats() const noexcept {
+        return stats_;
+    }
 
     /// @brief Get the last parse error (if any).
-    [[nodiscard]] const std::optional<ParseError>& lastError() const noexcept { return lastError_; }
+    [[nodiscard]] const std::optional<ParseError>& lastError() const noexcept {
+        return lastError_;
+    }
 
     /// @brief Get current line number.
-    [[nodiscard]] std::uint64_t lineNumber() const noexcept { return lineNumber_; }
+    [[nodiscard]] std::uint64_t lineNumber() const noexcept {
+        return lineNumber_;
+    }
 
     /// @brief Get current record number.
-    [[nodiscard]] std::uint64_t recordNumber() const noexcept { return recordNumber_; }
+    [[nodiscard]] std::uint64_t recordNumber() const noexcept {
+        return recordNumber_;
+    }
 
     /// @brief Get the file path.
-    [[nodiscard]] const std::filesystem::path& filePath() const noexcept { return filePath_; }
+    [[nodiscard]] const std::filesystem::path& filePath() const noexcept {
+        return filePath_;
+    }
 
     /// @brief Check if input is from stdin.
-    [[nodiscard]] bool isStdin() const noexcept { return isStdin_; }
+    [[nodiscard]] bool isStdin() const noexcept {
+        return isStdin_;
+    }
 
     // =========================================================================
     // Seeking (File Input Only)
@@ -318,7 +340,9 @@ public:
 
     /// @brief Check if seeking is supported.
     /// @note Compressed files do not support seeking.
-    [[nodiscard]] bool canSeek() const noexcept { return !isStdin_ && !isCompressed_; }
+    [[nodiscard]] bool canSeek() const noexcept {
+        return !isStdin_ && !isCompressed_;
+    }
 
 private:
     // =========================================================================
@@ -399,7 +423,7 @@ private:
 /// @brief Check if a character is a valid DNA base.
 [[nodiscard]] constexpr bool isValidBase(char c) noexcept {
     return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N' || c == 'a' || c == 'c' ||
-           c == 'g' || c == 't' || c == 'n';
+        c == 'g' || c == 't' || c == 'n';
 }
 
 /// @brief Check if a character is a valid quality score.

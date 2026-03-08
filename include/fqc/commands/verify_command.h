@@ -14,14 +14,14 @@
 #ifndef FQC_COMMANDS_VERIFY_COMMAND_H
 #define FQC_COMMANDS_VERIFY_COMMAND_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::commands {
 
@@ -59,7 +59,9 @@ struct VerificationSummary {
     std::vector<VerificationResult> results;
 
     /// @brief Overall pass/fail.
-    [[nodiscard]] bool passed() const noexcept { return failedChecks == 0; }
+    [[nodiscard]] bool passed() const noexcept {
+        return failedChecks == 0;
+    }
 
     /// @brief Add a result.
     void addResult(VerificationResult result) {
@@ -125,10 +127,14 @@ public:
     [[nodiscard]] int execute();
 
     /// @brief Get verification summary.
-    [[nodiscard]] const VerificationSummary& summary() const noexcept { return summary_; }
+    [[nodiscard]] const VerificationSummary& summary() const noexcept {
+        return summary_;
+    }
 
     /// @brief Get the options.
-    [[nodiscard]] const VerifyOptions& options() const noexcept { return options_; }
+    [[nodiscard]] const VerifyOptions& options() const noexcept {
+        return options_;
+    }
 
 private:
     /// @brief Verify magic header.
@@ -161,10 +167,9 @@ private:
 // =============================================================================
 
 /// @brief Create a verify command from CLI options.
-[[nodiscard]] std::unique_ptr<VerifyCommand> createVerifyCommand(
-    const std::string& inputPath,
-    bool failFast,
-    bool verbose);
+[[nodiscard]] std::unique_ptr<VerifyCommand> createVerifyCommand(const std::string& inputPath,
+                                                                 bool failFast,
+                                                                 bool verbose);
 
 }  // namespace fqc::commands
 

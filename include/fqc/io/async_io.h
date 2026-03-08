@@ -18,6 +18,9 @@
 #ifndef FQC_IO_ASYNC_IO_H
 #define FQC_IO_ASYNC_IO_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -33,9 +36,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::io {
 
@@ -89,23 +89,37 @@ public:
     ManagedBuffer& operator=(ManagedBuffer&& other) noexcept;
 
     /// @brief Get pointer to buffer data
-    [[nodiscard]] std::uint8_t* data() noexcept { return data_; }
-    [[nodiscard]] const std::uint8_t* data() const noexcept { return data_; }
+    [[nodiscard]] std::uint8_t* data() noexcept {
+        return data_;
+    }
+    [[nodiscard]] const std::uint8_t* data() const noexcept {
+        return data_;
+    }
 
     /// @brief Get buffer capacity
-    [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
+    [[nodiscard]] std::size_t capacity() const noexcept {
+        return capacity_;
+    }
 
     /// @brief Get current data size
-    [[nodiscard]] std::size_t size() const noexcept { return size_; }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return size_;
+    }
 
     /// @brief Set current data size
-    void setSize(std::size_t size) noexcept { size_ = std::min(size, capacity_); }
+    void setSize(std::size_t size) noexcept {
+        size_ = std::min(size, capacity_);
+    }
 
     /// @brief Check if buffer is valid
-    [[nodiscard]] bool valid() const noexcept { return data_ != nullptr; }
+    [[nodiscard]] bool valid() const noexcept {
+        return data_ != nullptr;
+    }
 
     /// @brief Check if buffer is empty
-    [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
+    [[nodiscard]] bool empty() const noexcept {
+        return size_ == 0;
+    }
 
     /// @brief Get span view of data
     [[nodiscard]] std::span<std::uint8_t> span() noexcept {
@@ -138,9 +152,8 @@ public:
     /// @brief Construct with buffer parameters
     /// @param bufferSize Size of each buffer
     /// @param bufferCount Number of buffers in pool
-    explicit BufferPool(
-        std::size_t bufferSize = kDefaultAsyncBufferSize,
-        std::size_t bufferCount = kDefaultBufferCount);
+    explicit BufferPool(std::size_t bufferSize = kDefaultAsyncBufferSize,
+                        std::size_t bufferCount = kDefaultBufferCount);
 
     /// @brief Destructor
     ~BufferPool();
@@ -162,18 +175,21 @@ public:
     /// @brief Acquire a buffer with timeout
     /// @param timeoutMs Timeout in milliseconds
     /// @return Managed buffer or nullopt if timeout
-    [[nodiscard]] std::optional<ManagedBuffer> acquireWithTimeout(
-        std::uint32_t timeoutMs);
+    [[nodiscard]] std::optional<ManagedBuffer> acquireWithTimeout(std::uint32_t timeoutMs);
 
     /// @brief Return a buffer to the pool
     /// @param data Buffer data pointer
     void release(std::uint8_t* data);
 
     /// @brief Get buffer size
-    [[nodiscard]] std::size_t bufferSize() const noexcept { return bufferSize_; }
+    [[nodiscard]] std::size_t bufferSize() const noexcept {
+        return bufferSize_;
+    }
 
     /// @brief Get total buffer count
-    [[nodiscard]] std::size_t bufferCount() const noexcept { return bufferCount_; }
+    [[nodiscard]] std::size_t bufferCount() const noexcept {
+        return bufferCount_;
+    }
 
     /// @brief Get number of available buffers
     [[nodiscard]] std::size_t availableCount() const noexcept;
@@ -197,10 +213,10 @@ private:
             }
         }
     };
-    
+
     /// @brief Aligned buffer type for cache-line alignment
     using AlignedBuffer = std::unique_ptr<std::uint8_t[], AlignedDeleter>;
-    
+
     std::size_t bufferSize_;
     std::size_t bufferCount_;
     std::vector<AlignedBuffer> buffers_;
@@ -451,18 +467,23 @@ public:
     /// @brief Construct with initial values
     /// @param a First buffer
     /// @param b Second buffer
-    DoubleBuffer(T a, T b)
-        : buffers_{std::move(a), std::move(b)}
-        , fillIndex_(0)
-        , drainIndex_(1) {}
+    DoubleBuffer(T a, T b) : buffers_{std::move(a), std::move(b)}, fillIndex_(0), drainIndex_(1) {}
 
     /// @brief Get buffer for filling
-    [[nodiscard]] T& fillBuffer() noexcept { return buffers_[fillIndex_]; }
-    [[nodiscard]] const T& fillBuffer() const noexcept { return buffers_[fillIndex_]; }
+    [[nodiscard]] T& fillBuffer() noexcept {
+        return buffers_[fillIndex_];
+    }
+    [[nodiscard]] const T& fillBuffer() const noexcept {
+        return buffers_[fillIndex_];
+    }
 
     /// @brief Get buffer for draining
-    [[nodiscard]] T& drainBuffer() noexcept { return buffers_[drainIndex_]; }
-    [[nodiscard]] const T& drainBuffer() const noexcept { return buffers_[drainIndex_]; }
+    [[nodiscard]] T& drainBuffer() noexcept {
+        return buffers_[drainIndex_];
+    }
+    [[nodiscard]] const T& drainBuffer() const noexcept {
+        return buffers_[drainIndex_];
+    }
 
     /// @brief Swap fill and drain buffers
     void swap() noexcept {
@@ -498,21 +519,24 @@ struct AsyncIOStats {
 
     /// @brief Get average operation size
     [[nodiscard]] double avgOperationSize() const noexcept {
-        if (operationCount == 0) return 0.0;
+        if (operationCount == 0)
+            return 0.0;
         return static_cast<double>(totalBytes) / static_cast<double>(operationCount);
     }
 
     /// @brief Get throughput (MB/s)
     [[nodiscard]] double throughputMBps() const noexcept {
-        if (ioTimeUs == 0) return 0.0;
+        if (ioTimeUs == 0)
+            return 0.0;
         return (static_cast<double>(totalBytes) / (1024.0 * 1024.0)) /
-               (static_cast<double>(ioTimeUs) / 1'000'000.0);
+            (static_cast<double>(ioTimeUs) / 1'000'000.0);
     }
 
     /// @brief Get I/O efficiency (time in I/O vs total time)
     [[nodiscard]] double efficiency() const noexcept {
         std::uint64_t totalTime = ioTimeUs + waitTimeUs;
-        if (totalTime == 0) return 1.0;
+        if (totalTime == 0)
+            return 1.0;
         return static_cast<double>(ioTimeUs) / static_cast<double>(totalTime);
     }
 };
@@ -557,8 +581,7 @@ private:
 /// @param config Optional async reader configuration
 /// @return unique_ptr<istream> backed by async prefetch, or nullptr on failure
 [[nodiscard]] std::unique_ptr<std::istream> createAsyncInputStream(
-    const std::filesystem::path& path,
-    AsyncReaderConfig config = {});
+    const std::filesystem::path& path, AsyncReaderConfig config = {});
 
 // =============================================================================
 // Utility Functions

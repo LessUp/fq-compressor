@@ -79,7 +79,6 @@ rc::Gen<std::string> readId() {
                         });
 }
 
-
 /// @brief Generate a valid ReadRecord
 rc::Gen<ReadRecord> readRecord() {
     return rc::gen::mapcat(dnaSequence(), [](std::string seq) {
@@ -177,7 +176,6 @@ TEST_F(PipelinePropertyTest, MemoryEstimation) {
     auto estimateWithReorder = estimateMemoryUsage(config, 1000000);
     EXPECT_GT(estimateWithReorder, estimate);
 }
-
 
 // =============================================================================
 // Pipeline Node Tests
@@ -400,7 +398,6 @@ void writeFastqFile(const std::filesystem::path& path,
     const std::vector<std::tuple<std::string, std::string, std::string>>& original,
     const std::vector<std::tuple<std::string, std::string, std::string>>& decompressed,
     bool preserveOrder) {
-
     if (original.size() != decompressed.size()) {
         return false;
     }

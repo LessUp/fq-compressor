@@ -8,10 +8,10 @@
 
 #include "fqc/io/paired_end_parser.h"
 
-#include <algorithm>
-
 #include "fqc/common/logger.h"
 #include "fqc/io/compressed_stream.h"
+
+#include <algorithm>
 
 namespace fqc::io {
 
@@ -22,9 +22,7 @@ namespace fqc::io {
 PairedEndParser::PairedEndParser(std::filesystem::path r1Path,
                                  std::filesystem::path r2Path,
                                  PairedEndParserOptions options)
-    : options_(std::move(options)),
-      r1Path_(std::move(r1Path)),
-      r2Path_(std::move(r2Path)) {
+    : options_(std::move(options)), r1Path_(std::move(r1Path)), r2Path_(std::move(r2Path)) {
     options_.inputMode = PEInputMode::kDualFile;
 }
 
@@ -52,7 +50,9 @@ PairedEndParser::PairedEndParser(std::unique_ptr<std::istream> interleavedStream
     isOpen_ = true;
 }
 
-PairedEndParser::~PairedEndParser() { close(); }
+PairedEndParser::~PairedEndParser() {
+    close();
+}
 
 PairedEndParser::PairedEndParser(PairedEndParser&&) noexcept = default;
 PairedEndParser& PairedEndParser::operator=(PairedEndParser&&) noexcept = default;
@@ -280,10 +280,12 @@ bool detectInterleavedFormat(const std::filesystem::path& filePath, std::size_t 
 
         for (std::size_t i = 0; i < sampleCount; ++i) {
             auto r1 = parser.readRecord();
-            if (!r1) break;
+            if (!r1)
+                break;
 
             auto r2 = parser.readRecord();
-            if (!r2) break;
+            if (!r2)
+                break;
 
             ++totalPairs;
             if (arePairedIds(r1->id, r2->id)) {
