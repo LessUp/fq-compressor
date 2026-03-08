@@ -22,7 +22,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 
 | 评估维度 | 方案选择 | 理由/来源 |
 |---------|----------|-----------|
-| **C++ 标准** | C++20 | 现代特性（Concepts, Ranges），符合 fastq-tools 风格 |
+| **C++ 标准** | C++23 | 现代特性（Concepts, Ranges, std::expected） |
 | **并行框架** | Intel oneTBB | 强大的任务图和流水线支持（Pipeline/Task Graph） |
 | **CLI 库** | **CLI11** | Header-only，功能丰富，优于 Boost.PO 的重型依赖 |
 | **日志库** | **Quill** | 极低延迟异步日志，适合高性能 IO 密集型应用 |
@@ -317,7 +317,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 #### 推荐开发环境（容器）
 
 - GCC 15 + libstdc++（生产编译首选）
-- Clang 21 + libc++（开发调试首选）
+- Clang 20 + libc++（开发调试首选）
 - CMake 4.x
 - Conan 2.x
 

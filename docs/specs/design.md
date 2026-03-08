@@ -9,7 +9,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 1.  **高压缩比**: 复用 **Spring/Mincom** 的 **Assembly-based Compression (ABC)** 核心（minimizer bucketing / local consensus / delta / arithmetic），参考 **Repaq** 的紧凑设计。
 2.  **高性能**: 基于 **Intel TBB** 的并行流水线处理 (参考 **Pigz** 的 Producer-Consumer 模型)。
 3.  **模块化**: 清晰的接口设计，支持多种压缩后端。
-4.  **现代化**: C++20 标准，RAII 内存管理，Concepts 约束。
+4.  **现代化**: C++23 标准，RAII 内存管理，Concepts 约束。
 5.  **随机访问**: 支持基于 Block 的随机读取 (Scheme A)。
 6.  **内存可控**: 显式内存预算控制，支持超大文件分治处理。
 
@@ -17,7 +17,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合 Spring 的先
 
 | 类别 | 技术选型 | 说明 |
 |------|----------|------|
-| 语言标准 | **C++20** | Concepts, Ranges, Coroutines |
+| 语言标准 | **C++23** | Concepts, Ranges, std::expected |
 | 构建系统 | **CMake 3.20+** | Modern CMake 最佳实践 |
 | 并发框架 | **Intel oneTBB** | `parallel_pipeline`, `task_group` |
 | CLI 解析 | **CLI11** | 现代化、功能丰富的命令行库 |

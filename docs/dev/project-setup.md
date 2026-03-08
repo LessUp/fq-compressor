@@ -8,19 +8,40 @@
 
 | 类别 | 技术选型 | 版本要求 | 说明 |
 |------|----------|----------|------|
-| **语言** | C++ | C++20 | 使用 Concepts, Ranges, std::format |
-| **构建系统** | CMake | 3.25+ | Modern CMake 最佳实践 |
+| **语言** | C++ | C++23 | 使用 Concepts, Ranges, std::expected |
+| **构建系统** | CMake | 3.20+ | Modern CMake 最佳实践 |
 | **依赖管理** | Conan | 2.x | 自动化第三方库管理 |
-| **编译器** | Clang | 19+ | 开发首选（更好的诊断） |
-| **编译器** | GCC | 14+ | 生产编译备选 |
-| **格式化** | clang-format | 19+ | 代码格式化 |
-| **静态分析** | clang-tidy | 19+ | 静态代码检查 |
-| **测试框架** | Google Test | 1.14+ | 单元测试 |
+| **编译器** | Clang | 20+ | 开发首选（更好的诊断） |
+| **编译器** | GCC | 15+ | 生产编译首选 |
+| **格式化** | clang-format | 20+ | 代码格式化 |
+| **静态分析** | clang-tidy | 20+ | 静态代码检查 |
+| **测试框架** | Google Test | 1.15+ | 单元测试 |
 | **属性测试** | RapidCheck | 最新 | 属性测试 |
-| **并发框架** | Intel oneTBB | 2021.10+ | 并行流水线 |
+| **并发框架** | Intel oneTBB | 2022.3+ | 并行流水线 |
 | **CLI 库** | CLI11 | 2.4+ | 命令行解析 |
-| **日志库** | Quill | 4.x | 异步日志 |
-| **压缩库** | zstd, zlib, liblzma | 最新稳定版 | 压缩支持 |
+| **日志库** | Quill | 11.x | 异步日志 |
+| **格式化库** | fmt | 12.x | 格式化输出 |
+| **校验库** | xxHash | 0.8+ | 非加密哈希 |
+| **压缩库** | zstd, zlib-ng, liblzma, bzip2, libdeflate | 最新稳定版 | 压缩支持 |
+
+## Docker 工具链选型
+
+项目所有构建环境（开发、CI、发布）均基于 **Debian Bookworm** 系列镜像：
+
+| 组件 | 选型 | 理由 |
+|------|------|------|
+| **构建基础镜像** | `gcc:15.2-bookworm` | Docker 官方 GCC 镜像，自带 GCC 15.2，无需额外编译安装 |
+| **Clang 工具链** | Clang 20 (via `apt.llvm.org`) | LLVM 最新稳定发布版，C++23 支持最完整 |
+| **Clang Release 镜像** | `debian:bookworm` | Clang 构建不需要 GCC，语义更清晰 |
+| **运行时镜像** | `debian:bookworm-slim` | 与构建镜像同系，共享基础层，体积最小 |
+| **不选 Ubuntu 24.04** | — | 无官方 `gcc:` 镜像，需自行编译 GCC 15；glibc 2.39 二进制兼容性较窄 |
+
+**选型理由详述**：
+
+1. **官方镜像生态**：Docker Hub `gcc:` 官方镜像全部基于 Debian，使用 `gcc:15.2-bookworm` 可直接获得最新 GCC，无需维护自定义编译流程
+2. **glibc 兼容性**：Bookworm 的 glibc 2.36 比 Ubuntu 24.04 的 2.39 更低，编译出的动态链接二进制文件可在更多 Linux 发行版上运行
+3. **镜像层共享**：所有 Dockerfile 统一基于 Bookworm 系列，`docker pull` 时共享基础层，减少总拉取量
+4. **编译器独立性**：GCC/Clang 版本由 Docker 镜像和 LLVM apt 源决定，与底层发行版自带版本无关
 
 ## 开发环境
 
@@ -32,11 +53,9 @@
 // .devcontainer/devcontainer.json
 {
   "name": "fq-compressor-dev",
-  "image": "mcr.microsoft.com/devcontainers/cpp:ubuntu-24.04",
-  "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {},
-    "ghcr.io/devcontainers/features/git:1": {}
-  },
+  "dockerComposeFile": "../docker/docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -45,8 +64,7 @@
         "xaver.clang-format"
       ]
     }
-  },
-  "postCreateCommand": "./scripts/setup-dev.sh"
+  }
 }
 ```
 
@@ -57,9 +75,9 @@
 sudo apt update
 sudo apt install -y \
     build-essential \
-    clang-19 \
-    clang-format-19 \
-    clang-tidy-19 \
+    clang-20 \
+    clang-format-20 \
+    clang-tidy-20 \
     cmake \
     ninja-build \
     python3-pip \
@@ -72,7 +90,7 @@ pip3 install conan
 conan profile detect --force
 
 # 克隆项目
-git clone https://github.com/your-org/fq-compressor.git
+git clone https://github.com/LessUp/fq-compressor.git
 cd fq-compressor
 
 # 安装依赖
@@ -88,15 +106,15 @@ cd fq-compressor
 
 ```cmake
 # CMakeLists.txt (根目录)
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.20)
 project(fq-compressor
     VERSION 0.1.0
     LANGUAGES CXX
     DESCRIPTION "High-performance FASTQ compressor"
 )
 
-# C++20 标准
-set(CMAKE_CXX_STANDARD 20)
+# C++23 标准
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -650,192 +668,48 @@ repos:
 
 ### GitHub Actions
 
-```yaml
-# .github/workflows/ci.yml
-name: CI
+项目 CI 使用 Docker 化构建环境（`docker/Dockerfile.dev`），通过 CMake Presets 系统保证构建一致性。
 
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+CI 包含以下 Workflows：
 
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-24.04]
-        compiler: [clang-19, gcc-14]
-        build_type: [Debug, Release]
-        
-    runs-on: ${{ matrix.os }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build python3-pip
-          pip3 install conan
-          
-      - name: Setup compiler
-        run: |
-          if [[ "${{ matrix.compiler }}" == "clang-19" ]]; then
-            sudo apt-get install -y clang-19
-            echo "CC=clang-19" >> $GITHUB_ENV
-            echo "CXX=clang++-19" >> $GITHUB_ENV
-          else
-            sudo apt-get install -y gcc-14 g++-14
-            echo "CC=gcc-14" >> $GITHUB_ENV
-            echo "CXX=g++-14" >> $GITHUB_ENV
-          fi
-          
-      - name: Install Conan dependencies
-        run: |
-          conan profile detect --force
-          conan install . --output-folder=build --build=missing \
-            -s build_type=${{ matrix.build_type }} \
-            -s compiler.cppstd=20
-            
-      - name: Configure
-        run: |
-          cmake -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
-            
-      - name: Build
-        run: cmake --build build
-        
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+| Workflow | 文件 | 功能 |
+|----------|------|------|
+| **CI** | `.github/workflows/ci.yml` | 多 preset 构建与测试（gcc-release, clang-debug, clang-release） |
+| **Quality** | `.github/workflows/quality.yml` | 格式检查（clang-format）+ 静态分析（clang-tidy） |
+| **Docs Pages** | `.github/workflows/docs-pages.yml` | GitBook 文档构建与 GitHub Pages 部署 |
+| **Docs Quality** | `.github/workflows/docs-quality.yml` | 文档 lint 检查 |
 
-  lint:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-19 clang-tidy-19
-          
-      - name: Check format
-        run: ./scripts/lint.sh format-check
-        
-      - name: Run clang-tidy
-        run: ./scripts/lint.sh lint
+CI 流程简述：
+
+```bash
+# 1. 构建 Docker 工具链镜像（GCC 15 + Clang 20）
+docker build -f docker/Dockerfile.dev --target base -t fqcompressor-ci .
+
+# 2. 在容器内运行构建和测试
+docker run --rm -v .:/workspace fqcompressor-ci ./scripts/build.sh gcc-release
+docker run --rm -v .:/workspace fqcompressor-ci ./scripts/test.sh gcc-release
 ```
 
 ## 脚本工具
 
-### scripts/build.sh
+项目提供统一的构建/测试/检查脚本，均基于 CMake Preset 系统：
 
 ```bash
-#!/bin/bash
-# scripts/build.sh - 统一构建脚本
+# 构建（自动安装 Conan 依赖 + CMake 配置 + 编译）
+./scripts/build.sh <preset>          # e.g., gcc-release, clang-debug
 
-set -euo pipefail
+# 测试
+./scripts/test.sh <preset>           # 运行指定 preset 的测试
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# 代码质量
+./scripts/lint.sh format-check       # clang-format 格式检查
+./scripts/lint.sh lint clang-debug   # clang-tidy 静态分析
 
-# 默认值
-COMPILER="${1:-clang}"
-BUILD_TYPE="${2:-Release}"
-ENABLE_ASAN=false
-ENABLE_USAN=false
-ENABLE_TSAN=false
-
-# 解析参数
-shift 2 || true
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --asan) ENABLE_ASAN=true ;;
-        --usan) ENABLE_USAN=true ;;
-        --tsan) ENABLE_TSAN=true ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
-    esac
-    shift
-done
-
-# 设置编译器
-case $COMPILER in
-    clang)
-        export CC=clang-19
-        export CXX=clang++-19
-        ;;
-    gcc)
-        export CC=gcc-14
-        export CXX=g++-14
-        ;;
-    *)
-        echo "Unknown compiler: $COMPILER"
-        exit 1
-        ;;
-esac
-
-BUILD_DIR="$PROJECT_DIR/build-${COMPILER}-${BUILD_TYPE,,}"
-
-echo "=== Building fq-compressor ==="
-echo "Compiler: $COMPILER"
-echo "Build type: $BUILD_TYPE"
-echo "Build dir: $BUILD_DIR"
-
-# 配置
-cmake -B "$BUILD_DIR" -G Ninja \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -DCMAKE_TOOLCHAIN_FILE="$PROJECT_DIR/build/conan_toolchain.cmake" \
-    -DFQC_ENABLE_ASAN="$ENABLE_ASAN" \
-    -DFQC_ENABLE_USAN="$ENABLE_USAN" \
-    -DFQC_ENABLE_TSAN="$ENABLE_TSAN"
-
-# 构建
-cmake --build "$BUILD_DIR" -j "$(nproc)"
-
-echo "=== Build complete ==="
+# Conan 依赖安装
+./scripts/install_deps.sh <preset>   # 安装指定 preset 的依赖
 ```
 
-### scripts/lint.sh
-
-```bash
-#!/bin/bash
-# scripts/lint.sh - 代码质量检查脚本
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-
-ACTION="${1:-lint}"
-
-find_sources() {
-    find "$PROJECT_DIR/src" "$PROJECT_DIR/include" "$PROJECT_DIR/tests" \
-        -name "*.cpp" -o -name "*.h" -o -name "*.hpp" 2>/dev/null || true
-}
-
-case $ACTION in
-    format)
-        echo "Formatting code..."
-        find_sources | xargs clang-format-19 -i
-        echo "Done."
-        ;;
-    format-check)
-        echo "Checking format..."
-        find_sources | xargs clang-format-19 --dry-run --Werror
-        echo "Format check passed."
-        ;;
-    lint)
-        echo "Running clang-tidy..."
-        find_sources | xargs clang-tidy-19 -p "$PROJECT_DIR/build"
-        echo "Lint check passed."
-        ;;
-    *)
-        echo "Usage: $0 {format|format-check|lint}"
-        exit 1
-        ;;
-esac
-```
+可用 presets: `gcc-debug`, `gcc-release`, `gcc-relwithdebinfo`, `clang-debug`, `clang-release`, `clang-asan`, `clang-tsan`, `coverage`
 
 ## 总结
 
