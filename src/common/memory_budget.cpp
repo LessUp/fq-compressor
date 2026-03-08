@@ -19,18 +19,20 @@
 #include <string>
 
 #ifdef __linux__
+#include <unistd.h>
+
 #include <sys/resource.h>
 #include <sys/sysinfo.h>
-#include <unistd.h>
 #elif defined(__APPLE__)
+#include <unistd.h>
+
 #include <mach/mach.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-#include <unistd.h>
 #elif defined(_WIN32)
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #endif
 
 namespace fqc {
@@ -41,22 +43,21 @@ namespace fqc {
 
 VoidResult MemoryBudget::validate() const {
     if (maxTotalMB < kMinMemoryLimitMB) {
-        return makeVoidError(
-            ErrorCode::kUsageError,
-            "Memory limit must be at least " + std::to_string(kMinMemoryLimitMB) + " MB");
+        return makeVoidError(ErrorCode::kUsageError,
+                             "Memory limit must be at least " + std::to_string(kMinMemoryLimitMB) +
+                                 " MB");
     }
 
     if (phase1ReserveMB >= maxTotalMB) {
-        return makeVoidError(
-            ErrorCode::kUsageError,
-            "Phase 1 reserve (" + std::to_string(phase1ReserveMB) +
-            " MB) must be less than total limit (" + std::to_string(maxTotalMB) + " MB)");
+        return makeVoidError(ErrorCode::kUsageError,
+                             "Phase 1 reserve (" + std::to_string(phase1ReserveMB) +
+                                 " MB) must be less than total limit (" +
+                                 std::to_string(maxTotalMB) + " MB)");
     }
 
     if (phase1ReserveMB + blockBufferMB >= maxTotalMB) {
-        return makeVoidError(
-            ErrorCode::kUsageError,
-            "Phase 1 reserve + block buffer exceeds total memory limit");
+        return makeVoidError(ErrorCode::kUsageError,
+                             "Phase 1 reserve + block buffer exceeds total memory limit");
     }
 
     return makeVoidSuccess();
@@ -86,8 +87,8 @@ MemoryBudget MemoryBudget::fromMemoryLimit(std::size_t memoryLimitMB) {
 MemoryEstimator::MemoryEstimator(MemoryBudget budget) noexcept : budget_(budget) {}
 
 MemoryEstimate MemoryEstimator::estimate(std::size_t totalReads,
-                                          std::size_t readsPerBlock,
-                                          std::size_t numThreads) const noexcept {
+                                         std::size_t readsPerBlock,
+                                         std::size_t numThreads) const noexcept {
     MemoryEstimate result;
 
     // Phase 1 memory: ~24 bytes/read
@@ -125,29 +126,32 @@ MemoryEstimate MemoryEstimator::estimate(std::size_t totalReads,
 }
 
 std::size_t MemoryEstimator::estimatePhase1(std::size_t totalReads) const noexcept {
-    return static_cast<std::size_t>(static_cast<double>(totalReads) * kMemoryPerReadPhase1 * kMemorySafetyMargin);
+    return static_cast<std::size_t>(static_cast<double>(totalReads) * kMemoryPerReadPhase1 *
+                                    kMemorySafetyMargin);
 }
 
 std::size_t MemoryEstimator::estimatePhase2(std::size_t readsPerBlock,
-                                             std::size_t numThreads) const noexcept {
+                                            std::size_t numThreads) const noexcept {
     // Each thread processes one block at a time
-    std::size_t perBlock = static_cast<std::size_t>(
-        static_cast<double>(readsPerBlock) * kMemoryPerReadPhase2 * kMemorySafetyMargin);
+    std::size_t perBlock = static_cast<std::size_t>(static_cast<double>(readsPerBlock) *
+                                                    kMemoryPerReadPhase2 * kMemorySafetyMargin);
     return perBlock * numThreads;
 }
 
 std::size_t MemoryEstimator::maxReadsForPhase1() const noexcept {
     std::size_t availableBytes = budget_.phase1ReserveBytes();
     // Account for safety margin
-    std::size_t effectiveBytes = static_cast<std::size_t>(static_cast<double>(availableBytes) / kMemorySafetyMargin);
+    std::size_t effectiveBytes =
+        static_cast<std::size_t>(static_cast<double>(availableBytes) / kMemorySafetyMargin);
     return effectiveBytes / kMemoryPerReadPhase1;
 }
 
 std::size_t MemoryEstimator::optimalBlockSize(std::size_t numThreads) const noexcept {
     std::size_t availableBytes = budget_.phase2AvailableBytes();
     // Account for safety margin and concurrent threads
-    std::size_t perThread = static_cast<std::size_t>(
-        static_cast<double>(availableBytes) / (static_cast<double>(numThreads) * kMemorySafetyMargin));
+    std::size_t perThread =
+        static_cast<std::size_t>(static_cast<double>(availableBytes) /
+                                 (static_cast<double>(numThreads) * kMemorySafetyMargin));
     std::size_t optimalReads = perThread / kMemoryPerReadPhase2;
 
     // Clamp to reasonable bounds
@@ -178,7 +182,7 @@ VoidResult ChunkPlan::validate() const {
     if (chunks.size() != numChunks) {
         return makeVoidError(ErrorCode::kUsageError,
                              "Chunk count mismatch: expected " + std::to_string(numChunks) +
-                             ", got " + std::to_string(chunks.size()));
+                                 ", got " + std::to_string(chunks.size()));
     }
 
     // Verify continuity
@@ -187,8 +191,8 @@ VoidResult ChunkPlan::validate() const {
         if (chunks[i].startReadIndex != expectedStart) {
             return makeVoidError(ErrorCode::kUsageError,
                                  "Chunk " + std::to_string(i) + " has gap: expected start " +
-                                 std::to_string(expectedStart) + ", got " +
-                                 std::to_string(chunks[i].startReadIndex));
+                                     std::to_string(expectedStart) + ", got " +
+                                     std::to_string(chunks[i].startReadIndex));
         }
         if (chunks[i].endReadIndex <= chunks[i].startReadIndex) {
             return makeVoidError(ErrorCode::kUsageError,
@@ -200,8 +204,8 @@ VoidResult ChunkPlan::validate() const {
     if (expectedStart != totalReads) {
         return makeVoidError(ErrorCode::kUsageError,
                              "Chunks don't cover all reads: expected " +
-                             std::to_string(totalReads) + ", covered " +
-                             std::to_string(expectedStart));
+                                 std::to_string(totalReads) + ", covered " +
+                                 std::to_string(expectedStart));
     }
 
     return makeVoidSuccess();
@@ -211,30 +215,27 @@ VoidResult ChunkPlan::validate() const {
 // ChunkPlanner Implementation
 // =============================================================================
 
-ChunkPlanner::ChunkPlanner(MemoryBudget budget) noexcept
-    : budget_(budget), estimator_(budget) {}
+ChunkPlanner::ChunkPlanner(MemoryBudget budget) noexcept : budget_(budget), estimator_(budget) {}
 
 ChunkPlan ChunkPlanner::plan(std::uint64_t totalReads,
-                              std::size_t readsPerBlock,
-                              std::size_t numThreads) const {
+                             std::size_t readsPerBlock,
+                             std::size_t numThreads) const {
     ChunkPlan result;
     result.totalReads = totalReads;
 
     // Get memory estimate
-    auto estimate = estimator_.estimate(static_cast<std::size_t>(totalReads),
-                                         readsPerBlock, numThreads);
+    auto estimate =
+        estimator_.estimate(static_cast<std::size_t>(totalReads), readsPerBlock, numThreads);
 
     if (!estimate.requiresChunking) {
         // Single chunk covers everything
         result.numChunks = 1;
-        result.chunks.push_back(ChunkInfo{
-            .chunkIndex = 0,
-            .startReadIndex = 0,
-            .endReadIndex = totalReads,
-            .archiveIdOffset = 0,
-            .blockIdOffset = 0,
-            .estimatedMemory = estimate.peakBytes
-        });
+        result.chunks.push_back(ChunkInfo{.chunkIndex = 0,
+                                          .startReadIndex = 0,
+                                          .endReadIndex = totalReads,
+                                          .archiveIdOffset = 0,
+                                          .blockIdOffset = 0,
+                                          .estimatedMemory = estimate.peakBytes});
         return result;
     }
 
@@ -243,8 +244,8 @@ ChunkPlan ChunkPlanner::plan(std::uint64_t totalReads,
     maxReadsPerChunk = std::max(maxReadsPerChunk, kMinChunkReads);
 
     // Calculate number of chunks
-    result.numChunks = (static_cast<std::size_t>(totalReads) + maxReadsPerChunk - 1) /
-                       maxReadsPerChunk;
+    result.numChunks =
+        (static_cast<std::size_t>(totalReads) + maxReadsPerChunk - 1) / maxReadsPerChunk;
 
     // Distribute reads evenly across chunks
     std::size_t baseReadsPerChunk = static_cast<std::size_t>(totalReads) / result.numChunks;
@@ -265,14 +266,12 @@ ChunkPlan ChunkPlanner::plan(std::uint64_t totalReads,
         // Calculate number of blocks in this chunk
         std::size_t blocksInChunk = (chunkReads + readsPerBlock - 1) / readsPerBlock;
 
-        result.chunks.push_back(ChunkInfo{
-            .chunkIndex = i,
-            .startReadIndex = currentStart,
-            .endReadIndex = chunkEnd,
-            .archiveIdOffset = archiveIdOffset,
-            .blockIdOffset = blockIdOffset,
-            .estimatedMemory = chunkEstimate.peakBytes
-        });
+        result.chunks.push_back(ChunkInfo{.chunkIndex = i,
+                                          .startReadIndex = currentStart,
+                                          .endReadIndex = chunkEnd,
+                                          .archiveIdOffset = archiveIdOffset,
+                                          .blockIdOffset = blockIdOffset,
+                                          .estimatedMemory = chunkEstimate.peakBytes});
 
         currentStart = chunkEnd;
         archiveIdOffset += chunkReads;
@@ -283,9 +282,9 @@ ChunkPlan ChunkPlanner::plan(std::uint64_t totalReads,
 }
 
 ChunkPlan ChunkPlanner::planWithReadLength(std::uint64_t totalReads,
-                                            std::size_t avgReadLength,
-                                            std::size_t readsPerBlock,
-                                            std::size_t numThreads) const {
+                                           std::size_t avgReadLength,
+                                           std::size_t readsPerBlock,
+                                           std::size_t numThreads) const {
     // Adjust memory estimates based on read length
     // Longer reads require more memory per read
     double lengthFactor = 1.0;
@@ -297,8 +296,8 @@ ChunkPlan ChunkPlanner::planWithReadLength(std::uint64_t totalReads,
 
     // Create adjusted budget
     MemoryBudget adjustedBudget = budget_;
-    adjustedBudget.phase1ReserveMB = static_cast<std::size_t>(
-        static_cast<double>(budget_.phase1ReserveMB) / lengthFactor);
+    adjustedBudget.phase1ReserveMB =
+        static_cast<std::size_t>(static_cast<double>(budget_.phase1ReserveMB) / lengthFactor);
 
     // Use adjusted planner
     ChunkPlanner adjustedPlanner(adjustedBudget);
@@ -335,8 +334,8 @@ bool MemoryMonitor::exceedsThreshold(double percentage) const {
     if (percentage <= 0.0 || percentage > 100.0) {
         return false;
     }
-    std::size_t threshold = static_cast<std::size_t>(
-        static_cast<double>(budget_.maxTotalBytes()) * percentage / 100.0);
+    std::size_t threshold =
+        static_cast<std::size_t>(static_cast<double>(budget_.maxTotalBytes()) * percentage / 100.0);
     return currentUsage().rssBytes > threshold;
 }
 
@@ -432,9 +431,9 @@ std::size_t getSystemAvailableMemory() noexcept {
         return 0;
     }
 
-    if (host_statistics64(machPort, HOST_VM_INFO64,
-                          reinterpret_cast<host_info64_t>(&vmStats),
-                          &count) != KERN_SUCCESS) {
+    if (host_statistics64(
+            machPort, HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vmStats), &count) !=
+        KERN_SUCCESS) {
         return 0;
     }
 
@@ -522,7 +521,8 @@ MemoryUsage getProcessMemoryUsage() noexcept {
 
     task_basic_info_data_t taskInfo;
     mach_msg_type_number_t infoCount = TASK_BASIC_INFO_COUNT;
-    if (task_info(mach_task_self(), TASK_BASIC_INFO,
+    if (task_info(mach_task_self(),
+                  TASK_BASIC_INFO,
                   reinterpret_cast<task_info_t>(&taskInfo),
                   &infoCount) == KERN_SUCCESS) {
         usage.virtualBytes = taskInfo.virtual_size;
@@ -531,9 +531,8 @@ MemoryUsage getProcessMemoryUsage() noexcept {
 
 #elif defined(_WIN32)
     PROCESS_MEMORY_COUNTERS_EX pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(),
-                             reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
-                             sizeof(pmc))) {
+    if (GetProcessMemoryInfo(
+            GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc))) {
         usage.rssBytes = pmc.WorkingSetSize;
         usage.peakRssBytes = pmc.PeakWorkingSetSize;
         usage.virtualBytes = pmc.PrivateUsage;
@@ -655,8 +654,8 @@ std::size_t recommendedMemoryLimit(double maxPercentage) noexcept {
     // Clamp percentage
     maxPercentage = std::clamp(maxPercentage, 0.1, 0.95);
 
-    std::size_t recommended = static_cast<std::size_t>(
-        static_cast<double>(totalMemory) * maxPercentage);
+    std::size_t recommended =
+        static_cast<std::size_t>(static_cast<double>(totalMemory) * maxPercentage);
 
     // Convert to MB
     std::size_t recommendedMB = recommended / (1024 * 1024);

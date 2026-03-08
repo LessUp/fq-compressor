@@ -37,8 +37,9 @@ std::mutex gInitMutex;
 /// @brief Convert string to lowercase for case-insensitive comparison.
 std::string toLower(std::string_view str) {
     std::string result(str);
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return result;
 }
 
@@ -158,7 +159,8 @@ void init(const Config& config) {
     } else {
         // If no sinks configured, create with console sink as fallback
         auto consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("console");
-        loggerPtr = quill::Frontend::create_or_get_logger(config.loggerName, std::move(consoleSink));
+        loggerPtr =
+            quill::Frontend::create_or_get_logger(config.loggerName, std::move(consoleSink));
     }
 
     // Set the log level
