@@ -1,0 +1,32 @@
+{
+    "recommendations": [
+        // C++ 开发核心
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "vadimcn.vscode-lldb",
+        "jeff-hykin.better-cpp-syntax",
+
+        // 代码质量
+        "EditorConfig.EditorConfig",
+        "streetsidesoftware.code-spell-checker",
+
+        // Git
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+
+        // Docker & 容器
+        "ms-azuretools.vscode-docker",
+        "ms-vscode-remote.remote-containers",
+
+        // 实用工具
+        "yzhang.markdown-all-in-one",
+        "redhat.vscode-yaml",
+        "ms-vscode.test-adapter-converter"
+    ],
+    "unwantedRecommendations": [
+        // 使用 clangd 代替 ms-vscode.cpptools
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack"
+    ]
+}
