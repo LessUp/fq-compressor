@@ -600,18 +600,13 @@ std::optional<std::size_t> parseMemorySize(std::string_view str) {
         return std::nullopt;
     }
 
-    // Parse the number
+    // Parse the number (use strtod for portability — libc++ lacks from_chars for double)
     double value = 0;
-    auto numStr = str.substr(0, numEnd);
-    auto [ptr, ec] = std::from_chars(numStr.data(), numStr.data() + numStr.size(), value);
-    if (ec != std::errc{} || ptr != numStr.data() + numStr.size()) {
-        // Try parsing as integer if double parsing failed
-        std::size_t intValue = 0;
-        auto [ptr2, ec2] = std::from_chars(numStr.data(), numStr.data() + numStr.size(), intValue);
-        if (ec2 != std::errc{}) {
-            return std::nullopt;
-        }
-        value = static_cast<double>(intValue);
+    auto numStr = std::string(str.substr(0, numEnd));
+    char* endPtr = nullptr;
+    value = std::strtod(numStr.c_str(), &endPtr);
+    if (endPtr != numStr.c_str() + numStr.size()) {
+        return std::nullopt;
     }
 
     // Get the suffix
