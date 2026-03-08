@@ -934,8 +934,8 @@ std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(std::span<const std
 
     // Check for errors
     if (ZSTD_isError(cSize)) {
-        throw std::runtime_error("Zstd compression failed: " +
-                                 std::string(ZSTD_getErrorName(cSize)));
+        throw FQCException(ErrorCode::kCompressionFailed,
+                           "Zstd compression failed: " + std::string(ZSTD_getErrorName(cSize)));
     }
 
     // Resize to actual compressed size

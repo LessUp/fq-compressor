@@ -335,7 +335,7 @@ private:
         );
 
         if (ZSTD_isError(compressedSize)) {
-            throw std::runtime_error(
+            throw FQCException(ErrorCode::kCompressionFailed,
                 fmt::format("Zstd compression failed: {}", ZSTD_getErrorName(compressedSize)));
         }
 
