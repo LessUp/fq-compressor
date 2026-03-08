@@ -8,9 +8,9 @@ This directory contains Conan 2.x profiles for reproducible builds.
 |---------|----------|--------|----------|
 | `default` | GCC 15 | libstdc++ | Default local development |
 | `gcc` | GCC 15 | libstdc++ | Production builds |
-| `clang` | Clang 22 | libc++ | Development/debugging |
+| `clang` | Clang 21 | libc++ | Development/debugging |
 | `ci-gcc` | GCC 15 | libstdc++ | CI (GitHub Actions) |
-| `ci-clang` | Clang 22 | libc++ | CI (GitHub Actions) |
+| `ci-clang` | Clang 21 | libc++ | CI (GitHub Actions) |
 
 ## Usage
 

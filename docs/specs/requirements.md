@@ -317,7 +317,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
 #### 推荐开发环境（容器）
 
 - GCC 15 + libstdc++（生产编译首选）
-- Clang 22 + libc++（开发调试首选）
+- Clang 21 + libc++（开发调试首选）
 - CMake 4.x
 - Conan 2.x
 

@@ -11,10 +11,10 @@
 | **语言** | C++ | C++23 | 使用 Concepts, Ranges, std::expected |
 | **构建系统** | CMake | 3.20+ | Modern CMake 最佳实践 |
 | **依赖管理** | Conan | 2.x | 自动化第三方库管理 |
-| **编译器** | Clang | 22+ | 开发首选（更好的诊断） |
+| **编译器** | Clang | 21+ | 开发首选（更好的诊断） |
 | **编译器** | GCC | 15+ | 生产编译首选 |
-| **格式化** | clang-format | 22+ | 代码格式化 |
-| **静态分析** | clang-tidy | 22+ | 静态代码检查 |
+| **格式化** | clang-format | 21+ | 代码格式化 |
+| **静态分析** | clang-tidy | 21+ | 静态代码检查 |
 | **测试框架** | Google Test | 1.15+ | 单元测试 |
 | **属性测试** | RapidCheck | 最新 | 属性测试 |
 | **并发框架** | Intel oneTBB | 2022.3+ | 并行流水线 |
@@ -31,7 +31,7 @@
 | 组件 | 选型 | 理由 |
 |------|------|------|
 | **构建基础镜像** | `gcc:15.2-bookworm` | Docker 官方 GCC 镜像，自带 GCC 15.2，无需额外编译安装 |
-| **Clang 工具链** | Clang 22 (via `apt.llvm.org`) | LLVM 22.1.0 稳定版，C++23 支持最完整 |
+| **Clang 工具链** | Clang 21 (via `apt.llvm.org`) | LLVM 21 qualification branch，C++23 支持完善 |
 | **Clang Release 镜像** | `debian:bookworm` | Clang 构建不需要 GCC，语义更清晰 |
 | **运行时镜像** | `debian:bookworm-slim` | 与构建镜像同系，共享基础层，体积最小 |
 | **不选 Ubuntu 24.04** | — | 无官方 `gcc:` 镜像，需自行编译 GCC 15；glibc 2.39 二进制兼容性较窄 |
@@ -75,9 +75,9 @@
 sudo apt update
 sudo apt install -y \
     build-essential \
-    clang-22 \
-    clang-format-22 \
-    clang-tidy-22 \
+    clang-21 \
+    clang-format-21 \
+    clang-tidy-21 \
     cmake \
     ninja-build \
     python3-pip \
@@ -682,7 +682,7 @@ CI 包含以下 Workflows：
 CI 流程简述：
 
 ```bash
-# 1. 构建 Docker 工具链镜像（GCC 15 + Clang 22）
+# 1. 构建 Docker 工具链镜像（GCC 15 + Clang 21）
 docker build -f docker/Dockerfile.dev --target base -t fqcompressor-ci .
 
 # 2. 在容器内运行构建和测试

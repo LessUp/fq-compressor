@@ -70,7 +70,7 @@ tests/                        # 11 test files
 
 ### Must Follow
 - **C++23** — use `std::expected`, Concepts, Ranges; do not use deprecated features
-- **GCC 15+ / Clang 22+** — minimum compiler requirement
+- **GCC 15+ / Clang 21+** — minimum compiler requirement
 - **clang-format clean** — run `./scripts/lint.sh format-check` before commit
 - **clang-tidy clean** — run `./scripts/lint.sh lint clang-debug`
 - **All tests pass** — run `./scripts/test.sh gcc-release`
@@ -145,7 +145,7 @@ tests/                        # 11 test files
 | 组件 | 统一版本 | 最低兼容 | CI 兼容性检查 |
 |------|---------|---------|----------|
 | **GCC** | 15.2 | 11.0 | 14.x（allow-failure） |
-| **Clang/LLVM** | 22 (22.1.0) | 12.0 | 19（allow-failure） |
+| **Clang/LLVM** | 21 | 12.0 | 19（allow-failure） |
 | **C++ 标准** | C++23 | C++23 | — |
 
 ### 构建工具版本
@@ -161,7 +161,7 @@ tests/                        # 11 test files
 | 组件 | 选型 | 理由 |
 |------|------|------|
 | **基础镜像** | `gcc:15.2-bookworm` (Debian 12) | Docker 官方 GCC 镜像，自带 GCC 15.2，无需额外编译 |
-| **Clang** | Clang 22 (via `apt.llvm.org`) | LLVM 22.1.0 稳定版（2026-02-24 发布），C++23 支持最完整 |
+| **Clang** | Clang 21 (via `apt.llvm.org`) | LLVM 21 qualification branch，C++23 支持完善 |
 | **运行时镜像** | `debian:bookworm-slim` | 与构建镜像同系，共享基础层，体积最小 |
 | **不选 Ubuntu 24.04** | — | 无官方 `gcc:` 镜像，需自行编译 GCC 15；glibc 2.39 二进制兼容性较窄 |
 

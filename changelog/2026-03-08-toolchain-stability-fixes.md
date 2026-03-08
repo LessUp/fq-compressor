@@ -6,14 +6,15 @@
 
 ## 变更内容
 
-### 1. Clang 20 → Clang 22（LLVM 22.1.0 稳定版，2026-02-24 发布）
+### 1. Clang 20 → Clang 21（LLVM 21 qualification branch）
 
-升级到 Clang 22（LLVM 22.1.0 最新稳定发布版），与 fastq-tools 项目工具链对齐。
+升级到 Clang 21（LLVM 21 qualification branch，即将正式发布）。
+Clang 22 尚未发布（仍为 development/trunk 分支），因此选择 Clang 21 作为当前最新可用版本。
 
 **影响文件**:
-- `docker/Dockerfile.dev`: llvm.sh 20 → 22，所有 `-20` 后缀 → `-22`
+- `docker/Dockerfile.dev`: llvm.sh 20 → 21，所有 `-20` 后缀 → `-21`
 - `docker/Dockerfile.clang-release`: 同上
-- `conan/profiles/clang`: `compiler.version=20` → `22`
+- `conan/profiles/clang`: `compiler.version=20` → `21`
 - `conan/profiles/ci-clang`: 同上
 - `.devcontainer/devcontainer.json`: 注释更新
 

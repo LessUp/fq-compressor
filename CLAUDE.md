@@ -60,7 +60,7 @@ graph TD
 
 ### 构建依赖
 
-- **C++ 编译器**: GCC 15.2 或 Clang 22+
+- **C++ 编译器**: GCC 15.2 或 Clang 21+
 - **构建系统**: CMake 3.28+ + Ninja
 - **依赖管理**: Conan 2.x
 - **C++ 标准**: C++23
@@ -70,7 +70,7 @@ graph TD
 | 组件 | 统一版本 | 最低兼容 |
 |------|---------|----------|
 | **GCC** | 15.2 | 11.0 |
-| **Clang/LLVM** | 22 (22.1.0) | 12.0 |
+| **Clang/LLVM** | 21 | 12.0 |
 | **CMake** | 4.0.2（Docker 内） | 3.28 |
 | **Conan** | 2.24.0 | 2.0 |
 | **Ninja** | 系统最新 | 1.10 |
@@ -80,7 +80,7 @@ graph TD
 | 组件 | 选型 | 理由 |
 |------|------|------|
 | **基础镜像** | `gcc:15.2-bookworm` (Debian 12) | Docker 官方 GCC 镜像，自带 GCC 15.2，无需额外编译 |
-| **Clang** | Clang 22 (via `apt.llvm.org`) | LLVM 22.1.0 稳定版（2026-02-24 发布），C++23 支持最完整 |
+| **Clang** | Clang 21 (via `apt.llvm.org`) | LLVM 21 qualification branch，C++23 支持完善 |
 | **运行时镜像** | `debian:bookworm-slim` | 与构建镜像同系，共享基础层，体积最小 |
 | **不选 Ubuntu 24.04** | — | 无官方 `gcc:` 镜像，需自行编译 GCC 15；glibc 2.39 二进制兼容性较窄 |
 

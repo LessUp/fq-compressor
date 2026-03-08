@@ -1,9 +1,9 @@
 # =============================================================================
 # fq-compressor Development Environment
 # =============================================================================
-# 支持双编译器工具链：GCC 15 + Clang 22
+# 支持双编译器工具链：GCC 15 + Clang 21
 # - GCC 15 + libstdc++：生产编译首选，最新 C++23 支持
-# - Clang 22 + libc++：开发调试首选，配合 LLVM 工具链（LLVM 22.1.0 稳定版）
+# - Clang 21 + libc++：开发调试首选，配合 LLVM 工具链（LLVM 21 qualification）
 #
 # 使用方法：
 #   GCC 编译：   cmake --preset gcc-debug && cmake --build --preset gcc-debug
@@ -17,7 +17,7 @@ FROM gcc:15.2-bookworm AS base
 
 # 元数据标签
 LABEL org.opencontainers.image.title="fq-compressor Dev"
-LABEL org.opencontainers.image.description="Development environment for fq-compressor with GCC 15 and Clang 22"
+LABEL org.opencontainers.image.description="Development environment for fq-compressor with GCC 15 and Clang 21"
 LABEL org.opencontainers.image.version="2.0.0"
 LABEL org.opencontainers.image.source="https://github.com/LessUp/fq-compressor"
 LABEL maintainer="FQCompressor Team"
@@ -134,31 +134,31 @@ RUN ARCH="$(dpkg --print-architecture)" && \
     rm -f /tmp/cmake.tar.gz
 
 # =============================================================================
-# LLVM/Clang 22 工具链（LLVM 22.1.0 稳定版，2026-02-24 发布）
+# LLVM/Clang 21 工具链（LLVM 21 qualification branch）
 # =============================================================================
 RUN wget -q https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
-    ./llvm.sh 22 && \
+    ./llvm.sh 21 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        clang-22 \
-        clangd-22 \
-        clang-tidy-22 \
-        clang-format-22 \
-        lld-22 \
-        lldb-22 \
-        llvm-22 \
-        libc++-22-dev \
-        libc++abi-22-dev \
+        clang-21 \
+        clangd-21 \
+        clang-tidy-21 \
+        clang-format-21 \
+        lld-21 \
+        lldb-21 \
+        llvm-21 \
+        libc++-21-dev \
+        libc++abi-21-dev \
     && rm -f llvm.sh \
     && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 100 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-22 100 \
-    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-22 100 \
-    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 100 \
-    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 100 \
-    && update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-22 100 \
-    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-22 100
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
+    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-21 100 \
+    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 100 \
+    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100 \
+    && update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-21 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
 
 # =============================================================================
 # 项目依赖库
