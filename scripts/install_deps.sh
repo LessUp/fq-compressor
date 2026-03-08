@@ -69,7 +69,7 @@ esac
 CONAN_EXTRA_ARGS=()
 case $PRESET in
     gcc-*|coverage)
-        CONAN_EXTRA_ARGS+=(-s compiler.cppstd=23)
+        CONAN_EXTRA_ARGS+=(-s compiler.cppstd=gnu23)
         ;;
     clang-*)
         # Clang 使用 libc++（与 CMakePresets.json 中 -stdlib=libc++ 保持一致）
