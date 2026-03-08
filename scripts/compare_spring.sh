@@ -13,7 +13,7 @@
 #   -v              Verbose output
 #
 # Requirements:
-#   - fqc binary in PATH or ../build/build/Release/bin/
+#   - fqc binary in PATH or ./build/<preset>/src/fqc
 #   - spring binary in PATH or ./ref-projects/Spring/build/spring
 #   - diff, md5sum
 #

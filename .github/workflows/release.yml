@@ -125,7 +125,7 @@ jobs:
           name: linux-${{ matrix.arch }}-musl
           path: ${{ env.ASSET }}
 
-  # ── Linux Clang builds (Docker Clang 21 + libc++ × x86_64 + aarch64)
+  # ── Linux Clang builds (Docker Clang 20 + libc++ × x86_64 + aarch64)
   build-linux-clang:
     name: Build Linux Clang (${{ matrix.arch }})
     needs: validate
@@ -144,7 +144,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build via Docker (Clang 21 + libc++)
+      - name: Build via Docker (Clang 20 + libc++)
         run: |
           docker build \
             -f docker/Dockerfile.clang-release \
@@ -302,10 +302,10 @@ jobs:
             echo "### Build Environment / 构建环境"
             echo ""
             echo "- **GCC 15.2** builds: glibc (dynamic) and musl (static)"
-            echo "- **Clang 21** builds: glibc + libc++ (dynamic)"
+            echo "- **Clang 20** builds: glibc + libc++ (dynamic)"
             echo ""
             echo "- **GCC 15.2** 构建：glibc（动态）和 musl（静态）"
-            echo "- **Clang 21** 构建：glibc + libc++（动态）"
+            echo "- **Clang 20** 构建：glibc + libc++（动态）"
             echo ""
             echo "### Installation / 安装说明"
             echo ""
@@ -323,10 +323,10 @@ jobs:
             echo "|---|---|---|"
             echo "| Linux x64 (GCC glibc) | \`fq-compressor-${TAG}-linux-x86_64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
             echo "| Linux x64 (GCC musl) | \`fq-compressor-${TAG}-linux-x86_64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
-            echo "| Linux x64 (Clang) | \`fq-compressor-${TAG}-linux-x86_64-clang.tar.gz\` | Clang 21 + libc++ |"
+            echo "| Linux x64 (Clang) | \`fq-compressor-${TAG}-linux-x86_64-clang.tar.gz\` | Clang 20 + libc++ |"
             echo "| Linux arm64 (GCC glibc) | \`fq-compressor-${TAG}-linux-aarch64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
             echo "| Linux arm64 (GCC musl) | \`fq-compressor-${TAG}-linux-aarch64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
-            echo "| Linux arm64 (Clang) | \`fq-compressor-${TAG}-linux-aarch64-clang.tar.gz\` | Clang 21 + libc++ |"
+            echo "| Linux arm64 (Clang) | \`fq-compressor-${TAG}-linux-aarch64-clang.tar.gz\` | Clang 20 + libc++ |"
             echo "| macOS x64 | \`fq-compressor-${TAG}-macos-x86_64.tar.gz\` | GCC 15, Intel Mac |"
             echo "| macOS arm64 | \`fq-compressor-${TAG}-macos-arm64.tar.gz\` | GCC 15, Apple Silicon |"
             echo ""

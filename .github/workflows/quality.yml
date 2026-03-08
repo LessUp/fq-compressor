@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CONAN_VERSION: 2.24.0
+  CI_IMAGE_NAME: fqcompressor-quality
 
 jobs:
   format-check:
@@ -30,13 +30,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install clang-format
+      - name: Build CI toolchain image
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
+          docker build \
+            -f docker/Dockerfile.dev \
+            --target base \
+            -t ${{ env.CI_IMAGE_NAME }}:format \
+            .
 
       - name: Check formatting
-        run: ./scripts/lint.sh format-check
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            ${{ env.CI_IMAGE_NAME }}:format \
+            ./scripts/lint.sh format-check
 
   static-analysis:
     name: Static Analysis
@@ -55,40 +64,56 @@ jobs:
           restore-keys: |
             conan-${{ runner.os }}-
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Cache ccache
+        uses: actions/cache@v4
         with:
-          python-version: '3.11'
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-clang-debug-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-clang-debug-
+            ccache-${{ runner.os }}-
 
-      - name: Install build dependencies
+      - name: Prepare container cache mounts
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            clang \
-            clang-tidy \
-            libc++-dev \
-            libc++abi-dev \
-            ninja-build \
-            ccache \
-            cmake
+          mkdir -p "$HOME/.conan2" "$HOME/.cache/ccache"
 
-      - name: Install Conan
+      - name: Build CI toolchain image
         run: |
-          python -m pip install --upgrade pip
-          pip install conan==${{ env.CONAN_VERSION }}
-          conan profile detect --force
-
-      - name: Set Clang compiler environment
-        run: |
-          echo "CC=clang" >> "$GITHUB_ENV"
-          echo "CXX=clang++" >> "$GITHUB_ENV"
+          docker build \
+            -f docker/Dockerfile.dev \
+            --target base \
+            -t ${{ env.CI_IMAGE_NAME }}:clang-debug \
+            .
 
       - name: Build analysis preset
-        run: ./scripts/build.sh clang-debug
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.conan2:/tmp/conan2" \
+            -v "$HOME/.cache/ccache:/tmp/ccache" \
+            -e HOME=/tmp \
+            -e CONAN_HOME=/tmp/conan2 \
+            -e CCACHE_DIR=/tmp/ccache \
+            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            -w /workspace \
+            ${{ env.CI_IMAGE_NAME }}:clang-debug \
+            ./scripts/build.sh clang-debug
 
       - name: Run clang-tidy
-        run: ./scripts/lint.sh lint clang-debug
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.conan2:/tmp/conan2" \
+            -v "$HOME/.cache/ccache:/tmp/ccache" \
+            -e HOME=/tmp \
+            -e CONAN_HOME=/tmp/conan2 \
+            -e CCACHE_DIR=/tmp/ccache \
+            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            -w /workspace \
+            ${{ env.CI_IMAGE_NAME }}:clang-debug \
+            ./scripts/lint.sh lint clang-debug
 
   quality-gate:
     name: Quality Gate

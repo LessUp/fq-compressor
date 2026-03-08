@@ -23,12 +23,10 @@ find_lint_sources() {
         -not -path "*/build/*" 2>/dev/null || true
 }
 
-# 检测 clang-format 版本（优先高版本）
+# 检测 clang-format 版本（优先项目标准版本）
 detect_clang_format() {
-    if command -v clang-format-21 &> /dev/null; then
-        echo "clang-format-21"
-    elif command -v clang-format-19 &> /dev/null; then
-        echo "clang-format-19"
+    if command -v clang-format-20 &> /dev/null; then
+        echo "clang-format-20"
     elif command -v clang-format &> /dev/null; then
         echo "clang-format"
     else
@@ -37,12 +35,10 @@ detect_clang_format() {
     fi
 }
 
-# 检测 clang-tidy 版本（优先高版本）
+# 检测 clang-tidy 版本（优先项目标准版本）
 detect_clang_tidy() {
-    if command -v clang-tidy-21 &> /dev/null; then
-        echo "clang-tidy-21"
-    elif command -v clang-tidy-19 &> /dev/null; then
-        echo "clang-tidy-19"
+    if command -v clang-tidy-20 &> /dev/null; then
+        echo "clang-tidy-20"
     elif command -v clang-tidy &> /dev/null; then
         echo "clang-tidy"
     else
