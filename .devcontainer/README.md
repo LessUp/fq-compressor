@@ -152,7 +152,7 @@ code .
 └── README.md                      # 本文件
 
 docker/
-├── Dockerfile.dev           # 开发环境镜像（GCC 15 + Clang 22）
+├── Dockerfile.dev           # 开发环境镜像（GCC 15 + Clang 21）
 ├── Dockerfile               # 生产构建镜像（多阶段：build + production）
 ├── Dockerfile.clang-release # CI 发布构建（Clang + libc++）
 ├── Dockerfile.glibc-release # CI 发布构建（glibc 动态链接）
@@ -226,7 +226,7 @@ DEVCONTAINER_HTTPS_PROXY=http://127.0.0.1:10808
 
 | 类别 | 工具 |
 |------|------|
-| **编译器** | GCC 15 + Clang 22 |
+| **编译器** | GCC 15 + Clang 21 |
 | **构建** | CMake 4.x + Ninja + Conan 2.x |
 | **调试** | GDB + LLDB + Valgrind |
 | **分析** | clang-tidy + cppcheck + lcov |
