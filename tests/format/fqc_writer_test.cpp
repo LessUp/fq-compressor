@@ -8,7 +8,12 @@
 // data lengths, causing validateReorderMapHeader() to reject the archive.
 // =============================================================================
 
-#include <gtest/gtest.h>
+#include "fqc/format/fqc_writer.h"
+
+#include "fqc/common/logger.h"
+#include "fqc/format/fqc_format.h"
+#include "fqc/format/fqc_reader.h"
+#include "fqc/format/reorder_map.h"
 
 #include <atomic>
 #include <cstdint>
@@ -17,11 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "fqc/common/logger.h"
-#include "fqc/format/fqc_format.h"
-#include "fqc/format/fqc_reader.h"
-#include "fqc/format/fqc_writer.h"
-#include "fqc/format/reorder_map.h"
+#include <gtest/gtest.h>
 
 namespace fqc::format::test {
 
@@ -48,8 +49,8 @@ static auto* const gEnv [[maybe_unused]] =
 [[nodiscard]] static std::filesystem::path tempPath() {
     static std::atomic<int> counter{0};
     return std::filesystem::temp_directory_path() /
-           ("fqc_writertest_" + std::to_string(counter++) + "_" +
-            std::to_string(std::random_device{}()) + ".fqc");
+        ("fqc_writertest_" + std::to_string(counter++) + "_" +
+         std::to_string(std::random_device{}()) + ".fqc");
 }
 
 struct TempFile {
@@ -65,26 +66,26 @@ struct TempFile {
 static GlobalHeader makeMinimalGlobalHeader(bool hasReorderMap = false) {
     GlobalHeader h;
     h.compressionAlgo = static_cast<std::uint8_t>(CodecFamily::kAbcV1);
-    h.checksumType    = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
-    h.reserved        = 0;
-    h.totalReadCount  = 2;
+    h.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
+    h.reserved = 0;
+    h.totalReadCount = 2;
     std::uint64_t hflags = flags::kPreserveOrder;
     if (hasReorderMap) {
         hflags &= ~flags::kPreserveOrder;
         hflags |= flags::kHasReorderMap;
     }
-    h.flags      = hflags;
+    h.flags = hflags;
     h.headerSize = static_cast<std::uint32_t>(GlobalHeader::kMinSize);
     return h;
 }
 
 static BlockHeader makeMinimalBlockHeader() {
     BlockHeader bh;
-    bh.blockId            = 0;
-    bh.uncompressedCount  = 2;
-    bh.uniformReadLength  = 100;
-    bh.reserved1          = 0;
-    bh.reserved2          = 0;
+    bh.blockId = 0;
+    bh.uncompressedCount = 2;
+    bh.uniformReadLength = 100;
+    bh.reserved1 = 0;
+    bh.reserved2 = 0;
     return bh;
 }
 
@@ -102,8 +103,8 @@ TEST(FQCWriterTest, MinimalRoundTrip) {
         writer.writeGlobalHeader(gh, "test.fastq", 0);
 
         BlockPayload payload;
-        payload.idsData  = {0x01, 0x02};
-        payload.seqData  = {0xAA, 0xBB};
+        payload.idsData = {0x01, 0x02};
+        payload.seqData = {0xAA, 0xBB};
         writer.writeBlock(makeMinimalBlockHeader(), payload);
         writer.finalize();
     }
@@ -141,9 +142,9 @@ TEST(FQCWriterTest, ReorderMapSizesAreFilledFromActualData) {
 
         // Intentionally pass size=0 in header (reproduces old callers)
         ReorderMap mapHdr;
-        mapHdr.totalReads      = 2;
-        mapHdr.forwardMapSize  = 0;  // was the bug: writer must override this
-        mapHdr.reverseMapSize  = 0;
+        mapHdr.totalReads = 2;
+        mapHdr.forwardMapSize = 0;  // was the bug: writer must override this
+        mapHdr.reverseMapSize = 0;
         writer.writeReorderMap(mapHdr, compFwd, compRev);
 
         writer.finalize();
@@ -167,7 +168,7 @@ TEST(FQCWriterTest, ReorderMapSizesAreFilledFromActualData) {
 // a header with totalReads>0 but forwardMapSize=0 must fail validation.
 TEST(FQCWriterTest, ValidateReorderMapHeaderRejectsZeroSize) {
     ReorderMap bad;
-    bad.totalReads     = 10;
+    bad.totalReads = 10;
     bad.forwardMapSize = 0;
     bad.reverseMapSize = 100;
 
