@@ -10,6 +10,7 @@ on:
       - 'README.zh-CN.md'
       - 'docs/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/docs-quality.yml'
   pull_request:
     branches:
@@ -20,6 +21,7 @@ on:
       - 'README.zh-CN.md'
       - 'docs/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/docs-quality.yml'
 
 permissions:
