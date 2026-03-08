@@ -120,9 +120,44 @@ enum class ErrorCode : std::uint8_t {
 
 /// @brief Convert ErrorCode to its integer exit code value.
 /// @param code The error code.
-/// @return Integer exit code suitable for process exit.
+/// @return Integer exit code (0-5) suitable for process exit.
+/// @note Maps detailed error codes (6-20) back to the 5 exit code categories.
 [[nodiscard]] constexpr int toExitCode(ErrorCode code) noexcept {
-    return static_cast<int>(code);
+    switch (code) {
+        case ErrorCode::kSuccess:
+            return 0;
+        // Category 1: Usage/argument errors
+        case ErrorCode::kUsageError:
+        case ErrorCode::kInvalidArgument:
+        case ErrorCode::kCancelled:
+            return 1;
+        // Category 2: I/O errors
+        case ErrorCode::kIOError:
+        case ErrorCode::kFileNotFound:
+        case ErrorCode::kFileExists:
+        case ErrorCode::kFileOpenFailed:
+        case ErrorCode::kSeekFailed:
+            return 2;
+        // Category 3: Format errors
+        case ErrorCode::kFormatError:
+        case ErrorCode::kInvalidFormat:
+        case ErrorCode::kInvalidState:
+        case ErrorCode::kUnsupportedFormat:
+        case ErrorCode::kCorruptedData:
+        case ErrorCode::kInternalError:
+            return 3;
+        // Category 4: Checksum errors
+        case ErrorCode::kChecksumError:
+        case ErrorCode::kChecksumMismatch:
+            return 4;
+        // Category 5: Unsupported codec/algorithm errors
+        case ErrorCode::kUnsupportedCodec:
+        case ErrorCode::kCompressionFailed:
+        case ErrorCode::kDecompressionFailed:
+        case ErrorCode::kDecompressionError:
+            return 5;
+    }
+    return 1;  // Unknown errors default to usage error category
 }
 
 /// @brief Convert ErrorCode to string representation.

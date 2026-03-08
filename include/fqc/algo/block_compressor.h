@@ -20,6 +20,7 @@
 #include "fqc/common/types.h"
 #include "fqc/format/fqc_format.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
