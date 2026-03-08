@@ -9,18 +9,19 @@
 // **Validates: Requirements 1.1.3**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/algo/pe_optimizer.h"
+#include "fqc/common/types.h"
+#include "fqc/io/paired_end_parser.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "fqc/algo/pe_optimizer.h"
-#include "fqc/common/types.h"
-#include "fqc/io/paired_end_parser.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::algo::test {
 
@@ -42,37 +43,32 @@ namespace gen {
 
 /// @brief Generate a valid quality string of specified length.
 [[nodiscard]] rc::Gen<std::string> validQuality(std::size_t length) {
-    return rc::gen::container<std::string>(
-        length,
-        rc::gen::map(rc::gen::inRange(0, 42),
-                     [](int phred) { return static_cast<char>('!' + phred); }));
+    return rc::gen::container<std::string>(length,
+                                           rc::gen::map(rc::gen::inRange(0, 42), [](int phred) {
+                                               return static_cast<char>('!' + phred);
+                                           }));
 }
 
 /// @brief Generate a valid Illumina-style read ID.
 [[nodiscard]] rc::Gen<std::string> illuminaReadId() {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::inRange(1, 100),   // instrument
-            rc::gen::inRange(1, 10),    // run
-            rc::gen::inRange(1, 8),     // lane
-            rc::gen::inRange(1, 1000),  // tile
-            rc::gen::inRange(1, 10000), // x
-            rc::gen::inRange(1, 10000)  // y
-        ),
-        [](const auto& tuple) {
-            auto [inst, run, lane, tile, x, y] = tuple;
-            return "INSTRUMENT" + std::to_string(inst) + ":" +
-                   std::to_string(run) + ":FLOWCELL:" +
-                   std::to_string(lane) + ":" +
-                   std::to_string(tile) + ":" +
-                   std::to_string(x) + ":" +
-                   std::to_string(y);
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange(1, 100),    // instrument
+                                       rc::gen::inRange(1, 10),     // run
+                                       rc::gen::inRange(1, 8),      // lane
+                                       rc::gen::inRange(1, 1000),   // tile
+                                       rc::gen::inRange(1, 10000),  // x
+                                       rc::gen::inRange(1, 10000)   // y
+                                       ),
+                        [](const auto& tuple) {
+                            auto [inst, run, lane, tile, x, y] = tuple;
+                            return "INSTRUMENT" + std::to_string(inst) + ":" + std::to_string(run) +
+                                ":FLOWCELL:" + std::to_string(lane) + ":" + std::to_string(tile) +
+                                ":" + std::to_string(x) + ":" + std::to_string(y);
+                        });
 }
 
 /// @brief Generate a FastqRecord.
 [[nodiscard]] rc::Gen<io::FastqRecord> fastqRecord(std::size_t seqLength,
-                                                    std::string_view suffix = "") {
+                                                   std::string_view suffix = "") {
     return rc::gen::map(
         rc::gen::tuple(illuminaReadId(), validSequence(seqLength), validQuality(seqLength)),
         [suffix = std::string(suffix)](const auto& tuple) {
@@ -87,74 +83,82 @@ namespace gen {
 
 /// @brief Generate a paired-end record with matching IDs.
 [[nodiscard]] rc::Gen<io::PairedEndRecord> pairedEndRecord(std::size_t seqLength) {
-    return rc::gen::map(
-        rc::gen::tuple(illuminaReadId(),
-                       validSequence(seqLength),
-                       validQuality(seqLength),
-                       validSequence(seqLength),
-                       validQuality(seqLength)),
-        [](const auto& tuple) {
-            auto [id, seq1, qual1, seq2, qual2] = tuple;
-            io::PairedEndRecord pair;
-            pair.read1.id = id + "/1";
-            pair.read1.sequence = std::move(seq1);
-            pair.read1.quality = std::move(qual1);
-            pair.read2.id = id + "/2";
-            pair.read2.sequence = std::move(seq2);
-            pair.read2.quality = std::move(qual2);
-            return pair;
-        });
+    return rc::gen::map(rc::gen::tuple(illuminaReadId(),
+                                       validSequence(seqLength),
+                                       validQuality(seqLength),
+                                       validSequence(seqLength),
+                                       validQuality(seqLength)),
+                        [](const auto& tuple) {
+                            auto [id, seq1, qual1, seq2, qual2] = tuple;
+                            io::PairedEndRecord pair;
+                            pair.read1.id = id + "/1";
+                            pair.read1.sequence = std::move(seq1);
+                            pair.read1.quality = std::move(qual1);
+                            pair.read2.id = id + "/2";
+                            pair.read2.sequence = std::move(seq2);
+                            pair.read2.quality = std::move(qual2);
+                            return pair;
+                        });
 }
 
 /// @brief Generate a paired-end record where R2 is similar to R1-RC.
 /// This simulates real PE data where reads may overlap.
 [[nodiscard]] rc::Gen<io::PairedEndRecord> complementaryPairedEndRecord(std::size_t seqLength) {
-    return rc::gen::map(
-        rc::gen::tuple(illuminaReadId(),
-                       validSequence(seqLength),
-                       validQuality(seqLength),
-                       validQuality(seqLength),
-                       rc::gen::inRange<std::size_t>(0, 10)),  // num differences
-        [seqLength](const auto& tuple) {
-            auto [id, seq1, qual1, qual2, numDiffs] = tuple;
+    return rc::gen::map(rc::gen::tuple(illuminaReadId(),
+                                       validSequence(seqLength),
+                                       validQuality(seqLength),
+                                       validQuality(seqLength),
+                                       rc::gen::inRange<std::size_t>(0, 10)),  // num differences
+                        [seqLength](const auto& tuple) {
+                            auto [id, seq1, qual1, qual2, numDiffs] = tuple;
 
-            // Create R2 as reverse complement of R1 with some differences
-            std::string seq2;
-            seq2.reserve(seqLength);
-            for (auto it = seq1.rbegin(); it != seq1.rend(); ++it) {
-                char c = *it;
-                switch (c) {
-                    case 'A': c = 'T'; break;
-                    case 'T': c = 'A'; break;
-                    case 'C': c = 'G'; break;
-                    case 'G': c = 'C'; break;
-                    default: c = 'N'; break;
-                }
-                seq2.push_back(c);
-            }
+                            // Create R2 as reverse complement of R1 with some differences
+                            std::string seq2;
+                            seq2.reserve(seqLength);
+                            for (auto it = seq1.rbegin(); it != seq1.rend(); ++it) {
+                                char c = *it;
+                                switch (c) {
+                                    case 'A':
+                                        c = 'T';
+                                        break;
+                                    case 'T':
+                                        c = 'A';
+                                        break;
+                                    case 'C':
+                                        c = 'G';
+                                        break;
+                                    case 'G':
+                                        c = 'C';
+                                        break;
+                                    default:
+                                        c = 'N';
+                                        break;
+                                }
+                                seq2.push_back(c);
+                            }
 
-            // Add some differences
-            for (std::size_t i = 0; i < numDiffs && i < seq2.length(); ++i) {
-                std::size_t pos = (i * 17) % seq2.length();  // Pseudo-random positions
-                seq2[pos] = "ACGT"[i % 4];
-            }
+                            // Add some differences
+                            for (std::size_t i = 0; i < numDiffs && i < seq2.length(); ++i) {
+                                std::size_t pos =
+                                    (i * 17) % seq2.length();  // Pseudo-random positions
+                                seq2[pos] = "ACGT"[i % 4];
+                            }
 
-            io::PairedEndRecord pair;
-            pair.read1.id = id + "/1";
-            pair.read1.sequence = std::move(seq1);
-            pair.read1.quality = std::move(qual1);
-            pair.read2.id = id + "/2";
-            pair.read2.sequence = std::move(seq2);
-            pair.read2.quality = std::move(qual2);
-            return pair;
-        });
+                            io::PairedEndRecord pair;
+                            pair.read1.id = id + "/1";
+                            pair.read1.sequence = std::move(seq1);
+                            pair.read1.quality = std::move(qual1);
+                            pair.read2.id = id + "/2";
+                            pair.read2.sequence = std::move(seq2);
+                            pair.read2.quality = std::move(qual2);
+                            return pair;
+                        });
 }
 
 /// @brief Generate a vector of paired-end records.
-[[nodiscard]] rc::Gen<std::vector<io::PairedEndRecord>> pairedEndRecords(
-    std::size_t count, std::size_t seqLength) {
-    return rc::gen::container<std::vector<io::PairedEndRecord>>(
-        count, pairedEndRecord(seqLength));
+[[nodiscard]] rc::Gen<std::vector<io::PairedEndRecord>> pairedEndRecords(std::size_t count,
+                                                                         std::size_t seqLength) {
+    return rc::gen::container<std::vector<io::PairedEndRecord>>(count, pairedEndRecord(seqLength));
 }
 
 }  // namespace gen
@@ -170,11 +174,7 @@ RC_GTEST_PROP(PairedEndProperty, IdExtractionConsistency, ()) {
 
     // Test various suffix formats
     std::vector<std::pair<std::string, std::string>> suffixPairs = {
-        {"/1", "/2"},
-        {".1", ".2"},
-        {"_1", "_2"},
-        {" 1:N:0:ATCG", " 2:N:0:ATCG"}
-    };
+        {"/1", "/2"}, {".1", ".2"}, {"_1", "_2"}, {" 1:N:0:ATCG", " 2:N:0:ATCG"}};
 
     for (const auto& [suffix1, suffix2] : suffixPairs) {
         std::string id1 = baseId + suffix1;
@@ -249,10 +249,8 @@ RC_GTEST_PROP(PairedEndProperty, ComplementaryPairsOptimized, ()) {
     // (unless there are too many differences)
     if (encoded.useComplementarity) {
         // Verify encoding saved space
-        std::size_t encodedSize = encoded.diffPositions.size() * 3 +
-                                  encoded.qualDelta.size();
-        std::size_t rawSize = pair.read2.sequence.length() +
-                              pair.read2.quality.length();
+        std::size_t encodedSize = encoded.diffPositions.size() * 3 + encoded.qualDelta.size();
+        std::size_t rawSize = pair.read2.sequence.length() + pair.read2.quality.length();
 
         // Should save space (or at least not be much worse)
         RC_ASSERT(encodedSize <= rawSize + 10);
@@ -277,8 +275,8 @@ RC_GTEST_PROP(PairedEndProperty, NonComplementaryFallback, ()) {
 
     PEOptimizer optimizer(config);
 
-    auto [beneficial, diffCount] = optimizer.checkComplementarity(
-        pair.read1.sequence, pair.read2.sequence);
+    auto [beneficial, diffCount] =
+        optimizer.checkComplementarity(pair.read1.sequence, pair.read2.sequence);
 
     // Random sequences typically have ~75% difference, shouldn't be beneficial
     if (!beneficial) {
@@ -422,8 +420,8 @@ TEST(PairedEndTest, PerfectComplementaryPair) {
 
     PEOptimizer optimizer(config);
 
-    auto [beneficial, diffCount] = optimizer.checkComplementarity(
-        pair.read1.sequence, pair.read2.sequence);
+    auto [beneficial, diffCount] =
+        optimizer.checkComplementarity(pair.read1.sequence, pair.read2.sequence);
 
     // Not actually complementary (same sequence)
     // Real RC would be "ACGTACGT" reversed then complemented
