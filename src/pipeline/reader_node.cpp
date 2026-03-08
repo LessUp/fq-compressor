@@ -6,6 +6,10 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/common/logger.h"
+#include "fqc/io/async_io.h"
+#include "fqc/io/compressed_stream.h"
+#include "fqc/io/fastq_parser.h"
 #include "fqc/pipeline/pipeline_node.h"
 
 #include <algorithm>
@@ -15,11 +19,6 @@
 
 #include <fmt/format.h>
 
-#include "fqc/common/logger.h"
-#include "fqc/io/async_io.h"
-#include "fqc/io/compressed_stream.h"
-#include "fqc/io/fastq_parser.h"
-
 namespace fqc::pipeline {
 
 // =============================================================================
@@ -28,19 +27,18 @@ namespace fqc::pipeline {
 
 class ReaderNodeImpl {
 public:
-    explicit ReaderNodeImpl(ReaderNodeConfig config)
-        : config_(std::move(config)) {}
+    explicit ReaderNodeImpl(ReaderNodeConfig config) : config_(std::move(config)) {}
 
     VoidResult open(const std::filesystem::path& path) {
         try {
             inputPath_ = path;
-            
+
             io::ParserOptions parserOpts;
             parserOpts.bufferSize = config_.bufferSize;
             parserOpts.collectStats = true;
             parserOpts.validateSequence = true;
             parserOpts.validateQuality = true;
-            
+
             // Detect if file is compressed (async prefetch only for plain files)
             bool isStdin = (path == "-");
             bool isCompressed = false;
@@ -48,9 +46,9 @@ public:
                 auto fmt = io::detectCompressionFormatFromExtension(path);
                 isCompressed = (fmt != io::CompressionFormat::kNone);
             }
-            
+
             bool useAsync = !isStdin && !isCompressed;
-            
+
             if (useAsync) {
                 // Phase 1: Sample with a temporary seekable parser
                 {
@@ -62,33 +60,34 @@ public:
                         detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
                     }
                 }  // sampler closes here
-                
+
                 // Phase 2: Create async-backed parser for actual reading
                 io::AsyncReaderConfig asyncCfg;
                 asyncCfg.bufferSize = io::optimalBufferSize(path);
                 asyncCfg.prefetchDepth = io::optimalPrefetchDepth();
-                
+
                 asyncStream_ = io::createAsyncInputStream(path, asyncCfg);
                 if (!asyncStream_) {
-                    return std::unexpected(Error{ErrorCode::kIOError,
-                        fmt::format("Failed to create async reader for: {}", path.string())});
+                    return std::unexpected(
+                        Error{ErrorCode::kIOError,
+                              fmt::format("Failed to create async reader for: {}", path.string())});
                 }
                 parser_ = std::make_unique<io::FastqParser>(std::move(asyncStream_), parserOpts);
                 // Note: stream-constructed parser is already open
-                
+
                 FQC_LOG_DEBUG("ReaderNode opened with async prefetch: path={}", path.string());
             } else {
                 // Fallback: synchronous I/O (stdin or compressed files)
                 parser_ = std::make_unique<io::FastqParser>(path, parserOpts);
                 parser_->open();
-                
+
                 if (parser_->canSeek()) {
                     auto sampleStats = parser_->sampleRecords(1000);
                     estimatedTotalReads_ = estimateTotalReads(path, sampleStats);
                     detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
                 }
             }
-            
+
             // Set effective block size from detected or configured length class
             if (estimatedTotalReads_ > 0) {
                 if (config_.readLengthClass == ReadLengthClass::kShort) {
@@ -101,52 +100,54 @@ public:
                 detectedLengthClass_ = ReadLengthClass::kMedium;
                 effectiveBlockSize_ = config_.blockSize;
             }
-            
+
             state_ = NodeState::kRunning;
             chunkId_ = 0;
             totalReadsRead_ = 0;
             totalBytesRead_ = 0;
             nextReadId_ = 1;  // 1-based indexing
-            
+
             FQC_LOG_DEBUG("ReaderNode opened: path={}, estimated_reads={}, block_size={}, async={}",
-                      path.string(), estimatedTotalReads_, effectiveBlockSize_, useAsync);
-            
+                          path.string(),
+                          estimatedTotalReads_,
+                          effectiveBlockSize_,
+                          useAsync);
+
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open input: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to open input: {}", e.what())});
         }
     }
 
-    VoidResult openPaired(
-        const std::filesystem::path& path1,
-        const std::filesystem::path& path2) {
+    VoidResult openPaired(const std::filesystem::path& path1, const std::filesystem::path& path2) {
         try {
             inputPath_ = path1;
             inputPath2_ = path2;
             isPaired_ = true;
-            
+
             io::ParserOptions parserOpts;
             parserOpts.bufferSize = config_.bufferSize;
             parserOpts.collectStats = true;
             parserOpts.validateSequence = true;
             parserOpts.validateQuality = true;
-            
+
             parser_ = std::make_unique<io::FastqParser>(path1, parserOpts);
             parser_->open();
-            
+
             parser2_ = std::make_unique<io::FastqParser>(path2, parserOpts);
             parser2_->open();
-            
+
             // Sample from first file
             if (parser_->canSeek()) {
                 auto sampleStats = parser_->sampleRecords(1000);
                 estimatedTotalReads_ = estimateTotalReads(path1, sampleStats) * 2;
                 detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
-                
+
                 if (config_.readLengthClass == ReadLengthClass::kShort) {
                     effectiveBlockSize_ = recommendedBlockSize(detectedLengthClass_);
                 } else {
@@ -157,23 +158,26 @@ public:
                 detectedLengthClass_ = ReadLengthClass::kMedium;
                 effectiveBlockSize_ = config_.blockSize;
             }
-            
+
             state_ = NodeState::kRunning;
             chunkId_ = 0;
             totalReadsRead_ = 0;
             totalBytesRead_ = 0;
             nextReadId_ = 1;
-            
-            FQC_LOG_DEBUG("ReaderNode opened paired: path1={}, path2={}, estimated_reads={}", 
-                      path1.string(), path2.string(), estimatedTotalReads_);
-            
+
+            FQC_LOG_DEBUG("ReaderNode opened paired: path1={}, path2={}, estimated_reads={}",
+                          path1.string(),
+                          path2.string(),
+                          estimatedTotalReads_);
+
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open paired input: {}", e.what())});
+            return std::unexpected(Error{ErrorCode::kIOError,
+                                         fmt::format("Failed to open paired input: {}", e.what())});
         }
     }
 
@@ -186,27 +190,33 @@ public:
             ReadChunk chunk;
             chunk.chunkId = chunkId_;
             chunk.startReadId = nextReadId_;
-            
+
             // Determine how many reads to get based on length class
             std::size_t targetReads = effectiveBlockSize_;
             std::size_t totalBases = 0;
-            
+
             if (isPaired_) {
                 // Read interleaved from both files
                 while (chunk.reads.size() < targetReads * 2) {
                     auto r1 = parser_->readRecord();
                     auto r2 = parser2_->readRecord();
-                    
+
                     if (!r1 || !r2) {
                         break;  // One or both files exhausted
                     }
-                    
-                    chunk.reads.emplace_back(std::move(r1->id), std::move(r1->comment), std::move(r1->sequence), std::move(r1->quality));
-                    chunk.reads.emplace_back(std::move(r2->id), std::move(r2->comment), std::move(r2->sequence), std::move(r2->quality));
-                    
-                    totalBases += chunk.reads[chunk.reads.size()-2].sequence.size() +
-                                  chunk.reads[chunk.reads.size()-1].sequence.size();
-                    
+
+                    chunk.reads.emplace_back(std::move(r1->id),
+                                             std::move(r1->comment),
+                                             std::move(r1->sequence),
+                                             std::move(r1->quality));
+                    chunk.reads.emplace_back(std::move(r2->id),
+                                             std::move(r2->comment),
+                                             std::move(r2->sequence),
+                                             std::move(r2->quality));
+
+                    totalBases += chunk.reads[chunk.reads.size() - 2].sequence.size() +
+                        chunk.reads[chunk.reads.size() - 1].sequence.size();
+
                     // Check bases limit for long reads
                     if (config_.readLengthClass == ReadLengthClass::kLong &&
                         totalBases >= config_.maxBlockBases) {
@@ -220,10 +230,13 @@ public:
                     if (!record) {
                         break;
                     }
-                    
+
                     totalBases += record->sequence.size();
-                    chunk.reads.emplace_back(std::move(record->id), std::move(record->comment), std::move(record->sequence), std::move(record->quality));
-                    
+                    chunk.reads.emplace_back(std::move(record->id),
+                                             std::move(record->comment),
+                                             std::move(record->sequence),
+                                             std::move(record->quality));
+
                     // Check bases limit for long reads
                     if (config_.readLengthClass == ReadLengthClass::kLong &&
                         totalBases >= config_.maxBlockBases) {
@@ -255,15 +268,18 @@ public:
             totalReadsRead_ += chunk.reads.size();
             nextReadId_ += chunk.reads.size();
             ++chunkId_;
-            
+
             // Update bytes read estimate
             for (const auto& read : chunk.reads) {
                 totalBytesRead_ += read.id.size() + read.sequence.size() + read.quality.size() + 10;
             }
 
-            FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, total_reads={}, isLast={}", 
-                      chunk.chunkId, chunk.reads.size(), totalReadsRead_, chunk.isLast);
-            
+            FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, total_reads={}, isLast={}",
+                          chunk.chunkId,
+                          chunk.reads.size(),
+                          totalReadsRead_,
+                          chunk.isLast);
+
             return chunk;
 
         } catch (const FQCException& e) {
@@ -271,7 +287,8 @@ public:
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to read chunk: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to read chunk: {}", e.what())});
         }
     }
 
@@ -279,10 +296,18 @@ public:
         return state_ == NodeState::kRunning;
     }
 
-    NodeState state() const noexcept { return state_; }
-    std::uint64_t totalReadsRead() const noexcept { return totalReadsRead_; }
-    std::uint64_t totalBytesRead() const noexcept { return totalBytesRead_; }
-    std::uint64_t estimatedTotalReads() const noexcept { return estimatedTotalReads_; }
+    NodeState state() const noexcept {
+        return state_;
+    }
+    std::uint64_t totalReadsRead() const noexcept {
+        return totalReadsRead_;
+    }
+    std::uint64_t totalBytesRead() const noexcept {
+        return totalBytesRead_;
+    }
+    std::uint64_t estimatedTotalReads() const noexcept {
+        return estimatedTotalReads_;
+    }
 
     void close() noexcept {
         if (parser_) {
@@ -307,23 +332,26 @@ public:
         isPaired_ = false;
     }
 
-    const ReaderNodeConfig& config() const noexcept { return config_; }
+    const ReaderNodeConfig& config() const noexcept {
+        return config_;
+    }
 
 private:
     /// @brief Estimate total reads based on file size and sample statistics
     std::uint64_t estimateTotalReads(const std::filesystem::path& path,
-                                      const io::ParserStats& stats) const {
+                                     const io::ParserStats& stats) const {
         if (stats.totalRecords == 0) {
             return 0;
         }
-        
+
         try {
             auto fileSize = std::filesystem::file_size(path);
             // Estimate bytes per record from sample
-            double avgRecordSize = static_cast<double>(stats.totalBases) / static_cast<double>(stats.totalRecords);
+            double avgRecordSize =
+                static_cast<double>(stats.totalBases) / static_cast<double>(stats.totalRecords);
             // FASTQ overhead: @ID\n + SEQ\n + +\n + QUAL\n ≈ 4 + ID_len + 2*seq_len
             avgRecordSize = static_cast<double>(avgRecordSize) * 2 + 20;  // Rough estimate
-            
+
             return static_cast<std::uint64_t>(static_cast<double>(fileSize) / avgRecordSize);
         } catch (...) {
             return 0;
@@ -334,7 +362,7 @@ private:
     std::filesystem::path inputPath_;
     std::filesystem::path inputPath2_;  // For paired-end
     std::unique_ptr<io::FastqParser> parser_;
-    std::unique_ptr<io::FastqParser> parser2_;  // For paired-end
+    std::unique_ptr<io::FastqParser> parser2_;   // For paired-end
     std::unique_ptr<std::istream> asyncStream_;  // Async prefetch stream (kept alive for parser)
     NodeState state_ = NodeState::kIdle;
     std::uint32_t chunkId_ = 0;
@@ -363,9 +391,8 @@ VoidResult ReaderNode::open(const std::filesystem::path& path) {
     return impl_->open(path);
 }
 
-VoidResult ReaderNode::openPaired(
-    const std::filesystem::path& path1,
-    const std::filesystem::path& path2) {
+VoidResult ReaderNode::openPaired(const std::filesystem::path& path1,
+                                  const std::filesystem::path& path2) {
     return impl_->openPaired(path1, path2);
 }
 

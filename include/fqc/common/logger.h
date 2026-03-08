@@ -35,14 +35,7 @@ namespace fqc::log {
 
 /// @brief Log level enumeration matching Quill's log levels.
 /// @note Uses kConstant naming convention per project style guide.
-enum class Level {
-    kTrace = 0,
-    kDebug,
-    kInfo,
-    kWarning,
-    kError,
-    kCritical
-};
+enum class Level { kTrace = 0, kDebug, kInfo, kWarning, kError, kCritical };
 
 // =============================================================================
 // Logger Configuration
@@ -131,27 +124,21 @@ void shutdown();
 // source location information.
 
 /// @brief Log a trace message.
-#define FQC_LOG_TRACE(fmt, ...) \
-    LOG_TRACE_L1(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_TRACE(fmt, ...) LOG_TRACE_L1(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 /// @brief Log a debug message.
-#define FQC_LOG_DEBUG(fmt, ...) \
-    LOG_DEBUG(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_DEBUG(fmt, ...) LOG_DEBUG(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 /// @brief Log an info message.
-#define FQC_LOG_INFO(fmt, ...) \
-    LOG_INFO(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_INFO(fmt, ...) LOG_INFO(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 /// @brief Log a warning message.
-#define FQC_LOG_WARNING(fmt, ...) \
-    LOG_WARNING(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_WARNING(fmt, ...) LOG_WARNING(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 /// @brief Log an error message.
-#define FQC_LOG_ERROR(fmt, ...) \
-    LOG_ERROR(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_ERROR(fmt, ...) LOG_ERROR(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 /// @brief Log a critical message.
-#define FQC_LOG_CRITICAL(fmt, ...) \
-    LOG_CRITICAL(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+#define FQC_LOG_CRITICAL(fmt, ...) LOG_CRITICAL(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
 
 #endif  // FQC_COMMON_LOGGER_H

@@ -8,6 +8,8 @@
 
 #include "fqc/algo/global_analyzer.h"
 
+#include "fqc/common/logger.h"
+
 #include <algorithm>
 #include <atomic>
 #include <bitset>
@@ -20,8 +22,6 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_sort.h>
 #include <tbb/spin_mutex.h>
-
-#include "fqc/common/logger.h"
 
 namespace fqc::algo {
 
@@ -54,26 +54,18 @@ constexpr std::uint8_t kBaseToInt[256] = {
 
 /// @brief Complement lookup table
 constexpr char kComplement[256] = {
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   'T', 0,   'G', 0,   0,   0,   'C', 0,   0,   0,   0,   0,   0,   'N', 0,
-    0,   0,   0,   0,   'A', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   't', 0,   'g', 0,   0,   0,   'c', 0,   0,   0,   0,   0,   0,   'n', 0,
-    0,   0,   0,   0,   'a', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-};
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   'T', 0, 'G', 0, 0, 0, 'C', 0, 0,   0, 0, 0, 0,
+    'N', 0, 0, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 't', 0, 'g', 0, 0, 0, 'c',
+    0,   0, 0, 0, 0, 0, 'n', 0, 0, 0, 0, 0, 'a', 0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0};
 
 }  // namespace
-
 
 // =============================================================================
 // Minimizer Bucket Entry
@@ -81,10 +73,10 @@ constexpr char kComplement[256] = {
 
 /// @brief Entry in the minimizer bucket
 struct BucketEntry {
-    std::uint64_t readId;      ///< Original read ID
-    std::uint64_t minimizer;   ///< Minimizer hash
-    std::uint16_t position;    ///< Position in read
-    bool isRC;                 ///< Is reverse complement
+    std::uint64_t readId;     ///< Original read ID
+    std::uint64_t minimizer;  ///< Minimizer hash
+    std::uint16_t position;   ///< Position in read
+    bool isRC;                ///< Is reverse complement
 };
 
 // =============================================================================
@@ -98,7 +90,9 @@ public:
 
     Result<GlobalAnalysisResult> analyze(const IReadDataProvider& provider);
 
-    const GlobalAnalyzerConfig& config() const noexcept { return config_; }
+    const GlobalAnalyzerConfig& config() const noexcept {
+        return config_;
+    }
 
     VoidResult setConfig(GlobalAnalyzerConfig config) {
         auto result = config.validate();
@@ -109,9 +103,15 @@ public:
         return makeVoidSuccess();
     }
 
-    void cancel() noexcept { cancelled_.store(true, std::memory_order_release); }
-    bool isCancelled() const noexcept { return cancelled_.load(std::memory_order_acquire); }
-    void resetCancellation() noexcept { cancelled_.store(false, std::memory_order_release); }
+    void cancel() noexcept {
+        cancelled_.store(true, std::memory_order_release);
+    }
+    bool isCancelled() const noexcept {
+        return cancelled_.load(std::memory_order_acquire);
+    }
+    void resetCancellation() noexcept {
+        cancelled_.store(false, std::memory_order_release);
+    }
 
 private:
     GlobalAnalyzerConfig config_;
@@ -119,9 +119,8 @@ private:
 
     // Internal methods
     Result<std::vector<BucketEntry>> extractAllMinimizers(const IReadDataProvider& provider);
-    Result<std::vector<ReadId>> performReordering(
-        const IReadDataProvider& provider,
-        std::vector<BucketEntry>& buckets);
+    Result<std::vector<ReadId>> performReordering(const IReadDataProvider& provider,
+                                                  std::vector<BucketEntry>& buckets);
     std::vector<BlockBoundary> computeBlockBoundaries(std::uint64_t totalReads);
     void reportProgress(double progress);
 };
@@ -137,10 +136,10 @@ BlockId GlobalAnalysisResult::findBlock(ReadId archiveId) const noexcept {
 
     // Binary search for the block containing archiveId
     auto it = std::upper_bound(
-        blockBoundaries.begin(), blockBoundaries.end(), archiveId,
-        [](ReadId id, const BlockBoundary& boundary) {
-            return id < boundary.archiveIdStart;
-        });
+        blockBoundaries.begin(),
+        blockBoundaries.end(),
+        archiveId,
+        [](ReadId id, const BlockBoundary& boundary) { return id < boundary.archiveIdStart; });
 
     if (it == blockBoundaries.begin()) {
         // archiveId is in the first block
@@ -187,13 +186,19 @@ VoidResult GlobalAnalyzerConfig::validate() const {
 // =============================================================================
 
 InMemoryReadProvider::InMemoryReadProvider(std::span<const ReadRecord> reads)
-    : reads_(reads), useReadRecords_(true), maxLength_(0), uniformLength_(0),
+    : reads_(reads),
+      useReadRecords_(true),
+      maxLength_(0),
+      uniformLength_(0),
       hasUniformLength_(true) {
     computeStats();
 }
 
 InMemoryReadProvider::InMemoryReadProvider(std::span<const std::string> sequences)
-    : sequences_(sequences), useReadRecords_(false), maxLength_(0), uniformLength_(0),
+    : sequences_(sequences),
+      useReadRecords_(false),
+      maxLength_(0),
+      uniformLength_(0),
       hasUniformLength_(true) {
     computeStats();
 }
@@ -232,28 +237,37 @@ std::uint64_t InMemoryReadProvider::totalReads() const {
 
 std::string_view InMemoryReadProvider::getSequence(std::uint64_t index) const {
     if (useReadRecords_) {
-        if (index >= reads_.size()) return {};
+        if (index >= reads_.size())
+            return {};
         return reads_[index].sequence;
     } else {
-        if (index >= sequences_.size()) return {};
+        if (index >= sequences_.size())
+            return {};
         return sequences_[index];
     }
 }
 
 std::size_t InMemoryReadProvider::getLength(std::uint64_t index) const {
     if (useReadRecords_) {
-        if (index >= reads_.size()) return 0;
+        if (index >= reads_.size())
+            return 0;
         return reads_[index].sequence.length();
     } else {
-        if (index >= sequences_.size()) return 0;
+        if (index >= sequences_.size())
+            return 0;
         return sequences_[index].length();
     }
 }
 
-bool InMemoryReadProvider::hasUniformLength() const { return hasUniformLength_; }
-std::size_t InMemoryReadProvider::uniformLength() const { return uniformLength_; }
-std::size_t InMemoryReadProvider::maxLength() const { return maxLength_; }
-
+bool InMemoryReadProvider::hasUniformLength() const {
+    return hasUniformLength_;
+}
+std::size_t InMemoryReadProvider::uniformLength() const {
+    return uniformLength_;
+}
+std::size_t InMemoryReadProvider::maxLength() const {
+    return maxLength_;
+}
 
 // =============================================================================
 // Minimizer Extraction Functions
@@ -279,9 +293,7 @@ std::uint64_t computeKmerHash(std::string_view sequence) {
     return std::min(hash, rcHash);
 }
 
-std::vector<Minimizer> extractMinimizers(std::string_view sequence,
-                                          std::size_t k,
-                                          std::size_t w) {
+std::vector<Minimizer> extractMinimizers(std::string_view sequence, std::size_t k, std::size_t w) {
     std::vector<Minimizer> minimizers;
 
     if (sequence.length() < k) {
@@ -381,7 +393,8 @@ ReadLengthClass classifyReadLength(const IReadDataProvider& provider, std::size_
 
     std::size_t maxLength = 0;
     std::size_t step = totalReads / actualSampleSize;
-    if (step == 0) step = 1;
+    if (step == 0)
+        step = 1;
 
     for (std::uint64_t i = 0; i < totalReads && lengths.size() < actualSampleSize; i += step) {
         std::size_t len = provider.getLength(i);
@@ -413,7 +426,6 @@ bool shouldEnableReorder(ReadLengthClass lengthClass) noexcept {
     return lengthClass == ReadLengthClass::kShort;
 }
 
-
 // =============================================================================
 // GlobalAnalyzerImpl - Core Analysis Methods
 // =============================================================================
@@ -426,7 +438,6 @@ void GlobalAnalyzerImpl::reportProgress(double progress) {
 
 Result<std::vector<BucketEntry>> GlobalAnalyzerImpl::extractAllMinimizers(
     const IReadDataProvider& provider) {
-
     const std::uint64_t totalReads = provider.totalReads();
     std::vector<BucketEntry> allBuckets;
 
@@ -441,16 +452,19 @@ Result<std::vector<BucketEntry>> GlobalAnalyzerImpl::extractAllMinimizers(
     tbb::parallel_for(
         tbb::blocked_range<std::uint64_t>(0, totalReads),
         [&](const tbb::blocked_range<std::uint64_t>& range) {
-            if (isCancelled()) return;
+            if (isCancelled())
+                return;
 
             std::vector<BucketEntry> localBuckets;
             localBuckets.reserve((range.end() - range.begin()) * 2);
 
             for (std::uint64_t i = range.begin(); i < range.end(); ++i) {
-                if (isCancelled()) break;
+                if (isCancelled())
+                    break;
 
                 std::string_view seq = provider.getSequence(i);
-                if (seq.empty()) continue;
+                if (seq.empty())
+                    continue;
 
                 auto minimizers = extractMinimizers(seq, config_.minimizerK, config_.minimizerW);
 
@@ -475,19 +489,17 @@ Result<std::vector<BucketEntry>> GlobalAnalyzerImpl::extractAllMinimizers(
     }
 
     // Sort buckets by minimizer hash for efficient grouping
-    tbb::parallel_sort(allBuckets.begin(), allBuckets.end(),
-                       [](const BucketEntry& a, const BucketEntry& b) {
-                           return a.minimizer < b.minimizer;
-                       });
+    tbb::parallel_sort(
+        allBuckets.begin(), allBuckets.end(), [](const BucketEntry& a, const BucketEntry& b) {
+            return a.minimizer < b.minimizer;
+        });
 
     reportProgress(0.4);
     return allBuckets;
 }
 
 Result<std::vector<ReadId>> GlobalAnalyzerImpl::performReordering(
-    const IReadDataProvider& provider,
-    std::vector<BucketEntry>& buckets) {
-
+    const IReadDataProvider& provider, std::vector<BucketEntry>& buckets) {
     const std::uint64_t totalReads = provider.totalReads();
 
     // Initialize reorder map with identity mapping
@@ -552,11 +564,12 @@ Result<std::vector<ReadId>> GlobalAnalyzerImpl::performReordering(
         // Search for similar reads in the same buckets
         for (const auto& m : lastMinimizers) {
             // Binary search for bucket with this minimizer
-            auto it = std::lower_bound(
-                bucketRanges.begin(), bucketRanges.end(), m.hash,
-                [&buckets](const BucketRange& range, std::uint64_t hash) {
-                    return buckets[range.start].minimizer < hash;
-                });
+            auto it = std::lower_bound(bucketRanges.begin(),
+                                       bucketRanges.end(),
+                                       m.hash,
+                                       [&buckets](const BucketRange& range, std::uint64_t hash) {
+                                           return buckets[range.start].minimizer < hash;
+                                       });
 
             if (it == bucketRanges.end() || buckets[it->start].minimizer != m.hash) {
                 continue;
@@ -564,23 +577,24 @@ Result<std::vector<ReadId>> GlobalAnalyzerImpl::performReordering(
 
             // Search within this bucket (limited search)
             std::size_t searchCount = 0;
-            for (std::size_t i = it->start;
-                 i < it->end && searchCount < config_.maxSearchReorder; ++i) {
-
+            for (std::size_t i = it->start; i < it->end && searchCount < config_.maxSearchReorder;
+                 ++i) {
                 ReadId candidateId = buckets[i].readId;
-                if (used[candidateId]) continue;
+                if (used[candidateId])
+                    continue;
 
                 searchCount++;
 
                 // Compute simple similarity score (could use Hamming distance)
                 std::string_view candidateSeq = provider.getSequence(candidateId);
-                if (candidateSeq.empty()) continue;
+                if (candidateSeq.empty())
+                    continue;
 
                 // Simple length-based score for now
                 // A full implementation would compute Hamming distance
                 std::size_t lenDiff = (lastSeq.length() > candidateSeq.length())
-                                          ? lastSeq.length() - candidateSeq.length()
-                                          : candidateSeq.length() - lastSeq.length();
+                    ? lastSeq.length() - candidateSeq.length()
+                    : candidateSeq.length() - lastSeq.length();
 
                 if (lenDiff < bestScore) {
                     bestScore = lenDiff;
@@ -607,8 +621,9 @@ Result<std::vector<ReadId>> GlobalAnalyzerImpl::performReordering(
 
         // Report progress
         if (orderedCount.load() % 10000 == 0) {
-            reportProgress(0.5 + 0.4 * static_cast<double>(orderedCount.load()) /
-                                     static_cast<double>(totalReads));
+            reportProgress(0.5 +
+                           0.4 * static_cast<double>(orderedCount.load()) /
+                               static_cast<double>(totalReads));
         }
     }
 
@@ -637,16 +652,11 @@ std::vector<BlockBoundary> GlobalAnalyzerImpl::computeBlockBoundaries(std::uint6
         ReadId start = blockId * readsPerBlock;
         ReadId end = std::min(start + readsPerBlock, totalReads);
 
-        boundaries.push_back({
-            static_cast<BlockId>(blockId),
-            start,
-            end
-        });
+        boundaries.push_back({static_cast<BlockId>(blockId), start, end});
     }
 
     return boundaries;
 }
-
 
 Result<GlobalAnalysisResult> GlobalAnalyzerImpl::analyze(const IReadDataProvider& provider) {
     GlobalAnalysisResult result;
@@ -679,7 +689,8 @@ Result<GlobalAnalysisResult> GlobalAnalyzerImpl::analyze(const IReadDataProvider
     std::size_t estimatedMemory = config_.estimateMemory(result.totalReads);
     if (config_.memoryLimit > 0 && estimatedMemory > config_.memoryLimit) {
         FQC_LOG_WARNING("Estimated memory {} exceeds limit {}, disabling reordering",
-                        estimatedMemory, config_.memoryLimit);
+                        estimatedMemory,
+                        config_.memoryLimit);
         shouldReorder = false;
     }
 
@@ -736,8 +747,7 @@ Result<GlobalAnalysisResult> GlobalAnalyzerImpl::analyze(const IReadDataProvider
 
     config_.readsPerBlock = savedBlockSize;
 
-    FQC_LOG_INFO("Created {} blocks with {} reads per block",
-                 result.numBlocks, effectiveBlockSize);
+    FQC_LOG_INFO("Created {} blocks with {} reads per block", result.numBlocks, effectiveBlockSize);
 
     reportProgress(1.0);
     return result;

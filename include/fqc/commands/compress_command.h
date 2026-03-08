@@ -14,14 +14,14 @@
 #ifndef FQC_COMMANDS_COMPRESS_COMMAND_H
 #define FQC_COMMANDS_COMPRESS_COMMAND_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::commands {
 
@@ -135,12 +135,15 @@ struct CompressionStats {
 
     /// @brief Compression ratio (input/output).
     [[nodiscard]] double compressionRatio() const noexcept {
-        return outputBytes > 0 ? static_cast<double>(inputBytes) / static_cast<double>(outputBytes) : 0.0;
+        return outputBytes > 0 ? static_cast<double>(inputBytes) / static_cast<double>(outputBytes)
+                               : 0.0;
     }
 
     /// @brief Bits per base.
     [[nodiscard]] double bitsPerBase() const noexcept {
-        return totalBases > 0 ? (static_cast<double>(outputBytes) * 8.0) / static_cast<double>(totalBases) : 0.0;
+        return totalBases > 0
+            ? (static_cast<double>(outputBytes) * 8.0) / static_cast<double>(totalBases)
+            : 0.0;
     }
 
     /// @brief Elapsed time in seconds.
@@ -148,8 +151,9 @@ struct CompressionStats {
 
     /// @brief Throughput in MB/s.
     [[nodiscard]] double throughputMbps() const noexcept {
-        return elapsedSeconds > 0 ? (static_cast<double>(inputBytes) / (1024 * 1024)) / elapsedSeconds
-                                  : 0.0;
+        return elapsedSeconds > 0
+            ? (static_cast<double>(inputBytes) / (1024 * 1024)) / elapsedSeconds
+            : 0.0;
     }
 };
 
@@ -177,10 +181,14 @@ public:
     [[nodiscard]] int execute();
 
     /// @brief Get compression statistics.
-    [[nodiscard]] const CompressionStats& stats() const noexcept { return stats_; }
+    [[nodiscard]] const CompressionStats& stats() const noexcept {
+        return stats_;
+    }
 
     /// @brief Get the options.
-    [[nodiscard]] const CompressOptions& options() const noexcept { return options_; }
+    [[nodiscard]] const CompressOptions& options() const noexcept {
+        return options_;
+    }
 
 private:
     /// @brief Validate options before execution.

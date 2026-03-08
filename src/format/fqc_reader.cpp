@@ -14,14 +14,14 @@
 
 #include "fqc/format/fqc_reader.h"
 
+#include "fqc/common/logger.h"
+#include "fqc/format/fqc_writer.h"  // For calculateXxHash64
+
 #include <algorithm>
 #include <bit>
 #include <cstring>
 
 #include <xxhash.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/format/fqc_writer.h"  // For calculateXxHash64
 
 namespace fqc::format {
 
@@ -34,14 +34,13 @@ namespace fqc::format {
 /// @param count Expected number of IDs to decode
 /// @return Decoded read IDs, or error on failure
 [[nodiscard]] Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
-                                                       std::uint64_t count);
+                                                      std::uint64_t count);
 
 // =============================================================================
 // FQCReader Implementation
 // =============================================================================
 
-FQCReader::FQCReader(std::filesystem::path archivePath)
-    : archivePath_(std::move(archivePath)) {}
+FQCReader::FQCReader(std::filesystem::path archivePath) : archivePath_(std::move(archivePath)) {}
 
 FQCReader::~FQCReader() {
     close();
@@ -113,11 +112,11 @@ void FQCReader::open() {
     isOpen_ = true;
 
     FQC_LOG_DEBUG("FQCReader opened: {}, version={}.{}, blocks={}, reads={}",
-              archivePath_.string(),
-              decodeMajorVersion(version_),
-              decodeMinorVersion(version_),
-              blockIndex_.size(),
-              globalHeader_.totalReadCount);
+                  archivePath_.string(),
+                  decodeMajorVersion(version_),
+                  decodeMinorVersion(version_),
+                  blockIndex_.size(),
+                  globalHeader_.totalReadCount);
 }
 
 void FQCReader::close() noexcept {
@@ -267,8 +266,7 @@ BlockId FQCReader::findBlockForRead(ReadId archiveId) const noexcept {
 
     // Binary search for the block containing the read
     auto it = std::upper_bound(
-        blockIndex_.begin(), blockIndex_.end(), archiveId,
-        [](ReadId id, const IndexEntry& entry) {
+        blockIndex_.begin(), blockIndex_.end(), archiveId, [](ReadId id, const IndexEntry& entry) {
             return id < entry.archiveIdStart;
         });
 
@@ -328,8 +326,7 @@ void FQCReader::loadReorderMap() {
 
     // Validate header
     if (!mapData.header.isValid()) {
-        throw FormatError("Invalid reorder map header",
-                          ErrorContext(archivePath_.string()));
+        throw FormatError("Invalid reorder map header", ErrorContext(archivePath_.string()));
     }
 
     // Read compressed map data
@@ -344,22 +341,22 @@ void FQCReader::loadReorderMap() {
     }
 
     // Decompress forward map using Delta + Varint decoding
-    auto forwardDecodeResult = deltaDecode(
-        std::span<const std::uint8_t>(forwardCompressed),
-        mapData.header.totalReads);
+    auto forwardDecodeResult =
+        deltaDecode(std::span<const std::uint8_t>(forwardCompressed), mapData.header.totalReads);
 
     if (!forwardDecodeResult) {
-        throw FormatError("Failed to decompress forward map: " + forwardDecodeResult.error().message(),
+        throw FormatError("Failed to decompress forward map: " +
+                              forwardDecodeResult.error().message(),
                           ErrorContext(archivePath_.string()));
     }
 
     // Decompress reverse map using Delta + Varint decoding
-    auto reverseDecodeResult = deltaDecode(
-        std::span<const std::uint8_t>(reverseCompressed),
-        mapData.header.totalReads);
+    auto reverseDecodeResult =
+        deltaDecode(std::span<const std::uint8_t>(reverseCompressed), mapData.header.totalReads);
 
     if (!reverseDecodeResult) {
-        throw FormatError("Failed to decompress reverse map: " + reverseDecodeResult.error().message(),
+        throw FormatError("Failed to decompress reverse map: " +
+                              reverseDecodeResult.error().message(),
                           ErrorContext(archivePath_.string()));
     }
 
@@ -372,11 +369,12 @@ void FQCReader::loadReorderMap() {
     // Store the reorder map
     reorderMap_ = std::move(mapData);
 
-    FQC_LOG_DEBUG("Reorder map loaded and decompressed: totalReads={}, "
-                  "forwardMapSize={}, reverseMapSize={}",
-                  reorderMap_->header.totalReads,
-                  reorderMap_->header.forwardMapSize,
-                  reorderMap_->header.reverseMapSize);
+    FQC_LOG_DEBUG(
+        "Reorder map loaded and decompressed: totalReads={}, "
+        "forwardMapSize={}, reverseMapSize={}",
+        reorderMap_->header.totalReads,
+        reorderMap_->header.forwardMapSize,
+        reorderMap_->header.reverseMapSize);
 }
 
 ReadId FQCReader::lookupArchiveId(ReadId originalId) const noexcept {
@@ -411,13 +409,13 @@ bool FQCReader::verifyGlobalChecksum() {
     constexpr std::size_t kChunkSize = 64 * 1024;  // 64KB chunks
     std::vector<std::uint8_t> buffer(kChunkSize);
 
-    std::uint64_t bytesToHash = footer_.indexOffset + 
-        BlockIndex::kHeaderSize + (blockIndex_.size() * IndexEntry::kSize);
+    std::uint64_t bytesToHash =
+        footer_.indexOffset + BlockIndex::kHeaderSize + (blockIndex_.size() * IndexEntry::kSize);
 
     std::uint64_t bytesHashed = 0;
     while (bytesHashed < bytesToHash) {
-        std::size_t toRead = std::min(kChunkSize, 
-            static_cast<std::size_t>(bytesToHash - bytesHashed));
+        std::size_t toRead =
+            std::min(kChunkSize, static_cast<std::size_t>(bytesToHash - bytesHashed));
         readBytes(buffer.data(), toRead);
         XXH64_update(state, buffer.data(), toRead);
         bytesHashed += toRead;
@@ -430,17 +428,18 @@ bool FQCReader::verifyGlobalChecksum() {
 
     if (!matches) {
         FQC_LOG_WARNING("Global checksum mismatch: expected {:016x}, got {:016x}",
-                    footer_.globalChecksum, calculatedChecksum);
+                        footer_.globalChecksum,
+                        calculatedChecksum);
     }
 
     return matches;
 }
 
 bool FQCReader::verifyBlockChecksum(BlockId blockId,
-                                     std::span<const std::uint8_t> idsData,
-                                     std::span<const std::uint8_t> seqData,
-                                     std::span<const std::uint8_t> qualData,
-                                     std::span<const std::uint8_t> auxData) {
+                                    std::span<const std::uint8_t> idsData,
+                                    std::span<const std::uint8_t> seqData,
+                                    std::span<const std::uint8_t> qualData,
+                                    std::span<const std::uint8_t> auxData) {
     if (!isOpen_) {
         throw FormatError("Archive is not open");
     }
@@ -459,7 +458,9 @@ bool FQCReader::verifyBlockChecksum(BlockId blockId,
 
     if (!matches) {
         FQC_LOG_WARNING("Block {} checksum mismatch: expected {:016x}, got {:016x}",
-                    blockId, header.blockXxhash64, calculatedChecksum);
+                        blockId,
+                        header.blockXxhash64,
+                        calculatedChecksum);
     }
 
     return matches;
@@ -496,16 +497,17 @@ void FQCReader::readMagicHeader() {
     // Check version compatibility
     if (!isVersionCompatible(version_)) {
         throw FormatError(
-            "Incompatible format version: " + 
-            std::to_string(decodeMajorVersion(version_)) + "." +
-            std::to_string(decodeMinorVersion(version_)),
+            "Incompatible format version: " + std::to_string(decodeMajorVersion(version_)) + "." +
+                std::to_string(decodeMinorVersion(version_)),
             ErrorContext(archivePath_.string()));
     }
 
     if (isVersionNewer(version_)) {
         FQC_LOG_WARNING("Archive version {}.{} is newer than reader version {}.{}",
-                    decodeMajorVersion(version_), decodeMinorVersion(version_),
-                    kFormatVersionMajor, kFormatVersionMinor);
+                        decodeMajorVersion(version_),
+                        decodeMinorVersion(version_),
+                        kFormatVersionMajor,
+                        kFormatVersionMinor);
     }
 }
 

@@ -24,6 +24,10 @@
 #ifndef FQC_FORMAT_FQC_WRITER_H
 #define FQC_FORMAT_FQC_WRITER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/format/fqc_format.h"
+
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
@@ -35,10 +39,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/format/fqc_format.h"
 
 namespace fqc::format {
 
@@ -190,19 +190,27 @@ public:
 
     /// @brief Check if the writer has been finalized.
     /// @return true if finalize() was called successfully.
-    [[nodiscard]] bool isFinalized() const noexcept { return finalized_; }
+    [[nodiscard]] bool isFinalized() const noexcept {
+        return finalized_;
+    }
 
     /// @brief Check if the writer has been aborted.
     /// @return true if abort() was called.
-    [[nodiscard]] bool isAborted() const noexcept { return aborted_; }
+    [[nodiscard]] bool isAborted() const noexcept {
+        return aborted_;
+    }
 
     /// @brief Get the final output path.
     /// @return Path to the final output file.
-    [[nodiscard]] const std::filesystem::path& outputPath() const noexcept { return outputPath_; }
+    [[nodiscard]] const std::filesystem::path& outputPath() const noexcept {
+        return outputPath_;
+    }
 
     /// @brief Get the temporary file path.
     /// @return Path to the temporary file.
-    [[nodiscard]] const std::filesystem::path& tempPath() const noexcept { return tempPath_; }
+    [[nodiscard]] const std::filesystem::path& tempPath() const noexcept {
+        return tempPath_;
+    }
 
     /// @brief Get the current file position.
     /// @return Current write position in bytes.
@@ -210,11 +218,15 @@ public:
 
     /// @brief Get the number of blocks written.
     /// @return Number of blocks written so far.
-    [[nodiscard]] std::size_t blockCount() const noexcept { return index_.size(); }
+    [[nodiscard]] std::size_t blockCount() const noexcept {
+        return index_.size();
+    }
 
     /// @brief Get the total read count written.
     /// @return Total number of reads across all blocks.
-    [[nodiscard]] std::uint64_t totalReadCount() const noexcept { return totalReadCount_; }
+    [[nodiscard]] std::uint64_t totalReadCount() const noexcept {
+        return totalReadCount_;
+    }
 
     // =========================================================================
     // Checksum Access
@@ -317,16 +329,15 @@ private:
 /// @param seed Optional seed value (default 0).
 /// @return xxHash64 checksum value.
 [[nodiscard]] std::uint64_t calculateXxHash64(const void* data,
-                                               std::size_t size,
-                                               std::uint64_t seed = 0);
+                                              std::size_t size,
+                                              std::uint64_t seed = 0);
 
 /// @brief Calculate xxHash64 checksum of multiple data segments.
 /// @param segments Vector of data spans.
 /// @param seed Optional seed value (default 0).
 /// @return xxHash64 checksum value.
 [[nodiscard]] std::uint64_t calculateXxHash64(
-    const std::vector<std::span<const std::uint8_t>>& segments,
-    std::uint64_t seed = 0);
+    const std::vector<std::span<const std::uint8_t>>& segments, std::uint64_t seed = 0);
 
 /// @brief Calculate block checksum from uncompressed logical streams.
 /// @param idsData Uncompressed ID stream data.
@@ -334,11 +345,10 @@ private:
 /// @param qualData Uncompressed quality stream data.
 /// @param auxData Uncompressed auxiliary stream data.
 /// @return xxHash64 checksum of concatenated streams.
-[[nodiscard]] std::uint64_t calculateBlockChecksum(
-    std::span<const std::uint8_t> idsData,
-    std::span<const std::uint8_t> seqData,
-    std::span<const std::uint8_t> qualData,
-    std::span<const std::uint8_t> auxData);
+[[nodiscard]] std::uint64_t calculateBlockChecksum(std::span<const std::uint8_t> idsData,
+                                                   std::span<const std::uint8_t> seqData,
+                                                   std::span<const std::uint8_t> qualData,
+                                                   std::span<const std::uint8_t> auxData);
 
 }  // namespace fqc::format
 

@@ -14,6 +14,8 @@
 
 #include "fqc/format/fqc_writer.h"
 
+#include "fqc/common/logger.h"
+
 #include <algorithm>
 #include <bit>
 #include <csignal>
@@ -21,8 +23,6 @@
 #include <mutex>
 
 #include <xxhash.h>
-
-#include "fqc/common/logger.h"
 
 namespace fqc::format {
 
@@ -135,7 +135,7 @@ std::uint64_t calculateXxHash64(const void* data, std::size_t size, std::uint64_
 }
 
 std::uint64_t calculateXxHash64(const std::vector<std::span<const std::uint8_t>>& segments,
-                                 std::uint64_t seed) {
+                                std::uint64_t seed) {
     XXH64_state_t* state = XXH64_createState();
     if (state == nullptr) {
         throw IOError("Failed to create xxHash64 state");
@@ -156,9 +156,9 @@ std::uint64_t calculateXxHash64(const std::vector<std::span<const std::uint8_t>>
 }
 
 std::uint64_t calculateBlockChecksum(std::span<const std::uint8_t> idsData,
-                                      std::span<const std::uint8_t> seqData,
-                                      std::span<const std::uint8_t> qualData,
-                                      std::span<const std::uint8_t> auxData) {
+                                     std::span<const std::uint8_t> seqData,
+                                     std::span<const std::uint8_t> qualData,
+                                     std::span<const std::uint8_t> auxData) {
     std::vector<std::span<const std::uint8_t>> segments = {idsData, seqData, qualData, auxData};
     return calculateXxHash64(segments, 0);
 }
@@ -191,7 +191,8 @@ FQCWriter::FQCWriter(std::filesystem::path outputPath)
     // Register for signal-based cleanup
     registerWriterForCleanup(this);
 
-    FQC_LOG_DEBUG("FQCWriter created: output={}, temp={}", outputPath_.string(), tempPath_.string());
+    FQC_LOG_DEBUG(
+        "FQCWriter created: output={}, temp={}", outputPath_.string(), tempPath_.string());
 }
 
 FQCWriter::~FQCWriter() {
@@ -211,8 +212,8 @@ FQCWriter::~FQCWriter() {
 }
 
 void FQCWriter::writeGlobalHeader(const GlobalHeader& header,
-                                   std::string_view originalFilename,
-                                   std::uint64_t timestamp) {
+                                  std::string_view originalFilename,
+                                  std::uint64_t timestamp) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (headerWritten_) {
@@ -229,8 +230,8 @@ void FQCWriter::writeGlobalHeader(const GlobalHeader& header,
     }
 
     // Calculate actual header size
-    std::uint32_t actualHeaderSize = static_cast<std::uint32_t>(
-        GlobalHeader::kMinSize + originalFilename.size());
+    std::uint32_t actualHeaderSize =
+        static_cast<std::uint32_t>(GlobalHeader::kMinSize + originalFilename.size());
 
     // Write magic header (8 bytes)
     writeBytesWithChecksum(kMagicBytes.data(), kMagicBytes.size());
@@ -261,7 +262,8 @@ void FQCWriter::writeGlobalHeader(const GlobalHeader& header,
     totalReadCount_ = header.totalReadCount;
 
     FQC_LOG_DEBUG("Global header written: totalReads={}, filename={}",
-              header.totalReadCount, originalFilename);
+                  header.totalReadCount,
+                  originalFilename);
 }
 
 void FQCWriter::writeBlock(BlockHeader header, const BlockPayload& payload) {
@@ -342,7 +344,10 @@ void FQCWriter::writeBlock(BlockHeader header, const BlockPayload& payload) {
     nextArchiveId_ += header.uncompressedCount;
 
     FQC_LOG_DEBUG("Block {} written: offset={}, reads={}, compressedSize={}",
-              header.blockId, blockOffset, header.uncompressedCount, header.compressedSize);
+                  header.blockId,
+                  blockOffset,
+                  header.uncompressedCount,
+                  header.compressedSize);
 }
 
 void FQCWriter::writeBlock(const BlockHeader& header, std::span<const std::uint8_t> payloadData) {
@@ -399,12 +404,15 @@ void FQCWriter::writeBlock(const BlockHeader& header, std::span<const std::uint8
     nextArchiveId_ += header.uncompressedCount;
 
     FQC_LOG_DEBUG("Block {} written (raw): offset={}, reads={}, payloadSize={}",
-              header.blockId, blockOffset, header.uncompressedCount, payloadData.size());
+                  header.blockId,
+                  blockOffset,
+                  header.uncompressedCount,
+                  payloadData.size());
 }
 
 void FQCWriter::writeReorderMap(const ReorderMap& mapHeader,
-                                 std::span<const std::uint8_t> forwardMapData,
-                                 std::span<const std::uint8_t> reverseMapData) {
+                                std::span<const std::uint8_t> forwardMapData,
+                                std::span<const std::uint8_t> reverseMapData) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (!headerWritten_) {
@@ -445,8 +453,10 @@ void FQCWriter::writeReorderMap(const ReorderMap& mapHeader,
     }
 
     FQC_LOG_DEBUG("Reorder map written: offset={}, totalReads={}, forwardSize={}, reverseSize={}",
-              reorderMapOffset_, mapHeader.totalReads,
-              forwardMapData.size(), reverseMapData.size());
+                  reorderMapOffset_,
+                  mapHeader.totalReads,
+                  forwardMapData.size(),
+                  reverseMapData.size());
 }
 
 void FQCWriter::finalize() {
@@ -482,13 +492,16 @@ void FQCWriter::finalize() {
     std::filesystem::rename(tempPath_, outputPath_, ec);
     if (ec) {
         throw IOError("Failed to rename temporary file to final output",
-                      ec, ErrorContext(outputPath_.string()));
+                      ec,
+                      ErrorContext(outputPath_.string()));
     }
 
     finalized_ = true;
 
     FQC_LOG_INFO("FQC archive finalized: {}, blocks={}, reads={}",
-             outputPath_.string(), index_.size(), totalReadCount_);
+                 outputPath_.string(),
+                 index_.size(),
+                 totalReadCount_);
 }
 
 void FQCWriter::abort() noexcept {
@@ -624,7 +637,9 @@ void FQCWriter::writeFileFooter() {
     writeBytes(footer.magicEnd.data(), footer.magicEnd.size());
 
     FQC_LOG_DEBUG("File footer written: indexOffset={}, reorderMapOffset={}, checksum={:016x}",
-              footer.indexOffset, footer.reorderMapOffset, footer.globalChecksum);
+                  footer.indexOffset,
+                  footer.reorderMapOffset,
+                  footer.globalChecksum);
 }
 
 void FQCWriter::cleanupTempFile() noexcept {

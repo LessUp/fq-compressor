@@ -8,18 +8,19 @@
 
 #include "fqc/algo/block_compressor.h"
 
+#include "fqc/algo/quality_compressor.h"
+#include "fqc/common/logger.h"
+
 #include <algorithm>
 #include <array>
 #include <cstring>
 #include <numeric>
 
-#include <tbb/blocked_range.h>
-#include <tbb/parallel_for.h>
 #include <xxhash.h>
 #include <zstd.h>
 
-#include "fqc/algo/quality_compressor.h"
-#include "fqc/common/logger.h"
+#include <tbb/blocked_range.h>
+#include <tbb/parallel_for.h>
 
 namespace fqc::algo {
 
@@ -40,38 +41,26 @@ constexpr std::uint8_t kBaseToIndex[256] = {
     0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,  // 96-111 (a=97, c=99, g=103)
     0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // 112-127 (t=116)
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // 128-255
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 /// @brief Index to DNA base lookup table
 constexpr char kIndexToBase[4] = {'A', 'C', 'G', 'T'};
 
 /// @brief Complement lookup table
 constexpr char kComplement[256] = {
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   'T', 0,   'G', 0,   0,   0,   'C', 0,   0,   0,   0,   0,   0,   'N', 0,
-    0,   0,   0,   0,   'A', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   't', 0,   'g', 0,   0,   0,   'c', 0,   0,   0,   0,   0,   0,   'n', 0,
-    0,   0,   0,   0,   'a', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-};
-
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   'T', 0, 'G', 0, 0, 0, 'C', 0, 0,   0, 0, 0, 0,
+    'N', 0, 0, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 't', 0, 'g', 0, 0, 0, 'c',
+    0,   0, 0, 0, 0, 0, 'n', 0, 0, 0, 0, 0, 'a', 0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0};
 
 /// @brief Noise encoding table: enc_noise[ref_base][read_base]
 /// Based on Minoche et al. substitution statistics
@@ -84,45 +73,95 @@ constexpr char kComplement[256] = {
 char getNoiseEncode(char refBase, char readBase) noexcept {
     // Based on Spring's noise encoding (Minoche et al. substitution statistics)
     switch (refBase) {
-        case 'A': case 'a':
+        case 'A':
+        case 'a':
             switch (readBase) {
-                case 'C': case 'c': return '0';
-                case 'G': case 'g': return '1';
-                case 'T': case 't': return '2';
-                case 'N': case 'n': return '3';
-                default: return '0';
+                case 'C':
+                case 'c':
+                    return '0';
+                case 'G':
+                case 'g':
+                    return '1';
+                case 'T':
+                case 't':
+                    return '2';
+                case 'N':
+                case 'n':
+                    return '3';
+                default:
+                    return '0';
             }
-        case 'C': case 'c':
+        case 'C':
+        case 'c':
             switch (readBase) {
-                case 'A': case 'a': return '0';
-                case 'G': case 'g': return '1';
-                case 'T': case 't': return '2';
-                case 'N': case 'n': return '3';
-                default: return '0';
+                case 'A':
+                case 'a':
+                    return '0';
+                case 'G':
+                case 'g':
+                    return '1';
+                case 'T':
+                case 't':
+                    return '2';
+                case 'N':
+                case 'n':
+                    return '3';
+                default:
+                    return '0';
             }
-        case 'G': case 'g':
+        case 'G':
+        case 'g':
             switch (readBase) {
-                case 'T': case 't': return '0';
-                case 'A': case 'a': return '1';
-                case 'C': case 'c': return '2';
-                case 'N': case 'n': return '3';
-                default: return '0';
+                case 'T':
+                case 't':
+                    return '0';
+                case 'A':
+                case 'a':
+                    return '1';
+                case 'C':
+                case 'c':
+                    return '2';
+                case 'N':
+                case 'n':
+                    return '3';
+                default:
+                    return '0';
             }
-        case 'T': case 't':
+        case 'T':
+        case 't':
             switch (readBase) {
-                case 'G': case 'g': return '0';
-                case 'C': case 'c': return '1';
-                case 'A': case 'a': return '2';
-                case 'N': case 'n': return '3';
-                default: return '0';
+                case 'G':
+                case 'g':
+                    return '0';
+                case 'C':
+                case 'c':
+                    return '1';
+                case 'A':
+                case 'a':
+                    return '2';
+                case 'N':
+                case 'n':
+                    return '3';
+                default:
+                    return '0';
             }
-        case 'N': case 'n':
+        case 'N':
+        case 'n':
             switch (readBase) {
-                case 'A': case 'a': return '0';
-                case 'G': case 'g': return '1';
-                case 'C': case 'c': return '2';
-                case 'T': case 't': return '3';
-                default: return '0';
+                case 'A':
+                case 'a':
+                    return '0';
+                case 'G':
+                case 'g':
+                    return '1';
+                case 'C':
+                case 'c':
+                    return '2';
+                case 'T':
+                case 't':
+                    return '3';
+                default:
+                    return '0';
             }
         default:
             return '0';
@@ -132,26 +171,32 @@ char getNoiseEncode(char refBase, char readBase) noexcept {
 /// @brief Decode noise character back to read base
 char getNoiseDecode(char refBase, char noiseChar) noexcept {
     int idx = noiseChar - '0';
-    if (idx < 0 || idx > 3) idx = 0;
+    if (idx < 0 || idx > 3)
+        idx = 0;
 
     switch (refBase) {
-        case 'A': case 'a': {
+        case 'A':
+        case 'a': {
             constexpr char decode[] = {'C', 'G', 'T', 'N'};
             return decode[idx];
         }
-        case 'C': case 'c': {
+        case 'C':
+        case 'c': {
             constexpr char decode[] = {'A', 'G', 'T', 'N'};
             return decode[idx];
         }
-        case 'G': case 'g': {
+        case 'G':
+        case 'g': {
             constexpr char decode[] = {'T', 'A', 'C', 'N'};
             return decode[idx];
         }
-        case 'T': case 't': {
+        case 'T':
+        case 't': {
             constexpr char decode[] = {'G', 'C', 'A', 'N'};
             return decode[idx];
         }
-        case 'N': case 'n': {
+        case 'N':
+        case 'n': {
             constexpr char decode[] = {'A', 'G', 'C', 'T'};
             return decode[idx];
         }
@@ -161,7 +206,6 @@ char getNoiseDecode(char refBase, char noiseChar) noexcept {
 }
 
 }  // namespace
-
 
 // =============================================================================
 // Utility Functions Implementation
@@ -185,8 +229,7 @@ char decodeNoise(char refBase, char noiseChar) noexcept {
     return getNoiseDecode(refBase, noiseChar);
 }
 
-std::size_t hammingDistance(std::string_view seq1, std::string_view seq2,
-                            std::size_t maxDistance) {
+std::size_t hammingDistance(std::string_view seq1, std::string_view seq2, std::size_t maxDistance) {
     std::size_t minLen = std::min(seq1.length(), seq2.length());
     std::size_t distance = 0;
 
@@ -204,20 +247,16 @@ std::size_t hammingDistance(std::string_view seq1, std::string_view seq2,
     return distance;
 }
 
-std::optional<std::pair<int, bool>> findBestAlignment(
-    std::string_view read,
-    std::string_view reference,
-    std::size_t maxShift,
-    std::size_t hammingThreshold) {
-
+std::optional<std::pair<int, bool>> findBestAlignment(std::string_view read,
+                                                      std::string_view reference,
+                                                      std::size_t maxShift,
+                                                      std::size_t hammingThreshold) {
     std::size_t bestDistance = SIZE_MAX;
     int bestShift = 0;
     bool bestIsRC = false;
 
     // Try forward orientation
-    for (int shift = -static_cast<int>(maxShift);
-         shift <= static_cast<int>(maxShift); ++shift) {
-
+    for (int shift = -static_cast<int>(maxShift); shift <= static_cast<int>(maxShift); ++shift) {
         std::size_t refStart = (shift >= 0) ? static_cast<std::size_t>(shift) : 0;
         std::size_t readStart = (shift < 0) ? static_cast<std::size_t>(-shift) : 0;
 
@@ -225,17 +264,17 @@ std::optional<std::pair<int, bool>> findBestAlignment(
             continue;
         }
 
-        std::size_t compareLen = std::min(reference.length() - refStart,
-                                          read.length() - readStart);
-        if (compareLen == 0) continue;
+        std::size_t compareLen = std::min(reference.length() - refStart, read.length() - readStart);
+        if (compareLen == 0)
+            continue;
 
         // Penalty for non-overlapping regions
         std::size_t penalty = read.length() - compareLen;
 
-        std::size_t dist = hammingDistance(
-            reference.substr(refStart, compareLen),
-            read.substr(readStart, compareLen),
-            hammingThreshold) + penalty;
+        std::size_t dist = hammingDistance(reference.substr(refStart, compareLen),
+                                           read.substr(readStart, compareLen),
+                                           hammingThreshold) +
+            penalty;
 
         if (dist < bestDistance) {
             bestDistance = dist;
@@ -246,9 +285,7 @@ std::optional<std::pair<int, bool>> findBestAlignment(
 
     // Try reverse complement orientation
     std::string rcRead = reverseComplement(read);
-    for (int shift = -static_cast<int>(maxShift);
-         shift <= static_cast<int>(maxShift); ++shift) {
-
+    for (int shift = -static_cast<int>(maxShift); shift <= static_cast<int>(maxShift); ++shift) {
         std::size_t refStart = (shift >= 0) ? static_cast<std::size_t>(shift) : 0;
         std::size_t readStart = (shift < 0) ? static_cast<std::size_t>(-shift) : 0;
 
@@ -256,17 +293,18 @@ std::optional<std::pair<int, bool>> findBestAlignment(
             continue;
         }
 
-        std::size_t compareLen = std::min(reference.length() - refStart,
-                                          rcRead.length() - readStart);
-        if (compareLen == 0) continue;
+        std::size_t compareLen =
+            std::min(reference.length() - refStart, rcRead.length() - readStart);
+        if (compareLen == 0)
+            continue;
 
         // Penalty for non-overlapping regions
         std::size_t penalty = rcRead.length() - compareLen;
 
-        std::size_t dist = hammingDistance(
-            reference.substr(refStart, compareLen),
-            rcRead.substr(readStart, compareLen),
-            hammingThreshold) + penalty;
+        std::size_t dist = hammingDistance(reference.substr(refStart, compareLen),
+                                           rcRead.substr(readStart, compareLen),
+                                           hammingThreshold) +
+            penalty;
 
         if (dist < bestDistance) {
             bestDistance = dist;
@@ -281,7 +319,6 @@ std::optional<std::pair<int, bool>> findBestAlignment(
 
     return std::nullopt;
 }
-
 
 // =============================================================================
 // ConsensusSequence Implementation
@@ -333,7 +370,8 @@ void ConsensusSequence::addRead(std::string_view read, int shift, bool isReverse
     for (std::size_t k = 0; k < overlapLen; ++k) {
         std::size_t pos = consStart + k;
         if (pos < baseCounts.size()) {
-            std::uint8_t idx = kBaseToIndex[static_cast<unsigned char>(alignedRead[alignStart + k])];
+            std::uint8_t idx =
+                kBaseToIndex[static_cast<unsigned char>(alignedRead[alignStart + k])];
             baseCounts[pos][idx]++;
         }
     }
@@ -360,13 +398,14 @@ void ConsensusSequence::recomputeConsensus() {
     }
 }
 
-
 // =============================================================================
 // Delta Encoding Implementation
 // =============================================================================
 
-DeltaEncodedRead computeDelta(std::string_view read, std::string_view consensus,
-                               int shift, bool isRC) {
+DeltaEncodedRead computeDelta(std::string_view read,
+                              std::string_view consensus,
+                              int shift,
+                              bool isRC) {
     DeltaEncodedRead delta;
     delta.positionOffset = static_cast<std::int16_t>(shift);
     delta.isReverseComplement = isRC;
@@ -400,16 +439,14 @@ DeltaEncodedRead computeDelta(std::string_view read, std::string_view consensus,
             delta.mismatchChars.push_back(alignedRead[i]);
         } else if (alignedRead[i] != consensus[consPos]) {
             delta.mismatchPositions.push_back(static_cast<std::uint16_t>(i));
-            delta.mismatchChars.push_back(
-                getNoiseEncode(consensus[consPos], alignedRead[i]));
+            delta.mismatchChars.push_back(getNoiseEncode(consensus[consPos], alignedRead[i]));
         }
     }
 
     return delta;
 }
 
-std::string reconstructFromDelta(const DeltaEncodedRead& delta,
-                                  std::string_view consensus) {
+std::string reconstructFromDelta(const DeltaEncodedRead& delta, std::string_view consensus) {
     int shift = delta.positionOffset;
 
     // Calculate alignment positions
@@ -456,26 +493,21 @@ std::string reconstructFromDelta(const DeltaEncodedRead& delta,
     return result;
 }
 
-
 // =============================================================================
 // BlockCompressorConfig Implementation
 // =============================================================================
 
 VoidResult BlockCompressorConfig::validate() const {
-    if (compressionLevel < kMinCompressionLevel ||
-        compressionLevel > kMaxCompressionLevel) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "compressionLevel must be in range [1, 9]");
+    if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
+        return makeVoidError(ErrorCode::kUsageError, "compressionLevel must be in range [1, 9]");
     }
 
     if (zstdLevel < 1 || zstdLevel > 22) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "zstdLevel must be in range [1, 22]");
+        return makeVoidError(ErrorCode::kUsageError, "zstdLevel must be in range [1, 22]");
     }
 
     if (consensusMinReads == 0) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "consensusMinReads must be > 0");
+        return makeVoidError(ErrorCode::kUsageError, "consensusMinReads must be > 0");
     }
 
     return makeVoidSuccess();
@@ -531,36 +563,34 @@ std::uint8_t BlockCompressorConfig::getAuxCodec() const noexcept {
     return encodeCodec(CodecFamily::kDeltaVarint, 0);
 }
 
-
 // =============================================================================
 // BlockCompressorImpl - Implementation Class
 // =============================================================================
 
 class BlockCompressorImpl {
 public:
-    explicit BlockCompressorImpl(BlockCompressorConfig config)
-        : config_(std::move(config)) {}
+    explicit BlockCompressorImpl(BlockCompressorConfig config) : config_(std::move(config)) {}
 
-    Result<CompressedBlockData> compress(std::span<const ReadRecord> reads,
-                                          BlockId blockId);
+    Result<CompressedBlockData> compress(std::span<const ReadRecord> reads, BlockId blockId);
 
-    Result<CompressedBlockData> compress(std::span<const ReadRecordView> reads,
-                                          BlockId blockId);
+    Result<CompressedBlockData> compress(std::span<const ReadRecordView> reads, BlockId blockId);
 
     Result<DecompressedBlockData> decompress(const CompressedBlockData& data);
 
-    Result<DecompressedBlockData> decompress(
-        const format::BlockHeader& header,
-        std::span<const std::uint8_t> idStream,
-        std::span<const std::uint8_t> seqStream,
-        std::span<const std::uint8_t> qualStream,
-        std::span<const std::uint8_t> auxStream);
+    Result<DecompressedBlockData> decompress(const format::BlockHeader& header,
+                                             std::span<const std::uint8_t> idStream,
+                                             std::span<const std::uint8_t> seqStream,
+                                             std::span<const std::uint8_t> qualStream,
+                                             std::span<const std::uint8_t> auxStream);
 
-    const BlockCompressorConfig& config() const noexcept { return config_; }
+    const BlockCompressorConfig& config() const noexcept {
+        return config_;
+    }
 
     VoidResult setConfig(BlockCompressorConfig config) {
         auto result = config.validate();
-        if (!result) return result;
+        if (!result)
+            return result;
         config_ = std::move(config);
         return makeVoidSuccess();
     }
@@ -574,45 +604,35 @@ private:
     std::vector<Contig> contigs_;
 
     // Internal compression methods
-    Result<std::vector<std::uint8_t>> compressSequencesABC(
-        std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressSequencesZstd(
-        std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressQuality(
-        std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressIds(
-        std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressAux(
-        std::span<const ReadRecord> reads,
-        std::uint32_t& uniformLength);
+    Result<std::vector<std::uint8_t>> compressSequencesABC(std::span<const ReadRecord> reads);
+    Result<std::vector<std::uint8_t>> compressSequencesZstd(std::span<const ReadRecord> reads);
+    Result<std::vector<std::uint8_t>> compressQuality(std::span<const ReadRecord> reads);
+    Result<std::vector<std::uint8_t>> compressIds(std::span<const ReadRecord> reads);
+    Result<std::vector<std::uint8_t>> compressAux(std::span<const ReadRecord> reads,
+                                                  std::uint32_t& uniformLength);
 
     // Internal decompression methods
-    Result<std::vector<std::string>> decompressSequencesABC(
-        std::span<const std::uint8_t> data,
-        std::uint32_t readCount);
+    Result<std::vector<std::string>> decompressSequencesABC(std::span<const std::uint8_t> data,
+                                                            std::uint32_t readCount);
     Result<std::vector<std::string>> decompressSequencesZstd(
         std::span<const std::uint8_t> data,
         std::uint32_t readCount,
         std::uint32_t uniformLength,
         std::span<const std::uint32_t> lengths);
-    Result<std::vector<std::string>> decompressQuality(
-        std::span<const std::uint8_t> data,
-        std::uint32_t readCount,
-        std::uint32_t uniformLength,
-        std::span<const std::uint32_t> lengths);
+    Result<std::vector<std::string>> decompressQuality(std::span<const std::uint8_t> data,
+                                                       std::uint32_t readCount,
+                                                       std::uint32_t uniformLength,
+                                                       std::span<const std::uint32_t> lengths);
     Result<std::vector<std::pair<std::string, std::string>>> decompressIds(
-        std::span<const std::uint8_t> data,
-        std::uint32_t readCount);
-    Result<std::vector<std::uint32_t>> decompressAux(
-        std::span<const std::uint8_t> data,
-        std::uint32_t readCount);
+        std::span<const std::uint8_t> data, std::uint32_t readCount);
+    Result<std::vector<std::uint32_t>> decompressAux(std::span<const std::uint8_t> data,
+                                                     std::uint32_t readCount);
 
     // Consensus building
     void buildContigs(std::span<const ReadRecord> reads);
 
     // Checksum computation
-    std::uint64_t computeBlockChecksum(
-        std::span<const ReadRecord> reads) const;
+    std::uint64_t computeBlockChecksum(std::span<const ReadRecord> reads) const;
 
     void reportProgress(double progress) {
         if (config_.progressCallback) {
@@ -621,7 +641,6 @@ private:
     }
 };
 
-
 // =============================================================================
 // Consensus Building (ABC Algorithm)
 // =============================================================================
@@ -629,7 +648,8 @@ private:
 void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
     contigs_.clear();
 
-    if (reads.empty()) return;
+    if (reads.empty())
+        return;
 
     // Temporary struct to track alignment info before final delta recomputation
     struct AlignInfo {
@@ -642,7 +662,8 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
     std::vector<bool> assigned(reads.size(), false);
 
     for (std::size_t i = 0; i < reads.size(); ++i) {
-        if (assigned[i]) continue;
+        if (assigned[i])
+            continue;
 
         // Start a new contig with this read
         Contig contig;
@@ -655,13 +676,13 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
 
         // Try to add similar reads to this contig
         for (std::size_t j = i + 1; j < reads.size(); ++j) {
-            if (assigned[j]) continue;
+            if (assigned[j])
+                continue;
 
-            auto alignment = findBestAlignment(
-                reads[j].sequence,
-                contig.consensus.sequence,
-                config_.maxShift,
-                config_.consensusHammingThreshold);
+            auto alignment = findBestAlignment(reads[j].sequence,
+                                               contig.consensus.sequence,
+                                               config_.maxShift,
+                                               config_.consensusHammingThreshold);
 
             if (alignment.has_value()) {
                 auto [shift, isRC] = *alignment;
@@ -676,9 +697,7 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
         // Recompute all deltas against the final consensus
         for (const auto& info : alignInfos) {
             DeltaEncodedRead readDelta = computeDelta(
-                reads[info.readIndex].sequence,
-                contig.consensus.sequence,
-                info.shift, info.isRC);
+                reads[info.readIndex].sequence, contig.consensus.sequence, info.shift, info.isRC);
             readDelta.originalOrder = static_cast<std::uint32_t>(info.readIndex);
             contig.deltas.push_back(std::move(readDelta));
         }
@@ -689,14 +708,12 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
     FQC_LOG_DEBUG("Built {} contigs from {} reads", contigs_.size(), reads.size());
 }
 
-
 // =============================================================================
 // Sequence Compression (ABC)
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
     std::span<const ReadRecord> reads) {
-
     // Build contigs for ABC compression
     buildContigs(reads);
 
@@ -726,9 +743,8 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
         buffer.insert(buffer.end(),
                       reinterpret_cast<const std::uint8_t*>(&consLen),
                       reinterpret_cast<const std::uint8_t*>(&consLen) + sizeof(consLen));
-        buffer.insert(buffer.end(),
-                      contig.consensus.sequence.begin(),
-                      contig.consensus.sequence.end());
+        buffer.insert(
+            buffer.end(), contig.consensus.sequence.begin(), contig.consensus.sequence.end());
 
         // Write deltas
         std::uint32_t numDeltas = static_cast<std::uint32_t>(contig.deltas.size());
@@ -775,9 +791,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
             }
 
             // Mismatch characters
-            buffer.insert(buffer.end(),
-                          delta.mismatchChars.begin(),
-                          delta.mismatchChars.end());
+            buffer.insert(buffer.end(), delta.mismatchChars.begin(), delta.mismatchChars.end());
         }
     }
 
@@ -786,9 +800,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
     std::vector<std::uint8_t> compressed(compressBound);
 
     std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        config_.zstdLevel);
+        compressed.data(), compressed.size(), buffer.data(), buffer.size(), config_.zstdLevel);
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -800,14 +812,12 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
     return compressed;
 }
 
-
 // =============================================================================
 // Sequence Compression (Zstd - for medium/long reads)
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
     std::span<const ReadRecord> reads) {
-
     // Concatenate all sequences with length prefixes
     std::vector<std::uint8_t> buffer;
     buffer.reserve(reads.size() * 200);  // Estimate for medium reads
@@ -820,9 +830,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
                       reinterpret_cast<const std::uint8_t*>(&len) + sizeof(len));
 
         // Write sequence
-        buffer.insert(buffer.end(),
-                      read.sequence.begin(),
-                      read.sequence.end());
+        buffer.insert(buffer.end(), read.sequence.begin(), read.sequence.end());
     }
 
     // Compress with Zstd
@@ -830,9 +838,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
     std::vector<std::uint8_t> compressed(compressBound);
 
     std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        config_.zstdLevel);
+        compressed.data(), compressed.size(), buffer.data(), buffer.size(), config_.zstdLevel);
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -850,7 +856,6 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressQuality(
     std::span<const ReadRecord> reads) {
-
     if (config_.qualityMode == QualityMode::kDiscard) {
         return std::vector<std::uint8_t>{};
     }
@@ -886,14 +891,12 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressQuality(
     return std::move(result->data);
 }
 
-
 // =============================================================================
 // ID Compression
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
     std::span<const ReadRecord> reads) {
-
     if (config_.idMode == IDMode::kDiscard) {
         return std::vector<std::uint8_t>{};
     }
@@ -910,9 +913,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
                       reinterpret_cast<const std::uint8_t*>(&idLen) + sizeof(idLen));
 
         // Write ID
-        buffer.insert(buffer.end(),
-                      read.id.begin(),
-                      read.id.end());
+        buffer.insert(buffer.end(), read.id.begin(), read.id.end());
 
         // Write comment length as uint32
         std::uint32_t commentLen = static_cast<std::uint32_t>(read.comment.length());
@@ -922,9 +923,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
 
         // Write comment
         if (commentLen > 0) {
-            buffer.insert(buffer.end(),
-                          read.comment.begin(),
-                          read.comment.end());
+            buffer.insert(buffer.end(), read.comment.begin(), read.comment.end());
         }
     }
 
@@ -933,9 +932,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
     std::vector<std::uint8_t> compressed(compressBound);
 
     std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        config_.zstdLevel);
+        compressed.data(), compressed.size(), buffer.data(), buffer.size(), config_.zstdLevel);
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -952,9 +949,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
-    std::span<const ReadRecord> reads,
-    std::uint32_t& uniformLength) {
-
+    std::span<const ReadRecord> reads, std::uint32_t& uniformLength) {
     if (reads.empty()) {
         uniformLength = 0;
         return std::vector<std::uint8_t>{};
@@ -1005,9 +1000,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
     std::vector<std::uint8_t> compressed(compressBound);
 
     std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        config_.zstdLevel);
+        compressed.data(), compressed.size(), buffer.data(), buffer.size(), config_.zstdLevel);
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -1019,14 +1012,11 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
     return compressed;
 }
 
-
 // =============================================================================
 // Checksum Computation
 // =============================================================================
 
-std::uint64_t BlockCompressorImpl::computeBlockChecksum(
-    std::span<const ReadRecord> reads) const {
-
+std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadRecord> reads) const {
     XXH64_state_t* state = XXH64_createState();
     if (!state) {
         return 0;
@@ -1071,10 +1061,8 @@ std::uint64_t BlockCompressorImpl::computeBlockChecksum(
 // Main Compression Entry Point
 // =============================================================================
 
-Result<CompressedBlockData> BlockCompressorImpl::compress(
-    std::span<const ReadRecord> reads,
-    BlockId blockId) {
-
+Result<CompressedBlockData> BlockCompressorImpl::compress(std::span<const ReadRecord> reads,
+                                                          BlockId blockId) {
     CompressedBlockData result;
     result.blockId = blockId;
     result.readCount = static_cast<std::uint32_t>(reads.size());
@@ -1137,17 +1125,16 @@ Result<CompressedBlockData> BlockCompressorImpl::compress(
     reportProgress(1.0);
 
     FQC_LOG_DEBUG("Compressed block {}: {} reads, {} bytes -> {} bytes",
-                  blockId, reads.size(),
+                  blockId,
+                  reads.size(),
                   reads.size() * 200,  // Estimate
                   result.totalCompressedSize());
 
     return result;
 }
 
-Result<CompressedBlockData> BlockCompressorImpl::compress(
-    std::span<const ReadRecordView> reads,
-    BlockId blockId) {
-
+Result<CompressedBlockData> BlockCompressorImpl::compress(std::span<const ReadRecordView> reads,
+                                                          BlockId blockId) {
     // Convert views to records for compression
     std::vector<ReadRecord> records;
     records.reserve(reads.size());
@@ -1159,15 +1146,12 @@ Result<CompressedBlockData> BlockCompressorImpl::compress(
     return compress(std::span<const ReadRecord>(records), blockId);
 }
 
-
 // =============================================================================
 // Decompression Methods
 // =============================================================================
 
 Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
-    std::span<const std::uint8_t> data,
-    std::uint32_t readCount) {
-
+    std::span<const std::uint8_t> data, std::uint32_t readCount) {
     if (data.empty()) {
         return std::vector<std::string>(readCount);
     }
@@ -1176,19 +1160,17 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(buffer.data(), buffer.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
+        return makeError<std::vector<std::string>>(ErrorCode::kIOError,
+                                                   "Zstd decompression failed: " +
+                                                       std::string(ZSTD_getErrorName(actualSize)));
     }
 
     // Parse contigs and reconstruct reads
@@ -1198,8 +1180,7 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
 
     // Read number of contigs
     if (ptr + sizeof(std::uint32_t) > end) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Truncated ABC data");
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError, "Truncated ABC data");
     }
     std::uint32_t numContigs;
     std::memcpy(&numContigs, ptr, sizeof(numContigs));
@@ -1208,24 +1189,24 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
     for (std::uint32_t c = 0; c < numContigs; ++c) {
         // Read consensus
         if (ptr + sizeof(std::uint32_t) > end) {
-            return makeError<std::vector<std::string>>(
-                ErrorCode::kFormatError, "Truncated ABC data");
+            return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                       "Truncated ABC data");
         }
         std::uint32_t consLen;
         std::memcpy(&consLen, ptr, sizeof(consLen));
         ptr += sizeof(consLen);
 
         if (ptr + consLen > end) {
-            return makeError<std::vector<std::string>>(
-                ErrorCode::kFormatError, "Truncated ABC data");
+            return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                       "Truncated ABC data");
         }
         std::string consensus(reinterpret_cast<const char*>(ptr), consLen);
         ptr += consLen;
 
         // Read deltas
         if (ptr + sizeof(std::uint32_t) > end) {
-            return makeError<std::vector<std::string>>(
-                ErrorCode::kFormatError, "Truncated ABC data");
+            return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                       "Truncated ABC data");
         }
         std::uint32_t numDeltas;
         std::memcpy(&numDeltas, ptr, sizeof(numDeltas));
@@ -1236,40 +1217,40 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
 
             // Read original order
             if (ptr + sizeof(std::uint32_t) > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             std::memcpy(&delta.originalOrder, ptr, sizeof(delta.originalOrder));
             ptr += sizeof(delta.originalOrder);
 
             // Read position offset
             if (ptr + sizeof(std::int16_t) > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             std::memcpy(&delta.positionOffset, ptr, sizeof(delta.positionOffset));
             ptr += sizeof(delta.positionOffset);
 
             // Read flags
             if (ptr + 1 > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             delta.isReverseComplement = (*ptr & 1) != 0;
             ptr++;
 
             // Read read length
             if (ptr + sizeof(std::uint16_t) > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             std::memcpy(&delta.readLength, ptr, sizeof(delta.readLength));
             ptr += sizeof(delta.readLength);
 
             // Read number of mismatches
             if (ptr + sizeof(std::uint16_t) > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             std::uint16_t numMismatches;
             std::memcpy(&numMismatches, ptr, sizeof(numMismatches));
@@ -1279,8 +1260,8 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
             delta.mismatchPositions.resize(numMismatches);
             for (std::uint16_t m = 0; m < numMismatches; ++m) {
                 if (ptr + sizeof(std::uint16_t) > end) {
-                    return makeError<std::vector<std::string>>(
-                        ErrorCode::kFormatError, "Truncated ABC data");
+                    return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                               "Truncated ABC data");
                 }
                 std::memcpy(&delta.mismatchPositions[m], ptr, sizeof(std::uint16_t));
                 ptr += sizeof(std::uint16_t);
@@ -1288,8 +1269,8 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
 
             // Read mismatch characters
             if (ptr + numMismatches > end) {
-                return makeError<std::vector<std::string>>(
-                    ErrorCode::kFormatError, "Truncated ABC data");
+                return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                           "Truncated ABC data");
             }
             delta.mismatchChars.assign(ptr, ptr + numMismatches);
             ptr += numMismatches;
@@ -1304,13 +1285,11 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesABC(
     return sequences;
 }
 
-
 Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesZstd(
     std::span<const std::uint8_t> data,
     std::uint32_t readCount,
     std::uint32_t uniformLength,
     std::span<const std::uint32_t> lengths) {
-
     if (data.empty()) {
         return std::vector<std::string>(readCount);
     }
@@ -1319,19 +1298,17 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesZstd(
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(buffer.data(), buffer.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
+        return makeError<std::vector<std::string>>(ErrorCode::kIOError,
+                                                   "Zstd decompression failed: " +
+                                                       std::string(ZSTD_getErrorName(actualSize)));
     }
 
     // Parse sequences
@@ -1344,8 +1321,8 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesZstd(
     for (std::uint32_t i = 0; i < readCount; ++i) {
         // Read length
         if (ptr + sizeof(std::uint32_t) > end) {
-            return makeError<std::vector<std::string>>(
-                ErrorCode::kFormatError, "Truncated sequence data");
+            return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                       "Truncated sequence data");
         }
         std::uint32_t len;
         std::memcpy(&len, ptr, sizeof(len));
@@ -1353,8 +1330,8 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressSequencesZstd(
 
         // Read sequence
         if (ptr + len > end) {
-            return makeError<std::vector<std::string>>(
-                ErrorCode::kFormatError, "Truncated sequence data");
+            return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                       "Truncated sequence data");
         }
         sequences.emplace_back(reinterpret_cast<const char*>(ptr), len);
         ptr += len;
@@ -1368,7 +1345,6 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressQuality(
     std::uint32_t readCount,
     std::uint32_t uniformLength,
     std::span<const std::uint32_t> lengths) {
-
     if (data.empty()) {
         // Quality was discarded - return placeholder quality strings
         std::vector<std::string> qualities;
@@ -1415,9 +1391,7 @@ Result<std::vector<std::string>> BlockCompressorImpl::decompressQuality(
 }
 
 Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::decompressIds(
-    std::span<const std::uint8_t> data,
-    std::uint32_t readCount) {
-
+    std::span<const std::uint8_t> data, std::uint32_t readCount) {
     using IdComment = std::pair<std::string, std::string>;
 
     if (data.empty()) {
@@ -1429,19 +1403,17 @@ Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::de
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<IdComment>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<IdComment>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(buffer.data(), buffer.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<IdComment>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
+        return makeError<std::vector<IdComment>>(ErrorCode::kIOError,
+                                                 "Zstd decompression failed: " +
+                                                     std::string(ZSTD_getErrorName(actualSize)));
     }
 
     // Parse IDs and comments
@@ -1454,8 +1426,7 @@ Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::de
     for (std::uint32_t i = 0; i < readCount; ++i) {
         // Read ID length
         if (ptr + sizeof(std::uint32_t) > end) {
-            return makeError<std::vector<IdComment>>(
-                ErrorCode::kFormatError, "Truncated ID data");
+            return makeError<std::vector<IdComment>>(ErrorCode::kFormatError, "Truncated ID data");
         }
         std::uint32_t idLen;
         std::memcpy(&idLen, ptr, sizeof(idLen));
@@ -1463,16 +1434,14 @@ Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::de
 
         // Read ID
         if (ptr + idLen > end) {
-            return makeError<std::vector<IdComment>>(
-                ErrorCode::kFormatError, "Truncated ID data");
+            return makeError<std::vector<IdComment>>(ErrorCode::kFormatError, "Truncated ID data");
         }
         std::string id(reinterpret_cast<const char*>(ptr), idLen);
         ptr += idLen;
 
         // Read comment length
         if (ptr + sizeof(std::uint32_t) > end) {
-            return makeError<std::vector<IdComment>>(
-                ErrorCode::kFormatError, "Truncated ID data");
+            return makeError<std::vector<IdComment>>(ErrorCode::kFormatError, "Truncated ID data");
         }
         std::uint32_t commentLen;
         std::memcpy(&commentLen, ptr, sizeof(commentLen));
@@ -1482,8 +1451,8 @@ Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::de
         std::string comment;
         if (commentLen > 0) {
             if (ptr + commentLen > end) {
-                return makeError<std::vector<IdComment>>(
-                    ErrorCode::kFormatError, "Truncated ID data");
+                return makeError<std::vector<IdComment>>(ErrorCode::kFormatError,
+                                                         "Truncated ID data");
             }
             comment.assign(reinterpret_cast<const char*>(ptr), commentLen);
             ptr += commentLen;
@@ -1495,11 +1464,8 @@ Result<std::vector<std::pair<std::string, std::string>>> BlockCompressorImpl::de
     return ids;
 }
 
-
 Result<std::vector<std::uint32_t>> BlockCompressorImpl::decompressAux(
-    std::span<const std::uint8_t> data,
-    std::uint32_t readCount) {
-
+    std::span<const std::uint8_t> data, std::uint32_t readCount) {
     if (data.empty()) {
         return std::vector<std::uint32_t>{};
     }
@@ -1508,14 +1474,12 @@ Result<std::vector<std::uint32_t>> BlockCompressorImpl::decompressAux(
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::uint32_t>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<std::uint32_t>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(buffer.data(), buffer.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
         return makeError<std::vector<std::uint32_t>>(
@@ -1540,7 +1504,8 @@ Result<std::vector<std::uint32_t>> BlockCompressorImpl::decompressAux(
             std::uint8_t byte = *ptr++;
             zigzag |= static_cast<std::uint32_t>(byte & 0x7F) << shift;
             shift += 7;
-            if ((byte & 0x80) == 0) break;
+            if ((byte & 0x80) == 0)
+                break;
         }
 
         // Decode zigzag
@@ -1558,9 +1523,7 @@ Result<std::vector<std::uint32_t>> BlockCompressorImpl::decompressAux(
 // Main Decompression Entry Point
 // =============================================================================
 
-Result<DecompressedBlockData> BlockCompressorImpl::decompress(
-    const CompressedBlockData& data) {
-
+Result<DecompressedBlockData> BlockCompressorImpl::decompress(const CompressedBlockData& data) {
     DecompressedBlockData result;
     result.blockId = data.blockId;
     result.reads.resize(data.readCount);
@@ -1595,8 +1558,8 @@ Result<DecompressedBlockData> BlockCompressorImpl::decompress(
     }
 
     // Decompress quality
-    auto qualResult = decompressQuality(
-        data.qualStream, data.readCount, data.uniformReadLength, lengths);
+    auto qualResult =
+        decompressQuality(data.qualStream, data.readCount, data.uniformReadLength, lengths);
     if (!qualResult) {
         return makeError<DecompressedBlockData>(qualResult.error());
     }
@@ -1624,7 +1587,6 @@ Result<DecompressedBlockData> BlockCompressorImpl::decompress(
     std::span<const std::uint8_t> seqStream,
     std::span<const std::uint8_t> qualStream,
     std::span<const std::uint8_t> auxStream) {
-
     CompressedBlockData data;
     data.blockId = header.blockId;
     data.readCount = header.uncompressedCount;
@@ -1642,7 +1604,6 @@ Result<DecompressedBlockData> BlockCompressorImpl::decompress(
     return decompress(data);
 }
 
-
 // =============================================================================
 // BlockCompressor - Public Interface Implementation
 // =============================================================================
@@ -1655,15 +1616,13 @@ BlockCompressor::~BlockCompressor() = default;
 BlockCompressor::BlockCompressor(BlockCompressor&&) noexcept = default;
 BlockCompressor& BlockCompressor::operator=(BlockCompressor&&) noexcept = default;
 
-Result<CompressedBlockData> BlockCompressor::compress(
-    std::span<const ReadRecord> reads,
-    BlockId blockId) {
+Result<CompressedBlockData> BlockCompressor::compress(std::span<const ReadRecord> reads,
+                                                      BlockId blockId) {
     return impl_->compress(reads, blockId);
 }
 
-Result<CompressedBlockData> BlockCompressor::compress(
-    std::span<const ReadRecordView> reads,
-    BlockId blockId) {
+Result<CompressedBlockData> BlockCompressor::compress(std::span<const ReadRecordView> reads,
+                                                      BlockId blockId) {
     return impl_->compress(reads, blockId);
 }
 
@@ -1672,12 +1631,11 @@ Result<DecompressedBlockData> BlockCompressor::decompress(
     return impl_->decompress(compressedData);
 }
 
-Result<DecompressedBlockData> BlockCompressor::decompress(
-    const format::BlockHeader& header,
-    std::span<const std::uint8_t> idStream,
-    std::span<const std::uint8_t> seqStream,
-    std::span<const std::uint8_t> qualStream,
-    std::span<const std::uint8_t> auxStream) {
+Result<DecompressedBlockData> BlockCompressor::decompress(const format::BlockHeader& header,
+                                                          std::span<const std::uint8_t> idStream,
+                                                          std::span<const std::uint8_t> seqStream,
+                                                          std::span<const std::uint8_t> qualStream,
+                                                          std::span<const std::uint8_t> auxStream) {
     return impl_->decompress(header, idStream, seqStream, qualStream, auxStream);
 }
 

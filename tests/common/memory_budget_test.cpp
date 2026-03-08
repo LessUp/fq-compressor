@@ -9,9 +9,9 @@
 
 #include "fqc/common/memory_budget.h"
 
-#include <gtest/gtest.h>
-
 #include <thread>
+
+#include <gtest/gtest.h>
 
 namespace fqc {
 namespace {
@@ -127,8 +127,8 @@ TEST(MemoryEstimatorTest, EstimatePhase1) {
     std::size_t estimated = estimator.estimatePhase1(reads);
 
     // Should be approximately reads * 24 bytes * safety margin
-    std::size_t expected = static_cast<std::size_t>(
-        static_cast<double>(reads) * kMemoryPerReadPhase1 * kMemorySafetyMargin);
+    std::size_t expected = static_cast<std::size_t>(static_cast<double>(reads) *
+                                                    kMemoryPerReadPhase1 * kMemorySafetyMargin);
     EXPECT_EQ(estimated, expected);
 }
 
@@ -141,8 +141,8 @@ TEST(MemoryEstimatorTest, EstimatePhase2) {
     std::size_t estimated = estimator.estimatePhase2(readsPerBlock, numThreads);
 
     // Should be approximately readsPerBlock * 50 bytes * safety margin * threads
-    std::size_t perBlock = static_cast<std::size_t>(
-        static_cast<double>(readsPerBlock) * kMemoryPerReadPhase2 * kMemorySafetyMargin);
+    std::size_t perBlock = static_cast<std::size_t>(static_cast<double>(readsPerBlock) *
+                                                    kMemoryPerReadPhase2 * kMemorySafetyMargin);
     EXPECT_EQ(estimated, perBlock * numThreads);
 }
 
@@ -344,9 +344,8 @@ TEST(MemoryMonitorTest, AlertCallback) {
     MemoryMonitor monitor(budget);
 
     bool alertTriggered = false;
-    monitor.setAlertCallback(0.001, [&](const MemoryUsage&, std::size_t) {
-        alertTriggered = true;
-    });
+    monitor.setAlertCallback(0.001,
+                             [&](const MemoryUsage&, std::size_t) { alertTriggered = true; });
 
     monitor.checkAlert();
     EXPECT_TRUE(alertTriggered);
@@ -357,9 +356,8 @@ TEST(MemoryMonitorTest, ClearAlertCallback) {
     MemoryMonitor monitor(budget);
 
     bool alertTriggered = false;
-    monitor.setAlertCallback(0.001, [&](const MemoryUsage&, std::size_t) {
-        alertTriggered = true;
-    });
+    monitor.setAlertCallback(0.001,
+                             [&](const MemoryUsage&, std::size_t) { alertTriggered = true; });
 
     monitor.clearAlertCallback();
     monitor.checkAlert();

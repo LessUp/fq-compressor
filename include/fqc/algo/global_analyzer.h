@@ -19,6 +19,9 @@
 #ifndef FQC_ALGO_GLOBAL_ANALYZER_H
 #define FQC_ALGO_GLOBAL_ANALYZER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -27,9 +30,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::algo {
 
@@ -393,8 +393,8 @@ private:
 /// @param w Window size
 /// @return Vector of minimizers
 [[nodiscard]] std::vector<Minimizer> extractMinimizers(std::string_view sequence,
-                                                        std::size_t k = kDefaultMinimizerK,
-                                                        std::size_t w = kDefaultMinimizerW);
+                                                       std::size_t k = kDefaultMinimizerK,
+                                                       std::size_t w = kDefaultMinimizerW);
 
 /// @brief Compute canonical k-mer hash (min of forward and reverse complement)
 /// @param sequence K-mer sequence
@@ -415,14 +415,13 @@ private:
 /// @param sampleSize Number of reads to sample (0 = all reads)
 /// @return Detected read length class
 [[nodiscard]] ReadLengthClass classifyReadLength(const IReadDataProvider& provider,
-                                                  std::size_t sampleSize = 1000);
+                                                 std::size_t sampleSize = 1000);
 
 /// @brief Classify reads based on median and max length
 /// @param medianLength Median read length
 /// @param maxLength Maximum read length
 /// @return Detected read length class
-[[nodiscard]] ReadLengthClass classifyReadLength(std::size_t medianLength,
-                                                  std::size_t maxLength);
+[[nodiscard]] ReadLengthClass classifyReadLength(std::size_t medianLength, std::size_t maxLength);
 
 /// @brief Get recommended block size for a read length class
 /// @param lengthClass Read length class

@@ -23,8 +23,7 @@ VoidResult ReaderNodeConfig::validate() const {
     if (blockSize < kMinBlockSize || blockSize > kMaxBlockSize) {
         return makeVoidError(
             ErrorCode::kInvalidArgument,
-            fmt::format("Block size must be between {} and {}",
-            kMinBlockSize, kMaxBlockSize));
+            fmt::format("Block size must be between {} and {}", kMinBlockSize, kMaxBlockSize));
     }
     if (bufferSize == 0) {
         return makeVoidError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
@@ -34,10 +33,10 @@ VoidResult ReaderNodeConfig::validate() const {
 
 VoidResult CompressorNodeConfig::validate() const {
     if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
-        return makeVoidError(
-            ErrorCode::kInvalidArgument,
-            fmt::format("Compression level must be between {} and {}",
-            kMinCompressionLevel, kMaxCompressionLevel));
+        return makeVoidError(ErrorCode::kInvalidArgument,
+                             fmt::format("Compression level must be between {} and {}",
+                                         kMinCompressionLevel,
+                                         kMaxCompressionLevel));
     }
     return {};
 }
@@ -51,20 +50,16 @@ VoidResult WriterNodeConfig::validate() const {
 
 VoidResult FQCReaderNodeConfig::validate() const {
     if (rangeStart > 0 && rangeEnd > 0 && rangeStart > rangeEnd) {
-        return makeVoidError(
-            ErrorCode::kInvalidArgument,
-            "Range start must be <= range end");
+        return makeVoidError(ErrorCode::kInvalidArgument, "Range start must be <= range end");
     }
     return {};
 }
 
-
 VoidResult DecompressorNodeConfig::validate() const {
     // Placeholder quality must be valid ASCII
     if (placeholderQual < 33 || placeholderQual > 126) {
-        return makeVoidError(
-            ErrorCode::kInvalidArgument,
-            "Placeholder quality must be ASCII 33-126");
+        return makeVoidError(ErrorCode::kInvalidArgument,
+                             "Placeholder quality must be ASCII 33-126");
     }
     return {};
 }

@@ -25,6 +25,10 @@
 #ifndef FQC_FORMAT_FQC_READER_H
 #define FQC_FORMAT_FQC_READER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/format/fqc_format.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -33,10 +37,6 @@
 #include <span>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/format/fqc_format.h"
 
 namespace fqc::format {
 
@@ -56,12 +56,14 @@ enum class StreamSelection : std::uint8_t {
 
 /// @brief Bitwise OR for StreamSelection.
 [[nodiscard]] constexpr StreamSelection operator|(StreamSelection a, StreamSelection b) noexcept {
-    return static_cast<StreamSelection>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
+    return static_cast<StreamSelection>(static_cast<std::uint8_t>(a) |
+                                        static_cast<std::uint8_t>(b));
 }
 
 /// @brief Bitwise AND for StreamSelection.
 [[nodiscard]] constexpr StreamSelection operator&(StreamSelection a, StreamSelection b) noexcept {
-    return static_cast<StreamSelection>(static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b));
+    return static_cast<StreamSelection>(static_cast<std::uint8_t>(a) &
+                                        static_cast<std::uint8_t>(b));
 }
 
 /// @brief Check if a stream is selected.
@@ -184,17 +186,23 @@ public:
     void close() noexcept;
 
     /// @brief Check if the archive is open.
-    [[nodiscard]] bool isOpen() const noexcept { return isOpen_; }
+    [[nodiscard]] bool isOpen() const noexcept {
+        return isOpen_;
+    }
 
     // =========================================================================
     // Metadata Access
     // =========================================================================
 
     /// @brief Get the archive file path.
-    [[nodiscard]] const std::filesystem::path& archivePath() const noexcept { return archivePath_; }
+    [[nodiscard]] const std::filesystem::path& archivePath() const noexcept {
+        return archivePath_;
+    }
 
     /// @brief Get the format version.
-    [[nodiscard]] std::uint8_t version() const noexcept { return version_; }
+    [[nodiscard]] std::uint8_t version() const noexcept {
+        return version_;
+    }
 
     /// @brief Get the global header.
     /// @throws FormatError if archive is not open.
@@ -209,16 +217,22 @@ public:
     [[nodiscard]] const std::vector<IndexEntry>& blockIndex() const;
 
     /// @brief Get the number of blocks.
-    [[nodiscard]] std::size_t blockCount() const noexcept { return blockIndex_.size(); }
+    [[nodiscard]] std::size_t blockCount() const noexcept {
+        return blockIndex_.size();
+    }
 
     /// @brief Get the total read count.
     [[nodiscard]] std::uint64_t totalReadCount() const noexcept;
 
     /// @brief Get the original filename.
-    [[nodiscard]] const std::string& originalFilename() const noexcept { return originalFilename_; }
+    [[nodiscard]] const std::string& originalFilename() const noexcept {
+        return originalFilename_;
+    }
 
     /// @brief Get the timestamp.
-    [[nodiscard]] std::uint64_t timestamp() const noexcept { return timestamp_; }
+    [[nodiscard]] std::uint64_t timestamp() const noexcept {
+        return timestamp_;
+    }
 
     // =========================================================================
     // Block Reading
@@ -231,7 +245,7 @@ public:
     /// @throws IOError on read failure.
     /// @throws FormatError if block ID is invalid.
     [[nodiscard]] BlockData readBlock(BlockId blockId,
-                                       StreamSelection selection = StreamSelection::kAll);
+                                      StreamSelection selection = StreamSelection::kAll);
 
     /// @brief Read only the block header.
     /// @param blockId Block ID (0-based).
@@ -308,10 +322,10 @@ public:
     /// @return true if checksum matches.
     /// @note Requires uncompressed data because checksum is over uncompressed streams.
     [[nodiscard]] bool verifyBlockChecksum(BlockId blockId,
-                                            std::span<const std::uint8_t> idsData,
-                                            std::span<const std::uint8_t> seqData,
-                                            std::span<const std::uint8_t> qualData,
-                                            std::span<const std::uint8_t> auxData);
+                                           std::span<const std::uint8_t> idsData,
+                                           std::span<const std::uint8_t> seqData,
+                                           std::span<const std::uint8_t> qualData,
+                                           std::span<const std::uint8_t> auxData);
 
     /// @brief Quick verification of file structure.
     /// @return true if magic and footer are valid.

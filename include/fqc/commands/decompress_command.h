@@ -14,15 +14,15 @@
 #ifndef FQC_COMMANDS_DECOMPRESS_COMMAND_H
 #define FQC_COMMANDS_DECOMPRESS_COMMAND_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::commands {
 
@@ -154,8 +154,8 @@ struct DecompressionStats {
     /// @brief Throughput in MB/s.
     [[nodiscard]] double throughputMbps() const noexcept {
         return elapsedSeconds > 0
-                   ? (static_cast<double>(outputBytes) / (1024 * 1024)) / elapsedSeconds
-                   : 0.0;
+            ? (static_cast<double>(outputBytes) / (1024 * 1024)) / elapsedSeconds
+            : 0.0;
     }
 };
 
@@ -183,10 +183,14 @@ public:
     [[nodiscard]] int execute();
 
     /// @brief Get decompression statistics.
-    [[nodiscard]] const DecompressionStats& stats() const noexcept { return stats_; }
+    [[nodiscard]] const DecompressionStats& stats() const noexcept {
+        return stats_;
+    }
 
     /// @brief Get the options.
-    [[nodiscard]] const DecompressOptions& options() const noexcept { return options_; }
+    [[nodiscard]] const DecompressOptions& options() const noexcept {
+        return options_;
+    }
 
 private:
     /// @brief Validate options before execution.

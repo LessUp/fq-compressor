@@ -122,7 +122,6 @@ std::pair<std::vector<std::uint16_t>, std::vector<char>> PEOptimizer::computeDif
 
 std::pair<bool, std::size_t> PEOptimizer::checkComplementarity(std::string_view r1Seq,
                                                                std::string_view r2Seq) const {
-
     if (!config_.enableComplementarity) {
         return {false, 0};
     }
@@ -227,7 +226,6 @@ io::PairedEndRecord PEOptimizer::decodePair(const PEEncodedPair& encoded) const 
 
 std::vector<ReadRecord> PEOptimizer::toInterleaved(
     std::span<const io::PairedEndRecord> pairs) const {
-
     std::vector<ReadRecord> reads;
     reads.reserve(pairs.size() * 2);
 
@@ -241,7 +239,6 @@ std::vector<ReadRecord> PEOptimizer::toInterleaved(
 
 std::vector<ReadRecord> PEOptimizer::toConsecutive(
     std::span<const io::PairedEndRecord> pairs) const {
-
     std::vector<ReadRecord> reads;
     reads.reserve(pairs.size() * 2);
 
@@ -260,7 +257,6 @@ std::vector<ReadRecord> PEOptimizer::toConsecutive(
 
 std::vector<io::PairedEndRecord> PEOptimizer::fromInterleaved(
     std::span<const ReadRecord> reads) const {
-
     std::vector<io::PairedEndRecord> pairs;
     pairs.reserve(reads.size() / 2);
 
@@ -280,7 +276,6 @@ std::vector<io::PairedEndRecord> PEOptimizer::fromInterleaved(
 
 std::vector<io::PairedEndRecord> PEOptimizer::fromConsecutive(
     std::span<const ReadRecord> reads) const {
-
     std::size_t halfSize = reads.size() / 2;
     std::vector<io::PairedEndRecord> pairs;
     pairs.reserve(halfSize);

@@ -9,9 +9,9 @@
 // **Validates: Requirements 1.1.3**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/algo/block_compressor.h"
+#include "fqc/common/types.h"
+#include "fqc/io/fastq_parser.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -20,9 +20,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/algo/block_compressor.h"
-#include "fqc/common/types.h"
-#include "fqc/io/fastq_parser.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::algo::test {
 
@@ -39,12 +40,11 @@ namespace gen {
 
 /// @brief Generate a valid DNA base including N (higher N ratio for long reads).
 [[nodiscard]] rc::Gen<char> validBaseWithN(double nRatio = 0.01) {
-    return rc::gen::map(
-        rc::gen::tuple(rc::gen::inRange(0.0, 1.0), validBase()),
-        [nRatio](const auto& tuple) {
-            auto [r, base] = tuple;
-            return r < nRatio ? 'N' : base;
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange(0.0, 1.0), validBase()),
+                        [nRatio](const auto& tuple) {
+                            auto [r, base] = tuple;
+                            return r < nRatio ? 'N' : base;
+                        });
 }
 
 /// @brief Generate a valid DNA sequence of specified length.
@@ -54,89 +54,83 @@ namespace gen {
 
 /// @brief Generate a long read sequence (1KB-50KB).
 [[nodiscard]] rc::Gen<std::string> longReadSequence() {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(1000, 50000),
-        [](std::size_t len) { return validSequence(len); });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(1000, 50000),
+                           [](std::size_t len) { return validSequence(len); });
 }
 
 /// @brief Generate a medium read sequence (512-10KB).
 [[nodiscard]] rc::Gen<std::string> mediumReadSequence() {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(512, 10000),
-        [](std::size_t len) { return validSequence(len); });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(512, 10000),
+                           [](std::size_t len) { return validSequence(len); });
 }
 
 /// @brief Generate an ultra-long read sequence (100KB-500KB).
 [[nodiscard]] rc::Gen<std::string> ultraLongReadSequence() {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(100000, 500000),
-        [](std::size_t len) { return validSequence(len); });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(100000, 500000),
+                           [](std::size_t len) { return validSequence(len); });
 }
 
 /// @brief Generate a valid quality string of specified length.
 /// Simulates long read quality profile (Nanopore-like).
 [[nodiscard]] rc::Gen<std::string> longReadQuality(std::size_t length) {
     // Long reads typically have lower quality with position-dependent pattern
-    return rc::gen::map(
-        rc::gen::container<std::vector<int>>(
-            length,
-            rc::gen::inRange(5, 35)),  // Phred 5-35 for long reads
-        [](const std::vector<int>& phreds) {
-            std::string qual;
-            qual.reserve(phreds.size());
-            for (int p : phreds) {
-                qual.push_back(static_cast<char>('!' + p));
-            }
-            return qual;
-        });
+    return rc::gen::map(rc::gen::container<std::vector<int>>(
+                            length, rc::gen::inRange(5, 35)),  // Phred 5-35 for long reads
+                        [](const std::vector<int>& phreds) {
+                            std::string qual;
+                            qual.reserve(phreds.size());
+                            for (int p : phreds) {
+                                qual.push_back(static_cast<char>('!' + p));
+                            }
+                            return qual;
+                        });
 }
 
 /// @brief Generate a valid read ID for long reads (Nanopore-style).
 [[nodiscard]] rc::Gen<std::string> longReadId() {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::container<std::string>(8, rc::gen::inRange('a', 'f' + 1)),  // UUID part
-            rc::gen::inRange(1, 10000)),  // Read number
-        [](const auto& tuple) {
-            auto [uuid, num] = tuple;
-            return uuid + "-" + std::to_string(num);
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::container<std::string>(
+                                           8, rc::gen::inRange('a', 'f' + 1)),  // UUID part
+                                       rc::gen::inRange(1, 10000)),             // Read number
+                        [](const auto& tuple) {
+                            auto [uuid, num] = tuple;
+                            return uuid + "-" + std::to_string(num);
+                        });
 }
 
 /// @brief Generate a valid long ReadRecord.
 [[nodiscard]] rc::Gen<ReadRecord> longReadRecord() {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(1000, 20000),  // Length 1KB-20KB
-        [](std::size_t seqLength) {
-            return rc::gen::map(
-                rc::gen::tuple(longReadId(), validSequence(seqLength), longReadQuality(seqLength)),
-                [](const auto& tuple) {
-                    auto [id, seq, qual] = tuple;
-                    ReadRecord record;
-                    record.id = std::move(id);
-                    record.sequence = std::move(seq);
-                    record.quality = std::move(qual);
-                    return record;
-                });
-        });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(1000, 20000),  // Length 1KB-20KB
+                           [](std::size_t seqLength) {
+                               return rc::gen::map(rc::gen::tuple(longReadId(),
+                                                                  validSequence(seqLength),
+                                                                  longReadQuality(seqLength)),
+                                                   [](const auto& tuple) {
+                                                       auto [id, seq, qual] = tuple;
+                                                       ReadRecord record;
+                                                       record.id = std::move(id);
+                                                       record.sequence = std::move(seq);
+                                                       record.quality = std::move(qual);
+                                                       return record;
+                                                   });
+                           });
 }
 
 /// @brief Generate a valid medium ReadRecord.
 [[nodiscard]] rc::Gen<ReadRecord> mediumReadRecord() {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(512, 5000),  // Length 512-5KB
-        [](std::size_t seqLength) {
-            return rc::gen::map(
-                rc::gen::tuple(longReadId(), validSequence(seqLength), longReadQuality(seqLength)),
-                [](const auto& tuple) {
-                    auto [id, seq, qual] = tuple;
-                    ReadRecord record;
-                    record.id = std::move(id);
-                    record.sequence = std::move(seq);
-                    record.quality = std::move(qual);
-                    return record;
-                });
-        });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(512, 5000),  // Length 512-5KB
+                           [](std::size_t seqLength) {
+                               return rc::gen::map(rc::gen::tuple(longReadId(),
+                                                                  validSequence(seqLength),
+                                                                  longReadQuality(seqLength)),
+                                                   [](const auto& tuple) {
+                                                       auto [id, seq, qual] = tuple;
+                                                       ReadRecord record;
+                                                       record.id = std::move(id);
+                                                       record.sequence = std::move(seq);
+                                                       record.quality = std::move(qual);
+                                                       return record;
+                                                   });
+                           });
 }
 
 /// @brief Generate a vector of long ReadRecords.
@@ -372,18 +366,17 @@ RC_GTEST_PROP(LongReadProperty, VariableLengthHandling, ()) {
 
     for (std::size_t i = 0; i < numReads; ++i) {
         auto length = *rc::gen::inRange<std::size_t>(1000, 30000);
-        auto record = *rc::gen::map(
-            rc::gen::tuple(gen::longReadId(),
-                           gen::validSequence(length),
-                           gen::longReadQuality(length)),
-            [](const auto& tuple) {
-                auto [id, seq, qual] = tuple;
-                ReadRecord r;
-                r.id = std::move(id);
-                r.sequence = std::move(seq);
-                r.quality = std::move(qual);
-                return r;
-            });
+        auto record = *rc::gen::map(rc::gen::tuple(gen::longReadId(),
+                                                   gen::validSequence(length),
+                                                   gen::longReadQuality(length)),
+                                    [](const auto& tuple) {
+                                        auto [id, seq, qual] = tuple;
+                                        ReadRecord r;
+                                        r.id = std::move(id);
+                                        r.sequence = std::move(seq);
+                                        r.quality = std::move(qual);
+                                        return r;
+                                    });
         reads.push_back(std::move(record));
     }
 

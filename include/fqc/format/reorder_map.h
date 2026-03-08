@@ -21,15 +21,15 @@
 #ifndef FQC_FORMAT_REORDER_MAP_H
 #define FQC_FORMAT_REORDER_MAP_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/format/fqc_format.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <iosfwd>
 #include <span>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/format/fqc_format.h"
 
 namespace fqc::format {
 
@@ -61,8 +61,9 @@ inline constexpr double kTargetBytesPerRead = 4.0;
 /// @param inputSize Size of input buffer
 /// @param value Output value
 /// @return Number of bytes consumed, or 0 on error
-[[nodiscard]] std::size_t decodeVarint(const std::uint8_t* input, std::size_t inputSize,
-                                        std::uint64_t& value) noexcept;
+[[nodiscard]] std::size_t decodeVarint(const std::uint8_t* input,
+                                       std::size_t inputSize,
+                                       std::uint64_t& value) noexcept;
 
 /// @brief Encode a signed 64-bit integer as zigzag varint
 /// @param value The signed value to encode
@@ -75,8 +76,9 @@ inline constexpr double kTargetBytesPerRead = 4.0;
 /// @param inputSize Size of input buffer
 /// @param value Output signed value
 /// @return Number of bytes consumed, or 0 on error
-[[nodiscard]] std::size_t decodeSignedVarint(const std::uint8_t* input, std::size_t inputSize,
-                                              std::int64_t& value) noexcept;
+[[nodiscard]] std::size_t decodeSignedVarint(const std::uint8_t* input,
+                                             std::size_t inputSize,
+                                             std::int64_t& value) noexcept;
 
 // =============================================================================
 // Delta Encoding/Decoding Utilities
@@ -92,7 +94,7 @@ inline constexpr double kTargetBytesPerRead = 4.0;
 /// @param count Expected number of IDs to decode
 /// @return Decoded read IDs, or error on failure
 [[nodiscard]] Result<std::vector<ReadId>> deltaDecode(std::span<const std::uint8_t> encoded,
-                                                       std::uint64_t count);
+                                                      std::uint64_t count);
 
 // =============================================================================
 // ReorderMapData Class
@@ -169,10 +171,14 @@ public:
     // =========================================================================
 
     /// @brief Get the forward map (original_id -> archive_id)
-    [[nodiscard]] const std::vector<ReadId>& forwardMap() const noexcept { return forwardMap_; }
+    [[nodiscard]] const std::vector<ReadId>& forwardMap() const noexcept {
+        return forwardMap_;
+    }
 
     /// @brief Get the reverse map (archive_id -> original_id)
-    [[nodiscard]] const std::vector<ReadId>& reverseMap() const noexcept { return reverseMap_; }
+    [[nodiscard]] const std::vector<ReadId>& reverseMap() const noexcept {
+        return reverseMap_;
+    }
 
     // =========================================================================
     // Serialization
@@ -200,16 +206,14 @@ public:
     /// @param archiveIdOffset Offset to add to archive IDs in the appended chunk
     /// @param originalIdOffset Offset to add to original IDs in the appended chunk
     /// @note This is used in divide-and-conquer mode to merge chunk maps
-    void appendChunk(const ReorderMapData& other, ReadId archiveIdOffset,
-                     ReadId originalIdOffset);
+    void appendChunk(const ReorderMapData& other, ReadId archiveIdOffset, ReadId originalIdOffset);
 
     /// @brief Create a combined reorder map from multiple chunks
     /// @param chunks Vector of chunk reorder maps
     /// @param chunkSizes Vector of chunk sizes (number of reads per chunk)
     /// @return Combined reorder map with globally continuous IDs
-    [[nodiscard]] static ReorderMapData combineChunks(
-        std::span<const ReorderMapData> chunks,
-        std::span<const std::uint64_t> chunkSizes);
+    [[nodiscard]] static ReorderMapData combineChunks(std::span<const ReorderMapData> chunks,
+                                                      std::span<const std::uint64_t> chunkSizes);
 
     // =========================================================================
     // Statistics
@@ -289,7 +293,7 @@ public:
 /// @param reverseMap Reverse map: archive_id -> original_id
 /// @return VoidResult indicating success or validation error
 [[nodiscard]] VoidResult verifyMapConsistency(std::span<const ReadId> forwardMap,
-                                               std::span<const ReadId> reverseMap);
+                                              std::span<const ReadId> reverseMap);
 
 }  // namespace fqc::format
 

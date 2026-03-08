@@ -9,9 +9,7 @@
 // **Validates: Requirements 1.1.1**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/io/fastq_parser.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -20,7 +18,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/io/fastq_parser.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::io::test {
 
@@ -63,7 +64,8 @@ namespace gen {
 }
 
 /// @brief Generate a valid DNA sequence.
-[[nodiscard]] rc::Gen<std::string> validSequence(std::size_t minLen = 10, std::size_t maxLen = 500) {
+[[nodiscard]] rc::Gen<std::string> validSequence(std::size_t minLen = 10,
+                                                 std::size_t maxLen = 500) {
     return rc::gen::container<std::string>(rc::gen::inRange(minLen, maxLen + 1), validBase());
 }
 
@@ -81,10 +83,11 @@ namespace gen {
 /// @brief Generate a valid read ID (alphanumeric, no spaces).
 [[nodiscard]] rc::Gen<std::string> validReadId() {
     return rc::gen::map(
-        rc::gen::container<std::string>(
-            rc::gen::inRange(1, 50),
-            rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1), rc::gen::inRange('A', 'Z' + 1),
-                           rc::gen::inRange('0', '9' + 1), rc::gen::element('_', '-', ':', '.'))),
+        rc::gen::container<std::string>(rc::gen::inRange(1, 50),
+                                        rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
+                                                       rc::gen::inRange('A', 'Z' + 1),
+                                                       rc::gen::inRange('0', '9' + 1),
+                                                       rc::gen::element('_', '-', ':', '.'))),
         [](std::string s) {
             // Ensure first char is not a digit
             if (!s.empty() && std::isdigit(static_cast<unsigned char>(s[0]))) {
@@ -98,71 +101,71 @@ namespace gen {
 [[nodiscard]] rc::Gen<std::string> optionalComment() {
     return rc::gen::oneOf(
         rc::gen::just(std::string{}),
-        rc::gen::container<std::string>(
-            rc::gen::inRange(1, 30),
-            rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1), rc::gen::inRange('A', 'Z' + 1),
-                           rc::gen::inRange('0', '9' + 1), rc::gen::element('_', '-', ':', '='))));
+        rc::gen::container<std::string>(rc::gen::inRange(1, 30),
+                                        rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
+                                                       rc::gen::inRange('A', 'Z' + 1),
+                                                       rc::gen::inRange('0', '9' + 1),
+                                                       rc::gen::element('_', '-', ':', '='))));
 }
 
 /// @brief Generate a valid FASTQ record.
 [[nodiscard]] rc::Gen<FastqRecord> validFastqRecord() {
-    return rc::gen::map(
-        rc::gen::tuple(validReadId(), optionalComment(),
-                       rc::gen::inRange<std::size_t>(10, 300)),  // sequence length
-        [](const auto& tuple) {
-            auto [id, comment, seqLen] = tuple;
-            FastqRecord record;
-            record.id = id;
-            record.comment = comment;
-            record.sequence = *validSequence(seqLen, seqLen);
-            record.quality = *validQuality(seqLen);
-            return record;
-        });
+    return rc::gen::map(rc::gen::tuple(validReadId(),
+                                       optionalComment(),
+                                       rc::gen::inRange<std::size_t>(10, 300)),  // sequence length
+                        [](const auto& tuple) {
+                            auto [id, comment, seqLen] = tuple;
+                            FastqRecord record;
+                            record.id = id;
+                            record.comment = comment;
+                            record.sequence = *validSequence(seqLen, seqLen);
+                            record.quality = *validQuality(seqLen);
+                            return record;
+                        });
 }
 
 /// @brief Generate an Illumina-style read ID.
 [[nodiscard]] rc::Gen<std::string> illuminaReadId() {
-    return rc::gen::map(
-        rc::gen::tuple(rc::gen::inRange(1, 10),     // run
-                       rc::gen::inRange(1, 9),      // lane
-                       rc::gen::inRange(1, 100),    // tile
-                       rc::gen::inRange(1, 10000),  // x
-                       rc::gen::inRange(1, 10000)   // y
-                       ),
-        [](const auto& tuple) {
-            auto [run, lane, tile, x, y] = tuple;
-            return "SIM:" + std::to_string(run) + ":FCX:" + std::to_string(lane) + ":" +
-                   std::to_string(tile) + ":" + std::to_string(x) + ":" + std::to_string(y);
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange(1, 10),     // run
+                                       rc::gen::inRange(1, 9),      // lane
+                                       rc::gen::inRange(1, 100),    // tile
+                                       rc::gen::inRange(1, 10000),  // x
+                                       rc::gen::inRange(1, 10000)   // y
+                                       ),
+                        [](const auto& tuple) {
+                            auto [run, lane, tile, x, y] = tuple;
+                            return "SIM:" + std::to_string(run) + ":FCX:" + std::to_string(lane) +
+                                ":" + std::to_string(tile) + ":" + std::to_string(x) + ":" +
+                                std::to_string(y);
+                        });
 }
 
 /// @brief Generate an Illumina-style FASTQ record.
 [[nodiscard]] rc::Gen<FastqRecord> illuminaFastqRecord() {
-    return rc::gen::map(
-        rc::gen::tuple(illuminaReadId(), rc::gen::inRange<std::size_t>(50, 151)),  // typical Illumina
-        [](const auto& tuple) {
-            auto [id, seqLen] = tuple;
-            FastqRecord record;
-            record.id = id;
-            record.comment = "1:N:0:ATCACG";  // Typical Illumina comment
-            record.sequence = *validSequence(seqLen, seqLen);
-            record.quality = *validQuality(seqLen);
-            return record;
-        });
+    return rc::gen::map(rc::gen::tuple(illuminaReadId(),
+                                       rc::gen::inRange<std::size_t>(50, 151)),  // typical Illumina
+                        [](const auto& tuple) {
+                            auto [id, seqLen] = tuple;
+                            FastqRecord record;
+                            record.id = id;
+                            record.comment = "1:N:0:ATCACG";  // Typical Illumina comment
+                            record.sequence = *validSequence(seqLen, seqLen);
+                            record.quality = *validQuality(seqLen);
+                            return record;
+                        });
 }
 
 /// @brief Generate a long read (for testing length detection).
 [[nodiscard]] rc::Gen<FastqRecord> longReadRecord() {
-    return rc::gen::map(
-        rc::gen::tuple(validReadId(), rc::gen::inRange<std::size_t>(1000, 10000)),
-        [](const auto& tuple) {
-            auto [id, seqLen] = tuple;
-            FastqRecord record;
-            record.id = id;
-            record.sequence = *validSequence(seqLen, seqLen);
-            record.quality = *validQuality(seqLen);
-            return record;
-        });
+    return rc::gen::map(rc::gen::tuple(validReadId(), rc::gen::inRange<std::size_t>(1000, 10000)),
+                        [](const auto& tuple) {
+                            auto [id, seqLen] = tuple;
+                            FastqRecord record;
+                            record.id = id;
+                            record.sequence = *validSequence(seqLen, seqLen);
+                            record.quality = *validQuality(seqLen);
+                            return record;
+                        });
 }
 
 }  // namespace gen

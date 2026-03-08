@@ -16,6 +16,10 @@
 #ifndef FQC_ALGO_BLOCK_COMPRESSOR_H
 #define FQC_ALGO_BLOCK_COMPRESSOR_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/format/fqc_format.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -25,10 +29,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/format/fqc_format.h"
 
 namespace fqc::algo {
 
@@ -113,8 +113,7 @@ struct CompressedBlockData {
 
     /// @brief Check if quality was discarded
     [[nodiscard]] bool isQualityDiscarded() const noexcept {
-        return qualStream.empty() &&
-               format::decodeCodecFamily(codecQual) == CodecFamily::kRaw;
+        return qualStream.empty() && format::decodeCodecFamily(codecQual) == CodecFamily::kRaw;
     }
 
     /// @brief Clear all data
@@ -340,17 +339,15 @@ public:
     /// @param reads Vector of read records to compress
     /// @param blockId Block identifier
     /// @return Compressed block data or error
-    [[nodiscard]] Result<CompressedBlockData> compress(
-        std::span<const ReadRecord> reads,
-        BlockId blockId);
+    [[nodiscard]] Result<CompressedBlockData> compress(std::span<const ReadRecord> reads,
+                                                       BlockId blockId);
 
     /// @brief Compress a block of reads (view version)
     /// @param reads Vector of read record views to compress
     /// @param blockId Block identifier
     /// @return Compressed block data or error
-    [[nodiscard]] Result<CompressedBlockData> compress(
-        std::span<const ReadRecordView> reads,
-        BlockId blockId);
+    [[nodiscard]] Result<CompressedBlockData> compress(std::span<const ReadRecordView> reads,
+                                                       BlockId blockId);
 
     /// @brief Decompress a block
     /// @param compressedData Compressed block data
@@ -365,12 +362,11 @@ public:
     /// @param qualStream Compressed quality stream
     /// @param auxStream Compressed auxiliary stream
     /// @return Decompressed block data or error
-    [[nodiscard]] Result<DecompressedBlockData> decompress(
-        const format::BlockHeader& header,
-        std::span<const std::uint8_t> idStream,
-        std::span<const std::uint8_t> seqStream,
-        std::span<const std::uint8_t> qualStream,
-        std::span<const std::uint8_t> auxStream);
+    [[nodiscard]] Result<DecompressedBlockData> decompress(const format::BlockHeader& header,
+                                                           std::span<const std::uint8_t> idStream,
+                                                           std::span<const std::uint8_t> seqStream,
+                                                           std::span<const std::uint8_t> qualStream,
+                                                           std::span<const std::uint8_t> auxStream);
 
     /// @brief Get current configuration
     [[nodiscard]] const BlockCompressorConfig& config() const noexcept;
@@ -397,29 +393,26 @@ private:
 /// @param shift Alignment shift
 /// @param isRC Whether read is reverse complemented
 /// @return Delta-encoded read
-[[nodiscard]] DeltaEncodedRead computeDelta(
-    std::string_view read,
-    std::string_view consensus,
-    int shift,
-    bool isRC);
+[[nodiscard]] DeltaEncodedRead computeDelta(std::string_view read,
+                                            std::string_view consensus,
+                                            int shift,
+                                            bool isRC);
 
 /// @brief Reconstruct a read from delta and consensus
 /// @param delta Delta-encoded read
 /// @param consensus The consensus sequence
 /// @return Reconstructed read sequence
-[[nodiscard]] std::string reconstructFromDelta(
-    const DeltaEncodedRead& delta,
-    std::string_view consensus);
+[[nodiscard]] std::string reconstructFromDelta(const DeltaEncodedRead& delta,
+                                               std::string_view consensus);
 
 /// @brief Compute Hamming distance between two sequences
 /// @param seq1 First sequence
 /// @param seq2 Second sequence
 /// @param maxDistance Maximum distance to compute (early exit)
 /// @return Hamming distance, or maxDistance+1 if exceeded
-[[nodiscard]] std::size_t hammingDistance(
-    std::string_view seq1,
-    std::string_view seq2,
-    std::size_t maxDistance = SIZE_MAX);
+[[nodiscard]] std::size_t hammingDistance(std::string_view seq1,
+                                          std::string_view seq2,
+                                          std::size_t maxDistance = SIZE_MAX);
 
 /// @brief Find best alignment between a read and reference
 /// @param read The read sequence
@@ -427,11 +420,10 @@ private:
 /// @param maxShift Maximum shift to try
 /// @param hammingThreshold Maximum Hamming distance for valid alignment
 /// @return Pair of (shift, isReverseComplement), or nullopt if no good alignment
-[[nodiscard]] std::optional<std::pair<int, bool>> findBestAlignment(
-    std::string_view read,
-    std::string_view reference,
-    std::size_t maxShift,
-    std::size_t hammingThreshold);
+[[nodiscard]] std::optional<std::pair<int, bool>> findBestAlignment(std::string_view read,
+                                                                    std::string_view reference,
+                                                                    std::size_t maxShift,
+                                                                    std::size_t hammingThreshold);
 
 /// @brief Compute reverse complement of a DNA sequence
 /// @param sequence Input sequence

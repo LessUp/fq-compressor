@@ -8,13 +8,6 @@
 
 #include "fqc/commands/compress_command.h"
 
-#include <chrono>
-#include <ctime>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
-#include <thread>
-
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/global_analyzer.h"
 #include "fqc/common/logger.h"
@@ -23,6 +16,13 @@
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
 #include "fqc/pipeline/pipeline.h"
+
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <thread>
 
 namespace fqc::commands {
 
@@ -45,8 +45,7 @@ QualityMode parseQualityMode(std::string_view str) {
     if (str == "discard") {
         return QualityMode::kDiscard;
     }
-    throw ArgumentError(
-                        "Invalid quality mode: " + std::string(str));
+    throw ArgumentError("Invalid quality mode: " + std::string(str));
 }
 
 IDMode parseIdMode(std::string_view str) {
@@ -59,8 +58,7 @@ IDMode parseIdMode(std::string_view str) {
     if (str == "discard") {
         return IDMode::kDiscard;
     }
-    throw ArgumentError(
-                        "Invalid ID mode: " + std::string(str));
+    throw ArgumentError("Invalid ID mode: " + std::string(str));
 }
 
 // =============================================================================
@@ -94,8 +92,7 @@ int CompressCommand::execute() {
 
         // Calculate elapsed time
         auto endTime = std::chrono::steady_clock::now();
-        stats_.elapsedSeconds =
-            std::chrono::duration<double>(endTime - startTime).count();
+        stats_.elapsedSeconds = std::chrono::duration<double>(endTime - startTime).count();
 
         // Print summary
         if (options_.showProgress) {
@@ -117,22 +114,19 @@ void CompressCommand::validateOptions() {
     // Check input exists (unless stdin)
     if (options_.inputPath != "-") {
         if (!std::filesystem::exists(options_.inputPath)) {
-            throw IOError(
-                          "Input file not found: " + options_.inputPath.string());
+            throw IOError("Input file not found: " + options_.inputPath.string());
         }
     }
 
     // Check output doesn't exist (unless force)
     if (!options_.forceOverwrite && std::filesystem::exists(options_.outputPath)) {
-        throw IOError(
-                      "Output file already exists: " + options_.outputPath.string() +
-                          " (use -f to overwrite)");
+        throw IOError("Output file already exists: " + options_.outputPath.string() +
+                      " (use -f to overwrite)");
     }
 
     // Validate compression level
     if (options_.compressionLevel < 1 || options_.compressionLevel > 9) {
-        throw ArgumentError(
-                            "Compression level must be 1-9");
+        throw ArgumentError("Compression level must be 1-9");
     }
 
     // Streaming mode implies no reordering and no reorder map
@@ -200,7 +194,8 @@ void CompressCommand::detectReadLengthClass() {
                 // Progress report every 1M reads
                 if (options_.showProgress && scannedCount % 1000000 == 0) {
                     FQC_LOG_INFO("Scanned {} reads, max length so far: {}",
-                             scannedCount, sampleStats.maxLength);
+                                 scannedCount,
+                                 sampleStats.maxLength);
                 }
             }
             FQC_LOG_INFO("Full scan complete: {} reads scanned", scannedCount);
@@ -213,18 +208,20 @@ void CompressCommand::detectReadLengthClass() {
         detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
 
         FQC_LOG_INFO("Detected read length class: {}",
-                 detectedLengthClass_ == ReadLengthClass::kShort    ? "SHORT"
-                 : detectedLengthClass_ == ReadLengthClass::kMedium ? "MEDIUM"
-                                                                    : "LONG");
-        FQC_LOG_DEBUG("  {} size: {} reads", options_.scanAllLengths ? "Scan" : "Sample",
-                  sampleStats.totalRecords);
+                     detectedLengthClass_ == ReadLengthClass::kShort        ? "SHORT"
+                         : detectedLengthClass_ == ReadLengthClass::kMedium ? "MEDIUM"
+                                                                            : "LONG");
+        FQC_LOG_DEBUG("  {} size: {} reads",
+                      options_.scanAllLengths ? "Scan" : "Sample",
+                      sampleStats.totalRecords);
         FQC_LOG_DEBUG("  Min length: {}", sampleStats.minLength);
         FQC_LOG_DEBUG("  Max length: {}", sampleStats.maxLength);
         FQC_LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
 
     } catch (const std::exception& e) {
         FQC_LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
-                    options_.scanAllLengths ? "scan" : "sample", e.what());
+                        options_.scanAllLengths ? "scan" : "sample",
+                        e.what());
         detectedLengthClass_ = ReadLengthClass::kMedium;
     }
 }
@@ -282,7 +279,8 @@ void CompressCommand::runCompression() {
     // TBB Parallel Pipeline Path (threads > 1)
     // =========================================================================
 
-    if (options_.threads > 1 || (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
+    if (options_.threads > 1 ||
+        (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
         FQC_LOG_INFO("Using TBB parallel pipeline for compression");
         runCompressionParallel();
         return;
@@ -325,10 +323,7 @@ void CompressCommand::runCompression() {
     for (auto& fastqRec : allRecords) {
         totalBases += fastqRec.length();  // read length BEFORE move
         readRecords.emplace_back(
-            std::move(fastqRec.id),
-            std::move(fastqRec.sequence),
-            std::move(fastqRec.quality)
-        );
+            std::move(fastqRec.id), std::move(fastqRec.sequence), std::move(fastqRec.quality));
     }
 
     // Update basic stats
@@ -350,9 +345,10 @@ void CompressCommand::runCompression() {
         algo::GlobalAnalyzerConfig analyzerConfig;
         analyzerConfig.readsPerBlock = options_.blockSize;
         analyzerConfig.enableReorder = true;
-        analyzerConfig.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
-        analyzerConfig.memoryLimit = options_.memoryLimitMb > 0
-            ? options_.memoryLimitMb * 1024 * 1024 : 0;
+        analyzerConfig.numThreads =
+            options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
+        analyzerConfig.memoryLimit =
+            options_.memoryLimitMb > 0 ? options_.memoryLimitMb * 1024 * 1024 : 0;
 
         // Progress callback
         if (options_.showProgress) {
@@ -393,10 +389,8 @@ void CompressCommand::runCompression() {
             algo::BlockBoundary boundary;
             boundary.blockId = i;
             boundary.archiveIdStart = static_cast<ReadId>(i * options_.blockSize);
-            boundary.archiveIdEnd = std::min(
-                static_cast<ReadId>((i + 1) * options_.blockSize),
-                static_cast<ReadId>(readRecords.size())
-            );
+            boundary.archiveIdEnd = std::min(static_cast<ReadId>((i + 1) * options_.blockSize),
+                                             static_cast<ReadId>(readRecords.size()));
             analysisResult.blockBoundaries.push_back(boundary);
         }
         analysisResult.numBlocks = blockCount;
@@ -421,8 +415,8 @@ void CompressCommand::runCompression() {
 
     // Calculate header size (will be recalculated by writer, but must be valid for isValid())
     std::string inputFilename = options_.inputPath.filename().string();
-    std::uint32_t headerSize = static_cast<std::uint32_t>(
-        format::GlobalHeader::kMinSize + inputFilename.size());
+    std::uint32_t headerSize =
+        static_cast<std::uint32_t>(format::GlobalHeader::kMinSize + inputFilename.size());
 
     format::GlobalHeader globalHeader;
     globalHeader.headerSize = headerSize;
@@ -454,7 +448,8 @@ void CompressCommand::runCompression() {
     flags |= (static_cast<std::uint64_t>(options_.idMode) << format::flags::kIdModeShift);
 
     // Set read length class
-    flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass) << format::flags::kReadLengthClassShift);
+    flags |= (static_cast<std::uint64_t>(analysisResult.lengthClass)
+              << format::flags::kReadLengthClassShift);
 
     globalHeader.flags = flags;
     globalHeader.totalReadCount = analysisResult.totalReads;
@@ -474,7 +469,8 @@ void CompressCommand::runCompression() {
     algo::BlockCompressorConfig compressorConfig;
     compressorConfig.readLengthClass = analysisResult.lengthClass;
     compressorConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
-    compressorConfig.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
+    compressorConfig.numThreads =
+        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
 
     compressorConfig.qualityMode = options_.qualityMode;
 
@@ -486,7 +482,8 @@ void CompressCommand::runCompression() {
     for (const auto& blockBoundary : analysisResult.blockBoundaries) {
         if (options_.showProgress) {
             FQC_LOG_INFO("Processing block {} of {}...",
-                        blockBoundary.blockId + 1, analysisResult.numBlocks);
+                         blockBoundary.blockId + 1,
+                         analysisResult.numBlocks);
         }
 
         // Extract reads for this block
@@ -522,10 +519,8 @@ void CompressCommand::runCompression() {
         auto compressRes = blockCompressor.compress(blockReads, blockBoundary.blockId);
 
         if (!compressRes) {
-            throw FormatError(
-                "Failed to compress block " + std::to_string(blockBoundary.blockId) +
-                ": " + compressRes.error().message()
-            );
+            throw FormatError("Failed to compress block " + std::to_string(blockBoundary.blockId) +
+                              ": " + compressRes.error().message());
         }
 
         auto compressedBlock = std::move(compressRes.value());
@@ -553,13 +548,15 @@ void CompressCommand::runCompression() {
         stats_.blocksWritten++;
 
         if (options_.showProgress) {
-            FQC_LOG_DEBUG("Block {} compressed: {} bytes -> {} bytes ({:.1f}%)",
-                         blockBoundary.blockId,
-                         blockReads.size() * 100,  // Rough estimate
-                         compressedBlock.totalCompressedSize(),
-                         blockReads.empty() ? 0.0 :
-                            (100.0 * static_cast<double>(compressedBlock.totalCompressedSize()) /
-                             static_cast<double>(blockReads.size() * 100)));
+            FQC_LOG_DEBUG(
+                "Block {} compressed: {} bytes -> {} bytes ({:.1f}%)",
+                blockBoundary.blockId,
+                blockReads.size() * 100,  // Rough estimate
+                compressedBlock.totalCompressedSize(),
+                blockReads.empty()
+                    ? 0.0
+                    : (100.0 * static_cast<double>(compressedBlock.totalCompressedSize()) /
+                       static_cast<double>(blockReads.size() * 100)));
         }
     }
 
@@ -567,24 +564,29 @@ void CompressCommand::runCompression() {
     // Phase 2.5: Write Reorder Map (if applicable)
     // =========================================================================
 
-    if (analysisResult.reorderingPerformed &&
-        !analysisResult.forwardMap.empty() && !analysisResult.reverseMap.empty()) {
+    if (analysisResult.reorderingPerformed && !analysisResult.forwardMap.empty() &&
+        !analysisResult.reverseMap.empty()) {
         FQC_LOG_DEBUG("Writing reorder map...");
 
         // Prepare ReorderMap header
         format::ReorderMap mapHeader;
         mapHeader.totalReads = static_cast<std::uint64_t>(analysisResult.forwardMap.size());
-        // forwardMapSize / reverseMapSize are filled from actual span sizes by FQCWriter::writeReorderMap
+        // forwardMapSize / reverseMapSize are filled from actual span sizes by
+        // FQCWriter::writeReorderMap
 
         // Compress maps (Delta + Varint encoding)
-        auto compressedForward = format::deltaEncode(std::span<const ReadId>(analysisResult.forwardMap.data(), analysisResult.forwardMap.size()));
-        auto compressedReverse = format::deltaEncode(std::span<const ReadId>(analysisResult.reverseMap.data(), analysisResult.reverseMap.size()));
+        auto compressedForward = format::deltaEncode(std::span<const ReadId>(
+            analysisResult.forwardMap.data(), analysisResult.forwardMap.size()));
+        auto compressedReverse = format::deltaEncode(std::span<const ReadId>(
+            analysisResult.reverseMap.data(), analysisResult.reverseMap.size()));
 
         // Write to archive
         fqcWriter.writeReorderMap(mapHeader, compressedForward, compressedReverse);
 
         FQC_LOG_INFO("Reorder map written: {} reads, forward={} bytes, reverse={} bytes",
-                     mapHeader.totalReads, compressedForward.size(), compressedReverse.size());
+                     mapHeader.totalReads,
+                     compressedForward.size(),
+                     compressedReverse.size());
     }
 
     // =========================================================================
@@ -613,9 +615,8 @@ void CompressCommand::runCompressionParallel() {
     // =========================================================================
 
     pipeline::CompressionPipelineConfig pipelineConfig;
-    pipelineConfig.numThreads = options_.threads > 0
-        ? static_cast<std::size_t>(options_.threads)
-        : 0;  // 0 = auto-detect
+    pipelineConfig.numThreads =
+        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
     pipelineConfig.blockSize = options_.blockSize;
     pipelineConfig.readLengthClass = options_.longReadMode;
     pipelineConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
@@ -630,12 +631,13 @@ void CompressCommand::runCompressionParallel() {
     if (options_.showProgress) {
         pipelineConfig.progressCallback = [](const pipeline::ProgressInfo& info) -> bool {
             double progress = info.ratio() * 100.0;
-            FQC_LOG_INFO("Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
-                        progress,
-                        info.readsProcessed,
-                        info.currentBlock,
-                        static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
-                        (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
+            FQC_LOG_INFO(
+                "Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
+                progress,
+                info.readsProcessed,
+                info.currentBlock,
+                static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
+                    (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
             return true;  // Continue
         };
         pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds
@@ -650,8 +652,9 @@ void CompressCommand::runCompressionParallel() {
     FQC_LOG_INFO("  Threads: {}", pipelineConfig.effectiveThreads());
     FQC_LOG_INFO("  Block size: {}", pipelineConfig.effectiveBlockSize());
     FQC_LOG_INFO("  Read length class: {}",
-                pipelineConfig.readLengthClass == ReadLengthClass::kShort ? "SHORT" :
-                pipelineConfig.readLengthClass == ReadLengthClass::kMedium ? "MEDIUM" : "LONG");
+                 pipelineConfig.readLengthClass == ReadLengthClass::kShort        ? "SHORT"
+                     : pipelineConfig.readLengthClass == ReadLengthClass::kMedium ? "MEDIUM"
+                                                                                  : "LONG");
     FQC_LOG_INFO("  Quality mode: {}", qualityModeToString(options_.qualityMode));
     FQC_LOG_INFO("  Reordering: {}", pipelineConfig.enableReorder ? "enabled" : "disabled");
 
@@ -712,18 +715,16 @@ void CompressCommand::printSummary() const {
 // Factory Function
 // =============================================================================
 
-std::unique_ptr<CompressCommand> createCompressCommand(
-    const std::string& inputPath,
-    const std::string& outputPath,
-    int level,
-    bool reorder,
-    bool streaming,
-    const std::string& qualityMode,
-    const std::string& longReadMode,
-    int threads,
-    std::size_t memoryLimit,
-    bool force) {
-
+std::unique_ptr<CompressCommand> createCompressCommand(const std::string& inputPath,
+                                                       const std::string& outputPath,
+                                                       int level,
+                                                       bool reorder,
+                                                       bool streaming,
+                                                       const std::string& qualityMode,
+                                                       const std::string& longReadMode,
+                                                       int threads,
+                                                       std::size_t memoryLimit,
+                                                       bool force) {
     CompressOptions opts;
     opts.inputPath = inputPath;
     opts.outputPath = outputPath;

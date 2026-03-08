@@ -6,12 +6,11 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/common/logger.h"
+#include "fqc/format/fqc_reader.h"
 #include "fqc/pipeline/pipeline_node.h"
 
 #include <fmt/format.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/format/fqc_reader.h"
 
 namespace fqc::pipeline {
 
@@ -21,23 +20,22 @@ namespace fqc::pipeline {
 
 class FQCReaderNodeImpl {
 public:
-    explicit FQCReaderNodeImpl(FQCReaderNodeConfig config)
-        : config_(std::move(config)) {}
+    explicit FQCReaderNodeImpl(FQCReaderNodeConfig config) : config_(std::move(config)) {}
 
     VoidResult open(const std::filesystem::path& path) {
         try {
             inputPath_ = path;
             reader_ = std::make_unique<format::FQCReader>(path);
             reader_->open();
-            
+
             globalHeader_ = reader_->globalHeader();
-            
+
             if (reader_->hasReorderMap()) {
                 reader_->loadReorderMap();
             }
-            
+
             totalBlocks_ = static_cast<std::uint32_t>(reader_->blockCount());
-            
+
             if (config_.rangeStart > 0 || config_.rangeEnd > 0) {
                 if (config_.rangeStart > 0) {
                     startBlockId_ = reader_->findBlockForRead(config_.rangeStart);
@@ -59,18 +57,19 @@ public:
                 startBlockId_ = 0;
                 endBlockId_ = totalBlocks_;
             }
-            
+
             currentBlockId_ = startBlockId_;
             state_ = NodeState::kRunning;
             totalBlocksRead_ = 0;
-            
+
             return {};
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to open FQC file: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to open FQC file: {}", e.what())});
         }
     }
 
@@ -86,7 +85,7 @@ public:
 
         try {
             auto blockData = reader_->readBlock(currentBlockId_);
-            
+
             CompressedBlock block;
             block.blockId = currentBlockId_;
             block.idStream = std::move(blockData.idsData);
@@ -100,26 +99,27 @@ public:
             block.codecSeq = blockData.header.codecSeq;
             block.codecQual = blockData.header.codecQual;
             block.codecAux = blockData.header.codecAux;
-            
+
             auto indexEntry = reader_->getIndexEntry(currentBlockId_);
             if (indexEntry) {
                 block.startReadId = indexEntry->archiveIdStart;
             } else {
                 block.startReadId = 1;
             }
-            
+
             block.isLast = (currentBlockId_ + 1 >= endBlockId_);
-            
+
             ++currentBlockId_;
             ++totalBlocksRead_;
-            
+
             return block;
         } catch (const FQCException& e) {
             state_ = NodeState::kError;
             return std::unexpected(Error{e.code(), e.what()});
         } catch (const std::exception& e) {
             state_ = NodeState::kError;
-            return std::unexpected(Error{ErrorCode::kIOError, fmt::format("Failed to read block: {}", e.what())});
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to read block: {}", e.what())});
         }
     }
 
@@ -138,8 +138,12 @@ public:
         return std::span<const std::uint8_t>(reorderMapData_);
     }
 
-    NodeState state() const noexcept { return state_; }
-    std::uint32_t totalBlocksRead() const noexcept { return totalBlocksRead_; }
+    NodeState state() const noexcept {
+        return state_;
+    }
+    std::uint32_t totalBlocksRead() const noexcept {
+        return totalBlocksRead_;
+    }
 
     void close() noexcept {
         if (reader_) {
@@ -156,7 +160,9 @@ public:
         reorderMapData_.clear();
     }
 
-    const FQCReaderNodeConfig& config() const noexcept { return config_; }
+    const FQCReaderNodeConfig& config() const noexcept {
+        return config_;
+    }
 
 private:
     FQCReaderNodeConfig config_;

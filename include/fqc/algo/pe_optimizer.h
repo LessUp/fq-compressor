@@ -11,15 +11,15 @@
 #ifndef FQC_ALGO_PE_OPTIMIZER_H
 #define FQC_ALGO_PE_OPTIMIZER_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+#include "fqc/io/paired_end_parser.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
-#include "fqc/io/paired_end_parser.h"
 
 namespace fqc::algo {
 
@@ -133,9 +133,8 @@ public:
     /// @param r1Seq R1 sequence.
     /// @param r2Seq R2 sequence.
     /// @return Pair of (beneficial, diffCount).
-    [[nodiscard]] std::pair<bool, std::size_t> checkComplementarity(
-        std::string_view r1Seq,
-        std::string_view r2Seq) const;
+    [[nodiscard]] std::pair<bool, std::size_t> checkComplementarity(std::string_view r1Seq,
+                                                                    std::string_view r2Seq) const;
 
     /// @brief Convert read pairs to interleaved layout.
     /// @param pairs Input pairs.
@@ -162,7 +161,9 @@ public:
         std::span<const ReadRecord> reads) const;
 
     /// @brief Get current configuration.
-    [[nodiscard]] const PEOptimizerConfig& config() const noexcept { return config_; }
+    [[nodiscard]] const PEOptimizerConfig& config() const noexcept {
+        return config_;
+    }
 
     /// @brief Get statistics.
     struct Stats {
@@ -170,10 +171,14 @@ public:
         std::uint64_t complementarityUsed = 0;
         std::uint64_t bytesSaved = 0;
     };
-    [[nodiscard]] const Stats& stats() const noexcept { return stats_; }
+    [[nodiscard]] const Stats& stats() const noexcept {
+        return stats_;
+    }
 
     /// @brief Reset statistics.
-    void resetStats() noexcept { stats_ = Stats{}; }
+    void resetStats() noexcept {
+        stats_ = Stats{};
+    }
 
 private:
     PEOptimizerConfig config_;
@@ -183,8 +188,8 @@ private:
     [[nodiscard]] static std::string reverseComplement(std::string_view seq);
 
     /// @brief Compute diff between two sequences.
-    [[nodiscard]] static std::pair<std::vector<std::uint16_t>, std::vector<char>>
-    computeDiff(std::string_view seq1, std::string_view seq2);
+    [[nodiscard]] static std::pair<std::vector<std::uint16_t>, std::vector<char>> computeDiff(
+        std::string_view seq1, std::string_view seq2);
 };
 
 // =============================================================================

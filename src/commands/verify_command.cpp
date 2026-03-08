@@ -8,6 +8,9 @@
 
 #include "fqc/commands/verify_command.h"
 
+#include "fqc/common/logger.h"
+#include "fqc/format/fqc_format.h"
+
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -15,9 +18,6 @@
 #include <vector>
 
 #include <xxhash.h>
-
-#include "fqc/common/logger.h"
-#include "fqc/format/fqc_format.h"
 
 namespace fqc::commands {
 
@@ -36,8 +36,7 @@ int VerifyCommand::execute() {
     try {
         // Check input exists
         if (!std::filesystem::exists(options_.inputPath)) {
-            throw IOError(
-                          "Input file not found: " + options_.inputPath.string());
+            throw IOError("Input file not found: " + options_.inputPath.string());
         }
 
         if (options_.verbose) {
@@ -108,8 +107,7 @@ int VerifyCommand::execute() {
                 std::string errorMessage = result.errorMessage;
                 summary_.addResult(std::move(result));
                 if (options_.verbose && !passed) {
-                    std::cout << "[FAIL] " << checkName << ": " << errorMessage
-                              << std::endl;
+                    std::cout << "[FAIL] " << checkName << ": " << errorMessage << std::endl;
                 }
                 if (!passed && options_.failFast) {
                     break;
@@ -150,7 +148,10 @@ VerificationResult VerifyCommand::verifyMagicHeader() {
         return result;
     }
 
-    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
+    const char expectedMagic[] =
+        "\x89"
+        "FQC\r\n"
+        "\x1a\n";
     if (std::memcmp(magic, expectedMagic, 8) != 0) {
         result.passed = false;
         result.errorMessage = "Invalid magic bytes";
@@ -191,7 +192,8 @@ VerificationResult VerifyCommand::verifyFooter() {
     }
 
     // Verify footer magic
-    if (std::memcmp(footer.magicEnd.data(), format::kMagicEnd.data(), format::kMagicEnd.size()) != 0) {
+    if (std::memcmp(footer.magicEnd.data(), format::kMagicEnd.data(), format::kMagicEnd.size()) !=
+        0) {
         result.passed = false;
         result.errorMessage = "Invalid footer magic";
         return result;
@@ -247,7 +249,8 @@ VerificationResult VerifyCommand::verifyGlobalChecksum() {
         auto toRead = std::min(remaining, kBufferSize);
         file.read(buffer.data(), static_cast<std::streamsize>(toRead));
         auto bytesRead = static_cast<std::size_t>(file.gcount());
-        if (bytesRead == 0) break;
+        if (bytesRead == 0)
+            break;
         XXH64_update(state, buffer.data(), bytesRead);
         remaining -= bytesRead;
     }
@@ -257,7 +260,7 @@ VerificationResult VerifyCommand::verifyGlobalChecksum() {
 
     if (computed != footer.globalChecksum) {
         result.passed = false;
-        result.errorMessage = "Checksum mismatch: expected 0x" + 
+        result.errorMessage = "Checksum mismatch: expected 0x" +
             std::to_string(footer.globalChecksum) + ", got 0x" + std::to_string(computed);
         return result;
     }
@@ -355,8 +358,9 @@ VerificationResult VerifyCommand::verifyBlockIndex() {
 
         // Skip any extension fields
         if (indexHeader.entrySize > format::IndexEntry::kSize) {
-            file.seekg(static_cast<std::streamoff>(indexHeader.entrySize - format::IndexEntry::kSize), 
-                       std::ios::cur);
+            file.seekg(
+                static_cast<std::streamoff>(indexHeader.entrySize - format::IndexEntry::kSize),
+                std::ios::cur);
         }
     }
 
@@ -382,7 +386,7 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
     file.seekg(0, std::ios::end);
     [[maybe_unused]] auto fileSize = file.tellg();
     file.seekg(-static_cast<std::streamoff>(format::kFileFooterSize), std::ios::end);
-    
+
     format::FileFooter footer;
     file.read(reinterpret_cast<char*>(&footer), sizeof(footer));
 
@@ -405,8 +409,9 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
     for (std::uint64_t i = 0; i < indexHeader.numBlocks; ++i) {
         file.read(reinterpret_cast<char*>(&entries[i]), sizeof(format::IndexEntry));
         if (indexHeader.entrySize > format::IndexEntry::kSize) {
-            file.seekg(static_cast<std::streamoff>(indexHeader.entrySize - format::IndexEntry::kSize),
-                       std::ios::cur);
+            file.seekg(
+                static_cast<std::streamoff>(indexHeader.entrySize - format::IndexEntry::kSize),
+                std::ios::cur);
         }
     }
 
@@ -414,7 +419,7 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
     std::uint32_t corruptedBlocks = 0;
     for (std::uint64_t i = 0; i < indexHeader.numBlocks; ++i) {
         const auto& entry = entries[i];
-        
+
         // Seek to block
         file.seekg(static_cast<std::streamoff>(entry.offset), std::ios::beg);
         if (!file) {
@@ -424,7 +429,8 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
             blockResult.errorMessage = "Failed to seek to block";
             results.push_back(blockResult);
             ++corruptedBlocks;
-            if (options_.failFast) break;
+            if (options_.failFast)
+                break;
             continue;
         }
 
@@ -438,7 +444,8 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
             blockResult.errorMessage = "Failed to read block header";
             results.push_back(blockResult);
             ++corruptedBlocks;
-            if (options_.failFast) break;
+            if (options_.failFast)
+                break;
             continue;
         }
 
@@ -450,7 +457,8 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
             blockResult.errorMessage = "Invalid block header";
             results.push_back(blockResult);
             ++corruptedBlocks;
-            if (options_.failFast) break;
+            if (options_.failFast)
+                break;
             continue;
         }
 
@@ -460,10 +468,11 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
             blockResult.checkName = "Block " + std::to_string(i);
             blockResult.passed = false;
             blockResult.errorMessage = "Block ID mismatch: expected " + std::to_string(i) +
-                                       ", got " + std::to_string(blockHeader.blockId);
+                ", got " + std::to_string(blockHeader.blockId);
             results.push_back(blockResult);
             ++corruptedBlocks;
-            if (options_.failFast) break;
+            if (options_.failFast)
+                break;
             continue;
         }
 
@@ -475,7 +484,8 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
             blockResult.errorMessage = "Read count mismatch";
             results.push_back(blockResult);
             ++corruptedBlocks;
-            if (options_.failFast) break;
+            if (options_.failFast)
+                break;
             continue;
         }
     }
@@ -488,8 +498,8 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
         summary.details = std::to_string(indexHeader.numBlocks) + " blocks verified";
     } else {
         summary.passed = false;
-        summary.errorMessage = std::to_string(corruptedBlocks) + " of " + 
-                               std::to_string(indexHeader.numBlocks) + " blocks corrupted";
+        summary.errorMessage = std::to_string(corruptedBlocks) + " of " +
+            std::to_string(indexHeader.numBlocks) + " blocks corrupted";
     }
     results.insert(results.begin(), summary);
 
@@ -501,11 +511,13 @@ void VerifyCommand::printSummary() const {
         // JSON output
         std::cout << "{" << std::endl;
         std::cout << "  \"file\": \"" << options_.inputPath.string() << "\"," << std::endl;
-        std::cout << "  \"status\": \"" << (summary_.passed() ? "ok" : "failed") << "\"," << std::endl;
+        std::cout << "  \"status\": \"" << (summary_.passed() ? "ok" : "failed") << "\","
+                  << std::endl;
         std::cout << "  \"total_checks\": " << summary_.totalChecks << "," << std::endl;
         std::cout << "  \"passed_checks\": " << summary_.passedChecks << "," << std::endl;
         std::cout << "  \"failed_checks\": " << summary_.failedChecks << "," << std::endl;
-        std::cout << "  \"mode\": \"" << (options_.quickMode ? "quick" : "full") << "\"," << std::endl;
+        std::cout << "  \"mode\": \"" << (options_.quickMode ? "quick" : "full") << "\","
+                  << std::endl;
         std::cout << "  \"results\": [" << std::endl;
         for (std::size_t i = 0; i < summary_.results.size(); ++i) {
             const auto& result = summary_.results[i];
@@ -552,11 +564,9 @@ void VerifyCommand::printSummary() const {
 // Factory Function
 // =============================================================================
 
-std::unique_ptr<VerifyCommand> createVerifyCommand(
-    const std::string& inputPath,
-    bool failFast,
-    bool verbose) {
-
+std::unique_ptr<VerifyCommand> createVerifyCommand(const std::string& inputPath,
+                                                   bool failFast,
+                                                   bool verbose) {
     VerifyOptions opts;
     opts.inputPath = inputPath;
     opts.failFast = failFast;

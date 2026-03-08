@@ -11,6 +11,8 @@
 
 #include "fqc/algo/quality_compressor.h"
 
+#include "fqc/common/logger.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -18,8 +20,6 @@
 #include <numeric>
 
 #include <zstd.h>
-
-#include "fqc/common/logger.h"
 
 namespace fqc::algo {
 
@@ -63,9 +63,9 @@ constexpr std::uint32_t kAdaptIncrement = 8;
 class AdaptiveModel {
 public:
     explicit AdaptiveModel(std::size_t numSymbols)
-        : numSymbols_(numSymbols)
-        , frequencies_(numSymbols + 1, kInitialFrequency)
-        , cumulative_(numSymbols + 1, 0) {
+        : numSymbols_(numSymbols),
+          frequencies_(numSymbols + 1, kInitialFrequency),
+          cumulative_(numSymbols + 1, 0) {
         updateCumulative();
     }
 
@@ -132,7 +132,8 @@ private:
     void rescale() {
         for (auto& freq : frequencies_) {
             freq = (freq + 1) / 2;
-            if (freq == 0) freq = 1;
+            if (freq == 0)
+                freq = 1;
         }
     }
 
@@ -259,8 +260,8 @@ public:
         std::uint64_t range = high_ - low_ + 1;
         std::uint32_t total = model.getTotal();
 
-        std::uint32_t cumFreq = static_cast<std::uint32_t>(
-            ((value_ - low_ + 1) * total - 1) / range);
+        std::uint32_t cumFreq =
+            static_cast<std::uint32_t>(((value_ - low_ + 1) * total - 1) / range);
 
         std::size_t symbol = model.findSymbol(cumFreq);
 
@@ -330,17 +331,14 @@ private:
 class QualityContextModel {
 public:
     QualityContextModel(QualityContextOrder order, std::size_t numPositionBins)
-        : order_(order)
-        , numPositionBins_(numPositionBins)
-        , numQualitySymbols_(kNumQualitySymbols) {
+        : order_(order), numPositionBins_(numPositionBins), numQualitySymbols_(kNumQualitySymbols) {
         initializeModels();
     }
 
     /// @brief Get model for given context
-    [[nodiscard]] AdaptiveModel& getModel(
-        std::uint8_t prevQual1,
-        std::uint8_t prevQual2,
-        std::size_t positionBin) {
+    [[nodiscard]] AdaptiveModel& getModel(std::uint8_t prevQual1,
+                                          std::uint8_t prevQual2,
+                                          std::size_t positionBin) {
         std::size_t contextIndex = computeContextIndex(prevQual1, prevQual2, positionBin);
         return models_[contextIndex];
     }
@@ -380,10 +378,9 @@ private:
         return qualContexts * numPositionBins_;
     }
 
-    [[nodiscard]] std::size_t computeContextIndex(
-        std::uint8_t prevQual1,
-        std::uint8_t prevQual2,
-        std::size_t positionBin) const {
+    [[nodiscard]] std::size_t computeContextIndex(std::uint8_t prevQual1,
+                                                  std::uint8_t prevQual2,
+                                                  std::size_t positionBin) const {
         std::size_t qualContext = 0;
 
         switch (order_) {
@@ -407,7 +404,6 @@ private:
     std::vector<AdaptiveModel> models_;
 };
 
-
 // =============================================================================
 // Illumina 8-bin Mapper Implementation
 // =============================================================================
@@ -422,7 +418,8 @@ std::uint8_t Illumina8BinMapper::toBin(std::uint8_t quality) noexcept {
 }
 
 std::uint8_t Illumina8BinMapper::fromBin(std::uint8_t bin) noexcept {
-    if (bin >= 8) bin = 7;
+    if (bin >= 8)
+        bin = 7;
     return kBinRepresentatives[bin];
 }
 
@@ -432,19 +429,16 @@ std::uint8_t Illumina8BinMapper::fromBin(std::uint8_t bin) noexcept {
 
 VoidResult QualityCompressorConfig::validate() const {
     if (numPositionBins == 0 || numPositionBins > 256) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "numPositionBins must be in range [1, 256]");
+        return makeVoidError(ErrorCode::kUsageError, "numPositionBins must be in range [1, 256]");
     }
 
     // Check if numPositionBins is a power of 2
     if ((numPositionBins & (numPositionBins - 1)) != 0) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "numPositionBins must be a power of 2");
+        return makeVoidError(ErrorCode::kUsageError, "numPositionBins must be a power of 2");
     }
 
     if (adaptationRate < 0.0 || adaptationRate > 1.0) {
-        return makeVoidError(ErrorCode::kUsageError,
-                             "adaptationRate must be in range [0.0, 1.0]");
+        return makeVoidError(ErrorCode::kUsageError, "adaptationRate must be in range [0.0, 1.0]");
     }
 
     return makeVoidSuccess();
@@ -457,27 +451,27 @@ VoidResult QualityCompressorConfig::validate() const {
 class QualityCompressorImpl {
 public:
     explicit QualityCompressorImpl(QualityCompressorConfig config)
-        : config_(std::move(config))
-        , contextModel_(config_.contextOrder, config_.numPositionBins) {}
+        : config_(std::move(config)),
+          contextModel_(config_.contextOrder, config_.numPositionBins) {}
 
-    Result<CompressedQualityData> compress(
-        std::span<const std::string_view> qualities,
-        std::span<const std::string_view> sequences);
+    Result<CompressedQualityData> compress(std::span<const std::string_view> qualities,
+                                           std::span<const std::string_view> sequences);
 
-    Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::span<const std::uint32_t> lengths);
+    Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                std::span<const std::uint32_t> lengths);
 
-    Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numStrings,
-        std::uint32_t uniformLength);
+    Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                std::uint32_t numStrings,
+                                                std::uint32_t uniformLength);
 
-    const QualityCompressorConfig& config() const noexcept { return config_; }
+    const QualityCompressorConfig& config() const noexcept {
+        return config_;
+    }
 
     VoidResult setConfig(QualityCompressorConfig config) {
         auto result = config.validate();
-        if (!result) return result;
+        if (!result)
+            return result;
         config_ = std::move(config);
         contextModel_ = QualityContextModel(config_.contextOrder, config_.numPositionBins);
         return makeVoidSuccess();
@@ -492,21 +486,17 @@ private:
     QualityContextModel contextModel_;
 
     // Compress using SCM + arithmetic coding
-    Result<std::vector<std::uint8_t>> compressSCM(
-        std::span<const std::string_view> qualities);
+    Result<std::vector<std::uint8_t>> compressSCM(std::span<const std::string_view> qualities);
 
     // Decompress using SCM + arithmetic coding
-    Result<std::vector<std::string>> decompressSCM(
-        std::span<const std::uint8_t> data,
-        std::span<const std::uint32_t> lengths);
+    Result<std::vector<std::string>> decompressSCM(std::span<const std::uint8_t> data,
+                                                   std::span<const std::uint32_t> lengths);
 
     // Fallback to Zstd for comparison/fallback
-    Result<std::vector<std::uint8_t>> compressZstd(
-        std::span<const std::string_view> qualities);
+    Result<std::vector<std::uint8_t>> compressZstd(std::span<const std::string_view> qualities);
 
-    Result<std::vector<std::string>> decompressZstd(
-        std::span<const std::uint8_t> data,
-        std::span<const std::uint32_t> lengths);
+    Result<std::vector<std::string>> decompressZstd(std::span<const std::uint8_t> data,
+                                                    std::span<const std::uint32_t> lengths);
 };
 
 // =============================================================================
@@ -515,7 +505,6 @@ private:
 
 Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressSCM(
     std::span<const std::string_view> qualities) {
-
     if (qualities.empty()) {
         return std::vector<std::uint8_t>{};
     }
@@ -569,10 +558,11 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressSCM(
     std::size_t compressBound = ZSTD_compressBound(encoded.size());
     std::vector<std::uint8_t> compressed(compressBound);
 
-    std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        encoded.data(), encoded.size(),
-        3);  // Level 3 for balance
+    std::size_t compressedSize = ZSTD_compress(compressed.data(),
+                                               compressed.size(),
+                                               encoded.data(),
+                                               encoded.size(),
+                                               3);  // Level 3 for balance
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -589,9 +579,7 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressSCM(
 // =============================================================================
 
 Result<std::vector<std::string>> QualityCompressorImpl::decompressSCM(
-    std::span<const std::uint8_t> data,
-    std::span<const std::uint32_t> lengths) {
-
+    std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths) {
     if (data.empty() || lengths.empty()) {
         return std::vector<std::string>(lengths.size());
     }
@@ -600,19 +588,17 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressSCM(
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> decompressed(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        decompressed.data(), decompressed.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(decompressed.data(), decompressed.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
+        return makeError<std::vector<std::string>>(ErrorCode::kIOError,
+                                                   "Zstd decompression failed: " +
+                                                       std::string(ZSTD_getErrorName(actualSize)));
     }
 
     // Reset context model for fresh decompression
@@ -667,7 +653,6 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressSCM(
 
 Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressZstd(
     std::span<const std::string_view> qualities) {
-
     // Concatenate all quality strings
     std::vector<std::uint8_t> buffer;
     std::size_t totalSize = 0;
@@ -693,10 +678,8 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressZstd(
     std::size_t compressBound = ZSTD_compressBound(buffer.size());
     std::vector<std::uint8_t> compressed(compressBound);
 
-    std::size_t compressedSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        buffer.data(), buffer.size(),
-        3);
+    std::size_t compressedSize =
+        ZSTD_compress(compressed.data(), compressed.size(), buffer.data(), buffer.size(), 3);
 
     if (ZSTD_isError(compressedSize)) {
         return makeError<std::vector<std::uint8_t>>(
@@ -709,9 +692,7 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressZstd(
 }
 
 Result<std::vector<std::string>> QualityCompressorImpl::decompressZstd(
-    std::span<const std::uint8_t> data,
-    std::span<const std::uint32_t> lengths) {
-
+    std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths) {
     if (data.empty()) {
         return std::vector<std::string>(lengths.size());
     }
@@ -720,19 +701,17 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressZstd(
     std::size_t decompressedSize = ZSTD_getFrameContentSize(data.data(), data.size());
     if (decompressedSize == ZSTD_CONTENTSIZE_ERROR ||
         decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kFormatError, "Invalid Zstd frame");
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError, "Invalid Zstd frame");
     }
 
     std::vector<std::uint8_t> buffer(decompressedSize);
-    std::size_t actualSize = ZSTD_decompress(
-        buffer.data(), buffer.size(),
-        data.data(), data.size());
+    std::size_t actualSize =
+        ZSTD_decompress(buffer.data(), buffer.size(), data.data(), data.size());
 
     if (ZSTD_isError(actualSize)) {
-        return makeError<std::vector<std::string>>(
-            ErrorCode::kIOError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(actualSize)));
+        return makeError<std::vector<std::string>>(ErrorCode::kIOError,
+                                                   "Zstd decompression failed: " +
+                                                       std::string(ZSTD_getErrorName(actualSize)));
     }
 
     // Parse quality strings
@@ -774,7 +753,6 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressZstd(
 Result<CompressedQualityData> QualityCompressorImpl::compress(
     std::span<const std::string_view> qualities,
     std::span<const std::string_view> /* sequences */) {
-
     CompressedQualityData result;
     result.numStrings = static_cast<std::uint32_t>(qualities.size());
     result.contextOrder = config_.contextOrder;
@@ -797,9 +775,8 @@ Result<CompressedQualityData> QualityCompressorImpl::compress(
 
     // QVZ mode is not yet implemented
     if (config_.qualityMode == QualityMode::kQvz) {
-        return makeError<CompressedQualityData>(
-            ErrorCode::kInvalidArgument,
-            "QVZ lossy compression is not yet implemented");
+        return makeError<CompressedQualityData>(ErrorCode::kInvalidArgument,
+                                                "QVZ lossy compression is not yet implemented");
     }
 
     // Use SCM compression
@@ -811,16 +788,15 @@ Result<CompressedQualityData> QualityCompressorImpl::compress(
     result.data = std::move(*compressResult);
 
     FQC_LOG_DEBUG("Quality compression: {} bytes -> {} bytes (ratio: {:.2f})",
-                  result.uncompressedSize, result.data.size(),
+                  result.uncompressedSize,
+                  result.data.size(),
                   result.compressionRatio());
 
     return result;
 }
 
 Result<std::vector<std::string>> QualityCompressorImpl::decompress(
-    std::span<const std::uint8_t> data,
-    std::span<const std::uint32_t> lengths) {
-
+    std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths) {
     // Handle discard mode
     if (config_.qualityMode == QualityMode::kDiscard) {
         std::vector<std::string> qualities;
@@ -835,10 +811,7 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompress(
 }
 
 Result<std::vector<std::string>> QualityCompressorImpl::decompress(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numStrings,
-    std::uint32_t uniformLength) {
-
+    std::span<const std::uint8_t> data, std::uint32_t numStrings, std::uint32_t uniformLength) {
     std::vector<std::uint32_t> lengths(numStrings, uniformLength);
     return decompress(data, lengths);
 }
@@ -861,21 +834,18 @@ Result<CompressedQualityData> QualityCompressor::compress(
 }
 
 Result<CompressedQualityData> QualityCompressor::compress(
-    std::span<const std::string_view> qualities,
-    std::span<const std::string_view> sequences) {
+    std::span<const std::string_view> qualities, std::span<const std::string_view> sequences) {
     return impl_->compress(qualities, sequences);
 }
 
 Result<std::vector<std::string>> QualityCompressor::decompress(
-    std::span<const std::uint8_t> data,
-    std::span<const std::uint32_t> lengths) {
+    std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths) {
     return impl_->decompress(data, lengths);
 }
 
-Result<std::vector<std::string>> QualityCompressor::decompress(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numStrings,
-    std::uint32_t uniformLength) {
+Result<std::vector<std::string>> QualityCompressor::decompress(std::span<const std::uint8_t> data,
+                                                               std::uint32_t numStrings,
+                                                               std::uint32_t uniformLength) {
     return impl_->decompress(data, numStrings, uniformLength);
 }
 
@@ -901,8 +871,7 @@ std::string applyIllumina8Bin(std::string_view quality) {
 
     for (char c : quality) {
         std::uint8_t qualValue = qualityCharToValue(c);
-        std::uint8_t binned = Illumina8BinMapper::fromBin(
-            Illumina8BinMapper::toBin(qualValue));
+        std::uint8_t binned = Illumina8BinMapper::fromBin(Illumina8BinMapper::toBin(qualValue));
         result.push_back(qualityValueToChar(binned));
     }
 
@@ -911,7 +880,6 @@ std::string applyIllumina8Bin(std::string_view quality) {
 
 std::array<std::uint64_t, kNumQualitySymbols> computeQualityHistogram(
     std::span<const std::string_view> qualities) {
-
     std::array<std::uint64_t, kNumQualitySymbols> histogram{};
 
     for (const auto& quality : qualities) {

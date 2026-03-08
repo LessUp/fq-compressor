@@ -8,21 +8,21 @@
 
 #include "fqc/commands/decompress_command.h"
 
-#include <chrono>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <thread>
-
+#include "fqc/algo/block_compressor.h"
 #include "fqc/common/error.h"
 #include "fqc/common/logger.h"
 #include "fqc/common/types.h"
-#include "fqc/algo/block_compressor.h"
 #include "fqc/format/fqc_format.h"
 #include "fqc/format/fqc_reader.h"
 #include "fqc/pipeline/pipeline.h"
+
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <thread>
 
 namespace fqc::commands {
 
@@ -44,8 +44,7 @@ ReadRange parseRange(std::string_view str) {
             range.start = std::stoull(std::string(str));
             range.end = range.start;
         } catch (const std::exception&) {
-            throw ArgumentError(
-                                "Invalid range format: " + std::string(str));
+            throw ArgumentError("Invalid range format: " + std::string(str));
         }
         return range;
     }
@@ -62,13 +61,11 @@ ReadRange parseRange(std::string_view str) {
             range.end = std::stoull(std::string(endStr));
         }
     } catch (const std::exception&) {
-        throw ArgumentError(
-                            "Invalid range format: " + std::string(str));
+        throw ArgumentError("Invalid range format: " + std::string(str));
     }
 
     if (!range.isValid()) {
-        throw ArgumentError(
-                            "Invalid range: start must be <= end");
+        throw ArgumentError("Invalid range: start must be <= end");
     }
 
     return range;
@@ -104,8 +101,7 @@ int DecompressCommand::execute() {
 
         // Calculate elapsed time
         auto endTime = std::chrono::steady_clock::now();
-        stats_.elapsedSeconds =
-            std::chrono::duration<double>(endTime - startTime).count();
+        stats_.elapsedSeconds = std::chrono::duration<double>(endTime - startTime).count();
 
         // Print summary
         if (options_.showProgress) {
@@ -126,23 +122,20 @@ int DecompressCommand::execute() {
 void DecompressCommand::validateOptions() {
     // Check input exists
     if (!std::filesystem::exists(options_.inputPath)) {
-        throw IOError(
-                      "Input file not found: " + options_.inputPath.string());
+        throw IOError("Input file not found: " + options_.inputPath.string());
     }
 
     // Check output doesn't exist (unless force or stdout)
     if (options_.outputPath != "-" && !options_.forceOverwrite &&
         std::filesystem::exists(options_.outputPath)) {
-        throw IOError(
-                      "Output file already exists: " + options_.outputPath.string() +
-                          " (use -f to overwrite)");
+        throw IOError("Output file already exists: " + options_.outputPath.string() +
+                      " (use -f to overwrite)");
     }
 
     // Handle PE split output
     if (options_.splitPairedEnd) {
         if (options_.outputPath == "-") {
-            throw ArgumentError(
-                                "--split-pe cannot be used with stdout output");
+            throw ArgumentError("--split-pe cannot be used with stdout output");
         }
 
         // Derive output2Path if not specified
@@ -151,40 +144,38 @@ void DecompressCommand::validateOptions() {
             // Try to insert _R2 before extension
             auto extPos = outPath.rfind('.');
             if (extPos != std::string::npos) {
-                options_.output2Path = outPath.substr(0, extPos) + "_R2" +
-                                       outPath.substr(extPos);
+                options_.output2Path = outPath.substr(0, extPos) + "_R2" + outPath.substr(extPos);
                 // Also update outputPath to have _R1
-                options_.outputPath = outPath.substr(0, extPos) + "_R1" +
-                                      outPath.substr(extPos);
+                options_.outputPath = outPath.substr(0, extPos) + "_R1" + outPath.substr(extPos);
             } else {
                 options_.output2Path = outPath + "_R2";
                 options_.outputPath = outPath + "_R1";
             }
             FQC_LOG_INFO("PE split output: R1={}, R2={}",
-                     options_.outputPath.string(), options_.output2Path.string());
+                         options_.outputPath.string(),
+                         options_.output2Path.string());
         }
 
         // Check output2 doesn't exist
         if (!options_.forceOverwrite && std::filesystem::exists(options_.output2Path)) {
-            throw IOError(
-                          "Output file already exists: " + options_.output2Path.string() +
-                              " (use -f to overwrite)");
+            throw IOError("Output file already exists: " + options_.output2Path.string() +
+                          " (use -f to overwrite)");
         }
     }
 
     // Validate range if specified
     if (options_.range && !options_.range->isValid()) {
-        throw ArgumentError( "Invalid read range");
+        throw ArgumentError("Invalid read range");
     }
 
     // Validate range-pairs if specified
     if (options_.rangePairs && !options_.rangePairs->isValid()) {
-        throw ArgumentError( "Invalid paired read range");
+        throw ArgumentError("Invalid paired read range");
     }
 
     // Cannot specify both --range and --range-pairs
     if (options_.range && options_.rangePairs) {
-        throw ArgumentError( "Cannot specify both --range and --range-pairs");
+        throw ArgumentError("Cannot specify both --range and --range-pairs");
     }
 
     // Validate streams parameter
@@ -202,9 +193,8 @@ void DecompressCommand::validateOptions() {
     if (!options_.outputFormat.empty()) {
         if (options_.outputFormat != "fastq" && options_.outputFormat != "fasta" &&
             options_.outputFormat != "tsv" && options_.outputFormat != "raw") {
-            throw ArgumentError(
-                "Invalid output format: " + options_.outputFormat +
-                " (expected: fastq, fasta, tsv, raw)");
+            throw ArgumentError("Invalid output format: " + options_.outputFormat +
+                                " (expected: fastq, fasta, tsv, raw)");
         }
     }
 
@@ -234,21 +224,23 @@ void DecompressCommand::openArchive() {
     // Open and validate the archive magic header
     std::ifstream file(options_.inputPath, std::ios::binary);
     if (!file) {
-        throw IOError(
-                      "Failed to open archive: " + options_.inputPath.string());
+        throw IOError("Failed to open archive: " + options_.inputPath.string());
     }
 
     // Read and verify magic header
     char magic[8];
     file.read(magic, 8);
     if (file.gcount() < 8) {
-        throw FormatError( "File too small to be a valid .fqc archive");
+        throw FormatError("File too small to be a valid .fqc archive");
     }
 
     // Check magic bytes
-    const char expectedMagic[] = "\x89" "FQC\r\n" "\x1a\n";
+    const char expectedMagic[] =
+        "\x89"
+        "FQC\r\n"
+        "\x1a\n";
     if (std::memcmp(magic, expectedMagic, 8) != 0) {
-        throw FormatError( "Invalid .fqc magic header");
+        throw FormatError("Invalid .fqc magic header");
     }
 
     FQC_LOG_DEBUG("Archive magic header verified");
@@ -260,8 +252,9 @@ void DecompressCommand::planExtraction() {
     // The range filtering is handled by the pipeline when processing reads
 
     if (options_.range) {
-        FQC_LOG_DEBUG("Planning extraction for range {}:{}", options_.range->start,
-                  options_.range->end == 0 ? "end" : std::to_string(options_.range->end));
+        FQC_LOG_DEBUG("Planning extraction for range {}:{}",
+                      options_.range->start,
+                      options_.range->end == 0 ? "end" : std::to_string(options_.range->end));
         FQC_LOG_DEBUG("Range filtering will be applied during read processing");
     } else {
         FQC_LOG_DEBUG("Planning full archive extraction");
@@ -282,7 +275,8 @@ void DecompressCommand::runDecompression() {
     // TBB Parallel Pipeline Path (threads > 1)
     // =========================================================================
 
-    if (options_.threads > 1 || (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
+    if (options_.threads > 1 ||
+        (options_.threads == 0 && std::thread::hardware_concurrency() > 1)) {
         FQC_LOG_INFO("Using TBB parallel pipeline for decompression");
         runDecompressionParallel();
         return;
@@ -317,8 +311,7 @@ void DecompressCommand::runDecompression() {
     } else {
         fileOutput = std::make_unique<std::ofstream>(options_.outputPath);
         if (!fileOutput->is_open()) {
-            throw IOError(
-                          "Failed to create output file: " + options_.outputPath.string());
+            throw IOError("Failed to create output file: " + options_.outputPath.string());
         }
         output = fileOutput.get();
     }
@@ -328,7 +321,8 @@ void DecompressCommand::runDecompression() {
     config.readLengthClass = format::getReadLengthClass(reader.globalHeader().flags);
     config.qualityMode = format::getQualityMode(reader.globalHeader().flags);
     config.idMode = format::getIdMode(reader.globalHeader().flags);
-    config.numThreads = options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
+    config.numThreads =
+        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
 
     algo::BlockCompressor compressor(config);
 
@@ -342,13 +336,11 @@ void DecompressCommand::runDecompression() {
             auto blockData = reader.readBlock(blockId);
 
             // Decompress block
-            auto decompressResult = compressor.decompress(
-                blockData.header,
-                blockData.idsData,
-                blockData.seqData,
-                blockData.qualData,
-                blockData.auxData
-            );
+            auto decompressResult = compressor.decompress(blockData.header,
+                                                          blockData.idsData,
+                                                          blockData.seqData,
+                                                          blockData.qualData,
+                                                          blockData.auxData);
 
             if (!decompressResult) {
                 if (options_.skipCorrupted) {
@@ -389,7 +381,7 @@ void DecompressCommand::runDecompression() {
                 stats_.totalReads++;
                 stats_.totalBases += read.sequence.length();
                 stats_.outputBytes += read.id.length() + read.sequence.length() +
-                                    read.quality.length() + 4;  // +4 for @, +, \n chars
+                    read.quality.length() + 4;  // +4 for @, +, \n chars
             }
 
             stats_.blocksProcessed++;
@@ -451,9 +443,8 @@ void DecompressCommand::runDecompressionParallel() {
     // =========================================================================
 
     pipeline::DecompressionPipelineConfig pipelineConfig;
-    pipelineConfig.numThreads = options_.threads > 0
-        ? static_cast<std::size_t>(options_.threads)
-        : 0;  // 0 = auto-detect
+    pipelineConfig.numThreads =
+        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
 
     // Set range if specified
     if (options_.range) {
@@ -463,9 +454,8 @@ void DecompressCommand::runDecompressionParallel() {
     // For --range-pairs, convert pair range to read range (each pair = 2 reads)
     if (options_.rangePairs) {
         pipelineConfig.rangeStart = static_cast<ReadId>((options_.rangePairs->start - 1) * 2 + 1);
-        pipelineConfig.rangeEnd = options_.rangePairs->end > 0
-            ? static_cast<ReadId>(options_.rangePairs->end * 2)
-            : 0;
+        pipelineConfig.rangeEnd =
+            options_.rangePairs->end > 0 ? static_cast<ReadId>(options_.rangePairs->end * 2) : 0;
     }
 
     pipelineConfig.originalOrder = options_.originalOrder;
@@ -478,12 +468,13 @@ void DecompressCommand::runDecompressionParallel() {
     if (options_.showProgress) {
         pipelineConfig.progressCallback = [](const pipeline::ProgressInfo& info) -> bool {
             double progress = info.ratio() * 100.0;
-            FQC_LOG_INFO("Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
-                        progress,
-                        info.readsProcessed,
-                        info.currentBlock,
-                        static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
-                        (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
+            FQC_LOG_INFO(
+                "Progress: {:.1f}% ({} reads, {} blocks, {:.1f} MB/s)",
+                progress,
+                info.readsProcessed,
+                info.currentBlock,
+                static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
+                    (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
             return true;  // Continue
         };
         pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds
@@ -540,18 +531,16 @@ void DecompressCommand::runDecompressionParallel() {
 // Factory Function
 // =============================================================================
 
-std::unique_ptr<DecompressCommand> createDecompressCommand(
-    const std::string& inputPath,
-    const std::string& outputPath,
-    const std::string& range,
-    bool headerOnly,
-    bool originalOrder,
-    bool skipCorrupted,
-    const std::string& corruptedPlaceholder,
-    bool splitPe,
-    int threads,
-    bool force) {
-
+std::unique_ptr<DecompressCommand> createDecompressCommand(const std::string& inputPath,
+                                                           const std::string& outputPath,
+                                                           const std::string& range,
+                                                           bool headerOnly,
+                                                           bool originalOrder,
+                                                           bool skipCorrupted,
+                                                           const std::string& corruptedPlaceholder,
+                                                           bool splitPe,
+                                                           int threads,
+                                                           bool force) {
     DecompressOptions opts;
     opts.inputPath = inputPath;
     opts.outputPath = outputPath;

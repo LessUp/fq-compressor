@@ -10,15 +10,15 @@
 
 #include "fqc/io/compressed_stream.h"
 
-#include <zlib.h>
-#include <bzlib.h>
-#include <lzma.h>
+#include "fqc/common/logger.h"
 
 #include <algorithm>
 #include <cstring>
 #include <iostream>
 
-#include "fqc/common/logger.h"
+#include <bzlib.h>
+#include <lzma.h>
+#include <zlib.h>
 
 namespace fqc::io {
 
@@ -83,8 +83,8 @@ CompressionFormat detectCompressionFormatFromExtension(const std::filesystem::pa
     auto ext = path.extension().string();
 
     // Convert to lowercase
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
 
     if (ext == ".gz" || ext == ".gzip") {
         return CompressionFormat::kGzip;
@@ -103,8 +103,9 @@ CompressionFormat detectCompressionFormatFromExtension(const std::filesystem::pa
     auto stem = path.stem();
     if (stem.has_extension()) {
         auto innerExt = stem.extension().string();
-        std::transform(innerExt.begin(), innerExt.end(), innerExt.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        std::transform(innerExt.begin(), innerExt.end(), innerExt.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
         if (innerExt == ".fastq" || innerExt == ".fq") {
             // Already checked outer extension above
             return CompressionFormat::kNone;
@@ -164,8 +165,10 @@ bool isCompressionSupported(CompressionFormat format) noexcept {
 }
 
 std::vector<CompressionFormat> supportedCompressionFormats() {
-    return {CompressionFormat::kNone, CompressionFormat::kGzip,
-            CompressionFormat::kBzip2, CompressionFormat::kXz};
+    return {CompressionFormat::kNone,
+            CompressionFormat::kGzip,
+            CompressionFormat::kBzip2,
+            CompressionFormat::kXz};
 }
 
 // =============================================================================
@@ -177,7 +180,9 @@ GzipStreamBuf::GzipStreamBuf(std::istream& source, std::size_t bufferSize)
     initZlib();
 }
 
-GzipStreamBuf::~GzipStreamBuf() { cleanupZlib(); }
+GzipStreamBuf::~GzipStreamBuf() {
+    cleanupZlib();
+}
 
 GzipStreamBuf::GzipStreamBuf(GzipStreamBuf&& other) noexcept
     : std::streambuf(std::move(other)),
@@ -218,8 +223,7 @@ void GzipStreamBuf::initZlib() {
     int ret = inflateInit2(stream, 16 + MAX_WBITS);
     if (ret != Z_OK) {
         delete stream;
-        throw IOError( "Failed to initialize zlib: " +
-                                                           std::string(zError(ret)));
+        throw IOError("Failed to initialize zlib: " + std::string(zError(ret)));
     }
 
     zlibStream_ = stream;
@@ -282,8 +286,7 @@ std::size_t GzipStreamBuf::decompress() {
     if (ret == Z_STREAM_END) {
         streamEnd_ = true;
     } else if (ret != Z_OK && ret != Z_BUF_ERROR) {
-        throw IOError(
-                      "Gzip decompression failed: " + std::string(zError(ret)));
+        throw IOError("Gzip decompression failed: " + std::string(zError(ret)));
     }
 
     return outputBuffer_.size() - stream->avail_out;
@@ -298,7 +301,9 @@ Bzip2StreamBuf::Bzip2StreamBuf(std::istream& source, std::size_t bufferSize)
     initBzip2();
 }
 
-Bzip2StreamBuf::~Bzip2StreamBuf() { cleanupBzip2(); }
+Bzip2StreamBuf::~Bzip2StreamBuf() {
+    cleanupBzip2();
+}
 
 Bzip2StreamBuf::Bzip2StreamBuf(Bzip2StreamBuf&& other) noexcept
     : std::streambuf(std::move(other)),
@@ -335,11 +340,11 @@ void Bzip2StreamBuf::initBzip2() {
     auto* stream = new bz_stream;
     std::memset(stream, 0, sizeof(bz_stream));
 
-    int ret = BZ2_bzDecompressInit(stream, 0 /* verbosity */, 0 /* small */);  
+    int ret = BZ2_bzDecompressInit(stream, 0 /* verbosity */, 0 /* small */);
     if (ret != BZ_OK) {
         delete stream;
-        throw IOError("Failed to initialize bzip2 decompressor (error: " +
-                      std::to_string(ret) + ")");
+        throw IOError("Failed to initialize bzip2 decompressor (error: " + std::to_string(ret) +
+                      ")");
     }
 
     bzStream_ = stream;
@@ -383,8 +388,7 @@ std::size_t Bzip2StreamBuf::decompress() {
 
     // Read more compressed data if needed
     if (stream->avail_in == 0 && !source_->eof()) {
-        source_->read(inputBuffer_.data(),
-                      static_cast<std::streamsize>(inputBuffer_.size()));
+        source_->read(inputBuffer_.data(), static_cast<std::streamsize>(inputBuffer_.size()));
         auto bytesRead = static_cast<std::size_t>(source_->gcount());
         if (bytesRead > 0) {
             stream->avail_in = static_cast<unsigned int>(bytesRead);
@@ -402,8 +406,7 @@ std::size_t Bzip2StreamBuf::decompress() {
     if (ret == BZ_STREAM_END) {
         streamEnd_ = true;
     } else if (ret != BZ_OK) {
-        throw IOError("Bzip2 decompression failed (error: " +
-                      std::to_string(ret) + ")");
+        throw IOError("Bzip2 decompression failed (error: " + std::to_string(ret) + ")");
     }
 
     return outputBuffer_.size() - stream->avail_out;
@@ -418,7 +421,9 @@ XzStreamBuf::XzStreamBuf(std::istream& source, std::size_t bufferSize)
     initLzma();
 }
 
-XzStreamBuf::~XzStreamBuf() { cleanupLzma(); }
+XzStreamBuf::~XzStreamBuf() {
+    cleanupLzma();
+}
 
 XzStreamBuf::XzStreamBuf(XzStreamBuf&& other) noexcept
     : std::streambuf(std::move(other)),
@@ -526,8 +531,8 @@ std::size_t XzStreamBuf::decompress() {
     if (ret == LZMA_STREAM_END) {
         streamEnd_ = true;
     } else if (ret != LZMA_OK) {
-        throw IOError("XZ decompression failed (error: " +
-                      std::to_string(static_cast<int>(ret)) + ")");
+        throw IOError("XZ decompression failed (error: " + std::to_string(static_cast<int>(ret)) +
+                      ")");
     }
 
     return outputBuffer_.size() - stream->avail_out;
@@ -542,7 +547,7 @@ CompressedInputStream::CompressedInputStream(const std::filesystem::path& path)
     // Open file
     fileStream_ = std::make_unique<std::ifstream>(path, std::ios::binary);
     if (!fileStream_->is_open()) {
-        throw IOError( "Failed to open file: " + path.string());
+        throw IOError("Failed to open file: " + path.string());
     }
 
     // Detect format from magic bytes
@@ -589,7 +594,7 @@ CompressedInputStream::~CompressedInputStream() = default;
 void CompressedInputStream::setup() {
     std::istream* source = fileStream_ ? fileStream_.get() : sourceStream_.get();
     if (!source) {
-        throw IOError( "No source stream available");
+        throw IOError("No source stream available");
     }
 
     switch (format_) {
@@ -617,12 +622,11 @@ void CompressedInputStream::setup() {
             break;
 
         case CompressionFormat::kZstd:
-            throw IOError(
-                          "Compression format not yet supported: " +
-                              std::string(compressionFormatName(format_)));
+            throw IOError("Compression format not yet supported: " +
+                          std::string(compressionFormatName(format_)));
 
         default:
-            throw IOError( "Unknown compression format");
+            throw IOError("Unknown compression format");
     }
 }
 
@@ -638,14 +642,14 @@ std::unique_ptr<std::istream> openCompressedFile(const std::filesystem::path& pa
 /// @note Enables streaming stdin without loading the entire input into memory.
 class PrependStreamBuf : public std::streambuf {
 public:
-    PrependStreamBuf(const std::uint8_t* prefix, std::size_t prefixLen,
-                     std::streambuf* underlying)
+    PrependStreamBuf(const std::uint8_t* prefix, std::size_t prefixLen, std::streambuf* underlying)
         : prefix_(reinterpret_cast<const char*>(prefix),
-                  reinterpret_cast<const char*>(prefix) + prefixLen)
-        , underlying_(underlying)
-        , phase_(prefixLen > 0 ? Phase::kPrefix : Phase::kUnderlying) {
+                  reinterpret_cast<const char*>(prefix) + prefixLen),
+          underlying_(underlying),
+          phase_(prefixLen > 0 ? Phase::kPrefix : Phase::kUnderlying) {
         if (phase_ == Phase::kPrefix) {
-            setg(prefix_.data(), prefix_.data(),
+            setg(prefix_.data(),
+                 prefix_.data(),
                  prefix_.data() + static_cast<std::ptrdiff_t>(prefix_.size()));
         }
     }
@@ -711,12 +715,13 @@ private:
 /// @brief An istream that owns a PrependStreamBuf for streaming stdin.
 class PrependInputStream : public std::istream {
 public:
-    PrependInputStream(const std::uint8_t* prefix, std::size_t prefixLen,
+    PrependInputStream(const std::uint8_t* prefix,
+                       std::size_t prefixLen,
                        std::streambuf* underlying)
-        : std::istream(nullptr)
-        , buf_(prefix, prefixLen, underlying) {
+        : std::istream(nullptr), buf_(prefix, prefixLen, underlying) {
         rdbuf(&buf_);
     }
+
 private:
     PrependStreamBuf buf_;
 };
@@ -735,15 +740,13 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
 
         if (format == CompressionFormat::kNone) {
             // Stream stdin with prepended magic bytes (no full-copy into memory)
-            return std::make_unique<PrependInputStream>(
-                magic, bytesRead, std::cin.rdbuf());
+            return std::make_unique<PrependInputStream>(magic, bytesRead, std::cin.rdbuf());
         }
 
         // Compressed stdin - need to handle specially
         if (!isCompressionSupported(format)) {
-            throw IOError(
-                          "Compressed stdin not supported for format: " +
-                              std::string(compressionFormatName(format)));
+            throw IOError("Compressed stdin not supported for format: " +
+                          std::string(compressionFormatName(format)));
         }
 
         // Compressed stdin: must buffer fully for decompression seek support

@@ -362,8 +362,10 @@ struct ReadRecord {
     /// @param sequence_ DNA sequence.
     /// @param quality_ Quality scores.
     ReadRecord(std::string id_, std::string comment_, std::string sequence_, std::string quality_)
-        : id(std::move(id_)), comment(std::move(comment_)),
-          sequence(std::move(sequence_)), quality(std::move(quality_)) {}
+        : id(std::move(id_)),
+          comment(std::move(comment_)),
+          sequence(std::move(sequence_)),
+          quality(std::move(quality_)) {}
 
     /// @brief Check if the record is valid.
     /// @return true if sequence and quality have matching non-zero lengths.
@@ -373,7 +375,9 @@ struct ReadRecord {
 
     /// @brief Get the length of the read (sequence length).
     /// @return Length of the sequence.
-    [[nodiscard]] std::size_t length() const noexcept { return sequence.length(); }
+    [[nodiscard]] std::size_t length() const noexcept {
+        return sequence.length();
+    }
 
     /// @brief Clear all fields.
     void clear() noexcept {
@@ -410,19 +414,24 @@ struct ReadRecordView {
     constexpr ReadRecordView() = default;
 
     /// @brief Construct from string_views (without comment).
-    constexpr ReadRecordView(std::string_view id_, std::string_view sequence_,
+    constexpr ReadRecordView(std::string_view id_,
+                             std::string_view sequence_,
                              std::string_view quality_)
         : id(id_), sequence(sequence_), quality(quality_) {}
 
     /// @brief Construct from string_views (with comment).
-    constexpr ReadRecordView(std::string_view id_, std::string_view comment_,
-                             std::string_view sequence_, std::string_view quality_)
+    constexpr ReadRecordView(std::string_view id_,
+                             std::string_view comment_,
+                             std::string_view sequence_,
+                             std::string_view quality_)
         : id(id_), comment(comment_), sequence(sequence_), quality(quality_) {}
 
     /// @brief Construct from a ReadRecord.
     ReadRecordView(const ReadRecord& record)  // NOLINT(google-explicit-constructor)
-        : id(record.id), comment(record.comment),
-          sequence(record.sequence), quality(record.quality) {}
+        : id(record.id),
+          comment(record.comment),
+          sequence(record.sequence),
+          quality(record.quality) {}
 
     /// @brief Check if the view is valid.
     [[nodiscard]] constexpr bool isValid() const noexcept {
@@ -430,12 +439,14 @@ struct ReadRecordView {
     }
 
     /// @brief Get the length of the read.
-    [[nodiscard]] constexpr std::size_t length() const noexcept { return sequence.length(); }
+    [[nodiscard]] constexpr std::size_t length() const noexcept {
+        return sequence.length();
+    }
 
     /// @brief Convert to owning ReadRecord.
     [[nodiscard]] ReadRecord toRecord() const {
-        return ReadRecord{std::string(id), std::string(comment),
-                          std::string(sequence), std::string(quality)};
+        return ReadRecord{
+            std::string(id), std::string(comment), std::string(sequence), std::string(quality)};
     }
 };
 
@@ -481,9 +492,7 @@ concept Serializable = std::is_trivially_copyable_v<T> && std::is_standard_layou
 /// @brief Concept for compression level values.
 template <typename T>
 concept CompressionLevelValue =
-    std::integral<T> && requires(T level) {
-        requires sizeof(T) <= sizeof(CompressionLevel);
-    };
+    std::integral<T> && requires(T level) { requires sizeof(T) <= sizeof(CompressionLevel); };
 
 /// @brief Concept for block ID values.
 template <typename T>

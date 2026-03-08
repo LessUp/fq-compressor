@@ -8,13 +8,13 @@
 
 #include "fqc/io/fastq_parser.h"
 
+#include "fqc/common/logger.h"
+#include "fqc/io/compressed_stream.h"
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
 #include <sstream>
-
-#include "fqc/common/logger.h"
-#include "fqc/io/compressed_stream.h"
 
 namespace fqc::io {
 
@@ -35,7 +35,9 @@ FastqParser::FastqParser(std::unique_ptr<std::istream> stream, ParserOptions opt
     }
 }
 
-FastqParser::~FastqParser() { close(); }
+FastqParser::~FastqParser() {
+    close();
+}
 
 FastqParser::FastqParser(FastqParser&&) noexcept = default;
 FastqParser& FastqParser::operator=(FastqParser&&) noexcept = default;
@@ -56,16 +58,14 @@ void FastqParser::open() {
         // Use openInputFile for automatic decompression of gzip, bzip2, xz etc.
         stream_ = openInputFile(filePath_);
         if (!stream_ || !*stream_) {
-            throw IOError(
-                          "Failed to open FASTQ file: " + filePath_.string());
+            throw IOError("Failed to open FASTQ file: " + filePath_.string());
         }
-        
+
         // Check if file is compressed based on extension
         auto format = detectCompressionFormatFromExtension(filePath_);
         isCompressed_ = (format != CompressionFormat::kNone);
-        
-        FQC_LOG_DEBUG("Opened FASTQ file: {} (compressed: {})", 
-                      filePath_.string(), isCompressed_);
+
+        FQC_LOG_DEBUG("Opened FASTQ file: {} (compressed: {})", filePath_.string(), isCompressed_);
     }
 
     isOpen_ = true;
@@ -227,7 +227,7 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
 
 void FastqParser::reset() {
     if (!canSeek()) {
-        throw IOError( "Cannot seek on stdin input");
+        throw IOError("Cannot seek on stdin input");
     }
 
     if (stream_) {
@@ -285,9 +285,8 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (idLine[0] != '@') {
         setError("Expected '@' at start of ID line", idLine);
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": expected '@' at start of ID line");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": expected '@' at start of ID line");
     }
 
     // Parse ID and optional comment
@@ -304,55 +303,48 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (record.id.empty()) {
         setError("Empty read ID", idLine);
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": empty read ID");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": empty read ID");
     }
 
     // Line 2: Sequence
     if (!readLine(record.sequence)) {
         setError("Unexpected EOF: missing sequence line");
-        throw FormatError(
-                          "Invalid FASTQ format: unexpected EOF at line " +
-                              std::to_string(lineNumber_));
+        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
+                          std::to_string(lineNumber_));
     }
 
     if (record.sequence.empty()) {
         setError("Empty sequence", record.sequence);
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": empty sequence");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": empty sequence");
     }
 
     // Validate sequence if enabled
     if (options_.validateSequence && !validateSequence(record.sequence)) {
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": invalid sequence characters");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": invalid sequence characters");
     }
 
     // Line 3: Plus line (starts with '+')
     std::string plusLine;
     if (!readLine(plusLine)) {
         setError("Unexpected EOF: missing '+' line");
-        throw FormatError(
-                          "Invalid FASTQ format: unexpected EOF at line " +
-                              std::to_string(lineNumber_));
+        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
+                          std::to_string(lineNumber_));
     }
 
     if (plusLine.empty() || plusLine[0] != '+') {
         setError("Expected '+' at start of separator line", plusLine);
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": expected '+' at start of separator line");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": expected '+' at start of separator line");
     }
 
     // Line 4: Quality scores
     if (!readLine(record.quality)) {
         setError("Unexpected EOF: missing quality line");
-        throw FormatError(
-                          "Invalid FASTQ format: unexpected EOF at line " +
-                              std::to_string(lineNumber_));
+        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
+                          std::to_string(lineNumber_));
     }
 
     // Validate quality length matches sequence length
@@ -361,16 +353,14 @@ bool FastqParser::parseRecord(FastqRecord& record) {
                      ") does not match sequence length (" + std::to_string(record.sequence.size()) +
                      ")",
                  record.quality);
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": quality length does not match sequence length");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": quality length does not match sequence length");
     }
 
     // Validate quality scores if enabled
     if (options_.validateQuality && !validateQuality(record.quality)) {
-        throw FormatError(
-                          "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                              ": invalid quality characters");
+        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                          ": invalid quality characters");
     }
 
     return true;
@@ -404,8 +394,8 @@ void FastqParser::setError(std::string message, std::string_view lineContent) {
 }
 
 void FastqParser::trimRight(std::string& str) {
-    auto it = std::find_if(str.rbegin(), str.rend(),
-                           [](unsigned char c) { return !std::isspace(c); });
+    auto it =
+        std::find_if(str.rbegin(), str.rend(), [](unsigned char c) { return !std::isspace(c); });
     str.erase(it.base(), str.end());
 }
 

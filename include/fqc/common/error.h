@@ -265,8 +265,7 @@ public:
     /// @brief Construct with error code and message.
     /// @param code The error code.
     /// @param message Descriptive error message.
-    FQCException(ErrorCode code, std::string message)
-        : code_(code), message_(std::move(message)) {
+    FQCException(ErrorCode code, std::string message) : code_(code), message_(std::move(message)) {
         formatWhat();
     }
 
@@ -296,27 +295,39 @@ public:
 
     /// @brief Get the error message.
     /// @return Null-terminated error message string.
-    [[nodiscard]] const char* what() const noexcept override { return what_.c_str(); }
+    [[nodiscard]] const char* what() const noexcept override {
+        return what_.c_str();
+    }
 
     /// @brief Get the error code.
     /// @return The error code associated with this exception.
-    [[nodiscard]] ErrorCode code() const noexcept { return code_; }
+    [[nodiscard]] ErrorCode code() const noexcept {
+        return code_;
+    }
 
     /// @brief Get the exit code for this error.
     /// @return Integer exit code suitable for process exit.
-    [[nodiscard]] int exitCode() const noexcept { return toExitCode(code_); }
+    [[nodiscard]] int exitCode() const noexcept {
+        return toExitCode(code_);
+    }
 
     /// @brief Get the error message (without context).
     /// @return The error message.
-    [[nodiscard]] const std::string& message() const noexcept { return message_; }
+    [[nodiscard]] const std::string& message() const noexcept {
+        return message_;
+    }
 
     /// @brief Get the error context.
     /// @return Optional error context.
-    [[nodiscard]] const std::optional<ErrorContext>& context() const noexcept { return context_; }
+    [[nodiscard]] const std::optional<ErrorContext>& context() const noexcept {
+        return context_;
+    }
 
     /// @brief Check if this exception has context information.
     /// @return true if context is available.
-    [[nodiscard]] bool hasContext() const noexcept { return context_.has_value(); }
+    [[nodiscard]] bool hasContext() const noexcept {
+        return context_.has_value();
+    }
 
 protected:
     /// @brief Format the what() string from message and context.
@@ -359,8 +370,7 @@ class IOError : public FQCException {
 public:
     /// @brief Construct with message.
     /// @param message Descriptive error message.
-    explicit IOError(std::string message)
-        : FQCException(ErrorCode::kIOError, std::move(message)) {}
+    explicit IOError(std::string message) : FQCException(ErrorCode::kIOError, std::move(message)) {}
 
     /// @brief Construct with message and context.
     /// @param message Descriptive error message.
@@ -372,16 +382,14 @@ public:
     /// @param message Descriptive error message.
     /// @param ec System error code.
     IOError(std::string message, std::error_code ec)
-        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec)),
-          systemError_(ec) {}
+        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec)), systemError_(ec) {}
 
     /// @brief Construct from system error code with context.
     /// @param message Descriptive error message.
     /// @param ec System error code.
     /// @param context Additional error context.
     IOError(std::string message, std::error_code ec, ErrorContext context)
-        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec),
-                       std::move(context)),
+        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec), std::move(context)),
           systemError_(ec) {}
 
     /// @brief Get the system error code (if available).
@@ -442,11 +450,15 @@ public:
 
     /// @brief Get the expected checksum value (if available).
     /// @return Optional expected checksum.
-    [[nodiscard]] std::optional<std::uint64_t> expected() const noexcept { return expected_; }
+    [[nodiscard]] std::optional<std::uint64_t> expected() const noexcept {
+        return expected_;
+    }
 
     /// @brief Get the actual checksum value (if available).
     /// @return Optional actual checksum.
-    [[nodiscard]] std::optional<std::uint64_t> actual() const noexcept { return actual_; }
+    [[nodiscard]] std::optional<std::uint64_t> actual() const noexcept {
+        return actual_;
+    }
 
 private:
     static std::string formatChecksumMismatch(std::uint64_t expected, std::uint64_t actual);
@@ -503,21 +515,26 @@ public:
     /// @brief Construct with error code and message.
     /// @param code The error code.
     /// @param message Descriptive error message.
-    Error(ErrorCode code, std::string message)
-        : code_(code), message_(std::move(message)) {}
+    Error(ErrorCode code, std::string message) : code_(code), message_(std::move(message)) {}
 
     /// @brief Construct from an FQCException.
     /// @param ex The exception to convert.
     explicit Error(const FQCException& ex) : code_(ex.code()), message_(ex.message()) {}
 
     /// @brief Get the error code.
-    [[nodiscard]] ErrorCode code() const noexcept { return code_; }
+    [[nodiscard]] ErrorCode code() const noexcept {
+        return code_;
+    }
 
     /// @brief Get the error message.
-    [[nodiscard]] const std::string& message() const noexcept { return message_; }
+    [[nodiscard]] const std::string& message() const noexcept {
+        return message_;
+    }
 
     /// @brief Get the exit code.
-    [[nodiscard]] int exitCode() const noexcept { return toExitCode(code_); }
+    [[nodiscard]] int exitCode() const noexcept {
+        return toExitCode(code_);
+    }
 
     /// @brief Convert to the appropriate exception type.
     /// @return FQCException (or derived) matching the error code.

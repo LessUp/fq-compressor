@@ -18,6 +18,9 @@
 #ifndef FQC_ALGO_ID_COMPRESSOR_H
 #define FQC_ALGO_ID_COMPRESSOR_H
 
+#include "fqc/common/error.h"
+#include "fqc/common/types.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -27,9 +30,6 @@
 #include <string_view>
 #include <variant>
 #include <vector>
-
-#include "fqc/common/error.h"
-#include "fqc/common/types.h"
 
 namespace fqc::algo {
 
@@ -230,7 +230,8 @@ struct CompressedIDData {
 
     /// @brief Get compression ratio
     [[nodiscard]] double compressionRatio() const noexcept {
-        if (uncompressedSize == 0) return 1.0;
+        if (uncompressedSize == 0)
+            return 1.0;
         return static_cast<double>(data.size()) / static_cast<double>(uncompressedSize);
     }
 };
@@ -328,19 +329,17 @@ public:
     /// @param data Compressed data
     /// @param numIds Number of IDs to decompress
     /// @return Decompressed ID strings or error
-    [[nodiscard]] Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numIds);
+    [[nodiscard]] Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                              std::uint32_t numIds);
 
     /// @brief Decompress ID data with mode hint
     /// @param data Compressed data
     /// @param numIds Number of IDs to decompress
     /// @param mode ID mode used during compression
     /// @return Decompressed ID strings or error
-    [[nodiscard]] Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numIds,
-        IDMode mode);
+    [[nodiscard]] Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                              std::uint32_t numIds,
+                                                              IDMode mode);
 
     /// @brief Get current configuration
     [[nodiscard]] const IDCompressorConfig& config() const noexcept;
@@ -401,7 +400,9 @@ public:
     [[nodiscard]] bool isDelimiter(char c) const noexcept;
 
     /// @brief Get the delimiters
-    [[nodiscard]] std::string_view delimiters() const noexcept { return delimiters_; }
+    [[nodiscard]] std::string_view delimiters() const noexcept {
+        return delimiters_;
+    }
 
 private:
     std::string delimiters_;
@@ -417,11 +418,10 @@ private:
 /// @param peLayout Paired-end layout
 /// @param prefix Optional prefix for the ID
 /// @return Reconstructed ID string (without '@' prefix)
-[[nodiscard]] std::string generateDiscardId(
-    ReadId archiveId,
-    bool isPaired,
-    PELayout peLayout,
-    std::string_view prefix = "");
+[[nodiscard]] std::string generateDiscardId(ReadId archiveId,
+                                            bool isPaired,
+                                            PELayout peLayout,
+                                            std::string_view prefix = "");
 
 /// @brief Encode a vector of integers using delta + varint encoding
 /// @param values Vector of integer values
@@ -433,8 +433,7 @@ private:
 /// @param count Number of integers to decode
 /// @return Decoded integer values or error
 [[nodiscard]] Result<std::vector<std::int64_t>> deltaVarintDecode(
-    std::span<const std::uint8_t> data,
-    std::size_t count);
+    std::span<const std::uint8_t> data, std::size_t count);
 
 /// @brief Encode a single integer as varint
 /// @param value Integer value to encode
@@ -473,8 +472,7 @@ std::uint64_t uvarintDecode(std::span<const std::uint8_t> data, std::size_t& byt
 [[nodiscard]] inline constexpr std::int64_t zigzagDecode(std::uint64_t value) noexcept {
     // Cast to avoid sign conversion warning: -(value & 1) needs explicit handling
     // (value >> 1) is unsigned, XOR with signed result needs care
-    return static_cast<std::int64_t>(value >> 1) ^
-           -static_cast<std::int64_t>(value & 1);
+    return static_cast<std::int64_t>(value >> 1) ^ -static_cast<std::int64_t>(value & 1);
 }
 
 }  // namespace fqc::algo

@@ -9,9 +9,7 @@
 // **Validates: Requirements 1.1.2**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/algo/id_compressor.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -19,7 +17,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/algo/id_compressor.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::algo::test {
 
@@ -34,9 +35,8 @@ namespace gen {
 [[nodiscard]] rc::Gen<std::string> illuminaId() {
     return rc::gen::apply(
         [](int run, int lane, int tile, int x, int y) {
-            return "SIM:" + std::to_string(run) + ":FCX:" +
-                   std::to_string(lane) + ":" + std::to_string(tile) + ":" +
-                   std::to_string(x) + ":" + std::to_string(y);
+            return "SIM:" + std::to_string(run) + ":FCX:" + std::to_string(lane) + ":" +
+                std::to_string(tile) + ":" + std::to_string(x) + ":" + std::to_string(y);
         },
         rc::gen::inRange(1, 10),      // run
         rc::gen::inRange(1, 8),       // lane
@@ -52,8 +52,8 @@ namespace gen {
             std::vector<std::string> ids;
             ids.reserve(count);
             for (std::size_t i = 0; i < count; ++i) {
-                ids.push_back("SIM:" + std::to_string(run) + ":FCX:" +
-                              std::to_string(lane) + ":" + std::to_string(tile) + ":" +
+                ids.push_back("SIM:" + std::to_string(run) + ":FCX:" + std::to_string(lane) + ":" +
+                              std::to_string(tile) + ":" +
                               std::to_string(startX + static_cast<int>(i)) + ":" +
                               std::to_string(startY));
             }
@@ -66,11 +66,9 @@ namespace gen {
         rc::gen::inRange(1, 5000));
 }
 
-
 /// @brief Generate a simple numeric ID.
 [[nodiscard]] rc::Gen<std::string> numericId() {
-    return rc::gen::map(rc::gen::inRange(1, 1000000),
-                        [](int n) { return std::to_string(n); });
+    return rc::gen::map(rc::gen::inRange(1, 1000000), [](int n) { return std::to_string(n); });
 }
 
 /// @brief Generate a sequence of numeric IDs.
@@ -86,23 +84,20 @@ namespace gen {
 }
 
 /// @brief Generate a random alphanumeric ID.
-[[nodiscard]] rc::Gen<std::string> alphanumericId(std::size_t minLen = 5,
-                                                   std::size_t maxLen = 50) {
+[[nodiscard]] rc::Gen<std::string> alphanumericId(std::size_t minLen = 5, std::size_t maxLen = 50) {
     return rc::gen::mapcat(rc::gen::inRange(minLen, maxLen + 1), [](std::size_t len) {
-        return rc::gen::container<std::string>(
-            len, rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
-                                rc::gen::inRange('A', 'Z' + 1),
-                                rc::gen::inRange('0', '9' + 1)));
+        return rc::gen::container<std::string>(len,
+                                               rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
+                                                              rc::gen::inRange('A', 'Z' + 1),
+                                                              rc::gen::inRange('0', '9' + 1)));
     });
 }
 
 /// @brief Generate a vector of random alphanumeric IDs.
-[[nodiscard]] rc::Gen<std::vector<std::string>> randomIdSequence(
-    std::size_t count,
-    std::size_t minLen = 5,
-    std::size_t maxLen = 50) {
-    return rc::gen::container<std::vector<std::string>>(count,
-                                                         alphanumericId(minLen, maxLen));
+[[nodiscard]] rc::Gen<std::vector<std::string>> randomIdSequence(std::size_t count,
+                                                                 std::size_t minLen = 5,
+                                                                 std::size_t maxLen = 50) {
+    return rc::gen::container<std::vector<std::string>>(count, alphanumericId(minLen, maxLen));
 }
 
 /// @brief Generate an SRA-style ID.
@@ -110,8 +105,8 @@ namespace gen {
 [[nodiscard]] rc::Gen<std::string> sraId() {
     return rc::gen::apply(
         [](int accession, int readNum, int length) {
-            return "SRR" + std::to_string(accession) + "." +
-                   std::to_string(readNum) + " length=" + std::to_string(length);
+            return "SRR" + std::to_string(accession) + "." + std::to_string(readNum) +
+                " length=" + std::to_string(length);
         },
         rc::gen::inRange(100000, 999999),
         rc::gen::inRange(1, 1000000),
@@ -183,8 +178,8 @@ RC_GTEST_PROP(IDCompressorProperty, MultipleIlluminaIdsExactRoundTrip, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == idStrings.size());
@@ -213,8 +208,8 @@ RC_GTEST_PROP(IDCompressorProperty, RandomIdsExactRoundTrip, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == idStrings.size());
@@ -222,7 +217,6 @@ RC_GTEST_PROP(IDCompressorProperty, RandomIdsExactRoundTrip, ()) {
         RC_ASSERT((*decompressResult)[i] == idStrings[i]);
     }
 }
-
 
 // =============================================================================
 // Property Tests - Tokenize Mode
@@ -249,8 +243,8 @@ RC_GTEST_PROP(IDCompressorProperty, IlluminaIdsTokenizeRoundTrip, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == idStrings.size());
@@ -280,8 +274,8 @@ RC_GTEST_PROP(IDCompressorProperty, SraIdsTokenizeRoundTrip, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == idStrings.size());
@@ -310,8 +304,8 @@ RC_GTEST_PROP(IDCompressorProperty, NumericIdsTokenizeRoundTrip, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == idStrings.size());
@@ -348,8 +342,8 @@ RC_GTEST_PROP(IDCompressorProperty, DiscardModeProducesSequentialIds, ()) {
     // Discard mode should produce minimal data
     RC_ASSERT(compressResult->data.size() <= 2);
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == count);
@@ -364,9 +358,8 @@ RC_GTEST_PROP(IDCompressorProperty, DiscardModeProducesSequentialIds, ()) {
 /// **Validates: Requirements 1.1.2**
 RC_GTEST_PROP(IDCompressorProperty, DiscardModeWithPrefix, ()) {
     auto count = *rc::gen::inRange<std::size_t>(1, 50);
-    auto prefix = *rc::gen::container<std::string>(
-        *rc::gen::inRange<std::size_t>(1, 10),
-        rc::gen::inRange('A', 'Z' + 1));
+    auto prefix = *rc::gen::container<std::string>(*rc::gen::inRange<std::size_t>(1, 10),
+                                                   rc::gen::inRange('A', 'Z' + 1));
 
     IDCompressorConfig config;
     config.idMode = IDMode::kDiscard;
@@ -382,8 +375,8 @@ RC_GTEST_PROP(IDCompressorProperty, DiscardModeWithPrefix, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == count);
@@ -394,7 +387,6 @@ RC_GTEST_PROP(IDCompressorProperty, DiscardModeWithPrefix, ()) {
         RC_ASSERT((*decompressResult)[i] == expected);
     }
 }
-
 
 // =============================================================================
 // Property Tests - Delta/Varint Encoding
@@ -448,9 +440,8 @@ RC_GTEST_PROP(IDCompressorProperty, DeltaVarintSequentialCompression, ()) {
 /// @brief Property 5.11: ZigZag encoding round-trip.
 /// **Validates: Requirements 1.1.2**
 RC_GTEST_PROP(IDCompressorProperty, ZigZagRoundTrip, ()) {
-    auto value = *rc::gen::inRange<std::int64_t>(
-        std::numeric_limits<std::int64_t>::min() / 2,
-        std::numeric_limits<std::int64_t>::max() / 2);
+    auto value = *rc::gen::inRange<std::int64_t>(std::numeric_limits<std::int64_t>::min() / 2,
+                                                 std::numeric_limits<std::int64_t>::max() / 2);
 
     auto encoded = zigzagEncode(value);
     auto decoded = zigzagDecode(encoded);
@@ -556,8 +547,8 @@ RC_GTEST_PROP(IDCompressorProperty, SingleCharacterIds, ()) {
     auto compressResult = compressor.compress(ids);
     RC_ASSERT(compressResult.has_value());
 
-    auto decompressResult = compressor.decompress(
-        compressResult->data, static_cast<std::uint32_t>(count));
+    auto decompressResult =
+        compressor.decompress(compressResult->data, static_cast<std::uint32_t>(count));
     RC_ASSERT(decompressResult.has_value());
 
     RC_ASSERT(decompressResult->size() == count);
@@ -565,7 +556,6 @@ RC_GTEST_PROP(IDCompressorProperty, SingleCharacterIds, ()) {
         RC_ASSERT((*decompressResult)[i] == idStrings[i]);
     }
 }
-
 
 // =============================================================================
 // Unit Tests (Non-Property)
