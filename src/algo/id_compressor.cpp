@@ -14,6 +14,7 @@
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
+
 #include <zstd.h>
 
 namespace fqc::algo {
@@ -104,8 +105,7 @@ bool IDPattern::matchesAll(std::span<const std::string_view> ids) const {
 
             // Check delimiters match
             if (tokenTypes[i] == TokenType::kDelimiter) {
-                if (delimIdx >= delimiters.size() ||
-                    tokens[i].value.empty() ||
+                if (delimIdx >= delimiters.size() || tokens[i].value.empty() ||
                     tokens[i].value[0] != delimiters[delimIdx]) {
                     return false;
                 }
@@ -122,25 +122,22 @@ bool IDPattern::matchesAll(std::span<const std::string_view> ids) const {
 // =============================================================================
 
 VoidResult IDCompressorConfig::validate() const {
-    if (compressionLevel < kMinCompressionLevel ||
-        compressionLevel > kMaxCompressionLevel) {
+    if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
         return makeVoidError(ErrorCode::kInvalidArgument,
-                         "Compression level must be between 1 and 9");
+                             "Compression level must be between 1 and 9");
     }
 
     if (zstdLevel < 1 || zstdLevel > 22) {
-        return makeVoidError(ErrorCode::kInvalidArgument,
-                         "Zstd level must be between 1 and 22");
+        return makeVoidError(ErrorCode::kInvalidArgument, "Zstd level must be between 1 and 22");
     }
 
     if (lzmaLevel < 0 || lzmaLevel > 9) {
-        return makeVoidError(ErrorCode::kInvalidArgument,
-                         "LZMA level must be between 0 and 9");
+        return makeVoidError(ErrorCode::kInvalidArgument, "LZMA level must be between 0 and 9");
     }
 
     if (minPatternMatchRatio < 0.0 || minPatternMatchRatio > 1.0) {
         return makeVoidError(ErrorCode::kInvalidArgument,
-                         "Pattern match ratio must be between 0.0 and 1.0");
+                             "Pattern match ratio must be between 0.0 and 1.0");
     }
 
     return {};
@@ -151,8 +148,7 @@ VoidResult IDCompressorConfig::validate() const {
 // IDTokenizer Implementation
 // =============================================================================
 
-IDTokenizer::IDTokenizer(std::string_view delimiters)
-    : delimiters_(delimiters) {}
+IDTokenizer::IDTokenizer(std::string_view delimiters) : delimiters_(delimiters) {}
 
 bool IDTokenizer::isDelimiter(char c) const noexcept {
     return delimiters_.find(c) != std::string::npos;
@@ -204,8 +200,8 @@ std::vector<IDToken> IDTokenizer::tokenize(std::string_view id) const {
                 auto tokenStr = id.substr(tokenStart, pos - tokenStart);
                 auto intVal = tryParseInt(tokenStr);
                 if (intVal) {
-                    tokens.push_back(IDToken::makeDynamicInt(*intVal, tokenStart,
-                                                             pos - tokenStart));
+                    tokens.push_back(
+                        IDToken::makeDynamicInt(*intVal, tokenStart, pos - tokenStart));
                 } else {
                     tokens.push_back(IDToken::makeDynamicString(tokenStr, tokenStart));
                 }
@@ -225,8 +221,7 @@ std::vector<IDToken> IDTokenizer::tokenize(std::string_view id) const {
         auto tokenStr = id.substr(tokenStart, pos - tokenStart);
         auto intVal = tryParseInt(tokenStr);
         if (intVal) {
-            tokens.push_back(IDToken::makeDynamicInt(*intVal, tokenStart,
-                                                     pos - tokenStart));
+            tokens.push_back(IDToken::makeDynamicInt(*intVal, tokenStart, pos - tokenStart));
         } else {
             tokens.push_back(IDToken::makeDynamicString(tokenStr, tokenStart));
         }
@@ -299,9 +294,8 @@ std::vector<std::uint8_t> deltaVarintEncode(std::span<const std::int64_t> values
     return result;
 }
 
-Result<std::vector<std::int64_t>> deltaVarintDecode(
-    std::span<const std::uint8_t> data,
-    std::size_t count) {
+Result<std::vector<std::int64_t>> deltaVarintDecode(std::span<const std::uint8_t> data,
+                                                    std::size_t count) {
 
     std::vector<std::int64_t> result;
     result.reserve(count);
@@ -311,8 +305,8 @@ Result<std::vector<std::int64_t>> deltaVarintDecode(
 
     for (std::size_t i = 0; i < count; ++i) {
         if (offset >= data.size()) {
-            return std::unexpected(Error{ErrorCode::kCorruptedData,
-                             "Unexpected end of varint data"});
+            return std::unexpected(
+                Error{ErrorCode::kCorruptedData, "Unexpected end of varint data"});
         }
 
         std::size_t bytesRead = 0;
@@ -332,11 +326,10 @@ Result<std::vector<std::int64_t>> deltaVarintDecode(
 // Utility Functions
 // =============================================================================
 
-std::string generateDiscardId(
-    ReadId archiveId,
-    bool isPaired,
-    PELayout peLayout,
-    std::string_view prefix) {
+std::string generateDiscardId(ReadId archiveId,
+                              bool isPaired,
+                              PELayout peLayout,
+                              std::string_view prefix) {
 
     std::string result;
     if (!prefix.empty()) {
@@ -368,19 +361,19 @@ std::string generateDiscardId(
 class IDCompressorImpl {
 public:
     explicit IDCompressorImpl(IDCompressorConfig config)
-        : config_(std::move(config))
-        , tokenizer_(config_.delimiters) {}
+        : config_(std::move(config)), tokenizer_(config_.delimiters) {}
 
     Result<CompressedIDData> compress(std::span<const std::string_view> ids);
-    Result<std::vector<std::string>> decompress(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numIds,
-        IDMode mode);
+    Result<std::vector<std::string>> decompress(std::span<const std::uint8_t> data,
+                                                std::uint32_t numIds,
+                                                IDMode mode);
 
     std::optional<IDPattern> detectPattern(std::span<const std::string_view> ids) const;
     ParsedID parseId(std::string_view id) const;
 
-    const IDCompressorConfig& config() const noexcept { return config_; }
+    const IDCompressorConfig& config() const noexcept {
+        return config_;
+    }
     VoidResult setConfig(IDCompressorConfig config);
     void reset() noexcept;
 
@@ -389,18 +382,15 @@ private:
     Result<CompressedIDData> compressTokenize(std::span<const std::string_view> ids);
     Result<CompressedIDData> compressDiscard(std::span<const std::string_view> ids);
 
-    Result<std::vector<std::string>> decompressExact(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numIds);
-    Result<std::vector<std::string>> decompressTokenize(
-        std::span<const std::uint8_t> data,
-        std::uint32_t numIds);
+    Result<std::vector<std::string>> decompressExact(std::span<const std::uint8_t> data,
+                                                     std::uint32_t numIds);
+    Result<std::vector<std::string>> decompressTokenize(std::span<const std::uint8_t> data,
+                                                        std::uint32_t numIds);
     Result<std::vector<std::string>> decompressDiscard(std::uint32_t numIds);
 
     std::vector<std::uint8_t> compressWithZstd(std::span<const std::uint8_t> data);
-    Result<std::vector<std::uint8_t>> decompressWithZstd(
-        std::span<const std::uint8_t> data,
-        std::size_t uncompressedSize);
+    Result<std::vector<std::uint8_t>> decompressWithZstd(std::span<const std::uint8_t> data,
+                                                         std::size_t uncompressedSize);
 
     IDCompressorConfig config_;
     IDTokenizer tokenizer_;
@@ -473,8 +463,7 @@ std::optional<IDPattern> IDCompressorImpl::detectPattern(
             }
 
             if (pattern.tokenTypes[i] == TokenType::kDelimiter) {
-                if (delimIdx >= pattern.delimiters.size() ||
-                    tokens[i].value.empty() ||
+                if (delimIdx >= pattern.delimiters.size() || tokens[i].value.empty() ||
                     tokens[i].value[0] != pattern.delimiters[delimIdx]) {
                     matches = false;
                 }
@@ -564,8 +553,7 @@ Result<CompressedIDData> IDCompressorImpl::compressExact(std::span<const std::st
     return result;
 }
 
-Result<CompressedIDData> IDCompressorImpl::compressTokenize(
-    std::span<const std::string_view> ids) {
+Result<CompressedIDData> IDCompressorImpl::compressTokenize(std::span<const std::string_view> ids) {
 
     // Try to detect a pattern
     auto pattern = detectPattern(ids);
@@ -646,8 +634,7 @@ Result<CompressedIDData> IDCompressorImpl::compressTokenize(
 
     bytes = uvarintEncode(pattern->delimiters.size(), lenBuf);
     uncompressed.insert(uncompressed.end(), lenBuf, lenBuf + bytes);
-    uncompressed.insert(uncompressed.end(), pattern->delimiters.begin(),
-                        pattern->delimiters.end());
+    uncompressed.insert(uncompressed.end(), pattern->delimiters.begin(), pattern->delimiters.end());
 
     // Write delta-encoded integer columns
     bytes = uvarintEncode(intColumns.size(), lenBuf);
@@ -686,8 +673,7 @@ Result<CompressedIDData> IDCompressorImpl::compressTokenize(
     return result;
 }
 
-Result<CompressedIDData> IDCompressorImpl::compressDiscard(
-    std::span<const std::string_view> ids) {
+Result<CompressedIDData> IDCompressorImpl::compressDiscard(std::span<const std::string_view> ids) {
 
     CompressedIDData result;
     result.idMode = IDMode::kDiscard;
@@ -710,10 +696,9 @@ Result<CompressedIDData> IDCompressorImpl::compressDiscard(
 // IDCompressorImpl - Decompression
 // =============================================================================
 
-Result<std::vector<std::string>> IDCompressorImpl::decompress(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numIds,
-    IDMode mode) {
+Result<std::vector<std::string>> IDCompressorImpl::decompress(std::span<const std::uint8_t> data,
+                                                              std::uint32_t numIds,
+                                                              IDMode mode) {
 
     if (data.empty()) {
         if (numIds == 0) {
@@ -732,14 +717,13 @@ Result<std::vector<std::string>> IDCompressorImpl::decompress(
         case kMagicDiscard:
             return decompressDiscard(numIds);
         default:
-            return std::unexpected(Error{ErrorCode::kCorruptedData,
-                             "Unknown ID compression magic byte"});
+            return std::unexpected(
+                Error{ErrorCode::kCorruptedData, "Unknown ID compression magic byte"});
     }
 }
 
 Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numIds) {
+    std::span<const std::uint8_t> data, std::uint32_t numIds) {
 
     if (numIds == 0) {
         return std::vector<std::string>{};
@@ -769,25 +753,21 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
     std::size_t offset = 0;
     for (std::uint32_t i = 0; i < numIds; ++i) {
         if (offset >= uncompressed.size()) {
-            return std::unexpected(Error{ErrorCode::kCorruptedData,
-                             "Unexpected end of ID data"});
+            return std::unexpected(Error{ErrorCode::kCorruptedData, "Unexpected end of ID data"});
         }
 
         std::size_t lenBytes = 0;
-        std::uint64_t idLen = uvarintDecode(
-            std::span<const std::uint8_t>(uncompressed.data() + offset,
-                                          uncompressed.size() - offset),
-            lenBytes);
+        std::uint64_t idLen =
+            uvarintDecode(std::span<const std::uint8_t>(uncompressed.data() + offset,
+                                                        uncompressed.size() - offset),
+                          lenBytes);
         offset += lenBytes;
 
         if (offset + idLen > uncompressed.size()) {
-            return std::unexpected(Error{ErrorCode::kCorruptedData,
-                             "ID length exceeds data size"});
+            return std::unexpected(Error{ErrorCode::kCorruptedData, "ID length exceeds data size"});
         }
 
-        result.emplace_back(
-            reinterpret_cast<const char*>(uncompressed.data() + offset),
-            idLen);
+        result.emplace_back(reinterpret_cast<const char*>(uncompressed.data() + offset), idLen);
         offset += idLen;
     }
 
@@ -795,8 +775,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressExact(
 }
 
 Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numIds) {
+    std::span<const std::uint8_t> data, std::uint32_t numIds) {
 
     if (numIds == 0) {
         return std::vector<std::string>{};
@@ -822,10 +801,9 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
 
     auto readVarint = [&]() -> std::uint64_t {
         std::size_t bytes = 0;
-        auto val = uvarintDecode(
-            std::span<const std::uint8_t>(uncompressed.data() + offset,
-                                          uncompressed.size() - offset),
-            bytes);
+        auto val = uvarintDecode(std::span<const std::uint8_t>(uncompressed.data() + offset,
+                                                               uncompressed.size() - offset),
+                                 bytes);
         offset += bytes;
         return val;
     };
@@ -849,8 +827,8 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
     pattern.staticValues.resize(numStatic);
     for (std::size_t i = 0; i < numStatic; ++i) {
         std::size_t len = readVarint();
-        pattern.staticValues[i] = std::string(
-            reinterpret_cast<const char*>(uncompressed.data() + offset), len);
+        pattern.staticValues[i] =
+            std::string(reinterpret_cast<const char*>(uncompressed.data() + offset), len);
         offset += len;
     }
 
@@ -868,8 +846,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressTokenize(
     for (std::size_t col = 0; col < numIntCols; ++col) {
         std::size_t encodedLen = readVarint();
         auto decodeResult = deltaVarintDecode(
-            std::span<const std::uint8_t>(uncompressed.data() + offset, encodedLen),
-            numIds);
+            std::span<const std::uint8_t>(uncompressed.data() + offset, encodedLen), numIds);
         if (!decodeResult) {
             return std::unexpected(decodeResult.error());
         }
@@ -953,8 +930,7 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressDiscard(std::uint32
 // IDCompressorImpl - Zstd Compression
 // =============================================================================
 
-std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(
-    std::span<const std::uint8_t> data) {
+std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(std::span<const std::uint8_t> data) {
 
     // Handle empty input
     if (data.empty()) {
@@ -966,17 +942,17 @@ std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(
     std::vector<std::uint8_t> compressed(cBuffSize);
 
     // Compress with level 3 (balance between speed and compression ratio)
-    std::size_t const cSize = ZSTD_compress(
-        compressed.data(), compressed.size(),
-        data.data(), data.size(),
-        3  // compression level
+    std::size_t const cSize = ZSTD_compress(compressed.data(),
+                                            compressed.size(),
+                                            data.data(),
+                                            data.size(),
+                                            3  // compression level
     );
 
     // Check for errors
     if (ZSTD_isError(cSize)) {
-        throw std::runtime_error(
-            "Zstd compression failed: " + std::string(ZSTD_getErrorName(cSize))
-        );
+        throw std::runtime_error("Zstd compression failed: " +
+                                 std::string(ZSTD_getErrorName(cSize)));
     }
 
     // Resize to actual compressed size
@@ -985,8 +961,7 @@ std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(
 }
 
 Result<std::vector<std::uint8_t>> IDCompressorImpl::decompressWithZstd(
-    std::span<const std::uint8_t> data,
-    std::size_t uncompressedSize) {
+    std::span<const std::uint8_t> data, std::size_t uncompressedSize) {
 
     // Handle empty input
     if (data.empty()) {
@@ -994,38 +969,30 @@ Result<std::vector<std::uint8_t>> IDCompressorImpl::decompressWithZstd(
             return std::vector<std::uint8_t>{};
         }
         return makeError<std::vector<std::uint8_t>>(
-            ErrorCode::kDecompressionError,
-            "Empty compressed data but non-zero uncompressed size"
-        );
+            ErrorCode::kDecompressionError, "Empty compressed data but non-zero uncompressed size");
     }
 
     // Get frame content size from compressed data
-    unsigned long long const rSize = ZSTD_getFrameContentSize(
-        data.data(), data.size()
-    );
+    unsigned long long const rSize = ZSTD_getFrameContentSize(data.data(), data.size());
 
     if (rSize == ZSTD_CONTENTSIZE_ERROR) {
-        return makeError<std::vector<std::uint8_t>>(
-            ErrorCode::kDecompressionError,
-            "Invalid Zstd frame"
-        );
+        return makeError<std::vector<std::uint8_t>>(ErrorCode::kDecompressionError,
+                                                    "Invalid Zstd frame");
     }
     if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) {
         // Frame size not stored in header, use provided uncompressedSize
         if (uncompressedSize == 0) {
             return makeError<std::vector<std::uint8_t>>(
                 ErrorCode::kDecompressionError,
-                "Zstd content size unknown and uncompressedSize not provided"
-            );
+                "Zstd content size unknown and uncompressedSize not provided");
         }
     } else {
         // Verify size matches if both are known
         if (uncompressedSize != 0 && rSize != uncompressedSize) {
-            return makeError<std::vector<std::uint8_t>>(
-                ErrorCode::kDecompressionError,
-                "Zstd frame size mismatch: expected " + std::to_string(uncompressedSize) +
-                ", got " + std::to_string(rSize)
-            );
+            return makeError<std::vector<std::uint8_t>>(ErrorCode::kDecompressionError,
+                                                        "Zstd frame size mismatch: expected " +
+                                                            std::to_string(uncompressedSize) +
+                                                            ", got " + std::to_string(rSize));
         }
     }
 
@@ -1034,26 +1001,22 @@ Result<std::vector<std::uint8_t>> IDCompressorImpl::decompressWithZstd(
     std::vector<std::uint8_t> decompressed(decompSize);
 
     // Decompress
-    std::size_t const dSize = ZSTD_decompress(
-        decompressed.data(), decompressed.size(),
-        data.data(), data.size()
-    );
+    std::size_t const dSize =
+        ZSTD_decompress(decompressed.data(), decompressed.size(), data.data(), data.size());
 
     // Check for errors
     if (ZSTD_isError(dSize)) {
-        return makeError<std::vector<std::uint8_t>>(
-            ErrorCode::kDecompressionError,
-            "Zstd decompression failed: " + std::string(ZSTD_getErrorName(dSize))
-        );
+        return makeError<std::vector<std::uint8_t>>(ErrorCode::kDecompressionError,
+                                                    "Zstd decompression failed: " +
+                                                        std::string(ZSTD_getErrorName(dSize)));
     }
 
     // Verify decompressed size matches expected
     if (dSize != decompSize) {
-        return makeError<std::vector<std::uint8_t>>(
-            ErrorCode::kDecompressionError,
-            "Zstd decompressed size mismatch: expected " + std::to_string(decompSize) +
-            ", got " + std::to_string(dSize)
-        );
+        return makeError<std::vector<std::uint8_t>>(ErrorCode::kDecompressionError,
+                                                    "Zstd decompressed size mismatch: expected " +
+                                                        std::to_string(decompSize) + ", got " +
+                                                        std::to_string(dSize));
     }
     return decompressed;
 }
@@ -1097,16 +1060,14 @@ Result<CompressedIDData> IDCompressor::compress(std::span<const std::string> ids
     return impl_->compress(views);
 }
 
-Result<std::vector<std::string>> IDCompressor::decompress(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numIds) {
+Result<std::vector<std::string>> IDCompressor::decompress(std::span<const std::uint8_t> data,
+                                                          std::uint32_t numIds) {
     return impl_->decompress(data, numIds, impl_->config().idMode);
 }
 
-Result<std::vector<std::string>> IDCompressor::decompress(
-    std::span<const std::uint8_t> data,
-    std::uint32_t numIds,
-    IDMode mode) {
+Result<std::vector<std::string>> IDCompressor::decompress(std::span<const std::uint8_t> data,
+                                                          std::uint32_t numIds,
+                                                          IDMode mode) {
     return impl_->decompress(data, numIds, mode);
 }
 
@@ -1122,8 +1083,7 @@ void IDCompressor::reset() noexcept {
     impl_->reset();
 }
 
-std::optional<IDPattern> IDCompressor::detectPattern(
-    std::span<const std::string_view> ids) const {
+std::optional<IDPattern> IDCompressor::detectPattern(std::span<const std::string_view> ids) const {
     return impl_->detectPattern(ids);
 }
 

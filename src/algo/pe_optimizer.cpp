@@ -8,10 +8,10 @@
 
 #include "fqc/algo/pe_optimizer.h"
 
+#include "fqc/common/logger.h"
+
 #include <algorithm>
 #include <cstring>
-
-#include "fqc/common/logger.h"
 
 namespace fqc::algo {
 
@@ -22,23 +22,16 @@ namespace fqc::algo {
 namespace {
 
 constexpr char kComplement[256] = {
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   'T', 0,   'G', 0,   0,   0,   'C', 0,   0,   0,   0,   0,   0,   'N', 0,
-    0,   0,   0,   0,   'A', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   't', 0,   'g', 0,   0,   0,   'c', 0,   0,   0,   0,   0,   0,   'n', 0,
-    0,   0,   0,   0,   'a', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-};
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   'T', 0, 'G', 0, 0, 0, 'C', 0, 0,   0, 0, 0, 0,
+    'N', 0, 0, 0, 0, 0, 'A', 0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 't', 0, 'g', 0, 0, 0, 'c',
+    0,   0, 0, 0, 0, 0, 'n', 0, 0, 0, 0, 0, 'a', 0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0,   0, 0, 0, 0,
+    0,   0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0,   0,   0, 0,   0, 0, 0, 0,   0, 0};
 
 }  // namespace
 
@@ -105,8 +98,8 @@ std::string PEOptimizer::reverseComplement(std::string_view seq) {
     return result;
 }
 
-std::pair<std::vector<std::uint16_t>, std::vector<char>>
-PEOptimizer::computeDiff(std::string_view seq1, std::string_view seq2) {
+std::pair<std::vector<std::uint16_t>, std::vector<char>> PEOptimizer::computeDiff(
+    std::string_view seq1, std::string_view seq2) {
     std::vector<std::uint16_t> positions;
     std::vector<char> bases;
 
@@ -127,9 +120,8 @@ PEOptimizer::computeDiff(std::string_view seq1, std::string_view seq2) {
     return {std::move(positions), std::move(bases)};
 }
 
-std::pair<bool, std::size_t> PEOptimizer::checkComplementarity(
-    std::string_view r1Seq,
-    std::string_view r2Seq) const {
+std::pair<bool, std::size_t> PEOptimizer::checkComplementarity(std::string_view r1Seq,
+                                                               std::string_view r2Seq) const {
 
     if (!config_.enableComplementarity) {
         return {false, 0};
@@ -156,8 +148,8 @@ std::pair<bool, std::size_t> PEOptimizer::checkComplementarity(
     }
 
     // Add length difference
-    diffCount += static_cast<std::size_t>(std::abs(static_cast<int>(r1Seq.length()) -
-                          static_cast<int>(r2Seq.length())));
+    diffCount += static_cast<std::size_t>(
+        std::abs(static_cast<int>(r1Seq.length()) - static_cast<int>(r2Seq.length())));
 
     bool beneficial = diffCount <= config_.complementarityThreshold;
     return {beneficial, diffCount};
@@ -175,8 +167,7 @@ PEEncodedPair PEOptimizer::encodePair(const io::PairedEndRecord& pair) const {
     }
 
     // Check if complementarity encoding is beneficial
-    auto [beneficial, diffCount] = checkComplementarity(pair.read1.sequence,
-                                                         pair.read2.sequence);
+    auto [beneficial, diffCount] = checkComplementarity(pair.read1.sequence, pair.read2.sequence);
 
     if (beneficial) {
         encoded.useComplementarity = true;
@@ -194,8 +185,8 @@ PEEncodedPair PEOptimizer::encodePair(const io::PairedEndRecord& pair) const {
         for (std::size_t i = 0; i < encoded.diffPositions.size(); ++i) {
             std::uint16_t pos = encoded.diffPositions[i];
             if (pos < r1QualRev.length() && pos < pair.read2.quality.length()) {
-                std::int8_t delta = static_cast<std::int8_t>(
-                    pair.read2.quality[pos] - r1QualRev[pos]);
+                std::int8_t delta =
+                    static_cast<std::int8_t>(pair.read2.quality[pos] - r1QualRev[pos]);
                 encoded.qualDelta.push_back(delta);
             } else {
                 encoded.qualDelta.push_back(0);

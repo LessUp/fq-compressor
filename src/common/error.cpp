@@ -8,8 +8,9 @@
 
 #include "fqc/common/error.h"
 
-#include <fmt/format.h>
 #include <sstream>
+
+#include <fmt/format.h>
 
 namespace fqc {
 
