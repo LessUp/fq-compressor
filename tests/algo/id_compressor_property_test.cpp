@@ -615,10 +615,19 @@ TEST(IDCompressorTest, VarintEncoding) {
     EXPECT_EQ(buffer[0], 0x80);
     EXPECT_EQ(buffer[1], 0x01);
 
-    // Decode
+    // Decode (128 encodes to 2 bytes, so pass the full encoded span)
     std::size_t bytesRead;
-    EXPECT_EQ(uvarintDecode(std::span<const std::uint8_t>(buffer, 1), bytesRead), 128);
-    // Note: This test is incorrect - need to use proper encoded data
+    EXPECT_EQ(uvarintDecode(std::span<const std::uint8_t>(buffer, 2), bytesRead), 128);
+    EXPECT_EQ(bytesRead, 2);
+
+    // Decode single-byte values
+    uvarintEncode(0, buffer);
+    EXPECT_EQ(uvarintDecode(std::span<const std::uint8_t>(buffer, 1), bytesRead), 0);
+    EXPECT_EQ(bytesRead, 1);
+
+    uvarintEncode(127, buffer);
+    EXPECT_EQ(uvarintDecode(std::span<const std::uint8_t>(buffer, 1), bytesRead), 127);
+    EXPECT_EQ(bytesRead, 1);
 }
 
 /// @brief Test ZigZag encoding.

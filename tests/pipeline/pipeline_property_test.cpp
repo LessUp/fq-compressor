@@ -10,6 +10,7 @@
 // **Validates: Requirements 1.1, 2.1, 2.2, 4.1**
 // =============================================================================
 
+#include "fqc/common/logger.h"
 #include "fqc/common/types.h"
 #include "fqc/io/fastq_parser.h"
 #include "fqc/pipeline/pipeline.h"
@@ -31,6 +32,22 @@
 #include <rapidcheck/gtest.h>
 
 namespace fqc::pipeline::test {
+
+// Initialize Quill logger once for all tests in this file.
+class PipelineTestEnvironment : public ::testing::Environment {
+public:
+    void SetUp() override {
+        if (!fqc::log::isInitialized()) {
+            fqc::log::init("", fqc::log::Level::kWarning);
+        }
+    }
+    void TearDown() override {
+        fqc::log::flush();
+    }
+};
+
+static auto* const gEnv [[maybe_unused]] =
+    ::testing::AddGlobalTestEnvironment(new PipelineTestEnvironment);
 
 // =============================================================================
 // Test Fixtures
