@@ -56,9 +56,10 @@ public:
                 blockHeader, block.idStream, block.seqStream, block.qualStream, block.auxStream);
 
             if (!decompressResult) {
-                throw std::runtime_error(fmt::format("Failed to decompress block {}: {}",
-                                                     block.blockId,
-                                                     decompressResult.error().message()));
+                throw FQCException(ErrorCode::kDecompressionFailed,
+                                   fmt::format("Failed to decompress block {}: {}",
+                                               block.blockId,
+                                               decompressResult.error().message()));
             }
 
             // Move decompressed reads into chunk
