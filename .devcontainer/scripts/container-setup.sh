@@ -120,13 +120,35 @@ start_sshd() {
     fi
 }
 
+# 检测宿主机平台（基于 remoteEnv 传入的环境变量）
+# 返回: "wsl" | "windows" | "linux"
+detect_host_platform() {
+    if [ -n "${WSL_DISTRO_NAME:-}" ]; then
+        echo "wsl"
+    elif [ -n "${MSYSTEM:-}" ]; then
+        echo "windows"
+    else
+        echo "linux"
+    fi
+}
+
 # 检查环境警告
 check_environment() {
-    # 仅当宿主机是 Windows（非 WSL）时才提示
-    # 原生 Linux 无需 WSL，不应警告
-    if [ -z "${WSL_DISTRO_NAME:-}" ] && [ -f /proc/version ] && grep -qi microsoft /proc/version 2>/dev/null; then
-        log_warn "检测到 Windows Docker Desktop 环境，建议使用 VS Code Remote - WSL 在 WSL2 中打开仓库，再执行 Reopen in Container"
-    fi
+    local platform
+    platform="$(detect_host_platform)"
+
+    case "$platform" in
+        wsl)
+            log_info "宿主机: WSL2 (${WSL_DISTRO_NAME})"
+            ;;
+        windows)
+            log_warn "宿主机: Windows 原生 (${MSYSTEM:-unknown})"
+            log_warn "volume 性能较差，建议改用 WSL2 作为开发宿主"
+            ;;
+        linux)
+            log_info "宿主机: 原生 Linux"
+            ;;
+    esac
 
     # 仅当 /ssh-agent 挂载点存在但不是有效 socket 时才警告
     if [ -e "/ssh-agent" ] && [ ! -S "/ssh-agent" ]; then
