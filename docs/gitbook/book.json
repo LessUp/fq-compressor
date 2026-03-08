@@ -10,7 +10,9 @@
     }
   },
   "plugins": [
-    "-sharing"
+    "-sharing",
+    "expandable-chapters",
+    "back-to-top-button"
   ],
   "structure": {
     "readme": "README.md",
