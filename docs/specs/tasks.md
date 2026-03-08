@@ -4,7 +4,7 @@
 
 本实现计划将 fq-compressor 项目分为 5 个主要阶段，按照设计文档中的 Development Phases 组织。每个阶段包含可独立验证的任务，确保增量开发和持续集成。
 
-实现语言：**C++20**
+实现语言：**C++23**
 构建系统：**CMake 3.20+**
 依赖管理：**Conan 2.x**
 
@@ -32,7 +32,7 @@
     - _Requirements: 7.1, 7.3_
 
   - [x] 1.2 配置 CMake 构建系统
-    - 创建根 `CMakeLists.txt`，设置 C++20 标准
+    - 创建根 `CMakeLists.txt`，设置 C++23 标准
     - 配置编译选项 (warnings, sanitizers)
     - 创建 `cmake/` 目录存放 Find 模块
     - _Requirements: 7.1_
@@ -61,7 +61,7 @@
   - [x] 2.2 实现通用类型定义
     - 创建 `include/fqc/common/types.h`
     - 定义 `ReadRecord`, `QualityMode`, `IDMode` 等核心类型
-    - 使用 C++20 Concepts 约束模板
+    - 使用 C++23 Concepts 约束模板
     - _Requirements: 7.3_
 
   - [x] 2.3 实现错误处理框架
@@ -485,7 +485,7 @@
 - 每个 Checkpoint 是验证点，确保阶段性成果可用
 - Phase 1-3 为核心功能，Phase 4-5 为优化和完善
 - 属性测试使用 RapidCheck 框架，最少运行 100 次迭代
-- 所有代码遵循 C++20 标准和 fastq-tools 代码风格
+- 所有代码遵循 C++23 标准和 fastq-tools 代码风格
 - 所有属性测试任务均为必须完成项
 
 ---

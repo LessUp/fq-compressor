@@ -4,7 +4,7 @@
 
 | Requirement | Minimum Version |
 |-------------|-----------------|
-| C++ Compiler | GCC 13+ or Clang 16+ |
+| C++ Compiler | GCC 15+ or Clang 20+ |
 | CMake | 3.20+ |
 | Conan | 2.x |
 | Ninja | 1.10+ (recommended) |

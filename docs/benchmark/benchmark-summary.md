@@ -14,7 +14,7 @@
   - 优化: `-O3 -march=native -flto`
 
 - **Clang Release**: `build/clang-release/src/fqc` (873 KB)
-  - 编译器: Clang 21.1.5
+  - 编译器: Clang 20
   - 优化: `-O3 -march=native -flto -stdlib=libc++`
 
 ### 2. ✅ 编译器性能对比基准测试框架
