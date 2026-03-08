@@ -25,6 +25,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   honkit-build:
     runs-on: ubuntu-latest
@@ -36,9 +40,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install documentation dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build documentation site
         run: npm run docs:build
