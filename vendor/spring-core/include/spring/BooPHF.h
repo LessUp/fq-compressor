@@ -33,6 +33,9 @@
 // Platform-specific includes
 #ifdef _WIN32
 #include <windows.h>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 #else
 #include <pthread.h>
 #include <sys/time.h>
@@ -67,8 +70,14 @@ inline unsigned int popcount_64(uint64_t x) {
 
 /// Fast range mapping: maps hash to [0, p) without modulo
 inline uint64_t fastrange64(uint64_t word, uint64_t p) {
+#if defined(_MSC_VER)
+    uint64_t highProduct;
+    _umul128(word, p, &highProduct);
+    return highProduct;
+#else
     return static_cast<uint64_t>(
         (static_cast<__uint128_t>(word) * static_cast<__uint128_t>(p)) >> 64);
+#endif
 }
 
 // =============================================================================
@@ -317,8 +326,15 @@ public:
     }
 
     uint64_t atomic_test_and_set(uint64_t pos) {
+#if defined(_MSC_VER)
+        uint64_t oldval = static_cast<uint64_t>(
+            _InterlockedOr64(
+                reinterpret_cast<volatile long long*>(bitArray_ + (pos >> 6)),
+                static_cast<long long>(1ULL << (pos & 63))));
+#else
         uint64_t oldval = __sync_fetch_and_or(
             bitArray_ + (pos >> 6), 1ULL << (pos & 63));
+#endif
         return (oldval >> (pos & 63)) & 1;
     }
 
@@ -328,11 +344,23 @@ public:
 
     void set(uint64_t pos) {
         assert(pos < size_);
+#if defined(_MSC_VER)
+        _InterlockedOr64(
+            reinterpret_cast<volatile long long*>(bitArray_ + (pos >> 6ULL)),
+            static_cast<long long>(1ULL << (pos & 63)));
+#else
         __sync_fetch_and_or(bitArray_ + (pos >> 6ULL), 1ULL << (pos & 63));
+#endif
     }
 
     void reset(uint64_t pos) {
+#if defined(_MSC_VER)
+        _InterlockedAnd64(
+            reinterpret_cast<volatile long long*>(bitArray_ + (pos >> 6ULL)),
+            static_cast<long long>(~(1ULL << (pos & 63))));
+#else
         __sync_fetch_and_and(bitArray_ + (pos >> 6ULL), ~(1ULL << (pos & 63)));
+#endif
     }
 
     uint64_t build_ranks(uint64_t offset = 0) {
@@ -462,7 +490,101 @@ public:
     template <typename Range>
     mphf(size_t n, Range const& input_range, int num_thread = 1,
          double gamma = 2.0, bool writeEach = true, bool progress = true,
-         float perc_elem_loaded = 0.03);
+         float perc_elem_loaded = 0.03)
+        : built_(false),
+          gamma_(gamma),
+          hash_domain_(0),
+          nelem_(n),
+          num_thread_(num_thread),
+          nb_levels_(0),
+          lastbitsetrank_(0) {
+        (void)writeEach;
+        (void)progress;
+        (void)perc_elem_loaded;
+
+        if (n == 0) {
+            built_ = true;
+            return;
+        }
+
+        // Collect all elements into a working set
+        std::vector<elem_t> current_elems(input_range.begin(),
+                                          input_range.end());
+
+        int max_levels = 25;
+        uint64_t cumulative_rank = 0;
+
+        for (int lvl = 0; lvl < max_levels; lvl++) {
+            size_t n_remaining = current_elems.size();
+            if (n_remaining == 0) break;
+
+            // Size of bit array for this level
+            uint64_t level_hash_domain =
+                std::max<uint64_t>(1ULL,
+                    static_cast<uint64_t>(
+                        static_cast<double>(n_remaining) * gamma_));
+            // Round up to multiple of 64 for alignment
+            level_hash_domain = ((level_hash_domain + 63ULL) / 64ULL) * 64ULL;
+
+            // Phase 1: hash all elements, detect collisions
+            bitVector hashArray(level_hash_domain);
+            bitVector collisions(level_hash_domain);
+
+            for (size_t ii = 0; ii < n_remaining; ii++) {
+                hash_pair_t hstate = {0, 0};
+                uint64_t h = computeLevelHash(hstate, current_elems[ii], lvl);
+                uint64_t hashi = fastrange64(h, level_hash_domain);
+
+                if (hashArray.get(hashi)) {
+                    collisions.set(hashi);
+                } else {
+                    hashArray.set(hashi);
+                }
+            }
+
+            // Phase 2: clear collision positions from hashArray
+            hashArray.clearCollisions(0, level_hash_domain, &collisions);
+
+            // Phase 3: build rank structure
+            level new_level;
+            new_level.idx_begin = cumulative_rank;
+            new_level.hash_domain = level_hash_domain;
+            new_level.bitset = std::move(hashArray);
+            cumulative_rank = new_level.bitset.build_ranks(cumulative_rank);
+
+            levels_.push_back(std::move(new_level));
+            nb_levels_ = lvl + 1;
+
+            // Phase 4: collect elements that had collisions (for next level)
+            std::vector<elem_t> next_elems;
+            next_elems.reserve(n_remaining / 2);
+
+            for (size_t ii = 0; ii < n_remaining; ii++) {
+                hash_pair_t hstate = {0, 0};
+                uint64_t h = computeLevelHash(hstate, current_elems[ii], lvl);
+                uint64_t hashi = fastrange64(h, level_hash_domain);
+                if (!levels_[lvl].bitset.get(hashi)) {
+                    next_elems.push_back(current_elems[ii]);
+                }
+            }
+
+            current_elems = std::move(next_elems);
+
+            if (current_elems.empty()) break;
+        }
+
+        // Remaining elements go into fallback hash map
+        lastbitsetrank_ = cumulative_rank;
+        uint64_t final_idx = 0;
+        for (auto& elem : current_elems) {
+            final_hash_[elem] = final_idx++;
+        }
+
+        // Add one extra "level" logically for the final map
+        nb_levels_++;
+
+        built_ = true;
+    }
 
     /**
      * @brief Lookup element in MPHF
@@ -492,18 +614,32 @@ public:
 
     uint64_t totalBitSize() {
         uint64_t totalsizeBitset = 0;
-        for (int ii = 0; ii < nb_levels_; ii++) {
+        for (size_t ii = 0; ii < levels_.size(); ii++) {
             totalsizeBitset += levels_[ii].bitset.bitSize();
         }
         return totalsizeBitset + final_hash_.size() * 42 * 8;
     }
 
 private:
+    /// Compute the hash value for a given element at a specific level.
+    /// Must be consistent with getLevel() traversal order.
+    uint64_t computeLevelHash(hash_pair_t& s, elem_t elem, int lvl) {
+        uint64_t h = hasher_.h0(s, elem);
+        if (lvl == 0) return h;
+        h = hasher_.h1(s, elem);
+        if (lvl == 1) return h;
+        for (int i = 2; i <= lvl; i++) {
+            h = hasher_.next(s);
+        }
+        return h;
+    }
+
     uint64_t getLevel(hash_pair_t& bbhash, elem_t elem, int* level,
                       int maxLevel = 100, int minLevel = -1) {
         uint64_t level_hash = hasher_.h0(bbhash, elem);
+        int num_bitset_levels = static_cast<int>(levels_.size());
         
-        for (int ii = 0; ii < nb_levels_ && ii <= maxLevel; ii++) {
+        for (int ii = 0; ii < num_bitset_levels && ii <= maxLevel; ii++) {
             if (ii > minLevel) {
                 uint64_t hashi = fastrange64(level_hash, levels_[ii].hash_domain);
                 if (levels_[ii].bitset.get(hashi)) {

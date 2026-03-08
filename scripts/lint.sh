@@ -9,9 +9,16 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ACTION="${1:-lint}"
 PRESET="${2:-clang-debug}"
 
-# 查找源文件
-find_sources() {
+# 查找所有源文件（含测试，用于格式检查）
+find_all_sources() {
     find "$PROJECT_DIR/src" "$PROJECT_DIR/include" "$PROJECT_DIR/tests" \
+        \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
+        -not -path "*/build/*" 2>/dev/null || true
+}
+
+# 查找生产源文件（不含测试，用于 clang-tidy 静态分析）
+find_lint_sources() {
+    find "$PROJECT_DIR/src" "$PROJECT_DIR/include" \
         \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
         -not -path "*/build/*" 2>/dev/null || true
 }
@@ -50,7 +57,7 @@ CLANG_TIDY=$(detect_clang_tidy)
 case $ACTION in
     format)
         echo "Formatting code with $CLANG_FORMAT..."
-        mapfile -t sources < <(find_sources)
+        mapfile -t sources < <(find_all_sources)
         if [ ${#sources[@]} -gt 0 ]; then
             "$CLANG_FORMAT" -i "${sources[@]}"
             echo "Done. Formatted ${#sources[@]} files."
@@ -60,7 +67,7 @@ case $ACTION in
         ;;
     format-check)
         echo "Checking format with $CLANG_FORMAT..."
-        mapfile -t sources < <(find_sources)
+        mapfile -t sources < <(find_all_sources)
         if [ ${#sources[@]} -gt 0 ]; then
             "$CLANG_FORMAT" --dry-run --Werror "${sources[@]}"
             echo "Format check passed."
@@ -76,7 +83,7 @@ case $ACTION in
             echo "Please run './scripts/build.sh $PRESET' first."
             exit 1
         fi
-        mapfile -t sources < <(find_sources)
+        mapfile -t sources < <(find_lint_sources)
         if [ ${#sources[@]} -gt 0 ]; then
             "$CLANG_TIDY" -p "$BUILD_DIR" "${sources[@]}"
             echo "Lint check passed."
