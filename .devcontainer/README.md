@@ -51,12 +51,12 @@ ssh -p 2222 developer@<服务器IP>
 docker/
 ├── Dockerfile.dev           # 开发环境镜像
 ├── Dockerfile               # 生产构建镜像（多阶段：build + production）
+├── Dockerfile.clang-release # CI 发布构建（Clang + libc++）
 ├── Dockerfile.glibc-release # CI 发布构建（glibc 动态链接）
 ├── Dockerfile.musl-release  # CI 发布构建（musl 完全静态链接）
 ├── docker-compose.yml       # Compose 配置（dev/prod/test/build 服务）
 ├── start_devcontainer.sh    # 手动启动脚本（远程服务器用）
-├── .env                     # 环境变量（从 .env.example 复制）
-└── .env.example             # 环境变量模板
+└── .env.example             # 环境变量模板（复制为 .env 使用）
 ```
 
 ---

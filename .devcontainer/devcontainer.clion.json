@@ -25,6 +25,7 @@
     
     "workspaceFolder": "/workspace",
     "remoteUser": "developer",
+    "shutdownAction": "stopContainer",
     
     // 注意：CLion 对 initializeCommand 支持有限，已移除
     // 如需同步宿主机配置，请手动运行：
@@ -33,7 +34,12 @@
     "overrideCommand": true,
     
     "runArgs": [
-        "-p", "127.0.0.1:2222:2222"
+        "--init",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined",
+        "-p", "127.0.0.1:2222:2222",
+        "-v", "fqcompressor_conan_cache:/home/developer/.conan2",
+        "-v", "fqcompressor_ccache_cache:/home/developer/.ccache"
     ],
     
     // mounts 配置 - 可选挂载
@@ -59,6 +65,7 @@
         2222
     ],
     
+    // 注意：CLion 对生命周期命令支持有限，已添加 || true 防止失败阻塞启动
     "postCreateCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh create || true",
     "postStartCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh start || true",
     "postAttachCommand": "bash /workspace/.devcontainer/scripts/container-setup.sh attach || true",

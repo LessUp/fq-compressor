@@ -26,6 +26,7 @@
     "workspaceFolder": "/workspace",
     "shutdownAction": "stopCompose",
     "remoteUser": "developer",
+    // 注意：initializeCommand 在宿主机执行，Windows 原生环境需安装 Git Bash 或在 WSL2 中使用
     "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/scripts/host-prepare.sh",
     "overrideCommand": true,
 
@@ -58,7 +59,8 @@
     // Environment Variables
     // =========================================================================
     "remoteEnv": {
-        "SSH_AUTH_SOCK": "/ssh-agent",
+        // SSH_AUTH_SOCK：仅在启用 SSH agent socket 挂载时取消注释
+        // "SSH_AUTH_SOCK": "/ssh-agent",
         "WSL_DISTRO_NAME": "${localEnv:WSL_DISTRO_NAME}",
         "WORKSPACE": "/workspace",
         "EDITOR": "code --wait",

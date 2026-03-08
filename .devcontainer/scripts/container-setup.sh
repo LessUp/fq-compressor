@@ -211,6 +211,10 @@ main() {
         attach)  cmd_attach ;;
         sync)    cmd_sync ;;
         -h|--help|help) usage ;;
+        "")
+            usage
+            exit 1
+            ;;
         *)
             log_error "未知命令: $cmd"
             usage
