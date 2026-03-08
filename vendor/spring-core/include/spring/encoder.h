@@ -38,20 +38,8 @@
 #include "params.h"
 #include "util.h"
 
-// Threading support
-#ifdef USE_OPENMP
-#include <omp.h>
-#else
-inline int omp_get_thread_num() { return 0; }
-inline int omp_get_num_threads() { return 1; }
-inline void omp_set_num_threads(int) {}
-struct omp_lock_t {};
-inline void omp_init_lock(omp_lock_t*) {}
-inline void omp_destroy_lock(omp_lock_t*) {}
-inline void omp_set_lock(omp_lock_t*) {}
-inline void omp_unset_lock(omp_lock_t*) {}
-inline int omp_test_lock(omp_lock_t*) { return 1; }
-#endif
+// Threading support - will be replaced with TBB in fq-compressor
+#include "omp_stubs.h"
 
 namespace spring {
 

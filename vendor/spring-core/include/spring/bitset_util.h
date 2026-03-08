@@ -32,14 +32,7 @@
 #include "params.h"
 
 // Threading support - will be replaced with TBB in fq-compressor
-#ifdef USE_OPENMP
-#include <omp.h>
-#else
-// Stub for non-OpenMP builds
-inline int omp_get_thread_num() { return 0; }
-inline int omp_get_num_threads() { return 1; }
-inline void omp_set_num_threads(int) {}
-#endif
+#include "omp_stubs.h"
 
 namespace spring {
 
