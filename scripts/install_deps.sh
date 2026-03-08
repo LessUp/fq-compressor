@@ -68,7 +68,7 @@ esac
 # 根据 preset 确定编译器，使用数组避免引号/转义问题
 CONAN_EXTRA_ARGS=()
 case $PRESET in
-    gcc-*)
+    gcc-*|coverage)
         CONAN_EXTRA_ARGS+=(-s compiler.cppstd=23)
         ;;
     clang-*)
@@ -109,8 +109,6 @@ EOF
         echo ""
         CONAN_EXTRA_ARGS+=(--profile:host "$TMPPROFILE" --profile:build "$TMPPROFILE")
         ;;
-    coverage)
-        ;;
 esac
 
 BUILD_DIR="build/$PRESET"
@@ -130,4 +128,4 @@ conan install . \
 
 echo ""
 echo "=== Dependencies installed ==="
-echo "Toolchain file: $BUILD_DIR/conan_toolchain.cmake"
+echo "Toolchain file: $BUILD_DIR/build/$BUILD_TYPE/generators/conan_toolchain.cmake"

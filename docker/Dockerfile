@@ -44,6 +44,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # 安装构建依赖（仅编译所需，不包含开发工具）
+# 注意：项目依赖（TBB、zstd、libdeflate 等）由 Conan 管理，无需系统 -dev 包
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     build-essential \
     ninja-build \
@@ -54,12 +55,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     python3 \
     python3-pip \
     ccache \
-    libdeflate-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    liblzma-dev \
-    libtbb-dev \
-    libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # CMake 4.x
@@ -99,7 +94,7 @@ RUN conan install . --build=missing -s build_type=Release -s compiler.cppstd=23 
 
 RUN cmake -B build/gcc-release -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=build/gcc-release/conan_toolchain.cmake \
+    -DCMAKE_TOOLCHAIN_FILE=build/gcc-release/build/Release/generators/conan_toolchain.cmake \
     -DCMAKE_C_COMPILER=gcc \
     -DCMAKE_CXX_COMPILER=g++ \
     -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
@@ -120,14 +115,11 @@ FROM debian:bookworm-slim AS production
 # APT 重试配置
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries
 
+# 运行时共享库：虽然 Conan 默认静态链接大部分依赖，
+# 但 onetbb/hwloc 为 shared，且 libstdc++ 是 GCC 运行时必需
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
     libtbb12 \
-    zlib1g \
-    libbz2-1.0 \
-    liblzma5 \
-    libdeflate0 \
-    libzstd1 \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 

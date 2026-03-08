@@ -1,7 +1,7 @@
 # Conan 2.x CI Clang Profile for fq-compressor
 # =============================================================================
 # Clang profile optimized for CI environments (GitHub Actions).
-# Uses Clang 21 with libc++ for consistency with development environment.
+# Uses Clang 20 with libc++ for consistency with development environment (LLVM latest stable).
 #
 # Usage (CI):
 #   conan install . --profile=conan/profiles/ci-clang --build=missing
@@ -11,7 +11,7 @@
 os=Linux
 arch=x86_64
 compiler=clang
-compiler.version=21
+compiler.version=20
 compiler.libcxx=libc++
 compiler.cppstd=23
 build_type=Release

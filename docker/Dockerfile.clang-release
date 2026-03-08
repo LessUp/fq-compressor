@@ -1,15 +1,15 @@
 # =============================================================================
 # FQCompressor Clang Release Build
 # =============================================================================
-# 使用 Clang 21 + libc++ (Debian Bookworm) 构建发布版二进制文件。
-# 与开发环境使用相同的 Clang 版本，确保一致性。
+# 使用 Clang 20 + libc++ (Debian Bookworm) 构建发布版二进制文件。
+# 与开发环境使用相同的 Clang 版本（LLVM 最新稳定版），确保一致性。
 #
 # Usage (CI):
 #   docker build -f docker/Dockerfile.clang-release -o out .
 #   # 产物: out/fqc
 # =============================================================================
 
-FROM gcc:15.2-bookworm AS build
+FROM debian:bookworm AS build
 
 # 代理配置
 ARG HTTP_PROXY=""
@@ -47,6 +47,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
 
 # 安装构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
+    build-essential \
     ninja-build \
     pkg-config \
     git \
@@ -75,21 +76,21 @@ RUN \
     ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
     rm -f /tmp/cmake.tar.gz
 
-# LLVM/Clang 21
+# LLVM/Clang 20（LLVM 最新稳定发布版）
 RUN wget -q https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
-    ./llvm.sh 21 && \
+    ./llvm.sh 20 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        clang-21 \
-        lld-21 \
-        libc++-21-dev \
-        libc++abi-21-dev \
+        clang-20 \
+        lld-20 \
+        libc++-20-dev \
+        libc++abi-20-dev \
     && rm -f llvm.sh \
     && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
-    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-20 100
 
 # Conan 2.x
 ARG CONAN_VERSION=2.24.0

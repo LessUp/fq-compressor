@@ -102,7 +102,7 @@ services:
       - BUILD_TYPE=Debug
       - ENABLE_COVERAGE=ON
       - TERM=xterm-256color
-    command: /workspace/scripts/test.sh
+    command: /workspace/scripts/test.sh gcc-debug
     working_dir: /workspace
     init: true
 
@@ -123,7 +123,7 @@ services:
       - ..:/workspace:cached
       - build_conan_cache:/root/.conan2:cached
       - build_ccache_cache:/root/.ccache:cached
-    command: /workspace/scripts/build.sh --release
+    command: /workspace/scripts/build.sh gcc-release
     working_dir: /workspace
     init: true
 
