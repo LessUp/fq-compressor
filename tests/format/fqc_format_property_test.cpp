@@ -9,9 +9,9 @@
 // **Validates: Requirements 2.1, 5.1, 5.2**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/format/fqc_format.h"
+#include "fqc/format/fqc_reader.h"
+#include "fqc/format/fqc_writer.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -19,9 +19,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/format/fqc_format.h"
-#include "fqc/format/fqc_reader.h"
-#include "fqc/format/fqc_writer.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::format::test {
 
@@ -33,8 +34,8 @@ namespace fqc::format::test {
 [[nodiscard]] std::filesystem::path tempFilePath() {
     static std::atomic<int> counter{0};
     auto path = std::filesystem::temp_directory_path() /
-                ("fqc_test_" + std::to_string(counter++) + "_" +
-                 std::to_string(std::random_device{}()) + ".fqc");
+        ("fqc_test_" + std::to_string(counter++) + "_" + std::to_string(std::random_device{}()) +
+         ".fqc");
     return path;
 }
 
@@ -46,7 +47,9 @@ public:
         std::error_code ec;
         std::filesystem::remove(path_, ec);
     }
-    [[nodiscard]] const std::filesystem::path& path() const noexcept { return path_; }
+    [[nodiscard]] const std::filesystem::path& path() const noexcept {
+        return path_;
+    }
 
 private:
     std::filesystem::path path_;
@@ -60,35 +63,43 @@ namespace gen {
 
 /// @brief Generate valid flags for GlobalHeader.
 [[nodiscard]] rc::Gen<std::uint64_t> validFlags() {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::element(false, true),  // IS_PAIRED
-            rc::gen::element(false, true),  // PRESERVE_ORDER
-            rc::gen::inRange(0, 4),         // QUALITY_MODE (0-3)
-            rc::gen::inRange(0, 3),         // ID_MODE (0-2)
-            rc::gen::element(false, true),  // HAS_REORDER_MAP
-            rc::gen::inRange(0, 2),         // PE_LAYOUT (0-1)
-            rc::gen::inRange(0, 3),         // READ_LENGTH_CLASS (0-2)
-            rc::gen::element(false, true)   // STREAMING_MODE
-        ),
-        [](const auto& tuple) -> std::uint64_t {
-            auto [isPaired, preserveOrder, qualMode, idMode, hasReorderMap, peLayout,
-                  lengthClass, streamingMode] = tuple;
-            std::uint64_t flags = 0;
-            if (isPaired) flags |= (1ULL << 0);
-            if (preserveOrder) flags |= (1ULL << 1);
-            flags |= (static_cast<std::uint64_t>(qualMode) << 3);
-            flags |= (static_cast<std::uint64_t>(idMode) << 5);
-            if (hasReorderMap && !preserveOrder) flags |= (1ULL << 7);
-            if (isPaired) flags |= (static_cast<std::uint64_t>(peLayout) << 8);
-            flags |= (static_cast<std::uint64_t>(lengthClass) << 10);
-            if (streamingMode) {
-                flags |= (1ULL << 12);
-                flags |= (1ULL << 1);   // Force PRESERVE_ORDER
-                flags &= ~(1ULL << 7);  // Clear HAS_REORDER_MAP
-            }
-            return flags;
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::element(false, true),  // IS_PAIRED
+                                       rc::gen::element(false, true),  // PRESERVE_ORDER
+                                       rc::gen::inRange(0, 4),         // QUALITY_MODE (0-3)
+                                       rc::gen::inRange(0, 3),         // ID_MODE (0-2)
+                                       rc::gen::element(false, true),  // HAS_REORDER_MAP
+                                       rc::gen::inRange(0, 2),         // PE_LAYOUT (0-1)
+                                       rc::gen::inRange(0, 3),         // READ_LENGTH_CLASS (0-2)
+                                       rc::gen::element(false, true)   // STREAMING_MODE
+                                       ),
+                        [](const auto& tuple) -> std::uint64_t {
+                            auto [isPaired,
+                                  preserveOrder,
+                                  qualMode,
+                                  idMode,
+                                  hasReorderMap,
+                                  peLayout,
+                                  lengthClass,
+                                  streamingMode] = tuple;
+                            std::uint64_t flags = 0;
+                            if (isPaired)
+                                flags |= (1ULL << 0);
+                            if (preserveOrder)
+                                flags |= (1ULL << 1);
+                            flags |= (static_cast<std::uint64_t>(qualMode) << 3);
+                            flags |= (static_cast<std::uint64_t>(idMode) << 5);
+                            if (hasReorderMap && !preserveOrder)
+                                flags |= (1ULL << 7);
+                            if (isPaired)
+                                flags |= (static_cast<std::uint64_t>(peLayout) << 8);
+                            flags |= (static_cast<std::uint64_t>(lengthClass) << 10);
+                            if (streamingMode) {
+                                flags |= (1ULL << 12);
+                                flags |= (1ULL << 1);   // Force PRESERVE_ORDER
+                                flags &= ~(1ULL << 7);  // Clear HAS_REORDER_MAP
+                            }
+                            return flags;
+                        });
 }
 
 /// @brief Generate valid compression algorithm ID.
@@ -104,15 +115,14 @@ namespace gen {
 /// @brief Generate valid original filename (UTF-8, reasonable length).
 [[nodiscard]] rc::Gen<std::string> validFilename() {
     return rc::gen::map(
-        rc::gen::container<std::string>(
-            rc::gen::inRange(1, 64),
-            rc::gen::oneOf(
-                rc::gen::inRange('a', 'z' + 1),
-                rc::gen::inRange('A', 'Z' + 1),
-                rc::gen::inRange('0', '9' + 1),
-                rc::gen::element('_', '-', '.'))),
+        rc::gen::container<std::string>(rc::gen::inRange(1, 64),
+                                        rc::gen::oneOf(rc::gen::inRange('a', 'z' + 1),
+                                                       rc::gen::inRange('A', 'Z' + 1),
+                                                       rc::gen::inRange('0', '9' + 1),
+                                                       rc::gen::element('_', '-', '.'))),
         [](std::string s) {
-            if (s.empty()) s = "test.fastq";
+            if (s.empty())
+                s = "test.fastq";
             if (!s.ends_with(".fastq") && !s.ends_with(".fq")) {
                 s += ".fastq";
             }
@@ -123,11 +133,10 @@ namespace gen {
 /// @brief Generate valid GlobalHeader.
 [[nodiscard]] rc::Gen<GlobalHeader> validGlobalHeader() {
     return rc::gen::map(
-        rc::gen::tuple(
-            validFlags(),
-            validCompressionAlgo(),
-            validChecksumType(),
-            rc::gen::inRange<std::uint64_t>(0, 1000000)),  // total_read_count
+        rc::gen::tuple(validFlags(),
+                       validCompressionAlgo(),
+                       validChecksumType(),
+                       rc::gen::inRange<std::uint64_t>(0, 1000000)),  // total_read_count
         [](const auto& tuple) {
             auto [flags, algo, checksum, readCount] = tuple;
             GlobalHeader header{};
@@ -144,28 +153,25 @@ namespace gen {
 
 /// @brief Generate valid codec ID (family:4bit, version:4bit).
 [[nodiscard]] rc::Gen<std::uint8_t> validCodecId() {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::inRange<std::uint8_t>(0, 9),  // family 0-8
-            rc::gen::inRange<std::uint8_t>(0, 4)   // version 0-3
-        ),
-        [](const auto& tuple) -> std::uint8_t {
-            auto [family, version] = tuple;
-            return static_cast<std::uint8_t>((family << 4) | version);
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange<std::uint8_t>(0, 9),  // family 0-8
+                                       rc::gen::inRange<std::uint8_t>(0, 4)   // version 0-3
+                                       ),
+                        [](const auto& tuple) -> std::uint8_t {
+                            auto [family, version] = tuple;
+                            return static_cast<std::uint8_t>((family << 4) | version);
+                        });
 }
 
 /// @brief Generate valid BlockHeader.
 [[nodiscard]] rc::Gen<BlockHeader> validBlockHeader(std::uint32_t blockId) {
     return rc::gen::map(
-        rc::gen::tuple(
-            validCodecId(),  // codec_ids
-            validCodecId(),  // codec_seq
-            validCodecId(),  // codec_qual
-            validCodecId(),  // codec_aux
-            rc::gen::inRange<std::uint32_t>(1, 10000),  // uncompressed_count
-            rc::gen::inRange<std::uint32_t>(0, 512)     // uniform_read_length (0=variable)
-        ),
+        rc::gen::tuple(validCodecId(),                             // codec_ids
+                       validCodecId(),                             // codec_seq
+                       validCodecId(),                             // codec_qual
+                       validCodecId(),                             // codec_aux
+                       rc::gen::inRange<std::uint32_t>(1, 10000),  // uncompressed_count
+                       rc::gen::inRange<std::uint32_t>(0, 512)  // uniform_read_length (0=variable)
+                       ),
         [blockId](const auto& tuple) {
             auto [codecIds, codecSeq, codecQual, codecAux, count, uniformLen] = tuple;
             BlockHeader header{};
@@ -196,10 +202,9 @@ namespace gen {
 
 /// @brief Generate random byte data for stream simulation.
 [[nodiscard]] rc::Gen<std::vector<std::uint8_t>> randomStreamData(std::size_t minSize,
-                                                                   std::size_t maxSize) {
-    return rc::gen::container<std::vector<std::uint8_t>>(
-        rc::gen::inRange(minSize, maxSize + 1),
-        rc::gen::arbitrary<std::uint8_t>());
+                                                                  std::size_t maxSize) {
+    return rc::gen::container<std::vector<std::uint8_t>>(rc::gen::inRange(minSize, maxSize + 1),
+                                                         rc::gen::arbitrary<std::uint8_t>());
 }
 
 }  // namespace gen
@@ -281,9 +286,8 @@ RC_GTEST_PROP(FQCFormatProperty, SingleBlockRoundTrip, ()) {
     auto idsData = *gen::randomStreamData(10, 1000);
     auto seqData = *gen::randomStreamData(100, 5000);
     auto qualData = *gen::randomStreamData(100, 5000);
-    auto auxData = blockHeader.uniformReadLength == 0
-                       ? *gen::randomStreamData(10, 500)
-                       : std::vector<std::uint8_t>{};
+    auto auxData = blockHeader.uniformReadLength == 0 ? *gen::randomStreamData(10, 500)
+                                                      : std::vector<std::uint8_t>{};
 
     globalHeader.totalReadCount = blockHeader.uncompressedCount;
 
@@ -295,8 +299,10 @@ RC_GTEST_PROP(FQCFormatProperty, SingleBlockRoundTrip, ()) {
         FQCWriter writer(tempPath);
         writer.writeGlobalHeader(globalHeader, "test.fastq", 12345);
         BlockPayload payload0;
-        payload0.idsData = idsData; payload0.seqData = seqData;
-        payload0.qualData = qualData; payload0.auxData = auxData;
+        payload0.idsData = idsData;
+        payload0.seqData = seqData;
+        payload0.qualData = qualData;
+        payload0.auxData = auxData;
         writer.writeBlock(blockHeader, payload0);
         writer.finalize();
     }
@@ -342,9 +348,8 @@ RC_GTEST_PROP(FQCFormatProperty, MultipleBlocksRoundTrip, ()) {
         allIdsData.push_back(*gen::randomStreamData(10, 500));
         allSeqData.push_back(*gen::randomStreamData(50, 2000));
         allQualData.push_back(*gen::randomStreamData(50, 2000));
-        allAuxData.push_back(blockHeader.uniformReadLength == 0
-                                 ? *gen::randomStreamData(5, 200)
-                                 : std::vector<std::uint8_t>{});
+        allAuxData.push_back(blockHeader.uniformReadLength == 0 ? *gen::randomStreamData(5, 200)
+                                                                : std::vector<std::uint8_t>{});
     }
 
     globalHeader.totalReadCount = totalReads;
@@ -359,8 +364,10 @@ RC_GTEST_PROP(FQCFormatProperty, MultipleBlocksRoundTrip, ()) {
 
         for (int i = 0; i < numBlocks; ++i) {
             BlockPayload bp;
-            bp.idsData = allIdsData[i]; bp.seqData = allSeqData[i];
-            bp.qualData = allQualData[i]; bp.auxData = allAuxData[i];
+            bp.idsData = allIdsData[i];
+            bp.seqData = allSeqData[i];
+            bp.qualData = allQualData[i];
+            bp.auxData = allAuxData[i];
             writer.writeBlock(blockHeaders[i], bp);
         }
 
@@ -415,7 +422,9 @@ RC_GTEST_PROP(FQCFormatProperty, SelectiveStreamReading, ()) {
         FQCWriter writer(tempPath);
         writer.writeGlobalHeader(globalHeader, "selective.fastq", 0);
         BlockPayload payload1;
-        payload1.idsData = idsData; payload1.seqData = seqData; payload1.qualData = qualData;
+        payload1.idsData = idsData;
+        payload1.seqData = seqData;
+        payload1.qualData = qualData;
         writer.writeBlock(blockHeader, payload1);
         writer.finalize();
     }
@@ -473,7 +482,9 @@ RC_GTEST_PROP(FQCFormatProperty, BlockIndexRandomAccess, ()) {
         for (int i = 0; i < numBlocks; ++i) {
             auto data = *gen::randomStreamData(50, 500);
             BlockPayload bprand;
-            bprand.idsData = data; bprand.seqData = data; bprand.qualData = data;
+            bprand.idsData = data;
+            bprand.seqData = data;
+            bprand.qualData = data;
             writer.writeBlock(blockHeaders[i], bprand);
         }
 
@@ -525,7 +536,9 @@ RC_GTEST_PROP(FQCFormatProperty, ChecksumVerification, ()) {
         FQCWriter writer(tempPath);
         writer.writeGlobalHeader(globalHeader, "checksum.fastq", 0);
         BlockPayload payload2;
-        payload2.idsData = idsData; payload2.seqData = seqData; payload2.qualData = qualData;
+        payload2.idsData = idsData;
+        payload2.seqData = seqData;
+        payload2.qualData = qualData;
         writer.writeBlock(blockHeader, payload2);
         writer.finalize();
     }

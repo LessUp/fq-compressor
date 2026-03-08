@@ -10,9 +10,10 @@
 // **Validates: Requirements 1.1, 2.1, 2.2, 4.1**
 // =============================================================================
 
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
+#include "fqc/common/types.h"
+#include "fqc/io/fastq_parser.h"
+#include "fqc/pipeline/pipeline.h"
+#include "fqc/pipeline/pipeline_node.h"
 
 #include <algorithm>
 #include <atomic>
@@ -24,10 +25,10 @@
 #include <string>
 #include <vector>
 
-#include "fqc/common/types.h"
-#include "fqc/io/fastq_parser.h"
-#include "fqc/pipeline/pipeline.h"
-#include "fqc/pipeline/pipeline_node.h"
+#include <rapidcheck.h>
+
+#include <gtest/gtest.h>
+#include <rapidcheck/gtest.h>
 
 namespace fqc::pipeline::test {
 
@@ -54,76 +55,60 @@ namespace gen {
 
 /// @brief Generate a valid DNA sequence
 rc::Gen<std::string> dnaSequence(std::size_t minLen = 50, std::size_t maxLen = 300) {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(minLen, maxLen + 1),
-        [](std::size_t len) {
-            return rc::gen::container<std::string>(
-                len,
-                rc::gen::element('A', 'C', 'G', 'T', 'N'));
-        });
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(minLen, maxLen + 1), [](std::size_t len) {
+        return rc::gen::container<std::string>(len, rc::gen::element('A', 'C', 'G', 'T', 'N'));
+    });
 }
 
 /// @brief Generate a valid quality string
 rc::Gen<std::string> qualityString(std::size_t len) {
-    return rc::gen::container<std::string>(
-        len,
-        rc::gen::inRange<char>('!', 'J' + 1));  // Phred 0-41
+    return rc::gen::container<std::string>(len,
+                                           rc::gen::inRange<char>('!', 'J' + 1));  // Phred 0-41
 }
 
 /// @brief Generate a valid read ID
 rc::Gen<std::string> readId() {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::inRange<int>(1, 100),    // tile
-            rc::gen::inRange<int>(1, 10000),  // x
-            rc::gen::inRange<int>(1, 10000)   // y
-        ),
-        [](const std::tuple<int, int, int>& t) {
-            return "SIM:1:FCX:1:" + std::to_string(std::get<0>(t)) + ":" +
-                   std::to_string(std::get<1>(t)) + ":" +
-                   std::to_string(std::get<2>(t));
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange<int>(1, 100),    // tile
+                                       rc::gen::inRange<int>(1, 10000),  // x
+                                       rc::gen::inRange<int>(1, 10000)   // y
+                                       ),
+                        [](const std::tuple<int, int, int>& t) {
+                            return "SIM:1:FCX:1:" + std::to_string(std::get<0>(t)) + ":" +
+                                std::to_string(std::get<1>(t)) + ":" +
+                                std::to_string(std::get<2>(t));
+                        });
 }
 
 
 /// @brief Generate a valid ReadRecord
 rc::Gen<ReadRecord> readRecord() {
-    return rc::gen::mapcat(
-        dnaSequence(),
-        [](std::string seq) {
-            return rc::gen::map(
-                rc::gen::tuple(readId(), qualityString(seq.length())),
-                [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
-                    return ReadRecord{
-                        std::move(std::get<0>(t)),
-                        seq,
-                        std::move(std::get<1>(t))
-                    };
-                });
-        });
+    return rc::gen::mapcat(dnaSequence(), [](std::string seq) {
+        return rc::gen::map(rc::gen::tuple(readId(), qualityString(seq.length())),
+                            [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
+                                return ReadRecord{
+                                    std::move(std::get<0>(t)), seq, std::move(std::get<1>(t))};
+                            });
+    });
 }
 
 /// @brief Generate a vector of ReadRecords
 rc::Gen<std::vector<ReadRecord>> readRecords(std::size_t minCount = 1, std::size_t maxCount = 100) {
     return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(minCount, maxCount + 1),
-        [](std::size_t count) {
+        rc::gen::inRange<std::size_t>(minCount, maxCount + 1), [](std::size_t count) {
             return rc::gen::container<std::vector<ReadRecord>>(count, readRecord());
         });
 }
 
 /// @brief Generate a ReadChunk
 rc::Gen<ReadChunk> readChunk(std::uint32_t chunkId = 0) {
-    return rc::gen::map(
-        readRecords(10, 100),
-        [chunkId](std::vector<ReadRecord> reads) {
-            ReadChunk chunk;
-            chunk.reads = std::move(reads);
-            chunk.chunkId = chunkId;
-            chunk.startReadId = 1;
-            chunk.isLast = true;
-            return chunk;
-        });
+    return rc::gen::map(readRecords(10, 100), [chunkId](std::vector<ReadRecord> reads) {
+        ReadChunk chunk;
+        chunk.reads = std::move(reads);
+        chunk.chunkId = chunkId;
+        chunk.startReadId = 1;
+        chunk.isLast = true;
+        return chunk;
+    });
 }
 
 }  // namespace gen
@@ -319,7 +304,7 @@ TEST_F(PipelinePropertyTest, PipelineStatsCompressionRatio) {
 TEST_F(PipelinePropertyTest, PipelineStatsThroughput) {
     PipelineStats stats;
     stats.inputBytes = 100 * 1024 * 1024;  // 100 MB
-    stats.processingTimeMs = 10000;         // 10 seconds
+    stats.processingTimeMs = 10000;        // 10 seconds
 
     // Should be ~10 MB/s
     EXPECT_NEAR(stats.throughputMBps(), 10.0, 0.1);
@@ -339,8 +324,8 @@ namespace roundtrip {
 [[nodiscard]] std::filesystem::path tempFilePath(const std::string& suffix) {
     static std::atomic<int> counter{0};
     auto path = std::filesystem::temp_directory_path() /
-                ("fqc_pipeline_test_" + std::to_string(counter++) + "_" +
-                 std::to_string(std::random_device{}()) + suffix);
+        ("fqc_pipeline_test_" + std::to_string(counter++) + "_" +
+         std::to_string(std::random_device{}()) + suffix);
     return path;
 }
 
@@ -352,15 +337,18 @@ public:
         std::error_code ec;
         std::filesystem::remove(path_, ec);
     }
-    [[nodiscard]] const std::filesystem::path& path() const noexcept { return path_; }
+    [[nodiscard]] const std::filesystem::path& path() const noexcept {
+        return path_;
+    }
 
 private:
     std::filesystem::path path_;
 };
 
 /// @brief Format a FASTQ record as a string.
-[[nodiscard]] std::string formatFastqRecord(const std::string& id, const std::string& seq,
-                                             const std::string& qual) {
+[[nodiscard]] std::string formatFastqRecord(const std::string& id,
+                                            const std::string& seq,
+                                            const std::string& qual) {
     return "@" + id + "\n" + seq + "\n+\n" + qual + "\n";
 }
 
@@ -374,31 +362,35 @@ void writeFastqFile(const std::filesystem::path& path,
 }
 
 /// @brief Read FASTQ records from a file.
-[[nodiscard]] std::vector<std::tuple<std::string, std::string, std::string>>
-readFastqFile(const std::filesystem::path& path) {
+[[nodiscard]] std::vector<std::tuple<std::string, std::string, std::string>> readFastqFile(
+    const std::filesystem::path& path) {
     std::vector<std::tuple<std::string, std::string, std::string>> records;
-    
+
     std::ifstream ifs(path);
     std::string line;
-    
+
     while (std::getline(ifs, line)) {
-        if (line.empty() || line[0] != '@') continue;
-        
+        if (line.empty() || line[0] != '@')
+            continue;
+
         std::string id = line.substr(1);  // Remove '@'
         // Remove comment if present
         auto spacePos = id.find(' ');
         if (spacePos != std::string::npos) {
             id = id.substr(0, spacePos);
         }
-        
+
         std::string seq, plus, qual;
-        if (!std::getline(ifs, seq)) break;
-        if (!std::getline(ifs, plus)) break;
-        if (!std::getline(ifs, qual)) break;
-        
+        if (!std::getline(ifs, seq))
+            break;
+        if (!std::getline(ifs, plus))
+            break;
+        if (!std::getline(ifs, qual))
+            break;
+
         records.emplace_back(id, seq, qual);
     }
-    
+
     return records;
 }
 
@@ -408,11 +400,11 @@ readFastqFile(const std::filesystem::path& path) {
     const std::vector<std::tuple<std::string, std::string, std::string>>& original,
     const std::vector<std::tuple<std::string, std::string, std::string>>& decompressed,
     bool preserveOrder) {
-    
+
     if (original.size() != decompressed.size()) {
         return false;
     }
-    
+
     if (preserveOrder) {
         // Order must match exactly
         for (std::size_t i = 0; i < original.size(); ++i) {
@@ -423,12 +415,12 @@ readFastqFile(const std::filesystem::path& path) {
         }
         return true;
     }
-    
+
     // Order may differ, compare as multisets by sequence+quality
     auto makeKey = [](const std::tuple<std::string, std::string, std::string>& rec) {
         return std::get<1>(rec) + "\t" + std::get<2>(rec);
     };
-    
+
     std::multiset<std::string> origSet, decompSet;
     for (const auto& rec : original) {
         origSet.insert(makeKey(rec));
@@ -436,68 +428,56 @@ readFastqFile(const std::filesystem::path& path) {
     for (const auto& rec : decompressed) {
         decompSet.insert(makeKey(rec));
     }
-    
+
     return origSet == decompSet;
 }
 
 namespace gen {
 
 /// @brief Generate a valid DNA sequence.
-[[nodiscard]] rc::Gen<std::string> dnaSequenceRoundTrip(std::size_t minLen = 50, 
-                                                         std::size_t maxLen = 300) {
-    return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(minLen, maxLen + 1),
-        [](std::size_t len) {
-            return rc::gen::container<std::string>(
-                len,
-                rc::gen::element('A', 'C', 'G', 'T', 'N'));
-        });
+[[nodiscard]] rc::Gen<std::string> dnaSequenceRoundTrip(std::size_t minLen = 50,
+                                                        std::size_t maxLen = 300) {
+    return rc::gen::mapcat(rc::gen::inRange<std::size_t>(minLen, maxLen + 1), [](std::size_t len) {
+        return rc::gen::container<std::string>(len, rc::gen::element('A', 'C', 'G', 'T', 'N'));
+    });
 }
 
 /// @brief Generate a valid quality string.
 [[nodiscard]] rc::Gen<std::string> qualityStringRoundTrip(std::size_t len) {
-    return rc::gen::container<std::string>(
-        len,
-        rc::gen::inRange<char>('!', 'J' + 1));  // Phred 0-41
+    return rc::gen::container<std::string>(len,
+                                           rc::gen::inRange<char>('!', 'J' + 1));  // Phred 0-41
 }
 
 /// @brief Generate an Illumina-style read ID.
 [[nodiscard]] rc::Gen<std::string> illuminaReadIdRoundTrip(int index) {
-    return rc::gen::map(
-        rc::gen::tuple(
-            rc::gen::inRange(1, 10),     // tile
-            rc::gen::inRange(1, 10000),  // x
-            rc::gen::inRange(1, 10000)   // y
-        ),
-        [index](const std::tuple<int, int, int>& t) {
-            return "SIM:1:FCX:1:" + std::to_string(std::get<0>(t)) + ":" +
-                   std::to_string(std::get<1>(t)) + ":" +
-                   std::to_string(std::get<2>(t)) + ":" + std::to_string(index);
-        });
+    return rc::gen::map(rc::gen::tuple(rc::gen::inRange(1, 10),     // tile
+                                       rc::gen::inRange(1, 10000),  // x
+                                       rc::gen::inRange(1, 10000)   // y
+                                       ),
+                        [index](const std::tuple<int, int, int>& t) {
+                            return "SIM:1:FCX:1:" + std::to_string(std::get<0>(t)) + ":" +
+                                std::to_string(std::get<1>(t)) + ":" +
+                                std::to_string(std::get<2>(t)) + ":" + std::to_string(index);
+                        });
 }
 
 /// @brief Generate a FASTQ record tuple (id, seq, qual).
-[[nodiscard]] rc::Gen<std::tuple<std::string, std::string, std::string>> 
-fastqRecordRoundTrip(int index) {
-    return rc::gen::mapcat(
-        dnaSequenceRoundTrip(50, 200),
-        [index](std::string seq) {
-            return rc::gen::map(
-                rc::gen::tuple(illuminaReadIdRoundTrip(index), 
-                               qualityStringRoundTrip(seq.length())),
-                [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
-                    return std::make_tuple(std::move(std::get<0>(t)), seq, 
-                                           std::move(std::get<1>(t)));
-                });
-        });
+[[nodiscard]] rc::Gen<std::tuple<std::string, std::string, std::string>> fastqRecordRoundTrip(
+    int index) {
+    return rc::gen::mapcat(dnaSequenceRoundTrip(50, 200), [index](std::string seq) {
+        return rc::gen::map(
+            rc::gen::tuple(illuminaReadIdRoundTrip(index), qualityStringRoundTrip(seq.length())),
+            [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
+                return std::make_tuple(std::move(std::get<0>(t)), seq, std::move(std::get<1>(t)));
+            });
+    });
 }
 
 /// @brief Generate a vector of FASTQ records.
 [[nodiscard]] rc::Gen<std::vector<std::tuple<std::string, std::string, std::string>>>
 fastqRecordsRoundTrip(std::size_t minCount = 10, std::size_t maxCount = 100) {
     return rc::gen::mapcat(
-        rc::gen::inRange<std::size_t>(minCount, maxCount + 1),
-        [](std::size_t count) {
+        rc::gen::inRange<std::size_t>(minCount, maxCount + 1), [](std::size_t count) {
             return rc::gen::exec([count]() {
                 std::vector<std::tuple<std::string, std::string, std::string>> records;
                 records.reserve(count);
@@ -510,19 +490,15 @@ fastqRecordsRoundTrip(std::size_t minCount = 10, std::size_t maxCount = 100) {
 }
 
 /// @brief Generate long read FASTQ records (for Medium/Long read class testing).
-[[nodiscard]] rc::Gen<std::tuple<std::string, std::string, std::string>> 
-longReadRecordRoundTrip(int index, std::size_t minLen = 1000, std::size_t maxLen = 5000) {
-    return rc::gen::mapcat(
-        dnaSequenceRoundTrip(minLen, maxLen),
-        [index](std::string seq) {
-            return rc::gen::map(
-                rc::gen::tuple(illuminaReadIdRoundTrip(index), 
-                               qualityStringRoundTrip(seq.length())),
-                [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
-                    return std::make_tuple(std::move(std::get<0>(t)), seq, 
-                                           std::move(std::get<1>(t)));
-                });
-        });
+[[nodiscard]] rc::Gen<std::tuple<std::string, std::string, std::string>> longReadRecordRoundTrip(
+    int index, std::size_t minLen = 1000, std::size_t maxLen = 5000) {
+    return rc::gen::mapcat(dnaSequenceRoundTrip(minLen, maxLen), [index](std::string seq) {
+        return rc::gen::map(
+            rc::gen::tuple(illuminaReadIdRoundTrip(index), qualityStringRoundTrip(seq.length())),
+            [seq = std::move(seq)](std::tuple<std::string, std::string> t) {
+                return std::make_tuple(std::move(std::get<0>(t)), seq, std::move(std::get<1>(t)));
+            });
+    });
 }
 
 }  // namespace gen
@@ -539,23 +515,23 @@ longReadRecordRoundTrip(int index, std::size_t minLen = 1000, std::size_t maxLen
 /// **Validates: Requirements 1.1, 2.1, 2.2**
 RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadStreamingRoundTrip, ()) {
     using namespace roundtrip;
-    
+
     // Generate test data
     auto records = *gen::fastqRecordsRoundTrip(10, 50);
     RC_PRE(!records.empty());
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression (streaming mode - preserves order)
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
@@ -563,24 +539,24 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadStreamingRoundTrip, ()) {
     compressConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 1000;  // Small blocks for testing
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     RC_ASSERT(decompressResult.has_value());
-    
+
     // Read decompressed output
     auto decompressedRecords = readFastqFile(outputPath);
-    
+
     // Verify round-trip consistency (order preserved in streaming mode)
     RC_ASSERT(recordsEquivalent(records, decompressedRecords, true));
 }
@@ -591,23 +567,23 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadStreamingRoundTrip, ()) {
 /// **Validates: Requirements 1.1, 2.1, 2.2**
 RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadReorderRoundTrip, ()) {
     using namespace roundtrip;
-    
+
     // Generate test data
     auto records = *gen::fastqRecordsRoundTrip(20, 80);
     RC_PRE(!records.empty());
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression (with reordering)
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = false;
@@ -616,24 +592,24 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadReorderRoundTrip, ()) {
     compressConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 1000;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     RC_ASSERT(decompressResult.has_value());
-    
+
     // Read decompressed output
     auto decompressedRecords = readFastqFile(outputPath);
-    
+
     // Verify round-trip consistency (order may differ with reordering)
     RC_ASSERT(recordsEquivalent(records, decompressedRecords, false));
 }
@@ -644,30 +620,30 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadReorderRoundTrip, ()) {
 /// **Validates: Requirements 1.1, 1.1.3, 2.1, 2.2**
 RC_GTEST_PROP(PipelineRoundTripProperty, MediumReadRoundTrip, ()) {
     using namespace roundtrip;
-    
+
     // Generate medium-length reads (>511bp triggers MEDIUM class)
     auto numRecords = *rc::gen::inRange(5, 20);
     std::vector<std::tuple<std::string, std::string, std::string>> records;
     records.reserve(numRecords);
-    
+
     for (int i = 0; i < numRecords; ++i) {
         records.push_back(*gen::longReadRecordRoundTrip(i, 600, 2000));
     }
-    
+
     RC_PRE(!records.empty());
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression (Medium read class - no reordering)
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = false;
@@ -675,24 +651,24 @@ RC_GTEST_PROP(PipelineRoundTripProperty, MediumReadRoundTrip, ()) {
     compressConfig.readLengthClass = ReadLengthClass::kMedium;
     compressConfig.blockSize = 500;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     RC_ASSERT(decompressResult.has_value());
-    
+
     // Read decompressed output
     auto decompressedRecords = readFastqFile(outputPath);
-    
+
     // Verify round-trip consistency (order preserved - no reordering for medium)
     RC_ASSERT(recordsEquivalent(records, decompressedRecords, true));
 }
@@ -702,38 +678,38 @@ RC_GTEST_PROP(PipelineRoundTripProperty, MediumReadRoundTrip, ()) {
 /// **Validates: Requirements 1.1, 2.1**
 TEST_F(PipelinePropertyTest, EmptyFileRoundTrip) {
     using namespace roundtrip;
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write empty FASTQ
     std::ofstream(inputPath).close();
-    
+
     // Configure compression
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     EXPECT_TRUE(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     EXPECT_TRUE(decompressResult.has_value());
-    
+
     // Verify output is empty
     auto decompressedRecords = readFastqFile(outputPath);
     EXPECT_TRUE(decompressedRecords.empty());
@@ -744,45 +720,45 @@ TEST_F(PipelinePropertyTest, EmptyFileRoundTrip) {
 /// **Validates: Requirements 1.1, 2.1**
 RC_GTEST_PROP(PipelineRoundTripProperty, SingleRecordRoundTrip, ()) {
     using namespace roundtrip;
-    
+
     // Generate single record
     auto record = *gen::fastqRecordRoundTrip(0);
     std::vector<std::tuple<std::string, std::string, std::string>> records = {record};
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     RC_ASSERT(decompressResult.has_value());
-    
+
     // Read decompressed output
     auto decompressedRecords = readFastqFile(outputPath);
-    
+
     // Verify round-trip consistency
     RC_ASSERT(decompressedRecords.size() == 1);
     RC_ASSERT(std::get<1>(decompressedRecords[0]) == std::get<1>(record));
@@ -794,60 +770,60 @@ RC_GTEST_PROP(PipelineRoundTripProperty, SingleRecordRoundTrip, ()) {
 /// **Validates: Requirements 1.1, 2.1**
 RC_GTEST_PROP(PipelineRoundTripProperty, VariableLengthRoundTrip, ()) {
     using namespace roundtrip;
-    
+
     // Generate records with varying lengths
     auto numRecords = *rc::gen::inRange(10, 30);
     std::vector<std::tuple<std::string, std::string, std::string>> records;
     records.reserve(numRecords);
-    
+
     for (int i = 0; i < numRecords; ++i) {
         // Vary length significantly
         auto minLen = *rc::gen::inRange(30, 100);
         auto maxLen = minLen + *rc::gen::inRange(50, 200);
-        
+
         auto seq = *gen::dnaSequenceRoundTrip(minLen, maxLen);
         auto qual = *gen::qualityStringRoundTrip(seq.length());
         auto id = *gen::illuminaReadIdRoundTrip(i);
-        
+
         records.emplace_back(id, seq, qual);
     }
-    
+
     RC_PRE(!records.empty());
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
     auto outputPath = tempFilePath(".out.fastq");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
     TempFileGuard outputGuard(outputPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Configure decompression
     DecompressionPipelineConfig decompressConfig;
     decompressConfig.numThreads = 1;
-    
+
     // Decompress
     DecompressionPipeline decompressor(decompressConfig);
     auto decompressResult = decompressor.run(compressedPath, outputPath);
     RC_ASSERT(decompressResult.has_value());
-    
+
     // Read decompressed output
     auto decompressedRecords = readFastqFile(outputPath);
-    
+
     // Verify round-trip consistency
     RC_ASSERT(recordsEquivalent(records, decompressedRecords, true));
 }
@@ -857,31 +833,31 @@ RC_GTEST_PROP(PipelineRoundTripProperty, VariableLengthRoundTrip, ()) {
 /// **Validates: Requirements 4.1**
 RC_GTEST_PROP(PipelineRoundTripProperty, CompressionStatsConsistency, ()) {
     using namespace roundtrip;
-    
+
     // Generate test data
     auto records = *gen::fastqRecordsRoundTrip(20, 60);
     RC_PRE(!records.empty());
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.numThreads = 1;
-    
+
     // Compress
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
     RC_ASSERT(compressResult.has_value());
-    
+
     // Verify statistics
     const auto& stats = compressor.stats();
     RC_ASSERT(stats.totalReads == records.size());
@@ -896,7 +872,7 @@ RC_GTEST_PROP(PipelineRoundTripProperty, CompressionStatsConsistency, ()) {
 /// **Validates: Requirements 4.1**
 TEST_F(PipelinePropertyTest, CancellationHandling) {
     using namespace roundtrip;
-    
+
     // Generate larger test data to allow time for cancellation
     std::vector<std::tuple<std::string, std::string, std::string>> records;
     for (int i = 0; i < 100; ++i) {
@@ -904,32 +880,32 @@ TEST_F(PipelinePropertyTest, CancellationHandling) {
         std::string qual(150, 'I');
         records.emplace_back("read_" + std::to_string(i), seq, qual);
     }
-    
+
     // Create temporary files
     auto inputPath = tempFilePath(".fastq");
     auto compressedPath = tempFilePath(".fqc");
-    
+
     TempFileGuard inputGuard(inputPath);
     TempFileGuard compressedGuard(compressedPath);
-    
+
     // Write input FASTQ
     writeFastqFile(inputPath, records);
-    
+
     // Configure compression with progress callback that cancels
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.numThreads = 1;
     compressConfig.progressIntervalMs = 1;  // Frequent callbacks
-    
+
     std::atomic<int> callbackCount{0};
     compressConfig.progressCallback = [&callbackCount](const ProgressInfo&) {
         return ++callbackCount < 2;  // Cancel after 2 callbacks
     };
-    
+
     // Compress (should be cancelled)
     CompressionPipeline compressor(compressConfig);
     auto compressResult = compressor.run(inputPath, compressedPath);
-    
+
     // Should either complete (if fast enough) or be cancelled
     if (!compressResult.has_value()) {
         EXPECT_EQ(compressResult.error().code(), ErrorCode::kCancelled);
