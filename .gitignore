@@ -99,6 +99,12 @@ benchmark_results/data/*.fastq
 benchmark_results/data/*.fastq.gz
 !benchmark_results/baselines/*.json
 
+# docs/benchmark 生成文件（由 benchmark 脚本自动生成）
+docs/benchmark/*.png
+docs/benchmark/*.html
+docs/benchmark/benchmark-report.md
+docs/benchmark/results/
+
 # Python 相关
 __pycache__/
 *.py[cod]
