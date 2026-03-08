@@ -1,8 +1,8 @@
 # =============================================================================
 # FQCompressor Clang Release Build
 # =============================================================================
-# 使用 Clang 20 + libc++ (Debian Bookworm) 构建发布版二进制文件。
-# 与开发环境使用相同的 Clang 版本（LLVM 最新稳定版），确保一致性。
+# 使用 Clang 22 + libc++ (Debian Bookworm) 构建发布版二进制文件。
+# 与开发环境使用相同的 Clang 版本（LLVM 22.1.0 稳定版），确保一致性。
 #
 # Usage (CI):
 #   docker build -f docker/Dockerfile.clang-release -o out .
@@ -76,21 +76,21 @@ RUN \
     ln -sf "/opt/cmake-${CMAKE_VERSION}-linux-${CMAKE_ARCH}/bin/cpack" /usr/local/bin/cpack && \
     rm -f /tmp/cmake.tar.gz
 
-# LLVM/Clang 20（LLVM 最新稳定发布版）
+# LLVM/Clang 22（LLVM 22.1.0 稳定版，2026-02-24 发布）
 RUN wget -q https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
-    ./llvm.sh 20 && \
+    ./llvm.sh 22 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        clang-20 \
-        lld-20 \
-        libc++-20-dev \
-        libc++abi-20-dev \
+        clang-22 \
+        lld-22 \
+        libc++-22-dev \
+        libc++abi-22-dev \
     && rm -f llvm.sh \
     && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
-    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-20 100
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-22 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-22 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-22 100
 
 # Conan 2.x
 ARG CONAN_VERSION=2.24.0

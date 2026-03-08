@@ -15,9 +15,9 @@
 | 项目 | 规范 |
 |------|------|
 | **语言标准** | C++23 |
-| **编译器** | GCC 15+ 或 Clang 20+（推荐与容器/CI 对齐） |
-| **格式化工具** | clang-format 20+（以 `.clang-format` 为准） |
-| **静态分析** | clang-tidy 20+（以 `.clang-tidy` 为准） |
+| **编译器** | GCC 15+ 或 Clang 22+（推荐与容器/CI 对齐） |
+| **格式化工具** | clang-format 22+（以 `.clang-format` 为准） |
+| **静态分析** | clang-tidy 22+（以 `.clang-tidy` 为准） |
 | **缩进** | 4 空格（禁止 Tab） |
 | **行宽** | 100 字符 |
 | **文件编码** | UTF-8（无 BOM） |
