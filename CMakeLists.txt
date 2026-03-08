@@ -3,13 +3,13 @@
 # =============================================================================
 # CMake build configuration for fq-compressor project
 # 
-# Requirements: CMake 3.20+, C++23 compiler (GCC 11+ or Clang 12+)
+# Requirements: CMake 3.28+, C++23 compiler (GCC 14+ or Clang 18+)
 # Dependencies: CLI11, Quill, xxHash, TBB, GTest, RapidCheck (via Conan 2.x)
 #
 # Build presets are defined in CMakePresets.json for consistent builds.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.28)
 
 project(FQCompressor
     LANGUAGES CXX
@@ -46,19 +46,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # =============================================================================
 # Compiler Version Check
 # =============================================================================
-# Enforce minimum compiler versions required for C++20 support.
+# Enforce minimum compiler versions required for C++23 support.
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "11.0")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "14.0")
         message(FATAL_ERROR 
             "GCC version ${CMAKE_CXX_COMPILER_VERSION} is too old. "
-            "fq-compressor requires GCC 11.0 or newer for C++23 support.")
+            "fq-compressor requires GCC 14.0 or newer for C++23 support.")
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12.0")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18.0")
         message(FATAL_ERROR 
             "Clang version ${CMAKE_CXX_COMPILER_VERSION} is too old. "
-            "fq-compressor requires Clang 12.0 or newer for C++23 support.")
+            "fq-compressor requires Clang 18.0 or newer for C++23 support.")
     endif()
 else()
     message(WARNING 

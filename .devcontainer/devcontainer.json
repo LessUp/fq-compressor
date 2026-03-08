@@ -6,7 +6,7 @@
     //
     // Recommended Development Environment:
     //   - GCC 15 + libstdc++ (production builds)
-    //   - Clang 21 + libc++ (development/debugging)
+    //   - Clang 20 + libc++ (development/debugging, LLVM latest stable)
     //   - CMake 4.x
     //   - Conan 2.x
     //

@@ -26,6 +26,7 @@ find_dependency(LibLZMA)
 find_dependency(zstd CONFIG)
 find_dependency(libdeflate CONFIG)
 find_dependency(TBB CONFIG)
+find_dependency(xxHash CONFIG)
 
 # Include the targets file
 include("${CMAKE_CURRENT_LIST_DIR}/FQCompressorTargets.cmake")

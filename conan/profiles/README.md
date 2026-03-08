@@ -8,9 +8,9 @@ This directory contains Conan 2.x profiles for reproducible builds.
 |---------|----------|--------|----------|
 | `default` | GCC 15 | libstdc++ | Default local development |
 | `gcc` | GCC 15 | libstdc++ | Production builds |
-| `clang` | Clang 21 | libc++ | Development/debugging |
-| `ci-gcc` | GCC 13 | libstdc++ | CI (GitHub Actions) |
-| `ci-clang` | Clang 21 | libc++ | CI (GitHub Actions) |
+| `clang` | Clang 20 | libc++ | Development/debugging |
+| `ci-gcc` | GCC 15 | libstdc++ | CI (GitHub Actions) |
+| `ci-clang` | Clang 20 | libc++ | CI (GitHub Actions) |
 
 ## Usage
 
@@ -26,8 +26,14 @@ conan install . --profile=conan/profiles/clang --build=missing
 
 ### CI Environment
 
+CI workflows use `scripts/install_deps.sh` which auto-detects the compiler version
+and generates a temporary profile. The `ci-*` profiles serve as reference configurations.
+
 ```bash
-# CI uses auto-detected profile or specific CI profiles
+# Via install_deps.sh (recommended for CI)
+./scripts/install_deps.sh gcc-release
+
+# Or using checked-in CI profiles directly
 conan install . --profile=conan/profiles/ci-gcc --build=missing
 ```
 

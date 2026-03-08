@@ -14,7 +14,7 @@
 #   - Compression: zlib-ng, bzip2, xz_utils, zstd, libdeflate
 #   - Checksums: xxHash
 #   - Parallel processing: oneTBB
-#   - Testing: GTest, RapidCheck
+#   - Testing: GTest (RapidCheck temporarily disabled)
 # =============================================================================
 
 from conan import ConanFile

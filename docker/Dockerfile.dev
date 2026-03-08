@@ -1,9 +1,9 @@
 # =============================================================================
 # fq-compressor Development Environment
 # =============================================================================
-# 支持双编译器工具链：GCC 15 + Clang 21
+# 支持双编译器工具链：GCC 15 + Clang 20
 # - GCC 15 + libstdc++：生产编译首选，最新 C++23 支持
-# - Clang 21 + libc++：开发调试首选，配合 LLVM 工具链
+# - Clang 20 + libc++：开发调试首选，配合 LLVM 工具链（LLVM 最新稳定版）
 #
 # 使用方法：
 #   GCC 编译：   cmake --preset gcc-debug && cmake --build --preset gcc-debug
@@ -17,7 +17,7 @@ FROM gcc:15.2-bookworm AS base
 
 # 元数据标签
 LABEL org.opencontainers.image.title="fq-compressor Dev"
-LABEL org.opencontainers.image.description="Development environment for fq-compressor with GCC 15 and Clang 21"
+LABEL org.opencontainers.image.description="Development environment for fq-compressor with GCC 15 and Clang 20"
 LABEL org.opencontainers.image.version="2.0.0"
 LABEL org.opencontainers.image.source="https://github.com/LessUp/fq-compressor"
 LABEL maintainer="FQCompressor Team"
@@ -134,43 +134,38 @@ RUN ARCH="$(dpkg --print-architecture)" && \
     rm -f /tmp/cmake.tar.gz
 
 # =============================================================================
-# LLVM/Clang 21 工具链
+# LLVM/Clang 20 工具链（LLVM 最新稳定发布版）
 # =============================================================================
 RUN wget -q https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
-    ./llvm.sh 21 && \
+    ./llvm.sh 20 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        clang-21 \
-        clangd-21 \
-        clang-tidy-21 \
-        clang-format-21 \
-        lld-21 \
-        lldb-21 \
-        llvm-21 \
-        libc++-21-dev \
-        libc++abi-21-dev \
+        clang-20 \
+        clangd-20 \
+        clang-tidy-20 \
+        clang-format-20 \
+        lld-20 \
+        lldb-20 \
+        llvm-20 \
+        libc++-20-dev \
+        libc++abi-20-dev \
     && rm -f llvm.sh \
     && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 100 \
-    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 100 \
-    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-21 100 \
-    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-21 100 \
-    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100 \
-    && update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-21 100 \
-    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-21 100
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100 \
+    && update-alternatives --install /usr/bin/clangd clangd /usr/bin/clangd-20 100 \
+    && update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100 \
+    && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100 \
+    && update-alternatives --install /usr/bin/lldb lldb /usr/bin/lldb-20 100 \
+    && update-alternatives --install /usr/bin/lld lld /usr/bin/lld-20 100
 
 # =============================================================================
 # 项目依赖库
 # =============================================================================
-RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
-    libdeflate-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    liblzma-dev \
-    libtbb-dev \
-    libzstd-dev \
-    && rm -rf /var/lib/apt/lists/*
+# 注意：所有项目依赖（TBB、zstd、libdeflate、zlib-ng、bzip2、xz_utils 等）
+# 均通过 Conan 管理（见 conanfile.py），无需安装系统 -dev 包。
+# 这样可以获得精确的版本控制，避免与 Conan 构建的库产生冲突。
 
 # =============================================================================
 # Conan 2.x 包管理器
