@@ -34,4 +34,4 @@ Traditional FASTQ compressors treat reads as independent strings and rely on gen
 - [Installation](installation.md) — build from source
 - [Quick Start](quickstart.md) — compress your first FASTQ file
 - [CLI Reference](cli-reference.md) — all commands and options
-- [Architecture](architecture.md) — how it works under the hood
+- [Architecture](design.md) — how it works under the hood

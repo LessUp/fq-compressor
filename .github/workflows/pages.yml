@@ -6,12 +6,10 @@ on:
       - main
       - master
     paths:
-      - 'README.md'
-      - 'README.zh-CN.md'
-      - 'docs/**'
+      - 'docs/gitbook/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/docs-pages.yml'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -29,11 +27,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            docs/gitbook
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install documentation dependencies

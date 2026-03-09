@@ -3,6 +3,7 @@
 * [Introduction](README.md)
 * [Installation](installation.md)
 * [Quick Start](quickstart.md)
+* [Usage](usage.md)
 * [CLI Reference](cli-reference.md)
 * [Architecture](design.md)
   * [Core Algorithms](algorithms.md)

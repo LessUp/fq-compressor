@@ -6,9 +6,7 @@ on:
       - main
       - master
     paths:
-      - 'README.md'
-      - 'README.zh-CN.md'
-      - 'docs/**'
+      - 'docs/gitbook/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/docs-quality.yml'
@@ -17,9 +15,7 @@ on:
       - main
       - master
     paths:
-      - 'README.md'
-      - 'README.zh-CN.md'
-      - 'docs/**'
+      - 'docs/gitbook/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/docs-quality.yml'
