@@ -1,5 +1,7 @@
 # fq-compressor
 
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue?logo=github)](https://lessup.github.io/fq-compressor/)
+
 [English](README.md) | [简体中文](README.zh-CN.md) | [Rust 版本 (fq-compressor-rust)](https://github.com/LessUp/fq-compressor-rust)
 
 > 🦀 本项目同时提供 **[Rust 实现](https://github.com/LessUp/fq-compressor-rust)**，共享相同的 `.fqc` 归档格式与 ABC/SCM 压缩算法，以 Rayon + crossbeam 替代 Intel TBB 并引入异步 I/O。
