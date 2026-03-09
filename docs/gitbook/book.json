@@ -1,21 +1,26 @@
 {
   "title": "fq-compressor",
-  "description": "High-performance FASTQ compression tool with random access",
+  "description": "High-performance FASTQ compression tool with Assembly-based Compression (ABC) and random access",
   "author": "LessUp",
-  "language": "en",
+  "language": "en,zh",
   "gitbook": ">=3.0.0",
   "links": {
     "sidebar": {
-      "GitHub": "https://github.com/LessUp/fq-compressor"
+      "GitHub": "https://github.com/LessUp/fq-compressor",
+      "Rust Version": "https://github.com/LessUp/fq-compressor-rust"
     }
   },
   "plugins": [
     "-sharing",
+    "-lunr",
+    "-search",
     "expandable-chapters",
-    "back-to-top-button"
+    "back-to-top-button",
+    "search-pro"
   ],
   "structure": {
     "readme": "README.md",
-    "summary": "SUMMARY.md"
+    "summary": "SUMMARY.md",
+    "langs": "LANGS.md"
   }
 }

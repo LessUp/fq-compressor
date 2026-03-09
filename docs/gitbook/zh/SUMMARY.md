@@ -3,6 +3,7 @@
 * [简介](README.md)
 * [安装指南](installation.md)
 * [快速开始](quickstart.md)
+* [使用说明](usage.md)
 * [命令行参考](cli-reference.md)
 * [架构设计](design.md)
   * [核心算法](algorithms.md)
