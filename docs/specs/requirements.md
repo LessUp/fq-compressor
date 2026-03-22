@@ -257,7 +257,7 @@ fq-compressor 是一个高性能 FASTQ 文件压缩工具，结合了 Spring 的
             - `start < 1`: 报错 `EXIT_USAGE_ERROR (1)`
             - `end > TotalReadCount`: 自动截断到 `TotalReadCount`，发出警告
     - `--range-pairs <start:end>`: PE 模式下按配对范围解压（如 `--range-pairs 1:50` 返回前 50 对）
-    - `--original-order`: 按原始顺序输出（需要归档包含 Reorder Map；若不存在则报错）。
+    - `--original-order`: 预留给按原始顺序输出的能力；当前实现中会显式报“暂未实现”，后续版本再接入 Reorder Map 恢复逻辑。
     - `--header-only`: 仅输出 header（Identifier Stream），不解码 Sequence/Quality。
     - `--streams <id|seq|qual|all>`: 子流选择性解码（默认：all；与 `--header-only` 互斥）。
         - **输出格式规则**:

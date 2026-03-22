@@ -366,6 +366,46 @@ void FQCReader::loadReorderMap() {
     mapData.forwardMap = std::move(*forwardDecodeResult);
     mapData.reverseMap = std::move(*reverseDecodeResult);
 
+    // Normalize reorder maps to the reader's 1-based runtime convention.
+    auto normalizeToOneBased = [this](std::vector<ReadId>& map, const char* name) {
+        if (map.empty()) {
+            return;
+        }
+
+        const auto zeroBasedMin = *std::min_element(map.begin(), map.end());
+        const auto zeroBasedMax = *std::max_element(map.begin(), map.end());
+        const auto count = static_cast<ReadId>(map.size());
+
+        if (zeroBasedMin == 0 && zeroBasedMax + 1 == count) {
+            for (auto& value : map) {
+                ++value;
+            }
+            return;
+        }
+
+        if (zeroBasedMin == 1 && zeroBasedMax == count) {
+            return;
+        }
+
+        throw FormatError(std::string("Invalid reorder map indexing in ") + name,
+                          ErrorContext(archivePath_.string()));
+    };
+
+    normalizeToOneBased(mapData.forwardMap, "forward map");
+    normalizeToOneBased(mapData.reverseMap, "reverse map");
+
+    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(mapData.forwardMap.size()); ++originalId) {
+        const ReadId archiveId = mapData.forwardMap[originalId - 1];
+        if (archiveId == 0 || archiveId > mapData.reverseMap.size()) {
+            throw FormatError("Forward reorder map contains out-of-range archive ID",
+                              ErrorContext(archivePath_.string()));
+        }
+        if (mapData.reverseMap[archiveId - 1] != originalId) {
+            throw FormatError("Forward/reverse reorder maps are inconsistent",
+                              ErrorContext(archivePath_.string()));
+        }
+    }
+
     // Store the reorder map
     reorderMap_ = std::move(mapData);
 

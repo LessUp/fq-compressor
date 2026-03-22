@@ -23,8 +23,17 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 namespace fqc::commands {
+
+namespace {
+
+[[nodiscard]] ReadId normalizeSelectionEnd(ReadId end, const format::FQCReader& reader) {
+    return end == 0 ? static_cast<ReadId>(reader.totalReadCount()) : end;
+}
+
+}  // namespace
 
 // =============================================================================
 // Range Parsing
@@ -173,6 +182,10 @@ void DecompressCommand::validateOptions() {
         throw ArgumentError("Invalid paired read range");
     }
 
+    if (options_.rangePairs && !options_.splitPairedEnd) {
+        FQC_LOG_DEBUG("--range-pairs specified without --split-pe; selection still applies in archive order");
+    }
+
     // Cannot specify both --range and --range-pairs
     if (options_.range && options_.rangePairs) {
         throw ArgumentError("Cannot specify both --range and --range-pairs");
@@ -271,6 +284,12 @@ void DecompressCommand::runDecompression() {
     FQC_LOG_INFO("  Output: {}", options_.outputPath.string());
     FQC_LOG_INFO("  Threads: {}", options_.threads > 0 ? std::to_string(options_.threads) : "auto");
 
+    if (options_.originalOrder) {
+        FQC_LOG_INFO("Using single-threaded original-order restoration");
+        runDecompressionOriginalOrder();
+        return;
+    }
+
     // =========================================================================
     // TBB Parallel Pipeline Path (threads > 1)
     // =========================================================================
@@ -291,15 +310,6 @@ void DecompressCommand::runDecompression() {
     // Open FQC reader
     format::FQCReader reader(options_.inputPath);
     reader.open();
-
-    // Load reorder map if needed
-    if (options_.originalOrder) {
-        if (!reader.hasReorderMap()) {
-            throw FormatError("Original order requested but reorder map not present");
-        }
-        FQC_LOG_DEBUG("Loading reorder map...");
-        reader.loadReorderMap();
-    }
 
     // Open output stream(s)
     std::ostream* output = nullptr;
@@ -355,16 +365,8 @@ void DecompressCommand::runDecompression() {
             auto& decompressed = decompressResult.value();
             auto& reads = decompressed.reads;
 
-            // Write reads to output
+            // Write reads to output in archive order.
             for (const auto& read : reads) {
-                // Handle original order if needed
-                // Note: Original order reordering is currently a placeholder
-                // Full implementation requires buffering and sorting by original ID
-                if (options_.originalOrder && reader.reorderMap()) {
-                    ReadId archiveId = stats_.totalReads + 1;
-                    ReadId originalId = reader.lookupOriginalId(archiveId);
-                    (void)originalId;  // Suppress unused warning - will be used for sorting
-                }
 
                 // Write FASTQ record (only header if headerOnly)
                 if (read.comment.empty()) {
@@ -413,6 +415,208 @@ void DecompressCommand::runDecompression() {
     if (stats_.corruptedBlocks > 0) {
         FQC_LOG_WARNING("  Corrupted blocks: {}", stats_.corruptedBlocks);
     }
+}
+
+ArchiveReadSelection DecompressCommand::resolveArchiveSelection(const format::FQCReader& reader) const {
+    ArchiveReadSelection selection;
+    selection.start = 1;
+    selection.end = static_cast<ReadId>(reader.totalReadCount());
+
+    if (options_.range) {
+        selection.start = static_cast<ReadId>(options_.range->start);
+        selection.end = normalizeSelectionEnd(static_cast<ReadId>(options_.range->end), reader);
+    }
+
+    if (options_.rangePairs) {
+        selection.start = static_cast<ReadId>((options_.rangePairs->start - 1) * 2 + 1);
+        selection.end = options_.rangePairs->end > 0
+            ? static_cast<ReadId>(options_.rangePairs->end * 2)
+            : static_cast<ReadId>(reader.totalReadCount());
+    }
+
+    selection.start = std::max<ReadId>(1, selection.start);
+    selection.end = std::min<ReadId>(selection.end, static_cast<ReadId>(reader.totalReadCount()));
+
+    if (selection.start > selection.end) {
+        throw ArgumentError("Requested range does not overlap archive contents");
+    }
+
+    return selection;
+}
+
+OriginalOrderPlan DecompressCommand::buildOriginalOrderPlan(const format::FQCReader& reader) const {
+    OriginalOrderPlan plan;
+    plan.selection = resolveArchiveSelection(reader);
+
+    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(reader.totalReadCount()); ++originalId) {
+        ReadId archiveId = reader.lookupArchiveId(originalId);
+        if (archiveId == kInvalidReadId) {
+            throw FormatError("Reorder map lookup failed for original read ID " +
+                              std::to_string(originalId));
+        }
+        if (plan.selection.contains(archiveId)) {
+            plan.originalIdToSlot.emplace(originalId, plan.orderedOriginalIds.size());
+            plan.orderedOriginalIds.push_back(originalId);
+        }
+    }
+
+    plan.orderedReads.resize(plan.orderedOriginalIds.size());
+    return plan;
+}
+
+void DecompressCommand::writeRecord(std::ostream& output, const ReadRecord& read) {
+    if (read.comment.empty()) {
+        output << "@" << read.id << "\n";
+    } else {
+        output << "@" << read.id << " " << read.comment << "\n";
+    }
+
+    if (!options_.headerOnly) {
+        output << read.sequence << "\n";
+        output << "+\n";
+        output << read.quality << "\n";
+    }
+
+    stats_.totalReads++;
+    stats_.totalBases += read.sequence.length();
+    stats_.outputBytes += read.id.length() + read.sequence.length() + read.quality.length() + 4;
+}
+
+void DecompressCommand::writeSplitPairedRecord(std::ostream& output1,
+                                               std::ostream& output2,
+                                               const ReadRecord& read,
+                                               ReadId originalId,
+                                               PELayout peLayout) {
+    if (peLayout == PELayout::kConsecutive) {
+        throw ArgumentError(
+            "--split-pe with --original-order is currently only supported for interleaved paired-end archives");
+    }
+
+    if ((originalId % 2U) == 1U) {
+        writeRecord(output1, read);
+    } else {
+        writeRecord(output2, read);
+    }
+}
+
+void DecompressCommand::runDecompressionOriginalOrder() {
+    format::FQCReader reader(options_.inputPath);
+    reader.open();
+
+    if (!reader.hasReorderMap()) {
+        throw FormatError("Original order requested but reorder map not present");
+    }
+
+    const bool isPaired = format::isPaired(reader.globalHeader().flags);
+    const auto peLayout = format::getPeLayout(reader.globalHeader().flags);
+
+    if (options_.rangePairs && !isPaired) {
+        throw ArgumentError("--range-pairs requires a paired-end archive");
+    }
+    if (options_.splitPairedEnd && !isPaired) {
+        throw ArgumentError("--split-pe requires a paired-end archive");
+    }
+
+    reader.loadReorderMap();
+    auto plan = buildOriginalOrderPlan(reader);
+
+    std::ostream* output = nullptr;
+    std::unique_ptr<std::ofstream> fileOutput;
+    std::unique_ptr<std::ofstream> fileOutput2;
+
+    if (options_.outputPath == "-") {
+        output = &std::cout;
+    } else {
+        fileOutput = std::make_unique<std::ofstream>(options_.outputPath);
+        if (!fileOutput->is_open()) {
+            throw IOError("Failed to create output file: " + options_.outputPath.string());
+        }
+        output = fileOutput.get();
+    }
+
+    if (options_.splitPairedEnd) {
+        fileOutput2 = std::make_unique<std::ofstream>(options_.output2Path);
+        if (!fileOutput2->is_open()) {
+            throw IOError("Failed to create output file: " + options_.output2Path.string());
+        }
+    }
+
+    algo::BlockCompressorConfig config;
+    config.readLengthClass = format::getReadLengthClass(reader.globalHeader().flags);
+    config.qualityMode = format::getQualityMode(reader.globalHeader().flags);
+    config.idMode = format::getIdMode(reader.globalHeader().flags);
+    config.numThreads = 1;
+
+    algo::BlockCompressor compressor(config);
+
+    for (BlockId blockId = 0; blockId < reader.blockCount(); ++blockId) {
+        auto [blockStart, blockEndExclusive] = reader.getBlockReadRange(blockId);
+        if (blockEndExclusive <= plan.selection.start || blockStart > plan.selection.end) {
+            continue;
+        }
+
+        try {
+            auto blockData = reader.readBlock(blockId);
+            auto decompressResult = compressor.decompress(blockData.header,
+                                                          blockData.idsData,
+                                                          blockData.seqData,
+                                                          blockData.qualData,
+                                                          blockData.auxData);
+            if (!decompressResult) {
+                if (options_.skipCorrupted) {
+                    FQC_LOG_WARNING("Block {} decompression failed, skipping", blockId);
+                    stats_.corruptedBlocks++;
+                    continue;
+                }
+                decompressResult.error().throwException();
+            }
+
+            auto& reads = decompressResult.value().reads;
+            for (std::size_t i = 0; i < reads.size(); ++i) {
+                ReadId archiveId = blockStart + static_cast<ReadId>(i);
+                if (!plan.selection.contains(archiveId)) {
+                    continue;
+                }
+                ReadId originalId = reader.lookupOriginalId(archiveId);
+                if (originalId == kInvalidReadId) {
+                    throw FormatError("Reorder map lookup failed for archive read ID " +
+                                      std::to_string(archiveId));
+                }
+                auto slotIt = plan.originalIdToSlot.find(originalId);
+                if (slotIt == plan.originalIdToSlot.end()) {
+                    throw FormatError("Original-order slot missing for read ID " +
+                                      std::to_string(originalId));
+                }
+                plan.orderedReads[slotIt->second] = reads[i];
+            }
+
+            stats_.blocksProcessed++;
+        } catch (const FQCException& e) {
+            if (options_.skipCorrupted) {
+                FQC_LOG_WARNING("Block {} processing error: {}", blockId, e.what());
+                stats_.corruptedBlocks++;
+            } else {
+                throw;
+            }
+        }
+    }
+
+    for (std::size_t i = 0; i < plan.orderedReads.size(); ++i) {
+        if (!plan.orderedReads[i].has_value()) {
+            throw FormatError("Missing read while restoring original order at slot " +
+                              std::to_string(i) + " (originalId=" +
+                              std::to_string(plan.orderedOriginalIds[i]) + ")");
+        }
+        const auto& read = *plan.orderedReads[i];
+        ReadId originalId = plan.orderedOriginalIds[i];
+        if (options_.splitPairedEnd) {
+            writeSplitPairedRecord(*output, *fileOutput2, read, originalId, peLayout);
+        } else {
+            writeRecord(*output, read);
+        }
+    }
+
+    stats_.inputBytes = std::filesystem::file_size(options_.inputPath);
 }
 
 void DecompressCommand::printSummary() const {

@@ -24,7 +24,7 @@ from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 class FQCompressorConan(ConanFile):
     name = "fqcompressor"
     version = "0.1.0"
-    license = "MIT"
+    license = "MIT"  # Project-authored code; vendored third-party code keeps its own license
     author = "LessUp <jiashuai.mail@gmail.com>"
     url = "https://github.com/LessUp/fq-compressor"
     description = "High-performance FASTQ compressor with random access support"

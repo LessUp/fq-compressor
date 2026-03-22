@@ -10,8 +10,11 @@ English | [简体中文](README.zh-CN.md) | [Rust Version (fq-compressor-rust)](
 
  - [GitBook / Docs Site](https://lessup.github.io/fq-compressor/)
  - [中文文档总览](docs/README.md)
- - [Benchmark Documentation](docs/BENCHMARK.md)
+ - [Benchmark Documentation](docs/benchmark/README.md)
  - [Latest Benchmark Report](docs/benchmark/results/report-latest.md)
+
+> Note: FASTQ input stream support currently covers plain text, gzip (`.gz`), bzip2 (`.bz2`), and
+> xz (`.xz`). Zstandard-compressed FASTQ input (`.zst`) is not supported yet.
 
  **fq-compressor** is a high-performance, next-generation FASTQ compression tool designed for the sequencing era. It combines state-of-the-art **Assembly-based Compression (ABC)** strategies with robust industrial-grade engineering to deliver extreme compression ratios, fast parallel processing, and native random access.
 
@@ -150,12 +153,12 @@ The binary will be at `build/build/Release/bin/fqc`.
 
 ---
 
-## � Documentation Map
+## Documentation Map
 
 - **Chinese project docs**: [docs/README.md](docs/README.md)
 - **GitBook (bilingual)**: [https://lessup.github.io/fq-compressor/](https://lessup.github.io/fq-compressor/)
 - **Specs and design notes**: [docs/specs/README.md](docs/specs/README.md)
-- **Reference project analysis**: [docs/design/reference-projects.md](docs/design/reference-projects.md)
+- **Research notes**: [docs/research/](docs/research/)
 
 ## 📊 Performance Benchmarking
 
@@ -207,7 +210,7 @@ The benchmarking framework automatically generates:
 
 ### For Detailed Information
 
-See [benchmark.md](docs/benchmark.md) for:
+See [docs/benchmark/README.md](docs/benchmark/README.md) for:
 - Complete benchmark framework documentation
 - Usage examples for different tools
 - How to interpret results
@@ -234,7 +237,12 @@ ctest --test-dir build/build/Release
 ---
 
 ## License
-[License TBD - Likely GPLv3 or similar due to Spring dependency]
+Project-authored code in this repository is licensed under the [MIT License](LICENSE).
+
+The vendored code under [`vendor/spring-core/`](vendor/spring-core/) remains under Spring's
+"Non-exclusive Research Use License for SPRING Software" and is **not** covered by the MIT
+license above. The default build keeps this directory disabled in `CMakeLists.txt`, but you
+should still review the third-party terms before redistributing or using that code commercially.
 
 
 ## 📊 Benchmark Results

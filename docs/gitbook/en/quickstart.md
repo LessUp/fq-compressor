@@ -24,7 +24,13 @@ fqc compress -i input.fastq -o output.fqc --memory-limit 4096
 
 # Compress gzipped FASTQ directly
 fqc compress -i input.fastq.gz -o output.fqc
+
+# bzip2 and xz inputs are also supported
+fqc compress -i input.fastq.bz2 -o output.fqc
+fqc compress -i input.fastq.xz -o output.fqc
 ```
+
+> Note: Zstandard-compressed FASTQ input (`.zst`) is not supported yet.
 
 ## Decompress an Archive
 

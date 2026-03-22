@@ -10,9 +10,12 @@
 
 - [中文文档总览](docs/README.md)
 - [GitBook 双语文档](https://lessup.github.io/fq-compressor/)
-- [Benchmark 说明](docs/BENCHMARK.md)
+- [Benchmark 说明](docs/benchmark/README.md)
 - [最新 Benchmark 报告](docs/benchmark/results/report-latest.md)
 - [规格与设计文档](docs/specs/README.md)
+
+> 说明：当前 FASTQ 输入流支持 plain text、gzip（`.gz`）、bzip2（`.bz2`）和 xz（`.xz`）。
+> Zstandard 压缩的 FASTQ 输入（`.zst`）暂未支持。
 
 ## 项目定位
 
@@ -113,9 +116,9 @@ fqc verify output.fqc
 
 - `docs/README.md`: 中文文档入口
 - `docs/specs/`: 需求、设计、实施计划
-- `docs/design/`: 参考项目与架构说明
+- `docs/research/`: 研究分析与参考资料
 - `docs/benchmark/`: 基准测试结果
-- `docs/review/`: 评审记录
+- `docs/archive/reviews/`: 历史评审记录
 - `docs/gitbook/`: GitBook 双语站点
 
 ## 发布与自动化
@@ -128,4 +131,8 @@ fqc verify output.fqc
 
 ## 许可证
 
-当前许可证仍需你最终确认。考虑到部分参考实现和集成策略，建议在正式对外发布前再次核对兼容性。
+本仓库中**项目自研代码**采用 [MIT License](LICENSE)。
+
+`vendor/spring-core/` 下的 vendored Spring 代码继续适用其原始的
+"Non-exclusive Research Use License for SPRING Software"，**不包含**在上面的 MIT 许可内。
+当前默认构建在 `CMakeLists.txt` 中并未启用该目录，但如果你要重新分发或将其中代码用于商业场景，仍需单独核对该第三方许可条款。

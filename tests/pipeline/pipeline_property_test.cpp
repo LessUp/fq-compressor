@@ -927,4 +927,149 @@ TEST_F(PipelinePropertyTest, CancellationHandling) {
     }
 }
 
-}  // namespace fqc::pipeline::test
+
+TEST_F(PipelinePropertyTest, OriginalOrderRoundTripUsesCommandPath) {
+    using namespace roundtrip;
+
+    auto records = *gen::fastqRecordsRoundTrip(20, 80);
+    ASSERT_FALSE(records.empty());
+
+    auto inputPath = tempFilePath(".fastq");
+    auto compressedPath = tempFilePath(".fqc");
+    auto outputPath = tempFilePath(".out.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard compressedGuard(compressedPath);
+    TempFileGuard outputGuard(outputPath);
+
+    writeFastqFile(inputPath, records);
+
+    CompressionPipelineConfig compressConfig;
+    compressConfig.streamingMode = false;
+    compressConfig.enableReorder = true;
+    compressConfig.saveReorderMap = true;
+    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.blockSize = 4;
+    compressConfig.numThreads = 1;
+
+    CompressionPipeline compressor(compressConfig);
+    auto compressResult = compressor.run(inputPath, compressedPath);
+    ASSERT_TRUE(compressResult.has_value());
+
+    commands::DecompressOptions opts;
+    opts.inputPath = compressedPath;
+    opts.outputPath = outputPath;
+    opts.originalOrder = true;
+    opts.threads = 1;
+    opts.showProgress = false;
+    opts.forceOverwrite = true;
+
+    commands::DecompressCommand command(std::move(opts));
+    EXPECT_EQ(command.execute(), 0);
+
+    auto decompressedRecords = readFastqFile(outputPath);
+    EXPECT_TRUE(recordsEquivalent(records, decompressedRecords, true));
+}
+
+TEST_F(PipelinePropertyTest, OriginalOrderThreadsFallbackMatchesSingleThread) {
+    using namespace roundtrip;
+
+    auto records = *gen::fastqRecordsRoundTrip(20, 80);
+    ASSERT_FALSE(records.empty());
+
+    auto inputPath = tempFilePath(".fastq");
+    auto compressedPath = tempFilePath(".fqc");
+    auto outputPath = tempFilePath(".out.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard compressedGuard(compressedPath);
+    TempFileGuard outputGuard(outputPath);
+
+    writeFastqFile(inputPath, records);
+
+    CompressionPipelineConfig compressConfig;
+    compressConfig.streamingMode = false;
+    compressConfig.enableReorder = true;
+    compressConfig.saveReorderMap = true;
+    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.blockSize = 4;
+    compressConfig.numThreads = 1;
+
+    CompressionPipeline compressor(compressConfig);
+    auto compressResult = compressor.run(inputPath, compressedPath);
+    ASSERT_TRUE(compressResult.has_value());
+
+    commands::DecompressOptions opts;
+    opts.inputPath = compressedPath;
+    opts.outputPath = outputPath;
+    opts.originalOrder = true;
+    opts.threads = 4;
+    opts.showProgress = false;
+    opts.forceOverwrite = true;
+
+    commands::DecompressCommand command(std::move(opts));
+    EXPECT_EQ(command.execute(), 0);
+
+    auto decompressedRecords = readFastqFile(outputPath);
+    EXPECT_TRUE(recordsEquivalent(records, decompressedRecords, true));
+}
+
+TEST_F(PipelinePropertyTest, OriginalOrderRangeSortsSelectedArchiveSubset) {
+    using namespace roundtrip;
+
+    auto records = *gen::fastqRecordsRoundTrip(20, 80);
+    ASSERT_GE(records.size(), 8u);
+
+    auto inputPath = tempFilePath(".fastq");
+    auto compressedPath = tempFilePath(".fqc");
+    auto archiveOrderPath = tempFilePath(".archive.fastq");
+    auto originalOrderPath = tempFilePath(".original.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard compressedGuard(compressedPath);
+    TempFileGuard archiveGuard(archiveOrderPath);
+    TempFileGuard originalGuard(originalOrderPath);
+
+    writeFastqFile(inputPath, records);
+
+    CompressionPipelineConfig compressConfig;
+    compressConfig.streamingMode = false;
+    compressConfig.enableReorder = true;
+    compressConfig.saveReorderMap = true;
+    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.blockSize = 4;
+    compressConfig.numThreads = 1;
+
+    CompressionPipeline compressor(compressConfig);
+    auto compressResult = compressor.run(inputPath, compressedPath);
+    ASSERT_TRUE(compressResult.has_value());
+
+    commands::DecompressOptions archiveOpts;
+    archiveOpts.inputPath = compressedPath;
+    archiveOpts.outputPath = archiveOrderPath;
+    archiveOpts.range = commands::ReadRange{3, 8};
+    archiveOpts.threads = 1;
+    archiveOpts.showProgress = false;
+    archiveOpts.forceOverwrite = true;
+
+    commands::DecompressCommand archiveCommand(std::move(archiveOpts));
+    ASSERT_EQ(archiveCommand.execute(), 0);
+
+    commands::DecompressOptions originalOpts;
+    originalOpts.inputPath = compressedPath;
+    originalOpts.outputPath = originalOrderPath;
+    originalOpts.range = commands::ReadRange{3, 8};
+    originalOpts.originalOrder = true;
+    originalOpts.threads = 1;
+    originalOpts.showProgress = false;
+    originalOpts.forceOverwrite = true;
+
+    commands::DecompressCommand originalCommand(std::move(originalOpts));
+    ASSERT_EQ(originalCommand.execute(), 0);
+
+    auto archiveSubset = readFastqFile(archiveOrderPath);
+    auto originalSubset = readFastqFile(originalOrderPath);
+
+    EXPECT_EQ(archiveSubset.size(), originalSubset.size());
+    EXPECT_TRUE(recordsEquivalent(archiveSubset, originalSubset, false));
+}
