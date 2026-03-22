@@ -95,10 +95,10 @@
         // 单元测试调试
         // =====================================================================
         {
-            "name": "Test: placeholder_test",
+            "name": "Test: build_smoke_test",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/gcc-debug/tests/placeholder_test",
+            "program": "${workspaceFolder}/build/gcc-debug/tests/build_smoke_test",
             "args": ["--gtest_color=yes"],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake: Build gcc-debug",
@@ -276,7 +276,7 @@
             "id": "testBinary",
             "type": "promptString",
             "description": "测试可执行文件名",
-            "default": "placeholder_test"
+            "default": "build_smoke_test"
         },
         {
             "id": "testFilter",

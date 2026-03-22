@@ -6,7 +6,7 @@
 // This module provides:
 // - CompressCommand: Main class for handling compression
 // - CompressOptions: Configuration options for compression
-// - Integration with compression engine (placeholder)
+// - Parsing helpers for quality/ID compression modes
 //
 // Requirements: 6.2
 // =============================================================================

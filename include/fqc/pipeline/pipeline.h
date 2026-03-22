@@ -366,7 +366,7 @@ struct DecompressionPipelineConfig {
     /// @brief Range end (1-based, 0 = to end)
     ReadId rangeEnd = 0;
 
-    /// @brief Output in original order (requires reorder map)
+    /// @brief Reserve original-order output for future reorder-map restoration
     bool originalOrder = false;
 
     /// @brief Header-only mode (IDs only)
@@ -490,8 +490,10 @@ private:
 /// Supports:
 /// - Full file decompression
 /// - Range extraction (random access)
-/// - Original order output (with reorder map)
 /// - Header-only extraction
+///
+/// Note: original-order output is planned, but the current CLI rejects it until
+/// the reorder-map restoration path is completed.
 class DecompressionPipeline {
 public:
     /// @brief Construct with configuration

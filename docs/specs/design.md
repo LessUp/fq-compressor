@@ -397,14 +397,14 @@ struct ReorderMap {
 
 **设计说明**:
 - **Forward Map**: 支持按原始 ID 查询（可扩展为 `--range-original`）
-- **Reverse Map**: 支持 `--original-order` 高效输出
+- **Reverse Map**: 为未来的 `--original-order` 恢复路径提供 O(1) 映射基础；当前 CLI 尚未启用完整输出逻辑
 - **空间开销**: ~4 bytes/read（两个映射各 ~2 bytes/read）
 - **性能**: 映射解压到内存后两种查询方向都是 O(1)；若按需解码需额外块索引
 - **超大映射**: 可选分块索引或 mmap 方式按需解码，避免一次性展开占用过多内存
 
 **查询流程**:
 1. 按归档顺序解压: 无需 Reorder Map
-2. 按原始顺序输出: 使用 Reverse Map，按 archive_id 顺序遍历，输出到 original_id 位置
+2. 按原始顺序输出: 由 Reverse Map 提供恢复所需映射；当前 CLI 仍将该能力标记为后续实现
 3. 查询原始 Read 位置: 使用 Forward Map
 4. `--range` 参数始终以归档顺序计数；原始顺序范围查询需额外参数（可选扩展）
 

@@ -166,21 +166,52 @@ TEST(FQCWriterTest, ReorderMapSizesAreFilledFromActualData) {
 
 // Ensure that the bug does NOT silently go unnoticed on validation:
 // a header with totalReads>0 but forwardMapSize=0 must fail validation.
+
 TEST(FQCWriterTest, ValidateReorderMapHeaderRejectsZeroSize) {
     ReorderMap bad;
     bad.totalReads = 10;
     bad.forwardMapSize = 0;
     bad.reverseMapSize = 100;
 
-    // isValid() only checks headerSize/version, not map sizes
-    // but validateReorderMapHeader() (used in FQCReader) does check.
-    // We cannot call the free function directly from here without linking,
-    // so we verify the struct-level invariant via the reader's rejection.
-    // (This test documents the expected behavior; reader-level coverage is
-    // in ReorderMapSizesAreFilledFromActualData above.)
-    EXPECT_TRUE(bad.isValid());  // struct isValid() doesn't check map sizes
+    EXPECT_TRUE(bad.isValid());
     EXPECT_GT(bad.totalReads, 0u);
-    EXPECT_EQ(bad.forwardMapSize, 0u);  // documents the dangerous state
+    EXPECT_EQ(bad.forwardMapSize, 0u);
+}
+
+TEST(FQCWriterTest, ReorderMapLookupsUseOneBasedIdsAtRuntime) {
+    TempFile tmp;
+
+    // Stored on disk as 0-based ids.
+    std::vector<ReadId> fwdMap = {1, 0};
+    std::vector<ReadId> revMap = {1, 0};
+
+    auto compFwd = deltaEncode(std::span<const ReadId>(fwdMap));
+    auto compRev = deltaEncode(std::span<const ReadId>(revMap));
+
+    {
+        FQCWriter writer(tmp.path);
+        auto gh = makeMinimalGlobalHeader(/*hasReorderMap=*/true);
+        writer.writeGlobalHeader(gh, "test.fastq", 0);
+
+        BlockPayload payload;
+        payload.seqData = {0xAA, 0xBB};
+        writer.writeBlock(makeMinimalBlockHeader(), payload);
+
+        ReorderMap mapHdr;
+        mapHdr.totalReads = 2;
+        writer.writeReorderMap(mapHdr, compFwd, compRev);
+        writer.finalize();
+    }
+
+    FQCReader reader(tmp.path);
+    ASSERT_NO_THROW(reader.open());
+    ASSERT_TRUE(reader.hasReorderMap());
+    ASSERT_NO_THROW(reader.loadReorderMap());
+
+    EXPECT_EQ(reader.lookupArchiveId(1), 2u);
+    EXPECT_EQ(reader.lookupArchiveId(2), 1u);
+    EXPECT_EQ(reader.lookupOriginalId(1), 2u);
+    EXPECT_EQ(reader.lookupOriginalId(2), 1u);
 }
 
 }  // namespace fqc::format::test

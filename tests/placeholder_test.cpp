@@ -1,15 +1,14 @@
 // =============================================================================
-// Placeholder test to verify the build system
+// Build smoke test for the test harness
 // =============================================================================
 
 #include <gtest/gtest.h>
 
-TEST(BuildSystemTest, Placeholder) {
-    // This test verifies that the build system is correctly configured
+TEST(BuildSmokeTest, HarnessLoads) {
     EXPECT_TRUE(true);
 }
 
-TEST(BuildSystemTest, CppStandard) {
+TEST(BuildSmokeTest, CppStandard) {
 // Verify C++23 is enabled
 #if __cplusplus >= 202302L
     EXPECT_TRUE(true);

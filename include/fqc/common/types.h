@@ -554,7 +554,7 @@ struct DecompressionOptions {
     /// @note 0 means extract all reads.
     ReadId rangeEnd = 0;
 
-    /// @brief Output in original order (requires reorder map).
+    /// @brief Reserve original-order output for future reorder-map restoration.
     bool originalOrder = false;
 
     /// @brief Extract only headers (IDs).

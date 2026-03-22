@@ -270,7 +270,7 @@ void setupDecompressCommand(CLI::App& app, CliDecompressOptions& opts) {
 
     decompress->add_flag("--original-order",
                          opts.originalOrder,
-                         "Output reads in original order (requires reorder map)");
+                         "Original-order output is not implemented yet (reserved for future reorder-map restoration)");
 
     decompress->add_flag(
         "--skip-corrupted", opts.skipCorrupted, "Skip corrupted blocks instead of failing");

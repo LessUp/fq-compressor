@@ -110,10 +110,10 @@ struct LoadedReorderMapData {
     /// @brief Reorder map header.
     ReorderMap header;
 
-    /// @brief Decompressed forward map (original_id -> archive_id).
+    /// @brief Decompressed forward map (original_id -> archive_id, runtime values are 1-based).
     std::vector<std::uint64_t> forwardMap;
 
-    /// @brief Decompressed reverse map (archive_id -> original_id).
+    /// @brief Decompressed reverse map (archive_id -> original_id, runtime values are 1-based).
     std::vector<std::uint64_t> reverseMap;
 
     /// @brief Check if reorder map is loaded.

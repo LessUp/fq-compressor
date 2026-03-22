@@ -22,7 +22,13 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
+
+namespace fqc::format {
+class FQCReader;
+}
 
 namespace fqc::commands {
 
@@ -90,7 +96,7 @@ struct DecompressOptions {
     /// @brief Output format override (fastq, fasta, tsv, raw).
     std::string outputFormat;
 
-    /// @brief Output in original order (requires reorder map).
+    /// @brief Reserved for future original-order output; currently rejected at validation.
     bool originalOrder = false;
 
     /// @brief Skip corrupted blocks instead of failing.
@@ -160,6 +166,26 @@ struct DecompressionStats {
 };
 
 // =============================================================================
+// Internal Helpers
+// =============================================================================
+
+struct ArchiveReadSelection {
+    ReadId start = 1;
+    ReadId end = 0;
+
+    [[nodiscard]] bool contains(ReadId archiveId) const noexcept {
+        return archiveId >= start && (end == 0 || archiveId <= end);
+    }
+};
+
+struct OriginalOrderPlan {
+    ArchiveReadSelection selection;
+    std::vector<ReadId> orderedOriginalIds;
+    std::vector<std::optional<ReadRecord>> orderedReads;
+    std::unordered_map<ReadId, std::size_t> originalIdToSlot;
+};
+
+// =============================================================================
 // DecompressCommand Class
 // =============================================================================
 
@@ -207,6 +233,26 @@ private:
 
     /// @brief Run the parallel decompression pipeline using TBB.
     void runDecompressionParallel();
+
+    /// @brief Resolve the effective archive-order read selection.
+    [[nodiscard]] ArchiveReadSelection resolveArchiveSelection(
+        const format::FQCReader& reader) const;
+
+    /// @brief Build the output plan for original-order decompression.
+    [[nodiscard]] OriginalOrderPlan buildOriginalOrderPlan(const format::FQCReader& reader) const;
+
+    /// @brief Write decompressed records in original order.
+    void runDecompressionOriginalOrder();
+
+    /// @brief Write one record to a stream in FASTQ/header-only form.
+    void writeRecord(std::ostream& output, const ReadRecord& read);
+
+    /// @brief Write one record to paired-end outputs based on its original read ID.
+    void writeSplitPairedRecord(std::ostream& output1,
+                                std::ostream& output2,
+                                const ReadRecord& read,
+                                ReadId originalId,
+                                PELayout peLayout);
 
     /// @brief Print summary statistics.
     void printSummary() const;

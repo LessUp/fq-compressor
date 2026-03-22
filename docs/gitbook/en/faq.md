@@ -22,8 +22,12 @@ Yes. fq-compressor performs fully lossless compression by default. Every base, q
 
 - Standard 4-line FASTQ (`.fastq`, `.fq`)
 - Gzip-compressed FASTQ (`.fastq.gz`, `.fq.gz`)
+- Bzip2-compressed FASTQ (`.fastq.bz2`, `.fq.bz2`)
+- XZ-compressed FASTQ (`.fastq.xz`, `.fq.xz`)
 - Single-end (SE) and paired-end (PE) data
 - Illumina, BGI, and other common identifier formats
+
+> Zstandard-compressed FASTQ input (`.zst`) is not supported yet.
 
 ### What read lengths are supported?
 

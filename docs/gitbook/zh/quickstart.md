@@ -24,7 +24,13 @@ fqc compress -i input.fastq -o output.fqc --memory-limit 4096
 
 # 直接压缩 gzip 格式的 FASTQ
 fqc compress -i input.fastq.gz -o output.fqc
+
+# 也支持 bzip2 和 xz 输入
+fqc compress -i input.fastq.bz2 -o output.fqc
+fqc compress -i input.fastq.xz -o output.fqc
 ```
+
+> 说明：Zstandard 压缩的 FASTQ 输入（`.zst`）暂未支持。
 
 ## 解压归档
 

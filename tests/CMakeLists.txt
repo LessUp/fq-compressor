@@ -85,8 +85,8 @@ endfunction()
 # Unit Tests
 # =============================================================================
 
-# Build system verification test
-fqc_add_test(placeholder_test
+# Build-system smoke test
+fqc_add_test(build_smoke_test
     SOURCES placeholder_test.cpp
 )
 
@@ -101,6 +101,12 @@ fqc_add_test(memory_budget_test
 # Validates: Requirements 2.1, 5.1
 fqc_add_test(fqc_writer_test
     SOURCES format/fqc_writer_test.cpp
+)
+
+# Original-order command tests
+fqc_add_test(original_order_command_test
+    SOURCES commands/original_order_command_test.cpp
+    LIBRARIES fqc_cli
 )
 
 # =============================================================================
