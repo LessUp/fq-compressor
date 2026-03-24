@@ -33,6 +33,8 @@ LABEL=""
 BUILD_ONLY=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
 # Print colored message
 print_msg() {
@@ -109,10 +111,37 @@ done
 
 BUILD_DIR="${PROJECT_DIR}/build/${PRESET}"
 
-# Check if build directory exists
+cd "$PROJECT_DIR"
+
+if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+    print_msg "$BLUE" "Configuring preset $PRESET..."
+    cmake --preset "$PRESET"
+fi
+
+CTEST_DIR=$(resolve_cmake_build_dir "$PROJECT_DIR" "$PRESET" CTestTestfile.cmake)
+if [[ ! -f "$CTEST_DIR/CTestTestfile.cmake" ]]; then
+    print_msg "$RED" "Error: CTest metadata not found in $CTEST_DIR"
+    print_msg "$YELLOW" "Please run './scripts/build.sh $PRESET' first."
+    exit 1
+fi
+
+BUILD_DIR=$(resolve_cmake_build_dir "$PROJECT_DIR" "$PRESET" CMakeCache.txt)
+if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+    print_msg "$RED" "Error: CMake cache not found in $BUILD_DIR"
+    print_msg "$YELLOW" "Please run './scripts/build.sh $PRESET' first."
+    exit 1
+fi
+
+if [[ "$CTEST_DIR" != "$BUILD_DIR" ]]; then
+    print_msg "$YELLOW" "Using legacy test directory layout: $CTEST_DIR"
+fi
+
+if [[ "$BUILD_DIR" != "${PROJECT_DIR}/build/${PRESET}" ]]; then
+    print_msg "$YELLOW" "Using legacy build directory layout: $BUILD_DIR"
+fi
+
 if [[ ! -d "$BUILD_DIR" ]]; then
     print_msg "$RED" "Error: Build directory not found: $BUILD_DIR"
-    print_msg "$YELLOW" "Please run './scripts/build.sh $PRESET' first."
     exit 1
 fi
 
@@ -121,6 +150,7 @@ print_msg "$BLUE" "fq-compressor Test Execution"
 print_msg "$BLUE" "================================================"
 print_msg "$GREEN" "Preset:    $PRESET"
 print_msg "$GREEN" "Build Dir: $BUILD_DIR"
+print_msg "$GREEN" "CTest Dir: $CTEST_DIR"
 [[ -n "$FILTER" ]] && print_msg "$GREEN" "Filter:    $FILTER"
 [[ -n "$LABEL" ]]  && print_msg "$GREEN" "Label:     $LABEL"
 print_msg "$BLUE" "================================================"
@@ -145,7 +175,7 @@ if [[ "$BUILD_ONLY" == true ]]; then
 fi
 
 # Assemble ctest arguments
-CTEST_ARGS=(--test-dir "$BUILD_DIR" --output-on-failure)
+CTEST_ARGS=(--test-dir "$CTEST_DIR" --output-on-failure)
 [[ -n "$VERBOSE" ]] && CTEST_ARGS+=("$VERBOSE")
 [[ -n "$FILTER" ]]  && CTEST_ARGS+=(-R "$FILTER")
 [[ -n "$LABEL" ]]   && CTEST_ARGS+=(-L "$LABEL")

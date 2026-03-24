@@ -214,4 +214,59 @@ TEST(FQCWriterTest, ReorderMapLookupsUseOneBasedIdsAtRuntime) {
     EXPECT_EQ(reader.lookupOriginalId(2), 1u);
 }
 
+TEST(FQCWriterTest, ReaderRejectsFooterWithOutOfRangeIndexOffset) {
+    TempFile tmp;
+
+    {
+        FQCWriter writer(tmp.path);
+        auto gh = makeMinimalGlobalHeader(false);
+        writer.writeGlobalHeader(gh, "test.fastq", 0);
+
+        BlockPayload payload;
+        payload.seqData = {0xAA, 0xBB};
+        writer.writeBlock(makeMinimalBlockHeader(), payload);
+        writer.finalize();
+    }
+
+    {
+        std::fstream file(tmp.path, std::ios::binary | std::ios::in | std::ios::out);
+        ASSERT_TRUE(file.is_open());
+        file.seekp(-static_cast<std::streamoff>(FileFooter::kSize), std::ios::end);
+        const std::uint64_t badIndexOffset = 1;
+        file.write(reinterpret_cast<const char*>(&badIndexOffset), sizeof(badIndexOffset));
+        ASSERT_TRUE(file.good());
+    }
+
+    FQCReader reader(tmp.path);
+    EXPECT_THROW(reader.open(), FormatError);
+}
+
+TEST(FQCWriterTest, ReaderRejectsTruncatedBlockIndexRegion) {
+    TempFile tmp;
+
+    {
+        FQCWriter writer(tmp.path);
+        auto gh = makeMinimalGlobalHeader(false);
+        writer.writeGlobalHeader(gh, "test.fastq", 0);
+
+        BlockPayload payload;
+        payload.seqData = {0xAA, 0xBB};
+        writer.writeBlock(makeMinimalBlockHeader(), payload);
+        writer.finalize();
+    }
+
+    {
+        std::fstream file(tmp.path, std::ios::binary | std::ios::in | std::ios::out);
+        ASSERT_TRUE(file.is_open());
+        const auto fileSize = std::filesystem::file_size(tmp.path);
+        const auto forgedIndexOffset = static_cast<std::uint64_t>(fileSize - FileFooter::kSize - 8);
+        file.seekp(-static_cast<std::streamoff>(FileFooter::kSize), std::ios::end);
+        file.write(reinterpret_cast<const char*>(&forgedIndexOffset), sizeof(forgedIndexOffset));
+        ASSERT_TRUE(file.good());
+    }
+
+    FQCReader reader(tmp.path);
+    EXPECT_THROW(reader.open(), FormatError);
+}
+
 }  // namespace fqc::format::test
