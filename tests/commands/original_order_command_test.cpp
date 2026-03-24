@@ -245,4 +245,70 @@ TEST(OriginalOrderCommandTest, ReordersSelectedArchiveSubsetOnly) {
     EXPECT_TRUE(recordsEquivalent(expectedSubset, originalSubset, true));
 }
 
+TEST(OriginalOrderCommandTest, SplitPeDerivedOutputChecksDerivedR1Path) {
+    auto archivePath = tempFilePath(".fqc");
+    auto requestedOutputPath = tempFilePath(".fastq");
+    auto derivedR1Path = requestedOutputPath.parent_path() /
+        (requestedOutputPath.stem().string() + "_R1" + requestedOutputPath.extension().string());
+
+    TempFileGuard archiveGuard(archivePath);
+    TempFileGuard outputGuard(requestedOutputPath);
+    TempFileGuard derivedR1Guard(derivedR1Path);
+
+    {
+        std::ofstream archiveOut(archivePath, std::ios::binary);
+        ASSERT_TRUE(archiveOut.is_open());
+        archiveOut << "stub";
+    }
+
+    {
+        std::ofstream existingOut(derivedR1Path);
+        ASSERT_TRUE(existingOut.is_open());
+        existingOut << "already exists";
+    }
+
+    DecompressOptions opts;
+    opts.inputPath = archivePath;
+    opts.outputPath = requestedOutputPath;
+    opts.splitPairedEnd = true;
+    opts.showProgress = false;
+    opts.forceOverwrite = false;
+
+    DecompressCommand command(std::move(opts));
+    EXPECT_EQ(command.execute(), 2);
+}
+
+TEST(OriginalOrderCommandTest, SplitPeDerivedOutputChecksDerivedR2Path) {
+    auto archivePath = tempFilePath(".fqc");
+    auto requestedOutputPath = tempFilePath(".fastq");
+    auto derivedR2Path = requestedOutputPath.parent_path() /
+        (requestedOutputPath.stem().string() + "_R2" + requestedOutputPath.extension().string());
+
+    TempFileGuard archiveGuard(archivePath);
+    TempFileGuard outputGuard(requestedOutputPath);
+    TempFileGuard derivedR2Guard(derivedR2Path);
+
+    {
+        std::ofstream archiveOut(archivePath, std::ios::binary);
+        ASSERT_TRUE(archiveOut.is_open());
+        archiveOut << "stub";
+    }
+
+    {
+        std::ofstream existingOut(derivedR2Path);
+        ASSERT_TRUE(existingOut.is_open());
+        existingOut << "already exists";
+    }
+
+    DecompressOptions opts;
+    opts.inputPath = archivePath;
+    opts.outputPath = requestedOutputPath;
+    opts.splitPairedEnd = true;
+    opts.showProgress = false;
+    opts.forceOverwrite = false;
+
+    DecompressCommand command(std::move(opts));
+    EXPECT_EQ(command.execute(), 2);
+}
+
 }  // namespace fqc::commands::test
