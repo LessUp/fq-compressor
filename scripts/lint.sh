@@ -5,6 +5,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
 
 ACTION="${1:-lint}"
 PRESET="${2:-clang-debug}"
@@ -47,11 +49,12 @@ detect_clang_tidy() {
     fi
 }
 
-CLANG_FORMAT=$(detect_clang_format)
-CLANG_TIDY=$(detect_clang_tidy)
+CLANG_FORMAT=""
+CLANG_TIDY=""
 
 case $ACTION in
     format)
+        CLANG_FORMAT=$(detect_clang_format)
         echo "Formatting code with $CLANG_FORMAT..."
         mapfile -t sources < <(find_all_sources)
         if [ ${#sources[@]} -gt 0 ]; then
@@ -62,6 +65,7 @@ case $ACTION in
         fi
         ;;
     format-check)
+        CLANG_FORMAT=$(detect_clang_format)
         echo "Checking format with $CLANG_FORMAT..."
         mapfile -t sources < <(find_all_sources)
         if [ ${#sources[@]} -gt 0 ]; then
@@ -72,8 +76,9 @@ case $ACTION in
         fi
         ;;
     lint)
+        CLANG_TIDY=$(detect_clang_tidy)
         echo "Running $CLANG_TIDY..."
-        BUILD_DIR="$PROJECT_DIR/build/$PRESET"
+        BUILD_DIR=$(resolve_cmake_build_dir "$PROJECT_DIR" "$PRESET" compile_commands.json)
         if [ ! -f "$BUILD_DIR/compile_commands.json" ]; then
             echo "Error: compile_commands.json not found in $BUILD_DIR"
             echo "Please run './scripts/build.sh $PRESET' first."

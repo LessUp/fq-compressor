@@ -134,13 +134,6 @@ void DecompressCommand::validateOptions() {
         throw IOError("Input file not found: " + options_.inputPath.string());
     }
 
-    // Check output doesn't exist (unless force or stdout)
-    if (options_.outputPath != "-" && !options_.forceOverwrite &&
-        std::filesystem::exists(options_.outputPath)) {
-        throw IOError("Output file already exists: " + options_.outputPath.string() +
-                      " (use -f to overwrite)");
-    }
-
     // Handle PE split output
     if (options_.splitPairedEnd) {
         if (options_.outputPath == "-") {
@@ -165,12 +158,22 @@ void DecompressCommand::validateOptions() {
                          options_.output2Path.string());
         }
 
-        // Check output2 doesn't exist
+        // Check derived outputs don't exist
+        if (!options_.forceOverwrite && std::filesystem::exists(options_.outputPath)) {
+            throw IOError("Output file already exists: " + options_.outputPath.string() +
+                          " (use -f to overwrite)");
+        }
+
         if (!options_.forceOverwrite && std::filesystem::exists(options_.output2Path)) {
             throw IOError("Output file already exists: " + options_.output2Path.string() +
                           " (use -f to overwrite)");
         }
+    } else if (options_.outputPath != "-" && !options_.forceOverwrite &&
+               std::filesystem::exists(options_.outputPath)) {
+        throw IOError("Output file already exists: " + options_.outputPath.string() +
+                      " (use -f to overwrite)");
     }
+
 
     // Validate range if specified
     if (options_.range && !options_.range->isValid()) {

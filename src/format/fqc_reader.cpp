@@ -597,8 +597,20 @@ void FQCReader::readFileFooter() {
         throw FormatError("Invalid file footer - file may be corrupted",
                           ErrorContext(archivePath_.string()));
     }
-}
 
+    const auto minIndexOffset = static_cast<std::uint64_t>(kMagicHeaderSize + GlobalHeader::kMinSize);
+    const auto maxIndexOffset = fileSize_ - FileFooter::kSize;
+    if (footer_.indexOffset < minIndexOffset || footer_.indexOffset > maxIndexOffset) {
+        throw FormatError("Invalid block index offset in file footer",
+                          ErrorContext(archivePath_.string()));
+    }
+
+    if (footer_.reorderMapOffset != 0 &&
+        (footer_.reorderMapOffset < minIndexOffset || footer_.reorderMapOffset >= footer_.indexOffset)) {
+        throw FormatError("Invalid reorder map offset in file footer",
+                          ErrorContext(archivePath_.string()));
+    }
+}
 void FQCReader::readBlockIndex() {
     // Seek to index
     seekTo(footer_.indexOffset);
@@ -612,6 +624,18 @@ void FQCReader::readBlockIndex() {
     // Validate index header
     if (!indexHeader.isValid()) {
         throw FormatError("Invalid block index header", ErrorContext(archivePath_.string()));
+    }
+
+    const auto indexBytesAvailable = fileSize_ - FileFooter::kSize - footer_.indexOffset;
+    if (indexHeader.headerSize > indexBytesAvailable) {
+        throw FormatError("Block index header extends past end of archive",
+                          ErrorContext(archivePath_.string()));
+    }
+
+    const auto indexEntriesSize = indexHeader.numBlocks * static_cast<std::uint64_t>(indexHeader.entrySize);
+    if (indexHeader.headerSize + indexEntriesSize > indexBytesAvailable) {
+        throw FormatError("Block index extends past end of archive",
+                          ErrorContext(archivePath_.string()));
     }
 
     // Read index entries

@@ -176,6 +176,8 @@ void CompressCommand::detectReadLengthClass() {
         FQC_LOG_DEBUG("Sampling input file for read length detection...");
     }
 
+    const std::string_view scanMode = options_.scanAllLengths ? "scan" : "sample";
+
     try {
         // Open input file
         auto stream = io::openCompressedFile(options_.inputPath);
@@ -207,20 +209,16 @@ void CompressCommand::detectReadLengthClass() {
         // Detect length class
         detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
 
-        FQC_LOG_INFO("Detected read length class: {}",
-                     detectedLengthClass_ == ReadLengthClass::kShort        ? "SHORT"
-                         : detectedLengthClass_ == ReadLengthClass::kMedium ? "MEDIUM"
-                                                                            : "LONG");
-        FQC_LOG_DEBUG("  {} size: {} reads",
-                      options_.scanAllLengths ? "Scan" : "Sample",
-                      sampleStats.totalRecords);
+        const std::string_view detectedClass = readLengthClassToString(*detectedLengthClass_);
+        FQC_LOG_INFO("Detected read length class: {}", detectedClass);
+        FQC_LOG_DEBUG("  {} size: {} reads", scanMode, sampleStats.totalRecords);
         FQC_LOG_DEBUG("  Min length: {}", sampleStats.minLength);
         FQC_LOG_DEBUG("  Max length: {}", sampleStats.maxLength);
         FQC_LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
 
     } catch (const std::exception& e) {
         FQC_LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
-                        options_.scanAllLengths ? "scan" : "sample",
+                        scanMode,
                         e.what());
         detectedLengthClass_ = ReadLengthClass::kMedium;
     }
