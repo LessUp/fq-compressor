@@ -1,181 +1,249 @@
-# AGENTS.md — AI Agent Guidelines for fq-compressor
+# AGENTS.md
 
-## Identity
+## Scope
 
-This is **fq-compressor**, a high-performance FASTQ compressor in C++23. It uses Assembly-based Compression (ABC) for short reads and Zstd for medium/long reads, with Intel oneTBB parallel pipelines.
+This repository is `fq-compressor`, a C++23 FASTQ compressor.
+It uses CMake presets, Conan 2.x, Ninja, Google Test, optional RapidCheck, Quill logging, and Intel oneTBB.
+Core binaries and libraries are built from `src/`; public headers live in `include/fqc/`.
 
-## Build & Verify
+No Cursor rules were found in `.cursor/rules/` or `.cursorrules`.
+No Copilot rules were found in `.github/copilot-instructions.md`.
+
+## High-Level Layout
+
+```text
+include/fqc/algo/        Compression algorithms
+include/fqc/commands/    CLI command APIs
+include/fqc/common/      Errors, logging, shared types, memory budget
+include/fqc/format/      FQC archive format, reader, writer, reorder map
+include/fqc/io/          FASTQ parsing and compressed stream I/O
+include/fqc/pipeline/    TBB pipeline types and nodes
+src/                     Implementations and main executable
+tests/                   GTest and RapidCheck tests
+scripts/                 Build, test, lint, dependency helpers
+cmake/                   Sanitizer and coverage helpers
+```
+
+## Build Commands
+
+Preferred preset for release verification:
 
 ```bash
-# Always run before committing
-./scripts/build.sh gcc-release          # must compile cleanly
-./scripts/test.sh gcc-release           # all tests pass
-./scripts/lint.sh format-check          # clang-format check
-./scripts/lint.sh lint clang-debug      # clang-tidy static analysis
+./scripts/build.sh gcc-release
 ```
 
-## Project Structure
+Common development builds:
 
-```
-include/fqc/
-├── algo/
-│   ├── block_compressor.h    # ABC (consensus + delta) / Zstd codec
-│   ├── global_analyzer.h     # Minimizer-based global read reordering
-│   ├── id_compressor.h       # ID stream: delta + tokenization
-│   ├── pe_optimizer.h        # Paired-end complementarity optimization
-│   └── quality_compressor.h  # SCM order-1/2 arithmetic coding
-├── commands/
-│   ├── compress_command.h    # Compression command
-│   ├── decompress_command.h  # Decompression command
-│   ├── info_command.h        # Archive info display
-│   └── verify_command.h      # Integrity verification
-├── common/
-│   ├── error.h               # ErrorCode (0-5), FQCException, Result<T>
-│   ├── logger.h              # Quill async logger
-│   ├── memory_budget.h       # System memory detection, chunking
-│   └── types.h               # ReadRecord, QualityMode, IdMode, ReadLengthClass
-├── format/
-│   ├── fqc_format.h          # Magic bytes, GlobalHeader, BlockHeader, Footer
-│   ├── fqc_reader.h          # Block-indexed archive reader
-│   ├── fqc_writer.h          # Archive writer with finalize
-│   └── reorder_map.h         # ZigZag delta + varint bidirectional map
-├── io/
-│   ├── async_io.h            # AsyncReader/AsyncWriter/BufferPool
-│   ├── compressed_stream.h   # Transparent gz/bz2/xz/zst decompression
-│   ├── fastq_parser.h        # FASTQ parser with validation, stats, PE
-│   └── paired_end_parser.h   # Interleaved PE parser
-└── pipeline/
-    ├── pipeline.h            # TBB 8-node parallel pipeline
-    └── pipeline_node.h       # Pipeline node base class
-
-src/                          # 28 .cpp files (1:1 with headers + main.cpp)
-├── algo/                     # 5 algorithm implementations
-├── commands/                 # 4 CLI commands
-├── common/                   # 3 infrastructure modules
-├── format/                   # 3 format modules
-├── io/                       # 4 I/O modules
-├── pipeline/                 # 8 pipeline nodes
-└── main.cpp                  # CLI entry point (CLI11)
-
-tests/                        # 11 test files
-├── algo/                     # 5 property tests (ID, quality, PE, long-read, two-phase)
-├── common/                   # 1 unit test (memory budget)
-├── format/                   # 2 tests (format property, writer)
-├── io/                       # 1 property test (FASTQ parser)
-├── pipeline/                 # 1 property test (pipeline)
-└── e2e/                      # End-to-end tests
+```bash
+./scripts/build.sh clang-debug
+./scripts/build.sh clang-asan
+./scripts/build.sh clang-tsan
+./scripts/build.sh coverage
 ```
 
-## Coding Rules
+Direct CMake equivalents:
 
-### Must Follow
-- **C++23** — use `std::expected`, Concepts, Ranges; do not use deprecated features
-- **GCC 15+ / Clang 21+** — minimum compiler requirement
-- **clang-format clean** — run `./scripts/lint.sh format-check` before commit
-- **clang-tidy clean** — run `./scripts/lint.sh lint clang-debug`
-- **All tests pass** — run `./scripts/test.sh gcc-release`
-- **Use FQCException** — never throw `std::runtime_error`; use `FQCException(ErrorCode::kXxx, msg)`
-- **Use Quill logger** — `LOG_INFO`, `LOG_WARNING`, `LOG_DEBUG`; never `std::cout` for status
-- **Conan for all deps** — never `apt-get install` library `-dev` packages in Dockerfiles
+```bash
+cmake --preset gcc-release
+cmake --build --preset gcc-release -j$(nproc)
+```
 
-### Style
-- 4-space indentation, max line width 100 (`.clang-format`)
-- Naming: PascalCase (types), camelCase (functions/variables), kConstant (enum values)
-- Member variables: `camelCase_` (trailing underscore)
-- Include order: project headers → standard library → system headers
-- Section separators: `// ====...====` block comments for major sections
-- Commit messages: Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`)
+Important build outputs:
 
-### Avoid
-- Changing the FQC binary format without bumping version
-- Deleting or weakening tests
-- Raw pointers for ownership — use `std::unique_ptr` / `std::shared_ptr`
-- `new` / `delete` — use smart pointers or containers
-- Adding Conan dependencies without justification
+```text
+build/<preset>/src/fqc
+build/<preset>/tests/<test_target>
+build/<preset>/compile_commands.json
+```
 
-## Key Types
+`./scripts/build.sh` auto-runs Conan dependency installation if the toolchain file is missing.
+Do not add system `-dev` packages to Dockerfiles for project libraries; use Conan.
 
-| Type | Location | Purpose |
-|------|----------|---------|
-| `ReadRecord` | `common/types.h` | Single FASTQ record (id, sequence, quality) |
-| `ErrorCode` | `common/error.h` | Exit codes 0-5 (kSuccess..kUnsupportedCodec) |
-| `FQCException` | `common/error.h` | Structured exception with ErrorCode + message |
-| `Result<T>` | `common/error.h` | `std::expected<T, FQCException>` alias |
-| `GlobalHeader` | `format/fqc_format.h` | Archive header (flags, read count, filename) |
-| `BlockHeader` | `format/fqc_format.h` | Per-block header (codec, counts, sizes) |
-| `ReadLengthClass` | `common/types.h` | Short / Medium / Long classification |
+## Test Commands
 
-## Common Tasks
+Run the full suite:
 
-### Add a CLI command
-1. Create `include/fqc/commands/<cmd>_command.h` + `src/commands/<cmd>_command.cpp`
-2. Register in `main.cpp` CLI11 subcommand setup
-3. Add test in `tests/`
+```bash
+./scripts/test.sh gcc-release
+./scripts/test.sh clang-debug
+```
 
-### Add an error code
-1. Add variant to `ErrorCode` in `include/fqc/common/error.h`
-2. Update `errorCodeToString()` mapping
-3. Use via `throw FQCException(ErrorCode::kNewCode, "message")`
+Advanced test runner entrypoint:
 
-### Add a test
-1. Create test file in appropriate `tests/` subdirectory
-2. Use Google Test (`TEST`, `TEST_F`) or RapidCheck (`rc::check`)
-3. Register in `tests/CMakeLists.txt`
+```bash
+./scripts/run_tests.sh -p gcc-release
+./scripts/run_tests.sh -p clang-asan -v
+./scripts/run_tests.sh -p gcc-release -l unit
+./scripts/run_tests.sh -p gcc-release -l property
+```
 
-## Dependencies (Conan)
+Run a single CTest target by name:
 
-| Library | Version | Purpose |
-|---------|---------|---------|
-| Intel oneTBB | 2022.3.0 | 8-node parallel pipeline |
-| CLI11 | 2.4.2 | CLI argument parsing |
-| Quill | 11.0.2 | Async logging |
-| fmt | 12.1.0 | String formatting |
-| zstd | 1.5.7 | Zstd compression |
-| zlib-ng | 2.3.2 | Gzip compression |
-| libdeflate | 1.25 | Fast gzip compression |
-| bzip2 | 1.0.8 | Bzip2 compression |
-| xz_utils | 5.4.5 | XZ/LZMA compression |
-| xxHash | 0.8.3 | Non-cryptographic checksums |
-| Google Test | 1.15.0 | Unit testing |
+```bash
+./scripts/run_tests.sh -p gcc-release -f '^memory_budget_test$'
+ctest --test-dir build/gcc-release --output-on-failure -R '^memory_budget_test$'
+```
 
-## 工具链版本规范
+Build one test target only:
 
-### 编译器版本
+```bash
+cmake --build --preset gcc-release --target memory_budget_test
+```
 
-| 组件 | 统一版本 | 最低兼容 | CI 兼容性检查 |
-|------|---------|---------|----------|
-| **GCC** | 15.2 | 11.0 | 14.x（allow-failure） |
-| **Clang/LLVM** | 21 | 12.0 | 19（allow-failure） |
-| **C++ 标准** | C++23 | C++23 | — |
+Run one GTest case inside a test binary:
 
-### 构建工具版本
+```bash
+build/gcc-release/tests/memory_budget_test \
+  --gtest_filter=MemoryBudgetTest.DefaultConstruction
+```
 
-| 工具 | 锁定版本 | 最低要求 |
-|------|---------|----------|
-| **CMake** | 4.0.2（Docker 内） | 3.28 |
-| **Conan** | 2.24.0 | 2.0 |
-| **Ninja** | 系统最新 | 1.10 |
+Useful current test targets registered in `tests/CMakeLists.txt`:
 
-### Docker 工具链选型
+```text
+build_smoke_test
+memory_budget_test
+fqc_writer_test
+original_order_command_test
+fqc_format_property_test
+fastq_parser_property_test
+two_phase_compression_property_test
+quality_compressor_property_test
+id_compressor_property_test
+long_read_property_test
+pe_property_test
+pipeline_property_test
+```
 
-| 组件 | 选型 | 理由 |
-|------|------|------|
-| **基础镜像** | `gcc:15.2-bookworm` (Debian 12) | Docker 官方 GCC 镜像，自带 GCC 15.2，无需额外编译 |
-| **Clang** | Clang 21 (via `apt.llvm.org`) | LLVM 21 qualification branch，C++23 支持完善 |
-| **运行时镜像** | `debian:bookworm-slim` | 与构建镜像同系，共享基础层，体积最小 |
-| **不选 Ubuntu 24.04** | — | 无官方 `gcc:` 镜像，需自行编译 GCC 15；glibc 2.39 二进制兼容性较窄 |
+Notes:
 
-## CI/CD
+- `./scripts/test.sh <preset> <filter>` passes the filter to `ctest -R`.
+- Property tests are only registered when RapidCheck is found by CMake.
+- Test executables live under `build/<preset>/tests/` in the current layout.
 
-- **ci.yml** — push/PR: Docker build toolchain, multi-preset build & test (gcc-release, clang-debug, clang-release)
-- **quality.yml** — format check (clang-format) + static analysis (clang-tidy)
-- **release.yml** — `v*` tag: validate version, build 6 targets (glibc/musl/clang × x86_64/aarch64), macOS, GitHub Release with checksums
+## Lint / Format / Static Analysis
 
-## Do NOT
+Run these before committing:
 
-- Throw `std::runtime_error` — use `FQCException` with proper `ErrorCode`
-- Use `std::cout` for status output — use Quill logger
-- Install system `-dev` packages in Docker — use Conan
-- Add `unsafe` raw memory operations without justification
-- Delete or weaken existing tests
-- Change the FQC binary format without updating version numbers
+```bash
+./scripts/lint.sh format-check
+./scripts/lint.sh lint clang-debug
+./scripts/test.sh gcc-release
+./scripts/build.sh gcc-release
+```
+
+Format in place:
+
+```bash
+./scripts/lint.sh format
+```
+
+Combined checks:
+
+```bash
+./scripts/lint.sh all clang-debug
+```
+
+Tooling expectations:
+
+- `clang-format-21` is preferred when available.
+- `clang-tidy-21` is preferred when available.
+- `clang-tidy` reads `build/<preset>/compile_commands.json`.
+
+## Language And Toolchain Rules
+
+- Use C++23.
+- Keep `CMAKE_CXX_EXTENSIONS` off; write portable standard C++.
+- Minimum supported compilers in CMake are GCC 14+ and Clang 18+.
+- Repository guidance prefers GCC 15.2 and Clang 21 when available.
+- Use the preset system in `CMakePresets.json` instead of ad hoc build directories.
+
+## Code Style
+
+Formatting is enforced by `.clang-format`:
+
+- 4-space indentation.
+- 100-column line limit.
+- Attached braces.
+- No tabs.
+- One blank line max between blocks.
+- Includes are sorted and regrouped automatically.
+
+Use the repository's file/header style:
+
+- Files and directories: `snake_case`.
+- Types, structs, classes, test fixtures: `PascalCase`.
+- Functions, methods, local variables, parameters: `camelCase`.
+- Private/protected members: `camelCase_`.
+- Constants: `kCamelCase`.
+- Namespaces: `lower_case`.
+- Macros: `UPPER_CASE`.
+
+Follow the include order implied by `.clang-format` and existing code:
+
+1. Project headers, especially `"fqc/..."`
+2. Standard library headers
+3. Third-party/system headers
+
+Keep include blocks sorted; do not hand-format around the formatter.
+
+## API And Type Usage
+
+- Prefer `std::expected`-style flows through the project's `Result<T>` and `VoidResult` aliases.
+- Use `std::span`, `std::string_view`, `std::filesystem::path`, and fixed-width integer types where appropriate.
+- Mark non-trivial return values `[[nodiscard]]` when they should not be ignored; this is common across public headers here.
+- Prefer `constexpr`, `inline constexpr`, and scoped enums for constants and flags.
+- Prefer smart pointers or containers for ownership; avoid raw owning pointers.
+- Avoid `new` and `delete` in normal project code.
+
+## Error Handling
+
+- Do not throw `std::runtime_error`.
+- Use `FQCException` or a project-specific derived error such as `ArgumentError`.
+- Use `ErrorCode` values from `include/fqc/common/error.h`.
+- Map failures to the structured error categories already defined there.
+- For recoverable operations and library-style APIs, prefer `Result<T>` / `VoidResult` over throwing.
+- Preserve detailed context when constructing errors; `ErrorContext` and `std::source_location` support already exist.
+
+## Logging And Output
+
+- Use Quill-based logging from `include/fqc/common/logger.h`.
+- Prefer `FQC_LOG_TRACE`, `FQC_LOG_DEBUG`, `FQC_LOG_INFO`, `FQC_LOG_WARNING`, `FQC_LOG_ERROR`, and `FQC_LOG_CRITICAL`.
+- Do not use `std::cout` for status/debug logging.
+- Reserve stdout/stderr for real CLI output, stream data, or user-facing summaries only when that behavior is intentional.
+
+## Testing Conventions
+
+- Unit tests use Google Test.
+- Property tests use RapidCheck through `RC_GTEST_PROP` when available.
+- New tests must be added to `tests/CMakeLists.txt` via `fqc_add_test(...)`.
+- Unit tests get the `unit` CTest label; property tests get the `property` label.
+- Keep or improve coverage when changing compression, format, parser, or pipeline behavior.
+- Do not delete or weaken tests to make a change pass.
+
+## Repository-Specific Implementation Rules
+
+- Public API headers live in `include/fqc/...`; implementation files should stay in the matching `src/...` area.
+- Keep command implementations in `src/commands/` and register new CLI subcommands in `src/main.cpp`.
+- Binary-format changes require explicit versioning updates; do not silently change archive layout.
+- Compression, decompression, format, and reorder-map changes should be paired with tests.
+- Dependency additions need justification and should go through Conan, not ad hoc package installation.
+
+## Commenting And Structure
+
+- Match the existing source style with major section separators like `// =============================================================================` when editing established files that already use them.
+- Public headers commonly use concise Doxygen-style comments; keep additions consistent.
+- Add comments only when they explain non-obvious behavior, invariants, or format details.
+- Prefer small, direct changes over introducing unnecessary abstractions.
+
+## Agent Checklist
+
+Before finishing substantial code changes, run:
+
+```bash
+./scripts/build.sh gcc-release
+./scripts/test.sh gcc-release
+./scripts/lint.sh format-check
+./scripts/lint.sh lint clang-debug
+```
+
+If you only touched a small area, at minimum run the most relevant single test target plus formatting/linting for the affected preset.
