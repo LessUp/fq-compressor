@@ -1,0 +1,117 @@
+{
+    // =========================================================================
+    // Git 配置
+    // =========================================================================
+    "git.useEditorAsCommitInput": true,
+    "git.postCommitCommand": "none",
+    "git.enableCommitSigning": false,
+
+    // =========================================================================
+    // CMake 配置
+    // =========================================================================
+    "cmake.generator": "Ninja",
+    "cmake.useCMakePresets": "always",
+    "cmake.configureOnOpen": false,
+    "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
+    "cmake.configureSettings": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build/${buildPreset}",
+
+    // =========================================================================
+    // Clangd 配置 (C++ 智能提示)
+    // =========================================================================
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--header-insertion=never",
+        "--all-scopes-completion",
+        "--pch-storage=memory"
+    ],
+    "clangd.checkUpdates": false,
+
+    // =========================================================================
+    // 编辑器配置
+    // =========================================================================
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+    "editor.rulers": [100],
+    "editor.renderWhitespace": "boundary",
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.stickyScroll.enabled": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.tabSize": 4
+    },
+    "[c]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.tabSize": 4
+    },
+    "[cmake]": {
+        "editor.tabSize": 4
+    },
+    "[json]": {
+        "editor.tabSize": 4
+    },
+    "[yaml]": {
+        "editor.tabSize": 2
+    },
+
+    // =========================================================================
+    // 文件配置
+    // =========================================================================
+    "files.associations": {
+        "*.h": "cpp",
+        "*.hpp": "cpp",
+        "*.ipp": "cpp",
+        "*.inl": "cpp",
+        "CMakeLists.txt": "cmake",
+        "*.cmake": "cmake",
+        "conanfile.py": "python"
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/build": true,
+        "**/cmake-build-*": true,
+        "**/install": true
+    },
+
+    // =========================================================================
+    // 搜索排除
+    // =========================================================================
+    "search.exclude": {
+        "**/build": true,
+        "**/install": true,
+        "**/cmake-build-*": true,
+        "**/.conan2": true,
+        "**/.ccache": true,
+        "**/compile_commands.json": true,
+        "**/vendor": true
+    },
+
+    // =========================================================================
+    // C/C++ 扩展禁用（使用 clangd 代替）
+    // =========================================================================
+    "C_Cpp.intelliSenseEngine": "disabled",
+
+    // =========================================================================
+    // 测试配置
+    // =========================================================================
+    "cmake.ctest.allowParallelJobs": true,
+    "cmake.ctest.parallelJobs": 0,
+
+    // =========================================================================
+    // 终端配置
+    // =========================================================================
+    "terminal.integrated.scrollback": 10000,
+
+    // =========================================================================
+    // 其他
+    // =========================================================================
+    "kiroAgent.configureMCP": "Disabled",
+    "diffEditor.renderSideBySide": false
+}
