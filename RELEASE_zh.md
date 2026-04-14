@@ -4,7 +4,23 @@
 
 > 高性能 FASTQ 压缩工具（C++ 实现），与 [fq-compressor-rust](https://github.com/LessUp/fq-compressor-rust) 共享相同的 `.fqc` 归档格式与压缩算法，使用 Intel TBB 进行并行处理。
 
-## [0.1.0] - 2026-03-07
+---
+
+## 目录
+
+- [版本历史](#版本历史)
+- [安装指南](#安装指南)
+- [快速开始](#快速开始)
+- [平台支持](#平台支持)
+- [发布流程](#发布流程)
+- [升级指南](#升级指南)
+- [已知问题](#已知问题)
+
+---
+
+## 版本历史
+
+### [0.1.0] - 2026-03-07
 
 **fq-compressor 首次发布** — 高性能 FASTQ 压缩工具（C++ 实现）。
 
@@ -30,13 +46,27 @@
 - Conan 2.x（依赖管理）
 - 主要库：CLI11、Quill、fmt、zlib-ng、bzip2、xz_utils、zstd、libdeflate、xxHash、oneTBB
 
-### 安装
+---
 
-#### 从预编译二进制安装
+## 安装指南
+
+### 方式一：预编译二进制（推荐）
 
 从 [GitHub Releases](https://github.com/LessUp/fq-compressor/releases) 下载适合您平台的二进制文件。
 
-#### 从源码构建
+```bash
+# 下载并解压
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+
+# 安装到系统路径
+sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+
+# 验证安装
+fqc --version
+```
+
+### 方式二：从源码构建
 
 ```bash
 # 安装 Conan 依赖
@@ -51,7 +81,7 @@
 
 生成的二进制文件位于 `build/gcc-release/src/fqc`。
 
-#### Docker
+### 方式三：Docker
 
 ```bash
 # 本地构建
@@ -62,7 +92,9 @@ docker run --rm -v $(pwd):/data fq-compressor compress -i /data/reads.fastq -o /
 docker run --rm -v $(pwd):/data fq-compressor decompress -i /data/reads.fqc -o /data/reads.fastq
 ```
 
-### 快速开始
+---
+
+## 快速开始
 
 ```bash
 # 压缩
@@ -76,9 +108,14 @@ fqc info -i output.fqc
 
 # 验证完整性
 fqc verify -i output.fqc
+
+# 部分解压（随机访问）
+fqc decompress -i output.fqc --range 1000:2000 -o subset.fastq
 ```
 
-### 平台支持
+---
+
+## 平台支持
 
 | 平台 | 文件 | 编译器 | 说明 |
 |---|---|---|---|
@@ -97,7 +134,9 @@ fqc verify -i output.fqc
 sha256sum -c checksums-sha256.txt
 ```
 
-### 发布流程
+---
+
+## 发布流程
 
 推送版本标签即可触发自动发布：
 
@@ -113,3 +152,67 @@ GitHub Actions 会自动：
 3. 构建所有平台二进制文件（glibc / musl × x86_64 / aarch64 + macOS）
 4. 生成 SHA-256 校验文件
 5. 创建 GitHub Release 并上传所有产物
+
+---
+
+## 升级指南
+
+### 从 0.1.0-alpha.x 升级到 0.1.0
+
+0.1.0 是首个稳定版本，与 alpha 版本相比有以下重要变更：
+
+**兼容性**
+- `.fqc` 格式完全兼容，可直接解压 alpha 版本生成的归档
+- CLI 参数保持一致，无需修改现有脚本
+
+**性能提升**
+- TBB 并行流水线优化，多线程性能提升 15-30%
+- 异步 I/O 预取，I/O 密集场景吞吐提升 20%
+
+**功能增强**
+- 新增 `--range` 参数支持随机访问部分解压
+- 新增 `--header-only` 模式提取 FASTQ 头部
+- 新增 `verify` 命令校验归档完整性
+
+**升级步骤**
+```bash
+# 1. 备份现有数据（可选，.fqc 格式兼容）
+cp archive.fqc archive.fqc.bak
+
+# 2. 安装新版本
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+
+# 3. 验证安装
+fqc --version
+```
+
+---
+
+## 已知问题
+
+### 0.1.0 已知限制
+
+1. **长读段支持**：当前 ABC 算法针对短读段（< 300bp）优化，长读段（> 10KB）性能未达最优
+   - **临时方案**：长读段自动切换到 Zstd 通用压缩
+   - **计划修复**：0.2.0 版本引入 BSC 长读段专用算法
+
+2. **Zstandard 输入支持**：暂不支持 `.zst` 压缩的 FASTQ 输入
+   - **临时方案**：先用 `zstd -d` 解压，再输入 fqc
+   - **计划修复**：0.1.1 版本支持
+
+3. **Windows 支持**：当前仅支持 Linux 和 macOS
+   - **计划修复**：0.2.0 版本提供 Windows 预编译二进制
+
+4. **内存占用**：超大文件（> 100GB）压缩时峰值内存可能超过 `--memory-limit` 设置
+   - **临时方案**：使用流式模式 `--streaming` 降低内存
+   - **计划修复**：0.1.1 版本严格限制内存预算
+
+### 报告问题
+
+如遇到未列出的问题，请在 [GitHub Issues](https://github.com/LessUp/fq-compressor/issues) 报告，并提供：
+- 操作系统版本
+- fqc 版本（`fqc --version`）
+- 完整错误信息
+- 最小复现示例

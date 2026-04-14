@@ -1,10 +1,13 @@
 # fq-compressor
 
-[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-blue?logo=github)](https://lessup.github.io/fq-compressor/)
+[![Docs](https://img.shields.io/badge/Docs-GitBook-blue?logo=gitbook)](https://lessup.github.io/fq-compressor/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![C++23](https://img.shields.io/badge/Standard-C%2B%2B23-blue.svg)](https://en.cppreference.com/w/cpp/23)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/LessUp/fq-compressor/releases)
 
 English | [简体中文](README.zh-CN.md) | [Rust Version (fq-compressor-rust)](https://github.com/LessUp/fq-compressor-rust)
 
-> 🦀 本项目同时提供 **[Rust 实现](https://github.com/LessUp/fq-compressor-rust)**，共享相同的 `.fqc` 归档格式与 ABC/SCM 压缩算法，以 Rayon + crossbeam 替代 Intel TBB 并引入异步 I/O。
+> **跨语言实现**：本项目同时提供 **[Rust 实现](https://github.com/LessUp/fq-compressor-rust)**，共享相同的 `.fqc` 归档格式与 ABC/SCM 压缩算法，以 Rayon + crossbeam 替代 Intel TBB 并引入异步 I/O。
 
 **Documentation**
 
@@ -16,7 +19,22 @@ English | [简体中文](README.zh-CN.md) | [Rust Version (fq-compressor-rust)](
 > Note: FASTQ input stream support currently covers plain text, gzip (`.gz`), bzip2 (`.bz2`), and
 > xz (`.xz`). Zstandard-compressed FASTQ input (`.zst`) is not supported yet.
 
- **fq-compressor** is a high-performance, next-generation FASTQ compression tool designed for the sequencing era. It combines state-of-the-art **Assembly-based Compression (ABC)** strategies with robust industrial-grade engineering to deliver extreme compression ratios, fast parallel processing, and native random access.
+**fq-compressor** is a high-performance, next-generation FASTQ compression tool designed for the sequencing era. It combines state-of-the-art **Assembly-based Compression (ABC)** strategies with robust industrial-grade engineering to deliver extreme compression ratios, fast parallel processing, and native random access.
+
+## Table of Contents
+
+- [Key Features](#-key-features)
+- [Quick Start](#-quick-start)
+- [Core Algorithms](#-core-algorithms-the-why-it-works)
+- [Engineering Optimizations](#-engineering-optimizations)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Performance Benchmarking](#-performance-benchmarking)
+- [Distribution & External Compression](#-distribution--external-compression)
+- [References & Acknowledgements](#-references--acknowledgements)
+- [License](#license)
+
+---
 
 ## 🚀 Key Features
 
@@ -28,7 +46,41 @@ English | [简体中文](README.zh-CN.md) | [Rust Version (fq-compressor-rust)](
 
 ---
 
+## 🎯 Quick Start
+
+### Download Pre-built Binary
+
+```bash
+# Download from GitHub Releases
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+```
+
+### Basic Usage
+
+```bash
+# Compress FASTQ file
+fqc compress -i input.fastq -o output.fqc
+
+# Decompress
+fqc decompress -i output.fqc -o restored.fastq
+
+# View archive information
+fqc info output.fqc
+
+# Verify integrity
+fqc verify output.fqc
+
+# Partial decompression (random access)
+fqc decompress -i output.fqc --range 1000:2000 -o subset.fastq
+```
+
+---
+
 ## 🔬 Core Algorithms (The "Why it works")
+
+> **Technical Deep Dive**: This section explains the theoretical foundations of our compression approach.
 
 We adopt a "Best of Both Worlds" hybrid strategy:
 
@@ -131,7 +183,19 @@ This project stands on the shoulders of giants. We explicitly acknowledge and re
 - CMake 3.20+
 - Conan 2.x package manager
 
-### Build from Source
+### Option 1: Pre-built Binary (Recommended)
+
+Download from [GitHub Releases](https://github.com/LessUp/fq-compressor/releases):
+
+| Platform | Architecture | File | Notes |
+|----------|--------------|------|-------|
+| Linux | x86_64 | `fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz` | **Static linking, runs anywhere** |
+| Linux | x86_64 | `fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz` | Dynamic linking (glibc) |
+| Linux | aarch64 | `fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz` | **Static linking, runs anywhere** |
+| macOS | x86_64 | `fq-compressor-v0.1.0-macos-x86_64.tar.gz` | Intel Mac |
+| macOS | arm64 | `fq-compressor-v0.1.0-macos-arm64.tar.gz` | Apple Silicon |
+
+### Option 2: Build from Source
 
 ```bash
 # Clone the repository
@@ -150,6 +214,62 @@ ctest --test-dir build/build/Release
 ```
 
 The binary will be at `build/build/Release/bin/fqc`.
+
+### Option 3: Docker
+
+```bash
+# Build image
+docker build -f docker/Dockerfile -t fq-compressor .
+
+# Run compression
+docker run --rm -v $(pwd):/data fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
+
+# Run decompression
+docker run --rm -v $(pwd):/data fq-compressor decompress -i /data/reads.fqc -o /data/reads.fastq
+```
+
+---
+
+## 📖 Usage
+
+### Compression
+
+```bash
+# Basic compression
+fqc compress -i input.fastq -o output.fqc
+
+# With custom threads and memory limit
+fqc compress -i input.fastq -o output.fqc --threads 8 --memory-limit 4096
+
+# Paired-end mode (interleaved)
+fqc compress -i paired.fastq -o paired.fqc --paired
+
+# Paired-end mode (separate files)
+fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+```
+
+### Decompression
+
+```bash
+# Full decompression
+fqc decompress -i output.fqc -o restored.fastq
+
+# Partial decompression (random access)
+fqc decompress -i output.fqc --range 1000:2000 -o subset.fastq
+
+# Header-only extraction
+fqc decompress -i output.fqc --header-only -o headers.txt
+```
+
+### Information & Verification
+
+```bash
+# View archive metadata
+fqc info output.fqc
+
+# Verify integrity
+fqc verify output.fqc
+```
 
 ---
 
@@ -233,6 +353,18 @@ ctest --test-dir build/build/Release
 # Compare with Spring
 ./scripts/compare_spring.sh input.fastq
 ```
+
+---
+
+## 🗺️ Documentation Map
+
+| Resource | Description |
+|----------|-------------|
+| [GitBook (Bilingual)](https://lessup.github.io/fq-compressor/) | Official documentation site |
+| [Chinese Docs](docs/README.md) | Chinese documentation hub |
+| [Specs & Design](docs/specs/README.md) | Technical specifications |
+| [Research Notes](docs/research/) | Algorithm analysis and references |
+| [Benchmark Results](docs/benchmark/results/report-latest.md) | Latest performance data |
 
 ---
 
