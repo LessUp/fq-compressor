@@ -351,8 +351,15 @@ private:
                                          std::span<const std::uint32_t> lengths) {
         XXH64_state_t* state = XXH64_createState();
         if (!state) {
-            return 0;
+            throw IOError("Failed to create xxHash64 state for block checksum");
         }
+
+        // Use RAII guard to ensure state is freed
+        struct XxHashStateGuard {
+            XXH64_state_t* state;
+            ~XxHashStateGuard() { XXH64_freeState(state); }
+        } guard{state};
+
         XXH64_reset(state, 0);
 
         for (const auto& id : ids) {
@@ -368,9 +375,7 @@ private:
             XXH64_update(state, lengths.data(), lengths.size() * sizeof(std::uint32_t));
         }
 
-        std::uint64_t checksum = XXH64_digest(state);
-        XXH64_freeState(state);
-        return checksum;
+        return XXH64_digest(state);
     }
 
     std::uint8_t getIdCodec() const noexcept {
