@@ -1019,8 +1019,15 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
 std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadRecord> reads) const {
     XXH64_state_t* state = XXH64_createState();
     if (!state) {
-        return 0;
+        throw IOError("Failed to create xxHash64 state for block checksum");
     }
+
+    // Use RAII guard to ensure state is freed
+    struct XxHashStateGuard {
+        XXH64_state_t* state;
+        ~XxHashStateGuard() { XXH64_freeState(state); }
+    } guard{state};
+
     XXH64_reset(state, 0);
 
     // Hash IDs
@@ -1045,16 +1052,13 @@ std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadReco
         XXH64_update(state, read.quality.data(), read.quality.size());
     }
 
-    // Hash lengths (aux)
+    // Hash lengths (aux) - in host byte order for consistency
     for (const auto& read : reads) {
         std::uint32_t len = static_cast<std::uint32_t>(read.sequence.length());
         XXH64_update(state, &len, sizeof(len));
     }
 
-    std::uint64_t checksum = XXH64_digest(state);
-    XXH64_freeState(state);
-
-    return checksum;
+    return XXH64_digest(state);
 }
 
 // =============================================================================

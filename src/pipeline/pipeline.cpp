@@ -223,12 +223,6 @@ public:
                 compressors.push_back(std::make_unique<CompressorNode>(compressorConfig));
             }
 
-            // Backpressure controller
-            BackpressureController backpressure(config_.maxInFlightBlocks);
-
-            // Ordered queue for maintaining block order
-            OrderedQueue<CompressedBlock> outputQueue(0);
-
             // Progress tracking
             std::atomic<std::uint64_t> readsProcessed{0};
             std::atomic<std::uint32_t> blocksProcessed{0};
