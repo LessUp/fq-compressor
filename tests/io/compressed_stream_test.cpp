@@ -363,8 +363,10 @@ TEST_F(CompressedStreamTest, IsCompressionSupported) {
 TEST_F(CompressedStreamTest, SupportedFormats) {
     auto formats = supportedCompressionFormats();
     EXPECT_FALSE(formats.empty());
-    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kGzip) != formats.end());
-    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kBzip2) != formats.end());
+    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kGzip) !=
+                formats.end());
+    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kBzip2) !=
+                formats.end());
     EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kXz) != formats.end());
 }
 
@@ -439,8 +441,7 @@ TEST_F(CompressedStreamTest, InvalidGzipData) {
 
 TEST_F(CompressedStreamTest, RoundTripAllFormats) {
     std::vector<std::pair<std::string, std::string>> formats = {
-        {"gzip", ".gz"},
-        {"xz", ".xz"},
+        {"gzip", ".gz"}, {"xz", ".xz"},
         // bzip2 is optional in CI
     };
 
@@ -450,7 +451,8 @@ TEST_F(CompressedStreamTest, RoundTripAllFormats) {
         {
             auto plainPath = tempDir_ / "test_plain.txt";
             writeTestFile(plainPath, testData_);
-            std::string cmd = formatName + " -c " + plainPath.string() + " > " + compressedPath.string();
+            std::string cmd =
+                formatName + " -c " + plainPath.string() + " > " + compressedPath.string();
             if (system(("which " + formatName + " > /dev/null 2>&1").c_str()) != 0) {
                 continue;  // Skip if compressor not available
             }

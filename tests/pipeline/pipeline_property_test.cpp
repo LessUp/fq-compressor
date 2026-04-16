@@ -927,7 +927,6 @@ TEST_F(PipelinePropertyTest, CancellationHandling) {
     }
 }
 
-
 TEST_F(PipelinePropertyTest, OriginalOrderRoundTripUsesCommandPath) {
     using namespace roundtrip;
 

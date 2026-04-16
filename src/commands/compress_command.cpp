@@ -217,9 +217,7 @@ void CompressCommand::detectReadLengthClass() {
         FQC_LOG_DEBUG("  Avg length: {:.1f}", sampleStats.averageLength());
 
     } catch (const std::exception& e) {
-        FQC_LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy",
-                        scanMode,
-                        e.what());
+        FQC_LOG_WARNING("Failed to {} input: {}, using MEDIUM strategy", scanMode, e.what());
         detectedLengthClass_ = ReadLengthClass::kMedium;
     }
 }

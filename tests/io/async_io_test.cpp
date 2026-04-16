@@ -472,8 +472,10 @@ TEST_F(AsyncWriterTest, TotalBytesWritten) {
     // Write data in chunks
     std::size_t offset = 0;
     while (offset < testData_.size()) {
-        std::size_t chunkSize = std::min(static_cast<std::size_t>(16 * 1024), testData_.size() - offset);
-        auto writeResult = writer.write(std::span<const std::uint8_t>(testData_.data() + offset, chunkSize));
+        std::size_t chunkSize =
+            std::min(static_cast<std::size_t>(16 * 1024), testData_.size() - offset);
+        auto writeResult =
+            writer.write(std::span<const std::uint8_t>(testData_.data() + offset, chunkSize));
         ASSERT_TRUE(writeResult.has_value());
         offset += chunkSize;
     }
@@ -634,8 +636,8 @@ TEST(AsyncIOIntegrationTest, ConcurrentReadWrite) {
 
         std::size_t offset = 0;
         while (offset < originalData.size()) {
-            std::size_t chunkSize = std::min(static_cast<std::size_t>(16 * 1024),
-                                             originalData.size() - offset);
+            std::size_t chunkSize =
+                std::min(static_cast<std::size_t>(16 * 1024), originalData.size() - offset);
             auto buffer = writer.acquireBuffer();
             std::memcpy(buffer.data(), originalData.data() + offset, chunkSize);
             buffer.setSize(chunkSize);
