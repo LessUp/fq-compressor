@@ -394,7 +394,8 @@ void FQCReader::loadReorderMap() {
     normalizeToOneBased(mapData.forwardMap, "forward map");
     normalizeToOneBased(mapData.reverseMap, "reverse map");
 
-    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(mapData.forwardMap.size()); ++originalId) {
+    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(mapData.forwardMap.size());
+         ++originalId) {
         const ReadId archiveId = mapData.forwardMap[originalId - 1];
         if (archiveId == 0 || archiveId > mapData.reverseMap.size()) {
             throw FormatError("Forward reorder map contains out-of-range archive ID",
@@ -598,7 +599,8 @@ void FQCReader::readFileFooter() {
                           ErrorContext(archivePath_.string()));
     }
 
-    const auto minIndexOffset = static_cast<std::uint64_t>(kMagicHeaderSize + GlobalHeader::kMinSize);
+    const auto minIndexOffset =
+        static_cast<std::uint64_t>(kMagicHeaderSize + GlobalHeader::kMinSize);
     const auto maxIndexOffset = fileSize_ - FileFooter::kSize;
     if (footer_.indexOffset < minIndexOffset || footer_.indexOffset > maxIndexOffset) {
         throw FormatError("Invalid block index offset in file footer",
@@ -606,7 +608,8 @@ void FQCReader::readFileFooter() {
     }
 
     if (footer_.reorderMapOffset != 0 &&
-        (footer_.reorderMapOffset < minIndexOffset || footer_.reorderMapOffset >= footer_.indexOffset)) {
+        (footer_.reorderMapOffset < minIndexOffset ||
+         footer_.reorderMapOffset >= footer_.indexOffset)) {
         throw FormatError("Invalid reorder map offset in file footer",
                           ErrorContext(archivePath_.string()));
     }
@@ -632,7 +635,8 @@ void FQCReader::readBlockIndex() {
                           ErrorContext(archivePath_.string()));
     }
 
-    const auto indexEntriesSize = indexHeader.numBlocks * static_cast<std::uint64_t>(indexHeader.entrySize);
+    const auto indexEntriesSize =
+        indexHeader.numBlocks * static_cast<std::uint64_t>(indexHeader.entrySize);
     if (indexHeader.headerSize + indexEntriesSize > indexBytesAvailable) {
         throw FormatError("Block index extends past end of archive",
                           ErrorContext(archivePath_.string()));

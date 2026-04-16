@@ -174,7 +174,6 @@ void DecompressCommand::validateOptions() {
                       " (use -f to overwrite)");
     }
 
-
     // Validate range if specified
     if (options_.range && !options_.range->isValid()) {
         throw ArgumentError("Invalid read range");
@@ -186,7 +185,8 @@ void DecompressCommand::validateOptions() {
     }
 
     if (options_.rangePairs && !options_.splitPairedEnd) {
-        FQC_LOG_DEBUG("--range-pairs specified without --split-pe; selection still applies in archive order");
+        FQC_LOG_DEBUG(
+            "--range-pairs specified without --split-pe; selection still applies in archive order");
     }
 
     // Cannot specify both --range and --range-pairs
@@ -370,7 +370,6 @@ void DecompressCommand::runDecompression() {
 
             // Write reads to output in archive order.
             for (const auto& read : reads) {
-
                 // Write FASTQ record (only header if headerOnly)
                 if (read.comment.empty()) {
                     *output << "@" << read.id << "\n";
@@ -420,7 +419,8 @@ void DecompressCommand::runDecompression() {
     }
 }
 
-ArchiveReadSelection DecompressCommand::resolveArchiveSelection(const format::FQCReader& reader) const {
+ArchiveReadSelection DecompressCommand::resolveArchiveSelection(
+    const format::FQCReader& reader) const {
     ArchiveReadSelection selection;
     selection.start = 1;
     selection.end = static_cast<ReadId>(reader.totalReadCount());
@@ -451,7 +451,8 @@ OriginalOrderPlan DecompressCommand::buildOriginalOrderPlan(const format::FQCRea
     OriginalOrderPlan plan;
     plan.selection = resolveArchiveSelection(reader);
 
-    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(reader.totalReadCount()); ++originalId) {
+    for (ReadId originalId = 1; originalId <= static_cast<ReadId>(reader.totalReadCount());
+         ++originalId) {
         ReadId archiveId = reader.lookupArchiveId(originalId);
         if (archiveId == kInvalidReadId) {
             throw FormatError("Reorder map lookup failed for original read ID " +
@@ -492,7 +493,8 @@ void DecompressCommand::writeSplitPairedRecord(std::ostream& output1,
                                                PELayout peLayout) {
     if (peLayout == PELayout::kConsecutive) {
         throw ArgumentError(
-            "--split-pe with --original-order is currently only supported for interleaved paired-end archives");
+            "--split-pe with --original-order is currently only supported for interleaved "
+            "paired-end archives");
     }
 
     if ((originalId % 2U) == 1U) {
@@ -607,8 +609,8 @@ void DecompressCommand::runDecompressionOriginalOrder() {
     for (std::size_t i = 0; i < plan.orderedReads.size(); ++i) {
         if (!plan.orderedReads[i].has_value()) {
             throw FormatError("Missing read while restoring original order at slot " +
-                              std::to_string(i) + " (originalId=" +
-                              std::to_string(plan.orderedOriginalIds[i]) + ")");
+                              std::to_string(i) +
+                              " (originalId=" + std::to_string(plan.orderedOriginalIds[i]) + ")");
         }
         const auto& read = *plan.orderedReads[i];
         ReadId originalId = plan.orderedOriginalIds[i];

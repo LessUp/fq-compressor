@@ -1025,7 +1025,9 @@ std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadReco
     // Use RAII guard to ensure state is freed
     struct XxHashStateGuard {
         XXH64_state_t* state;
-        ~XxHashStateGuard() { XXH64_freeState(state); }
+        ~XxHashStateGuard() {
+            XXH64_freeState(state);
+        }
     } guard{state};
 
     XXH64_reset(state, 0);
