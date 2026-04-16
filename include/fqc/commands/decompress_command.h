@@ -96,7 +96,7 @@ struct DecompressOptions {
     /// @brief Output format override (fastq, fasta, tsv, raw).
     std::string outputFormat;
 
-    /// @brief Reserved for future original-order output; currently rejected at validation.
+    /// @brief Restore reads to their original order using reorder map.
     bool originalOrder = false;
 
     /// @brief Skip corrupted blocks instead of failing.
