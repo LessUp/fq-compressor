@@ -93,8 +93,7 @@ class FQCompressorConan(ConanFile):
         # GTest: Google Test framework for unit testing
         self.test_requires("gtest/1.15.0")
         # RapidCheck: Property-based testing framework
-        # NOTE: Temporarily disabled due to CMake version compatibility issue
-        # self.test_requires("rapidcheck/cci.20230815")
+        self.test_requires("rapidcheck/cci.20230815")
 
     def generate(self):
         """Generate CMake toolchain and dependency files."""
