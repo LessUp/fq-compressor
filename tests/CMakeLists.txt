@@ -96,11 +96,26 @@ fqc_add_test(memory_budget_test
     SOURCES common/memory_budget_test.cpp
 )
 
+# Error Handling Tests
+fqc_add_test(error_test
+    SOURCES common/error_test.cpp
+)
+
 # FQCWriter Unit Tests
 # Regression: reorder map size fields written correctly (forwardMapSize/reverseMapSize)
 # Validates: Requirements 2.1, 5.1
 fqc_add_test(fqc_writer_test
     SOURCES format/fqc_writer_test.cpp
+)
+
+# Async I/O Tests
+fqc_add_test(async_io_test
+    SOURCES io/async_io_test.cpp
+)
+
+# Compressed Stream Tests
+fqc_add_test(compressed_stream_test
+    SOURCES io/compressed_stream_test.cpp
 )
 
 # Original-order command tests
