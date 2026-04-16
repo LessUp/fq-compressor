@@ -50,7 +50,7 @@ docs/
 ├── archive/               # Historical Documentation
 │   └── ...
 │
-└── gitbook/               # GitBook Site Source
+└── website/               # Nextra Documentation Site
     ├── en/
     └── zh/
 ```

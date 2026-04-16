@@ -54,7 +54,7 @@ graph TD
 | **异步 I/O** | AsyncReader/AsyncWriter/BufferPool | ✅ 已完成 |
 | **压缩流** | 多格式压缩/解压流 (gzip/bzip2/xz/zstd) | ✅ 已完成 |
 
-**代码规模**: 62 个源文件 (28 src + 23 headers + 11 tests)，约 27,000 行代码
+**代码规模**: 63 个源文件 (28 src + 23 headers + 12 tests)，约 27,000 行代码
 
 ## 运行与开发
 
