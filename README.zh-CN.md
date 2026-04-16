@@ -1,288 +1,198 @@
 # fq-compressor
 
-[![Docs](https://img.shields.io/badge/文档-GitBook-blue?logo=gitbook)](https://lessup.github.io/fq-compressor/)
-[![License](https://img.shields.io/badge/许可证-MIT-green.svg)](LICENSE)
-[![C++23](https://img.shields.io/badge/标准-C%2B%2B23-blue.svg)](https://en.cppreference.com/w/cpp/23)
-[![Platform](https://img.shields.io/badge/平台-Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/LessUp/fq-compressor/releases)
+<p align="center">
+  <a href="https://lessup.github.io/fq-compressor/"><img src="https://img.shields.io/badge/文档-GitBook-blue?logo=gitbook" alt="文档"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/许可证-MIT-green.svg" alt="许可证"></a>
+  <a href="https://en.cppreference.com/w/cpp/23"><img src="https://img.shields.io/badge/标准-C%2B%2B23-blue.svg" alt="C++23"></a>
+  <a href="https://github.com/LessUp/fq-compressor/releases"><img src="https://img.shields.io/badge/平台-Linux%20%7C%20macOS-lightgrey.svg" alt="平台"></a>
+  <a href="https://github.com/LessUp/fq-compressor/releases/latest"><img src="https://img.shields.io/github/v/release/LessUp/fq-compressor?include_prereleases" alt="发布"></a>
+</p>
 
-[English](README.md) | 简体中文 | [Rust 版本 (fq-compressor-rust)](https://github.com/LessUp/fq-compressor-rust)
+<p align="center">
+  <b>面向测序时代的高性能 FASTQ 压缩工具</b>
+</p>
 
-> **跨语言实现**：本项目同时提供 **[Rust 实现](https://github.com/LessUp/fq-compressor-rust)**（[中文发布说明](https://github.com/LessUp/fq-compressor-rust/blob/main/RELEASE_zh.md)），共享相同的 `.fqc` 归档格式与 ABC/SCM 压缩算法，以 Rayon + crossbeam 替代 Intel TBB 并引入异步 I/O。
-
-**fq-compressor** 是一个面向 FASTQ 数据的高性能压缩工具，目标是在二代/三代测序场景下，同时兼顾高压缩比、可维护工程架构、并行处理能力与随机访问能力。
-
-## 目录
-
-- [核心特性](#核心特性)
-- [快速开始](#快速开始)
-- [项目定位](#项目定位)
-- [核心算法](#核心算法)
-- [工程优化](#工程优化)
-- [安装](#安装)
-- [使用方法](#使用方法)
-- [性能基准测试](#benchmark-概览)
-- [文档入口](#文档入口)
-- [许可证](#许可证)
-
-## 文档入口
-
-| 资源 | 描述 |
-|------|------|
-| [GitBook 双语文档](https://lessup.github.io/fq-compressor/) | 官方文档站点 |
-| [中文文档总览](docs/README.md) | 中文文档中心 |
-| [规格与设计文档](docs/specs/README.md) | 技术规格说明 |
-| [研究分析笔记](docs/research/) | 算法分析与参考资料 |
-| [最新 Benchmark 报告](docs/benchmark/results/report-latest.md) | 最新性能数据 |
-
-> **说明**：当前 FASTQ 输入流支持 plain text、gzip（`.gz`）、bzip2（`.bz2`）和 xz（`.xz`）。Zstandard 压缩的 FASTQ 输入（`.zst`）暂未支持。
-
-## 项目定位
-
-本项目采用混合压缩策略：
-
-- **Sequence**: 基于 Spring / Mincom 思路的 **Assembly-based Compression (ABC)**
-- **Quality**: 借鉴 fqzcomp5 的 **Statistical Context Mixing (SCM)**
-- **Identifiers**: **Tokenization + Delta**
-- **容器格式**: 自定义 **`.fqc`**，支持分块存储与随机访问
+<p align="center">
+  <a href="README.md">English</a> | 简体中文 | <a href="https://github.com/LessUp/fq-compressor-rust">Rust 实现</a>
+</p>
 
 ---
 
-## 核心算法
+## 🚀 快速开始
 
-### 1. 序列压缩：Assembly-based Compression (ABC)
-
-不同于传统压缩器将读段视为独立字符串，我们将它们视为底层基因组的片段。
-
-- **Minimizer 分桶**：基于共享 minimizer（签名 k-mer）将读段分组到桶中
-- **重排序**：在每个桶内，对读段重新排序以形成近似哈密顿路径（最小化相邻距离）
-- **局部共识与增量**：为桶生成局部共识序列，仅存储相对于共识的编辑（替换、插入缺失）
-- **参考**：该方法在数学上基于 **Spring** 和 **Mincom** 的工作
-
-### 2. 质量分数：Statistical Context Mixing (SCM)
-
-质量分数噪声较大，不适合"组装"。我们使用高阶算术编码与上下文混合。
-
-- **上下文建模**：压缩器基于先前上下文（如前 2 个 QV + 当前序列碱基）预测下一个质量值
-- **算术编码**：预测输入自适应算术编码器，实现接近熵极限的压缩
-- **参考**：深受 **fqzcomp5**（James Bonfield）启发
-
----
-
-## 工程优化
-
-### 1. 并行流水线（Intel TBB）
-
-我们使用 **Intel Threading Building Blocks (oneTBB)** 实现 `read -> filter -> compress -> write` 流水线。
-
-- **基于令牌的流控制**：通过限制"在途"块来控制内存使用
-- **负载均衡**：TBB 的工作窃取调度器自动平衡重（重排序）和轻（I/O）任务
-
-### 2. 列式块格式
-
-数据在每个压缩块内拆分为物理上独立的流：
-
-- `[Stream ID]`: 增量编码整数 + 标记化头部
-- `[Stream Seq]`: ABC 编码序列增量
-- `[Stream Qual]`: SCM 编码质量值
-
-这确保最优算法独立处理每种数据类型。
-
-### 3. 随机访问 O(1)
-
-文件由独立的 **块**（如 10MB 未打包）组成。
-
-- **索引**：轻量级尾部索引将块 ID 映射到文件偏移
-- **上下文重置**：压缩模型在块边界重置，实现完全独立的并行解压
-
----
-
-## 核心特性
-
-- **高压缩比**
-  - 面向 FASTQ 数据特征进行专项建模，而非只依赖通用压缩算法。
-
-- **随机访问**
-  - 采用 block-based 归档设计，可按范围快速解压。
-
-- **并行流水线**
-  - 基于 Intel oneTBB 组织 `read -> compress -> write` 流水线。
-
-- **现代工程化**
-  - C++23、Modern CMake、Conan 2.x、GitHub Actions。
-
-- **多模式支持**
-  - 支持单端、双端、保序/重排、无损/部分有损质量值处理。
-
-## 快速开始
-
-### 下载预编译二进制
+### 安装
 
 ```bash
-# 从 GitHub Releases 下载
+# Linux / macOS (x86_64)
 wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
 tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
 sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
 ```
 
-### 基本使用
+所有平台的安装方法请参见 [安装指南](docs/zh/getting-started/installation.md)。
+
+### 基本用法
 
 ```bash
-# 压缩 FASTQ 文件
-fqc compress -i input.fastq -o output.fqc
+# 压缩
+fqc compress -i reads.fastq -o reads.fqc
 
-# 解压
-fqc decompress -i output.fqc -o restored.fastq
+# 验证并解压
+fqc verify reads.fqc
+fqc decompress -i reads.fqc -o restored.fastq
 
-# 查看归档信息
-fqc info output.fqc
-
-# 校验完整性
-fqc verify output.fqc
-
-# 部分解压（随机访问）
-fqc decompress -i output.fqc --range 1000:2000 -o subset.fastq
+# 部分提取（随机访问）
+fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 ```
 
 ---
 
-## 安装
+## ✨ 特性
 
-### 方式一：预编译二进制（推荐）
+| 特性 | 描述 |
+|------|------|
+| 🧬 **ABC 算法** | 基于组装的压缩，通过 minimizer 分桶和增量编码实现 3-5 倍压缩比 |
+| 📊 **SCM 质量分数** | 统计上下文混合，实现质量分数的最优压缩 |
+| ⚡ **并行处理** | 基于 Intel oneTBB 的流水线，可扩展到所有可用核心 |
+| 🎯 **随机访问** | O(1) 块级访问，无需完整解压即可部分提取 |
+| 🔧 **现代 C++23** | 类型安全、高性能、可维护的代码库 |
+| 📦 **多格式支持** | 透明读写 .gz、.bz2、.xz 文件 |
 
-从 [GitHub Releases](https://github.com/LessUp/fq-compressor/releases) 下载：
+---
 
-| 平台 | 架构 | 文件 | 说明 |
-|------|------|------|------|
-| Linux | x86_64 | `fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz` | **静态链接，任意 Linux 可运行** |
-| Linux | x86_64 | `fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz` | 动态链接 (glibc) |
-| Linux | aarch64 | `fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz` | **静态链接，任意 Linux 可运行** |
-| macOS | x86_64 | `fq-compressor-v0.1.0-macos-x86_64.tar.gz` | Intel Mac |
-| macOS | arm64 | `fq-compressor-v0.1.0-macos-arm64.tar.gz` | Apple Silicon |
+## 📊 性能
 
-### 方式二：从源码构建
+基准测试：2.27M Illumina reads（511 MB 未压缩）
+
+| 指标 | GCC 15.2 | Clang 21 |
+|------|----------|----------|
+| **压缩速度** | 11.30 MB/s | 11.90 MB/s |
+| **解压速度** | 60.10 MB/s | 62.30 MB/s |
+| **压缩比** | 3.97x | 3.97x |
+
+*平台：Intel i7-9700（8 核），Linux 6.8*
+
+详细结果请参见 [基准测试](docs/zh/performance/benchmark.md)。
+
+---
+
+## 🔬 核心算法
+
+### 基于组装的压缩（ABC）
+
+将 reads 视为基因组片段而非独立字符串：
+
+1. **Minimizer 分桶** - 按共享 k-mer 签名分组 reads
+2. **TSP 重排序** - 对 reads 排序以最大化相邻相似性
+3. **共识生成** - 为每个桶构建局部共识序列
+4. **增量编码** - 存储相对共识的编辑内容
+
+### 统计上下文混合（SCM）
+
+针对质量分数的高阶上下文建模：
+
+- 上下文：前序 QVs + 当前碱基 + 位置
+- 自适应算术编码
+- 接近熵极限的压缩
+
+---
+
+## 📚 文档
+
+| 资源 | 描述 |
+|------|------|
+| [📖 完整文档](https://lessup.github.io/fq-compressor/) | GitBook 站点（双语） |
+| [🚀 快速入门](docs/zh/getting-started/quickstart.md) | 5 分钟内开始 |
+| [📦 安装指南](docs/zh/getting-started/installation.md) | 所有平台和方法 |
+| [⌨️ CLI 参考](docs/zh/getting-started/cli-usage.md) | 完整命令参考 |
+| [🏗️ 架构](docs/zh/core-concepts/architecture.md) | 高层设计 |
+| [🧬 算法](docs/zh/core-concepts/algorithms.md) | 压缩算法深入解析 |
+| [📋 格式规范](docs/zh/core-concepts/fqc-format.md) | FQC 归档格式规范 |
+
+---
+
+## 🛠️ 从源码构建
+
+### 前置条件
+
+- GCC 14+ 或 Clang 18+
+- CMake 3.28+
+- Conan 2.x
+
+### 构建
 
 ```bash
 git clone https://github.com/LessUp/fq-compressor.git
 cd fq-compressor
-conan install . --build=missing -of=build/clang-release -s build_type=Release -s compiler.cppstd=20
+
+conan install . --build=missing -of=build/clang-release \
+    -s build_type=Release -s compiler.cppstd=23
+
 cmake --preset clang-release
 cmake --build --preset clang-release -j$(nproc)
+
+# 二进制文件位置：build/clang-release/src/fqc
 ```
 
-### 方式三：Docker
+详情请参见 [构建指南](docs/zh/development/build-from-source.md)。
+
+---
+
+## 🐳 Docker
 
 ```bash
-# 构建镜像
 docker build -f docker/Dockerfile -t fq-compressor .
-
-# 运行压缩
 docker run --rm -v $(pwd):/data fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
-
-# 运行解压
-docker run --rm -v $(pwd):/data fq-compressor decompress -i /data/reads.fqc -o /data/reads.fastq
 ```
 
 ---
 
-## 使用方法
-
-### 压缩
+## 🧪 测试
 
 ```bash
-# 基本压缩
-fqc compress -i input.fastq -o output.fqc
+# 运行所有测试
+./scripts/test.sh clang-release
 
-# 指定线程数和内存限制
-fqc compress -i input.fastq -o output.fqc --threads 8 --memory-limit 4096
-
-# 双端测序模式（交错格式）
-fqc compress -i paired.fastq -o paired.fqc --paired
-
-# 双端测序模式（分离文件）
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
-```
-
-### 解压
-
-```bash
-# 完整解压
-fqc decompress -i output.fqc -o restored.fastq
-
-# 部分解压（随机访问）
-fqc decompress -i output.fqc --range 1000:2000 -o subset.fastq
-
-# 仅提取头部信息
-fqc decompress -i output.fqc --header-only -o headers.txt
-```
-
-### 信息与验证
-
-```bash
-# 查看归档元数据
-fqc info output.fqc
-
-# 验证完整性
-fqc verify output.fqc
+# 运行特定测试
+cmake --build --preset clang-release --target memory_budget_test
+build/clang-release/tests/memory_budget_test
 ```
 
 ---
 
-## Benchmark 概览
+## 🗺️ 路线图
 
-当前仓库已包含 benchmark 框架和报告输出能力，重点关注：
+- [ ] 长读优化（PacBio/Nanopore）
+- [ ] 流式压缩模式
+- [ ] 额外的有损质量模式
+- [ ] AWS S3/GCS 原生集成
+- [ ] Python 绑定
 
-- 压缩速度
-- 解压速度
-- 压缩率 / bits per base
-- 峰值内存
-- 多线程扩展性
+---
 
-最新公开结果可见：
+## 🤝 贡献
 
-- [docs/benchmark/results/report-latest.md](docs/benchmark/results/report-latest.md)
-- [docs/benchmark/results/charts-latest.html](docs/benchmark/results/charts-latest.html)
+欢迎贡献！请参见我们的 [贡献指南](docs/zh/development/contributing.md)。
 
-## 目录治理建议
+---
 
-- **`docs/`**
-  - 作为正式文档主目录，中文为主。
+## 📄 许可证
 
-- **`docs/gitbook/`**
-  - 作为 GitBook / Honkit 双语站点源码。
+- **项目代码**：MIT 许可证 - 参见 [LICENSE](LICENSE)
+- `vendor/spring-core/`：Spring 原始研究许可证（非 MIT）
 
-- **`tests/`**
-  - 正式测试源码目录，应保留。
+---
 
-- **`Testing/`**
-  - CTest 运行产物目录，不属于源码资产。
+## 🙏 致谢
 
-- **`ref-projects/`**
-  - 更适合作为本地参考缓存，而非正式仓库结构；建议仅在文档中保留分析结果。
+- **Spring** ([Chandak et al., 2019](https://doi.org/10.1101/gr.234583.119)) - ABC 算法灵感
+- **fqzcomp5** (Bonfield) - 质量压缩参考
+- **Intel oneTBB** - 并行计算框架
 
-- **`.spec-workflow` 与 `.kiro/specs/fq-compressor`**
-  - 已建议向 `docs/specs/` 收敛，后续可删除原目录。
+---
 
-## 文档分层
-
-- `docs/README.md`: 中文文档入口
-- `docs/specs/`: 需求、设计、实施计划
-- `docs/research/`: 研究分析与参考资料
-- `docs/benchmark/`: 基准测试结果
-- `docs/archive/reviews/`: 历史评审记录
-- `docs/gitbook/`: GitBook 双语站点
-
-## 发布与自动化
-
-本仓库已规划：
-
-- GitHub Actions 持续集成
-- 推送语义化 tag 后自动创建 GitHub Release
-- 主分支变更后自动构建并发布 GitBook 到 GitHub Pages
-
-## 许可证
-
-本仓库中**项目自研代码**采用 [MIT License](LICENSE)。
-
-`vendor/spring-core/` 下的 vendored Spring 代码继续适用其原始的
-"Non-exclusive Research Use License for SPRING Software"，**不包含**在上面的 MIT 许可内。
-当前默认构建在 `CMakeLists.txt` 中并未启用该目录，但如果你要重新分发或将其中代码用于商业场景，仍需单独核对该第三方许可条款。
+<p align="center">
+  <a href="https://github.com/LessUp/fq-compressor/releases">发布</a> •
+  <a href="https://lessup.github.io/fq-compressor/">文档</a> •
+  <a href="CHANGELOG.zh-CN.md">变更日志</a>
+</p>
