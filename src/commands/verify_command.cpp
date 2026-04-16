@@ -382,9 +382,7 @@ std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
         return results;
     }
 
-    // Get file size and read footer
-    file.seekg(0, std::ios::end);
-    [[maybe_unused]] auto fileSize = file.tellg();
+    // Read footer
     file.seekg(-static_cast<std::streamoff>(format::kFileFooterSize), std::ios::end);
 
     format::FileFooter footer;
