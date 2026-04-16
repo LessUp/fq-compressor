@@ -1,0 +1,99 @@
+---
+title: 架构概述
+description: 高层架构和设计原则
+---
+
+# 架构概述
+
+fq-compressor 采用分层架构设计，分离关注点并实现并行处理。
+
+## 设计目标
+
+1. **高压缩比**: 接近基因数据的熵极限
+2. **并行性能**: 通过 Intel oneTBB 最大化多核利用率
+3. **随机访问**: O(1) 读取范围提取，无需完整解压
+4. **工业级质量**: 生产就绪的错误处理和内存管理
+5. **可维护性**: 清晰的 C++23 代码，关注点分离
+
+## 高层架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      fq-compressor                          │
+├─────────────────────────────────────────────────────────────┤
+│  CLI 层       │  命令层          │  流水线层                │
+│  ─────────    │  ─────────────   │  ─────────────           │
+│  CLI11        │  CompressCmd     │  TBB Pipeline            │
+│               │  DecompressCmd   │  Producer→Filter→Writer  │
+│               │  InfoCmd         │                          │
+│               │  VerifyCmd       │                          │
+├─────────────────────────────────────────────────────────────┤
+│  格式层           │  算法层                              │
+│  ──────────       │  ─────────────                       │
+│  FQCReader        │  BlockCompressor                     │
+│  FQCWriter        │    ├── 序列 (ABC)                    │
+│  ReorderMap       │    ├── 质量 (SCM)                    │
+│  BlockIndex       │    └── ID (Delta+Token)              │
+│                   │  GlobalAnalyzer                      │
+├─────────────────────────────────────────────────────────────┤
+│  I/O 层                                                     │
+│  FastqParser (.gz/.bz2/.xz)                                 │
+│  CompressedOutputStream                                     │
+│  异步 I/O                                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 数据流
+
+### 压缩流程
+
+```
+FASTQ 输入
+  ↓
+FastqParser (透明解压)
+  ↓
+GlobalAnalyzer (minimizer 分桶 + 重排序)
+  ↓
+ReorderMap (保存到归档)
+  ↓
+BlockCompressor
+  ├── IDCompressor (delta+token)
+  ├── SequenceCompressor (ABC)
+  └── QualityCompressor (SCM)
+  ↓
+FQCWriter (带索引序列化)
+  ↓
+.fqc 文件
+```
+
+### 解压流程
+
+```
+.fqc 文件
+  ↓
+FQCReader (解析头部，加载索引)
+  ↓
+BlockDecompressor
+  ├── IDDecompressor
+  ├── SequenceDecompressor
+  └── QualityDecompressor
+  ↓
+RecordBuilder ← ReorderMap (可选恢复)
+  ↓
+FASTQ 输出
+```
+
+## 内存管理
+
+采用自动内存预算系统：
+1. **检测**: 自动检测系统内存
+2. **分配**: 在子系统间分配预算
+3. **节流**: 流水线中基于令牌的反压
+4. **限制**: 遵守 `--memory-limit` 选项
+
+## 线程模型
+
+基于 Intel oneTBB:
+- **流图**: Producer → Compressor → Writer
+- **并行算法**: 块处理的 parallel_for
+- **并发容器**: concurrent_queue

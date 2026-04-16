@@ -1,0 +1,154 @@
+---
+title: FAQ
+description: Frequently asked questions
+---
+
+# Frequently Asked Questions
+
+## General
+
+### What is fq-compressor?
+
+A high-performance FASTQ compression tool using domain-specific algorithms (ABC for sequences, SCM for quality) to achieve 2-3× better compression than general-purpose tools like gzip.
+
+### Is it lossless?
+
+Yes, by default completely lossless. Optional lossy quality modes available.
+
+### What platforms are supported?
+
+- Linux x86_64 (glibc 2.31+, musl)
+- Linux ARM64/AArch64
+- macOS x86_64 (Intel)
+- macOS ARM64 (Apple Silicon)
+
+## Installation
+
+### Do I need to build from source?
+
+No. Pre-built binaries available for all platforms. Build only if you need:
+- Latest development version
+- Custom optimizations
+- Debug symbols
+
+### What are the runtime dependencies?
+
+Static builds (musl): **None**
+Dynamic builds (glibc): glibc 2.31+
+
+## Usage
+
+### Can I compress already-compressed files?
+
+Yes, reads .gz, .bz2, .xz directly:
+
+```bash
+fqc compress -i reads.fastq.gz -o reads.fqc
+```
+
+### How do I use paired-end data?
+
+```bash
+# Separate files
+fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+
+# Interleaved
+fqc compress -i interleaved.fastq -o paired.fqc --paired
+```
+
+### What compression mode should I use?
+
+| Mode | Use Case |
+|------|----------|
+| `fast` | Quick, slightly lower ratio |
+| `balanced` | Default, good trade-off |
+| `best` | Maximum compression, slower |
+
+## Performance
+
+### How much memory does it need?
+
+Scales with dataset size and threads. Rule of thumb: 2-4GB for typical datasets with 8 threads.
+
+Use `--memory-limit` to constrain RAM.
+
+### Can I use all CPU cores?
+
+Yes:
+
+```bash
+fqc compress -i data.fastq -o out.fqc --threads $(nproc)
+```
+
+### Why is decompression faster?
+
+Compression involves minimizer calculation, reordering (TSP), consensus generation, and delta encoding. Decompression reverses these with simpler operations.
+
+## Features
+
+### What is "random access"?
+
+Extract a subset of reads without full decompression:
+
+```bash
+fqc decompress -i archive.fqc --range 1000:2000 -o subset.fastq
+```
+
+O(1) constant time regardless of archive size.
+
+### Can I restore original read order?
+
+Yes, if archive was created with reordering:
+
+```bash
+fqc decompress -i archive.fqc -o restored.fastq --original-order
+```
+
+### Is the format stable?
+
+Yes, FQC format has version markers for forward compatibility. v0.1.0 archives will be readable by future versions.
+
+## Troubleshooting
+
+### "Command not found" after installation
+
+```bash
+echo $PATH | grep /usr/local/bin
+# Or use full path
+/usr/local/bin/fqc --version
+```
+
+### "Permission denied"
+
+```bash
+chmod +x /usr/local/bin/fqc
+```
+
+### Compression is slow
+
+- Use release build (not debug)
+- Use multiple threads: `--threads 8`
+- Consider `fast` mode
+
+### Out of memory
+
+```bash
+fqc compress -i large.fastq -o out.fqc --memory-limit 4096 --threads 4
+```
+
+## License
+
+### Can I use it commercially?
+
+Yes. Project code is MIT licensed.
+
+Note: `vendor/spring-core/` has separate research license.
+
+### Patent situation?
+
+No patented algorithms. ABC and SCM are published academic research.
+
+## Still have questions?
+
+- [GitHub Issues](https://github.com/LessUp/fq-compressor/issues)
+- [GitHub Discussions](https://github.com/LessUp/fq-compressor/discussions)

@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400;
+  }
+  
+  .feature-card {
+    @apply p-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 hover:shadow-lg transition-shadow;
+  }
+  
+  .perf-table th {
+    @apply px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-800;
+  }
+  
+  .perf-table td {
+    @apply px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Code blocks styling */
+pre {
+  @apply rounded-lg border border-gray-200 dark:border-gray-700 !bg-gray-50 dark:!bg-gray-900;
+}
+
+code {
+  @apply font-mono text-sm;
+}
+
+/* Table styling */
+.nextra-content table {
+  @apply w-full text-sm border-collapse;
+}
+
+.nextra-content th {
+  @apply border-b border-gray-200 dark:border-gray-700 px-4 py-3 text-left font-semibold;
+}
+
+.nextra-content td {
+  @apply border-b border-gray-100 dark:border-gray-800 px-4 py-3;
+}

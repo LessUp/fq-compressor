@@ -1,0 +1,91 @@
+---
+title: 快速入门
+description: 5 分钟内完成第一次压缩
+---
+
+import { Callout, Steps } from 'nextra/components'
+
+# 快速入门
+
+<Steps>
+### 创建测试文件
+
+```bash
+cat > sample.fastq << 'EOF'
+@read_1
+ACGTACGTACGTACGTACGTACGTACGTACGTACGT
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+@read_2
+TGCATGCATGCATGCATGCATGCATGCATGCATGCA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+@read_3
+AAAATTTTCCCCGGGGAAAATTTTCCCCGGGGAAAA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+EOF
+```
+
+### 压缩
+
+```bash
+fqc compress -i sample.fastq -o sample.fqc -v
+```
+
+输出：
+```
+[2026-04-16 10:30:15] INFO: 开始压缩...
+[2026-04-16 10:30:15] INFO: 压缩完成: 108 字节 -> 67 字节 (1.61x)
+```
+
+### 验证和检查
+
+```bash
+fqc verify sample.fqc
+fqc info sample.fqc
+```
+
+### 解压
+
+```bash
+fqc decompress -i sample.fqc -o restored.fastq
+
+# 验证完整性
+diff sample.fastq restored.fastq
+# 无输出 = 文件相同
+```
+</Steps>
+
+<Callout type="tip">
+  多核系统使用 `-t 8` 或 `--threads 8` 进行并行压缩。
+</Callout>
+
+## 高级示例
+
+### 双端测序压缩
+
+```bash
+# 分离文件
+fqc compress -i reads_1.fastq -i2 reads_2.fastq \
+  -o paired.fqc --paired -t 8
+
+# 交错文件
+fqc compress -i interleaved.fastq -o paired.fqc --paired
+```
+
+### 随机访问
+
+```bash
+# 仅解压第 1000-2000 条 reads
+fqc decompress -i archive.fqc --range 1000:2000 -o subset.fastq
+
+# 解压前 5000 条 reads
+fqc decompress -i archive.fqc --range :5000 -o first_5k.fastq
+```
+
+### 恢复原始顺序
+
+```bash
+fqc decompress -i archive.fqc -o restored.fastq --original-order
+```

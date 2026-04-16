@@ -1,0 +1,152 @@
+---
+title: FQC Format
+description: Technical specification of the .fqc archive format
+---
+
+# FQC Archive Format
+
+The **FQC** (FASTQ Compressed) format is a domain-specific archive optimized for genomic FASTQ data.
+
+## Features
+
+- **Block-based storage**: Independent compressed blocks
+- **Columnar streams**: Separate ID/Sequence/Quality compression
+- **Random access**: O(1) extraction of any read range
+- **Integrity verification**: CRC32C checksums
+- **Reorder support**: Original order restoration
+
+## File Structure
+
+```
+┌─────────────────────────────────────────────┐
+│ FQC Archive                                 │
+├─────────────────────────────────────────────┤
+│ Fixed Header (256 bytes)                    │
+│   - Magic: "FQCC"                           │
+│   - Version: 0.1.0                          │
+│   - Format flags                            │
+│   - Block count                             │
+│   - Total reads/bases                       │
+├─────────────────────────────────────────────┤
+│ Compression Parameters                      │
+├─────────────────────────────────────────────┤
+│ Block 0                                     │
+│   ┌─ Block Header (64 bytes)                │
+│   ├─ ID Stream (zstd)                       │
+│   ├─ Seq Stream (ABC+zstd)                  │
+│   └─ Qual Stream (SCM+zstd)                 │
+├─────────────────────────────────────────────┤
+│ Block 1 ...                                 │
+├─────────────────────────────────────────────┤
+│ Block N-1                                   │
+├─────────────────────────────────────────────┤
+│ Footer                                      │
+│   - Block Index Table                       │
+│   - Reorder Map (optional)                  │
+│   - Footer checksum                         │
+└─────────────────────────────────────────────┘
+```
+
+## Fixed Header
+
+```c
+struct FQCHeader {
+    char magic[4] = {'F', 'Q', 'C', 'C'};
+    uint16_t version_major = 0;
+    uint16_t version_minor = 1;
+    uint16_t version_patch = 0;
+    uint16_t format_flags;
+    uint32_t block_count;
+    uint64_t total_reads;
+    uint64_t total_bases;
+    uint8_t reserved[224];
+};
+```
+
+### Format Flags
+
+| Bit | Name | Description |
+|-----|------|-------------|
+| 0 | PAIRED_END | Paired-end data |
+| 1 | REORDERED | Reads were reordered |
+| 2 | ORIG_ORDER_PRESERVED | Can restore original order |
+| 3 | HAS_METADATA | Contains metadata block |
+
+## Block Format
+
+### Block Header
+
+```c
+struct BlockHeader {
+    uint32_t block_id;
+    uint32_t flags;
+    uint64_t original_size;
+    uint64_t compressed_size;
+    uint32_t read_count;
+    uint64_t base_count;
+    uint32_t crc32c_data;
+    uint32_t crc32c_uncompressed;
+};
+```
+
+### Block Data
+
+Each block contains three compressed streams:
+
+| Stream | Encoding | Content |
+|--------|----------|---------|
+| ID | Token + Delta + Zstd | Read identifiers |
+| Sequence | ABC + Zstd | Delta from consensus |
+| Quality | SCM + Zstd | Context-mixed scores |
+
+## Footer
+
+### Block Index Table
+
+```c
+struct BlockIndexEntry {
+    uint64_t offset;          // File offset
+    uint64_t size;            // Total block size
+    uint32_t read_count;      // Number of reads
+    uint64_t first_read_id;   // Global read ID
+};
+```
+
+### Reorder Map
+
+Maps compressed order to original order:
+
+```c
+struct ReorderMap {
+    uint32_t version = 1;
+    uint64_t read_count;
+    uint32_t compression_type;
+    uint8_t compressed_mapping[];  // Delta-encoded varints
+};
+```
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 0.1.0 | 2026-04-16 | Initial release |
+
+## Implementation Notes
+
+### Block Size
+
+- **Default**: ~10MB uncompressed per block
+- **Smaller blocks**: Better random access, more overhead
+- **Larger blocks**: Better compression, worse access
+
+### Compression Levels
+
+| Mode | Zstd Level | Use Case |
+|------|------------|----------|
+| fast | 1 | Speed critical |
+| balanced | 3 | Default |
+| best | 19 | Storage critical |
+
+### Memory Mapping
+
+Block headers are aligned to 4096 bytes (page size) for efficient memory mapping.

@@ -1,0 +1,106 @@
+---
+title: Quick Start
+description: Compress your first FASTQ file in 5 minutes
+---
+
+import { Callout, Steps } from 'nextra/components'
+
+# Quick Start
+
+<Steps>
+### Create Test File
+
+```bash
+cat > sample.fastq << 'EOF'
+@read_1
+ACGTACGTACGTACGTACGTACGTACGTACGTACGT
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+@read_2
+TGCATGCATGCATGCATGCATGCATGCATGCATGCA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+@read_3
+AAAATTTTCCCCGGGGAAAATTTTCCCCGGGGAAAA
++
+IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+EOF
+```
+
+### Compress
+
+```bash
+fqc compress -i sample.fastq -o sample.fqc -v
+```
+
+Output:
+```
+[2026-04-16 10:30:15] INFO: Starting compression...
+[2026-04-16 10:30:15] INFO: Compression complete: 108 bytes -> 67 bytes (1.61x)
+```
+
+### Verify
+
+```bash
+fqc verify sample.fqc
+```
+
+### Inspect
+
+```bash
+fqc info sample.fqc
+```
+
+### Decompress and Verify
+
+```bash
+fqc decompress -i sample.fqc -o restored.fastq
+diff sample.fastq restored.fastq
+# No output = identical files
+```
+</Steps>
+
+<Callout type="tip">
+  Use `-t 8` or `--threads 8` for parallel compression on multi-core systems.
+</Callout>
+
+## Advanced Examples
+
+### Paired-End Compression
+
+```bash
+# Separate files
+fqc compress -i reads_1.fastq -i2 reads_2.fastq \
+  -o paired.fqc --paired -t 8
+
+# Interleaved
+fqc compress -i interleaved.fastq -o paired.fqc --paired
+```
+
+### Random Access
+
+```bash
+# Extract reads 1000-2000 only
+fqc decompress -i archive.fqc --range 1000:2000 -o subset.fastq
+
+# Extract first 5000 reads
+fqc decompress -i archive.fqc --range :5000 -o first_5k.fastq
+
+# Extract from read 10000 to end
+fqc decompress -i archive.fqc --range 10000: -o tail.fastq
+```
+
+### Compressed Input
+
+```bash
+# Read directly from .gz, .bz2, .xz
+fqc compress -i reads.fastq.gz -o reads.fqc -t 8
+fqc compress -i reads.fastq.bz2 -o reads.fqc
+fqc compress -i reads.fastq.xz -o reads.fqc
+```
+
+### Restore Original Order
+
+```bash
+fqc decompress -i archive.fqc -o restored.fastq --original-order
+```
