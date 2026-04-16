@@ -148,8 +148,9 @@ enum class QualityMode : std::uint8_t {
             return "qvz";
         case QualityMode::kDiscard:
             return "discard";
+        default:
+            return "unknown";
     }
-    return "unknown";
 }
 
 // =============================================================================
@@ -182,8 +183,9 @@ enum class IDMode : std::uint8_t {
             return "tokenize";
         case IDMode::kDiscard:
             return "discard";
+        default:
+            return "unknown";
     }
-    return "unknown";
 }
 
 // =============================================================================
@@ -224,8 +226,9 @@ enum class ReadLengthClass : std::uint8_t {
             return "medium";
         case ReadLengthClass::kLong:
             return "long";
+        default:
+            return "unknown";
     }
-    return "unknown";
 }
 
 // =============================================================================
@@ -254,8 +257,9 @@ enum class PELayout : std::uint8_t {
             return "interleaved";
         case PELayout::kConsecutive:
             return "consecutive";
+        default:
+            return "unknown";
     }
-    return "unknown";
 }
 
 // =============================================================================
@@ -276,8 +280,9 @@ enum class ChecksumType : std::uint8_t {
     switch (type) {
         case ChecksumType::kXxHash64:
             return "xxh64";
+        default:
+            return "unknown";
     }
-    return "unknown";
 }
 
 // =============================================================================

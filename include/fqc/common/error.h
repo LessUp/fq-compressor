@@ -156,8 +156,9 @@ enum class ErrorCode : std::uint8_t {
         case ErrorCode::kDecompressionFailed:
         case ErrorCode::kDecompressionError:
             return 5;
+        default:
+            return 1;  // Unknown errors default to usage error category
     }
-    return 1;  // Unknown errors default to usage error category
 }
 
 /// @brief Convert ErrorCode to string representation.
@@ -207,8 +208,9 @@ enum class ErrorCode : std::uint8_t {
             return "decompression error";
         case ErrorCode::kChecksumMismatch:
             return "checksum mismatch";
+        default:
+            return "unknown error";
     }
-    return "unknown error";
 }
 
 /// @brief Check if an error code represents success.
