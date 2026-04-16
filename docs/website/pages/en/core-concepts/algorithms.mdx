@@ -1,0 +1,225 @@
+---
+title: Core Algorithms
+description: Deep dive into ABC and SCM compression algorithms
+---
+
+# Core Algorithms
+
+fq-compressor uses a **hybrid compression strategy** optimized for different data streams.
+
+## Overview
+
+| Stream | Algorithm | Description |
+|--------|-----------|-------------|
+| Sequence | **ABC** | Assembly-based Compression |
+| Quality | **SCM** | Statistical Context Mixing |
+| ID | Delta+Token | Tokenization and delta encoding |
+
+---
+
+## ABC: Assembly-based Compression
+
+### Principle
+
+Treats reads as genome fragments rather than independent strings. Exploits biological redundancy by:
+1. Grouping similar reads
+2. Generating consensus sequences
+3. Encoding differences (deltas)
+
+### Pipeline
+
+```
+Input Reads
+  ↓
+1. Minimizer Indexing (k=21, w=11)
+  ↓
+2. Bucketing (by shared minimizers)
+  ↓
+3. Reordering (TSP approximation)
+  ↓
+4. Consensus Generation
+  ↓
+5. Delta Encoding
+  ↓
+Compressed Output
+```
+
+### 1. Minimizer Indexing
+
+A **minimizer** is the lexicographically smallest k-mer in a window of w consecutive k-mers.
+
+```cpp
+for each window of w k-mers:
+    minimizer = min(window)
+    index[minimizer].add(read_id)
+```
+
+**Parameters:**
+- `k = 21`: k-mer size
+- `w = 11`: window size
+
+**Benefits:**
+- Reduces memory vs storing all k-mers
+- Maintains sensitivity for similar reads
+- Biologically relevant (minimizers cluster)
+
+### 2. Bucketing
+
+Reads sharing minimizers are grouped. Target bucket size: ~10,000 reads.
+
+**Why:**
+- Same genomic region → shared minimizers
+- Local consensus more accurate than global
+- Enables parallel per-bucket processing
+
+### 3. Reordering (TSP)
+
+Greedy approximation to minimize edit distance between consecutive reads:
+
+```python
+def reorder(bucket):
+    ordered = [bucket.pop_random()]
+    while bucket:
+        last = ordered[-1]
+        next_read = min(bucket, key=lambda r: edit_distance(last, r))
+        ordered.append(next_read)
+    return ordered
+```
+
+**Complexity:** O(n²) per bucket
+
+### 4. Consensus Generation
+
+Position-wise majority vote from aligned reads:
+
+```python
+def generate_consensus(ordered_reads):
+    alignment = multi_align(ordered_reads)
+    consensus = []
+    for position in alignment.columns:
+        counts = Counter(position.bases)
+        consensus.append(counts.most_common(1)[0][0])
+    return ''.join(consensus)
+```
+
+### 5. Delta Encoding
+
+Encode reads as edits from consensus:
+
+```cpp
+enum class EditType { Match, Subst, Insert, Delete };
+
+struct Edit {
+    EditType type;
+    uint32_t position;
+    char base;  // For Subst/Insert
+};
+```
+
+**Example:**
+```
+Consensus: ACGTACGTACGTACGT
+Read:      ACGTAAGTACGTACGT
+
+Edits: [6]: Subst C → A
+```
+
+**Ratio:** Typically 3-5× for genomic sequences
+
+---
+
+## SCM: Statistical Context Mixing
+
+### Principle
+
+High-order context modeling with arithmetic coding for quality scores.
+
+### Context Modeling
+
+Predicts next quality value based on:
+- Previous 2 QVs
+- Current sequence base
+- Position in read
+
+```cpp
+struct Context {
+    uint8_t qv_minus_1;
+    uint8_t qv_minus_2;
+    char current_base;
+    uint8_t position_bucket;
+};
+```
+
+### Model Mixing
+
+Combines predictions from multiple context orders:
+
+```python
+# Order-0: P(Q_i)
+# Order-1: P(Q_i | Q_{i-1})
+# Order-2: P(Q_i | Q_{i-1}, Q_{i-2})
+# Order-s: P(Q_i | sequence_context)
+
+final = sum(weight[i] * model[i].predict(context[i])
+            for i in range(num_models))
+```
+
+### Arithmetic Coding
+
+Converts predictions to compressed bits:
+
+```
+Q values: [33, 34, 35, 36, 37]
+Counts:   [100, 200, 400, 200, 100]
+
+P(35) = 400/1000 = 0.4
+Bits(35) = -log2(0.4) ≈ 1.32 bits
+```
+
+### Quality Binning (Optional)
+
+Lossy compression via binning:
+
+| Method | Bins | Bits/QV | Impact |
+|--------|------|---------|--------|
+| Lossless | 94 | ~5 | None |
+| Illumina 8 | 8 | 3 | Minimal |
+| 4-bin | 4 | 2 | Moderate |
+
+---
+
+## ID Compression
+
+### Tokenization
+
+Split read IDs on pattern transitions:
+
+```
+@E150035817L1C001R0010000000/1
+→ ['E', '150035817', 'L', '1', 'C', '001', 'R', '001', '0000000', '/', '1']
+```
+
+### Delta Encoding
+
+For monotonic numeric tokens:
+
+```
+Original: [001, 002, 003, 004, 005]
+Delta:    [001, 001, 001, 001, 001]
+```
+
+### Dictionary
+
+Build dictionary of common tokens for frequent patterns.
+
+---
+
+## Performance Summary
+
+| Algorithm | Speed | Ratio | Memory | Parallel |
+|-----------|-------|-------|--------|----------|
+| ABC | ~10 MB/s | 3-5× | Medium | Bucket-level |
+| SCM | ~15 MB/s | 2-3× | Low | Yes |
+| ID | ~50 MB/s | 5-10× | Low | Yes |
+
+**Combined:** ~11 MB/s compression, ~4× typical ratio

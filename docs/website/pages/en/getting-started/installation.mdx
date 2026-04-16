@@ -1,0 +1,145 @@
+---
+title: Installation
+description: Install fq-compressor on Linux, macOS, or build from source
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# Installation
+
+<Callout type="info">
+  **Recommended**: Use pre-built binaries for fastest setup. No dependencies required for static builds.
+</Callout>
+
+## Pre-built Binaries
+
+### Linux (x86_64, musl - Static)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+fqc --version
+```
+
+### Linux (x86_64, glibc)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-x86_64-glibc/fqc /usr/local/bin/
+```
+
+### Linux (ARM64, musl)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-aarch64-musl/fqc /usr/local/bin/
+```
+
+### macOS (Intel)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-macos-x86_64.tar.gz
+tar -xzf fq-compressor-v0.1.0-macos-x86_64.tar.gz
+sudo mv fq-compressor-v0.1.0-macos-x86_64/fqc /usr/local/bin/
+```
+
+### macOS (Apple Silicon)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-macos-arm64.tar.gz
+tar -xzf fq-compressor-v0.1.0-macos-arm64.tar.gz
+sudo mv fq-compressor-v0.1.0-macos-arm64/fqc /usr/local/bin/
+```
+
+## Build from Source
+
+### Prerequisites
+
+| Tool | Minimum | Recommended |
+|------|---------|-------------|
+| Compiler | GCC 14+ or Clang 18+ | GCC 15.2 / Clang 21 |
+| CMake | 3.28 | 3.28+ |
+| Conan | 2.x | latest |
+
+### Install Dependencies
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y build-essential cmake python3 python3-pip
+pip3 install conan
+
+# macOS
+brew install cmake python conan
+```
+
+### Clone and Build
+
+```bash
+git clone https://github.com/LessUp/fq-compressor.git
+cd fq-compressor
+
+# Install dependencies
+conan install . --build=missing -of=build/clang-release \
+    -s build_type=Release -s compiler.cppstd=23
+
+# Configure
+cmake --preset clang-release
+
+# Build
+cmake --build --preset clang-release -j$(nproc)
+
+# Verify
+build/clang-release/src/fqc --version
+```
+
+## Docker
+
+```bash
+# Build image
+docker build -f docker/Dockerfile -t fq-compressor .
+
+# Run compression
+docker run --rm -v $(pwd):/data \
+  fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
+```
+
+## DevContainer
+
+For VS Code users, the project includes DevContainer configuration:
+
+1. Open project in VS Code
+2. Press `F1` → "Dev Containers: Reopen in Container"
+3. All tools are pre-installed
+
+## System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| OS | Linux 5.0+ / macOS 11+ | Latest LTS |
+| CPU | x86_64 or ARM64 | Multi-core (8+) |
+| RAM | 2 GB | 4 GB+ |
+| Disk | 100 MB | 1 GB+ temp space |
+
+## Verification
+
+After installation:
+
+```bash
+# Check version
+fqc --version
+
+# View help
+fqc --help
+
+# Quick test
+echo -e "@test\nACGT\n+\n1234" | fqc compress -o test.fqc
+fqc info test.fqc
+```

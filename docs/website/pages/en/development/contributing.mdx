@@ -1,0 +1,230 @@
+---
+title: Contributing
+description: How to contribute to fq-compressor
+---
+
+# Contributing to fq-compressor
+
+Thank you for your interest in contributing! This guide covers everything you need to know.
+
+## Quick Start
+
+```bash
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/fq-compressor.git
+cd fq-compressor
+
+# Setup build environment
+conan install . --build=missing -of=build/clang-debug
+cmake --preset clang-debug
+
+# Build and test
+cmake --build --preset clang-debug -j$(nproc)
+./scripts/test.sh clang-debug
+```
+
+## Development Setup
+
+### DevContainer (Recommended)
+
+1. Open in VS Code
+2. Run `Dev Containers: Reopen in Container`
+3. All tools pre-installed
+
+### Manual Setup
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| GCC/Clang | 14+/18+ | Compiler |
+| CMake | 3.28+ | Build system |
+| Conan | 2.x | Package manager |
+| Python | 3.8+ | Benchmark scripts |
+
+## Code Style
+
+We use automated formatting:
+
+```bash
+# Format code
+./scripts/lint.sh format
+
+# Run linters
+./scripts/lint.sh lint clang-debug
+
+# Check everything
+./scripts/lint.sh all clang-debug
+```
+
+**Guidelines:**
+- 4-space indentation
+- 100-column limit
+- Snake_case files, PascalCase types, camelCase functions
+- `[[nodiscard]]` for important returns
+- No raw owning pointers
+
+## Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <description>
+
+[body]
+
+[footer]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation
+- `refactor`: Code restructuring
+- `perf`: Performance improvement
+- `test`: Tests
+
+**Examples:**
+```
+feat(compressor): add quality binning option
+fix(parser): handle empty FASTQ files
+docs(readme): update installation instructions
+```
+
+## Pull Request Process
+
+1. **Create branch** from `main`
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+2. **Make changes** with clear commits
+
+3. **Ensure quality**:
+   ```bash
+   ./scripts/test.sh clang-release
+   ./scripts/lint.sh format-check
+   ./scripts/lint.sh lint clang-debug
+   ```
+
+4. **Update docs** if needed
+
+5. **Submit PR** with clear description
+
+### PR Checklist
+
+- [ ] Code compiles without warnings
+- [ ] All tests pass
+- [ ] New tests for new functionality
+- [ ] Documentation updated
+- [ ] Formatted with clang-format
+- [ ] No clang-tidy warnings
+
+## Testing
+
+### Unit Tests
+
+```cpp
+#include <gtest/gtest.h>
+
+TEST(CompressionTest, BasicRoundTrip) {
+    Compressor comp;
+    auto compressed = comp.compress(data);
+    auto restored = comp.decompress(compressed);
+    EXPECT_EQ(data, restored);
+}
+```
+
+### Property Tests
+
+```cpp
+RC_GTEST_PROP(RoundTrip, ()) {
+    auto data = *rc::gen::container<std::vector<uint8_t>>(
+        rc::gen::inRange(0, 255)
+    );
+    auto compressed = compress(data);
+    auto restored = decompress(compressed);
+    RC_ASSERT(restored == data);
+}
+```
+
+### Adding Tests
+
+```cmake
+# In tests/CMakeLists.txt
+fqc_add_test(my_feature_test src/my_feature_test.cpp)
+```
+
+## Performance Testing
+
+### Benchmark Before/After
+
+```bash
+python3 benchmark/compiler_benchmark.py \
+    --input test_data.fq \
+    --gcc-binary build/gcc-release/src/fqc \
+    --visualize
+```
+
+### Memory Profiling
+
+```bash
+valgrind --tool=massif ./fqc compress -i large.fastq -o out.fqc
+```
+
+### Target Metrics
+
+| Metric | Target |
+|--------|--------|
+| Compression ratio | Maintain or improve |
+| Speed | <5% regression acceptable |
+| Memory | Stay within budget |
+
+## Documentation
+
+### Code Documentation
+
+```cpp
+/**
+ * Compress a FASTQ file to FQC format.
+ * 
+ * @param input Path to input FASTQ
+ * @param output Path to output FQC
+ * @param options Compression configuration
+ * @return Result indicating success or error
+ */
+Result<void> compressFile(const std::filesystem::path& input,
+                          const std::filesystem::path& output,
+                          const CompressOptions& options);
+```
+
+### User Documentation
+
+Update relevant docs when changing:
+- CLI → `docs/website/pages/en/getting-started/`
+- Algorithms → `docs/website/pages/en/core-concepts/`
+- Format → `docs/website/pages/en/core-concepts/fqc-format`
+
+## Areas for Contribution
+
+### Good First Issues
+
+- Documentation improvements
+- Additional test coverage
+- Error message improvements
+- Log clarifications
+
+### Advanced
+
+- Algorithm optimizations
+- New compression modes
+- Platform support
+- Tooling improvements
+
+## Getting Help
+
+- [GitHub Discussions](https://github.com/LessUp/fq-compressor/discussions)
+- Open an issue for bugs
+- Tag `@maintainers` for questions
+
+## License
+
+By contributing, you agree to license your contributions under MIT.

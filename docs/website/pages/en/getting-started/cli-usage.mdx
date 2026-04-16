@@ -1,0 +1,152 @@
+---
+title: CLI Usage
+description: Complete command-line reference
+---
+
+import { Callout } from 'nextra/components'
+
+# CLI Usage Reference
+
+## Global Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--help` | `-h` | Show help | - |
+| `--version` | `-v` | Show version | - |
+| `--verbose` | `-v` | Verbose output | false |
+| `--threads` | `-t` | Number of threads | Auto-detect |
+| `--memory-limit` | - | Memory limit (MB) | Auto |
+
+## Commands
+
+### `compress`
+
+Compress FASTQ to FQC format.
+
+```bash
+fqc compress [OPTIONS] -i <input> -o <output>
+```
+
+**Options:**
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--input` | `-i` | Input FASTQ (required) | - |
+| `--input2` | `-i2` | Second input (paired-end) | - |
+| `--output` | `-o` | Output FQC (required) | - |
+| `--paired` | - | Enable paired-end mode | false |
+| `--mode` | `-m` | Compression mode | balanced |
+| `--block-size` | - | Block size (bases) | 10000000 |
+
+**Examples:**
+
+```bash
+# Basic
+fqc compress -i reads.fastq -o reads.fqc
+
+# Parallel
+fqc compress -i reads.fastq -o reads.fqc -t 8
+
+# Best quality
+fqc compress -i reads.fastq -o reads.fqc --mode best
+
+# Paired-end
+fqc compress -i r1.fastq -i2 r2.fastq -o paired.fqc --paired
+
+# From compressed input
+fqc compress -i reads.fastq.gz -o reads.fqc
+```
+
+### `decompress`
+
+Decompress FQC to FASTQ.
+
+```bash
+fqc decompress [OPTIONS] -i <input> -o <output>
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--range` | Read range to extract | All |
+| `--original-order` | Restore original order | false |
+| `--header-only` | Headers only | false |
+
+**Range Syntax:**
+
+| Syntax | Meaning |
+|--------|---------|
+| `1000:2000` | Reads 1000-2000 (inclusive) |
+| `:1000` | First 1000 reads |
+| `5000:` | From 5000 to end |
+| `1000` | Single read |
+
+**Examples:**
+
+```bash
+# Full
+fqc decompress -i reads.fqc -o restored.fastq
+
+# Partial
+fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
+
+# Original order
+fqc decompress -i reads.fqc -o restored.fastq --original-order
+```
+
+### `info`
+
+Show archive information.
+
+```bash
+fqc info [OPTIONS] <archive>
+```
+
+| Option | Description |
+|--------|-------------|
+| `--json` | JSON output |
+| `--detailed` | Detailed block info |
+
+### `verify`
+
+Verify archive integrity.
+
+```bash
+fqc verify <archive>
+```
+
+### `split-pe`
+
+Split paired-end archive.
+
+```bash
+fqc split-pe -i <input> -1 <out1> -2 <out2> [--range <range>]
+```
+
+## Compression Modes
+
+| Mode | Speed | Ratio | Use Case |
+|------|-------|-------|----------|
+| `fast` | ~15 MB/s | ~3.5× | Speed priority |
+| `balanced` | ~11 MB/s | ~4.0× | Default |
+| `best` | ~6 MB/s | ~4.5× | Max compression |
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Invalid arguments |
+| 3 | I/O error |
+| 4 | Format error |
+| 5 | Memory error |
+
+## Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `FQC_THREADS` | Default threads | `FQC_THREADS=8` |
+| `FQC_MEMORY_LIMIT` | Default memory (MB) | `FQC_MEMORY_LIMIT=4096` |
+| `FQC_LOG_LEVEL` | Log level | `FQC_LOG_LEVEL=debug` |

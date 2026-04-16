@@ -1,0 +1,99 @@
+---
+title: CLI 使用
+description: 完整命令行参考
+---
+
+# CLI 使用参考
+
+## 全局选项
+
+| 选项 | 简写 | 描述 | 默认值 |
+|--------|-------|-------------|---------|
+| `--help` | `-h` | 显示帮助 | - |
+| `--version` | `-v` | 显示版本 | - |
+| `--verbose` | `-v` | 详细输出 | false |
+| `--threads` | `-t` | 线程数 | 自动检测 |
+| `--memory-limit` | - | 内存限制 (MB) | 自动 |
+
+## 命令
+
+### `compress` - 压缩
+
+```bash
+fqc compress [选项] -i <输入> -o <输出>
+```
+
+| 选项 | 简写 | 描述 | 默认值 |
+|--------|-------|-------------|---------|
+| `--input` | `-i` | 输入 FASTQ (必需) | - |
+| `--input2` | `-i2` | 第二个输入 (双端) | - |
+| `--output` | `-o` | 输出 FQC (必需) | - |
+| `--paired` | - | 启用双端模式 | false |
+| `--mode` | `-m` | 压缩模式 | balanced |
+
+**示例：**
+
+```bash
+# 基本压缩
+fqc compress -i reads.fastq -o reads.fqc
+
+# 并行压缩
+fqc compress -i reads.fastq -o reads.fqc -t 8
+
+# 最佳压缩
+fqc compress -i reads.fastq -o reads.fqc --mode best
+
+# 双端测序
+fqc compress -i r1.fastq -i2 r2.fastq -o paired.fqc --paired
+```
+
+### `decompress` - 解压
+
+```bash
+fqc decompress [选项] -i <输入> -o <输出>
+```
+
+| 选项 | 描述 | 默认值 |
+|--------|-------------|---------|
+| `--range` | 提取的 reads 范围 | 全部 |
+| `--original-order` | 恢复原始顺序 | false |
+
+**范围语法：**
+
+| 语法 | 含义 |
+|--------|---------|
+| `1000:2000` | 第 1000-2000 条 reads |
+| `:1000` | 前 1000 条 reads |
+| `5000:` | 从第 5000 条到末尾 |
+| `1000` | 仅第 1000 条 |
+
+### `info` - 查看信息
+
+```bash
+fqc info [选项] <归档>
+```
+
+### `verify` - 验证
+
+```bash
+fqc verify <归档>
+```
+
+## 压缩模式
+
+| 模式 | 速度 | 压缩比 | 使用场景 |
+|------|-------|-------|----------|
+| `fast` | ~15 MB/s | ~3.5× | 速度优先 |
+| `balanced` | ~11 MB/s | ~4.0× | 默认 |
+| `best` | ~6 MB/s | ~4.5× | 最大压缩 |
+
+## 退出代码
+
+| 代码 | 含义 |
+|------|---------|
+| 0 | 成功 |
+| 1 | 一般错误 |
+| 2 | 无效参数 |
+| 3 | I/O 错误 |
+| 4 | 格式错误 |
+| 5 | 内存错误 |

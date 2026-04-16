@@ -1,0 +1,91 @@
+---
+title: 安装
+description: 在 Linux、macOS 上安装或从源码构建
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# 安装
+
+<Callout type="info">
+  **推荐**：使用预构建二进制文件快速安装。静态构建无需依赖。
+</Callout>
+
+## 预构建二进制文件
+
+### Linux (x86_64, musl - 静态)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+fqc --version
+```
+
+### macOS (Apple Silicon)
+
+```bash
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+  fq-compressor-v0.1.0-macos-arm64.tar.gz
+tar -xzf fq-compressor-v0.1.0-macos-arm64.tar.gz
+sudo mv fq-compressor-v0.1.0-macos-arm64/fqc /usr/local/bin/
+```
+
+## 从源码构建
+
+### 前置条件
+
+| 工具 | 最低版本 | 推荐版本 |
+|------|---------|---------|
+| 编译器 | GCC 14+ / Clang 18+ | GCC 15.2 / Clang 21 |
+| CMake | 3.28 | 3.28+ |
+| Conan | 2.x | 最新 |
+
+### 安装依赖
+
+```bash
+# Ubuntu/Debian
+sudo apt install -y build-essential cmake python3 python3-pip
+pip3 install conan
+
+# macOS
+brew install cmake python conan
+```
+
+### 克隆并构建
+
+```bash
+git clone https://github.com/LessUp/fq-compressor.git
+cd fq-compressor
+
+# 安装依赖
+conan install . --build=missing -of=build/clang-release \
+    -s build_type=Release -s compiler.cppstd=23
+
+# 配置
+cmake --preset clang-release
+
+# 构建
+cmake --build --preset clang-release -j$(nproc)
+
+# 验证
+build/clang-release/src/fqc --version
+```
+
+## Docker
+
+```bash
+docker build -f docker/Dockerfile -t fq-compressor .
+docker run --rm -v $(pwd):/data \
+  fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
+```
+
+## 系统要求
+
+| 组件 | 最低要求 | 推荐配置 |
+|-----------|---------|-------------|
+| 操作系统 | Linux 5.0+ / macOS 11+ | 最新 LTS |
+| CPU | x86_64 或 ARM64 | 多核 (8+) |
+| 内存 | 2 GB | 4 GB+ |
+| 磁盘 | 100 MB | 1 GB+ 临时空间 |

@@ -1,0 +1,78 @@
+---
+title: 常见问题
+description: 常见问题解答
+---
+
+# 常见问题
+
+## 一般问题
+
+### 什么是 fq-compressor？
+
+高性能 FASTQ 压缩工具，使用领域特定算法（ABC 用于序列，SCM 用于质量）实现比 gzip 等通用工具 2-3 倍的压缩比提升。
+
+### 它是无损的吗？
+
+是的，默认完全无损。可选的有损质量压缩模式可用。
+
+## 使用问题
+
+### 如何压缩已压缩的文件？
+
+支持直接读取 .gz, .bz2, .xz：
+
+```bash
+fqc compress -i reads.fastq.gz -o reads.fqc
+```
+
+### 双端测序数据怎么用？
+
+```bash
+# 分离文件
+fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+
+# 交错文件
+fqc compress -i interleaved.fastq -o paired.fqc --paired
+```
+
+### 什么是"随机访问"？
+
+无需完整解压即可提取 reads 子集：
+
+```bash
+fqc decompress -i archive.fqc --range 1000:2000 -o subset.fastq
+```
+
+O(1) 常数时间，不受归档大小影响。
+
+## 性能问题
+
+### 需要多少内存？
+
+随数据集大小和线程数扩展。经验法则：8 线程典型数据集约 2-4GB。
+
+使用 `--memory-limit` 限制 RAM 使用。
+
+### 可以使用所有 CPU 核心吗？
+
+可以：
+
+```bash
+fqc compress -i data.fastq -o out.fqc --threads $(nproc)
+```
+
+## 故障排除
+
+### 内存不足
+
+```bash
+fqc compress -i large.fastq -o out.fqc --memory-limit 4096 --threads 4
+```
+
+## 许可证
+
+### 可以用于商业用途吗？
+
+可以。项目代码采用 MIT 许可证。
+
+注意：`vendor/spring-core/` 使用单独的研究许可证。

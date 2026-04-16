@@ -6,9 +6,8 @@ on:
       - main
       - master
     paths:
-      - 'docs/gitbook/**'
+      - 'docs/website/**'
       - 'package.json'
-      - 'package-lock.json'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -27,23 +26,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            docs/gitbook
-            package.json
-            package-lock.json
-          sparse-checkout-cone-mode: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'docs/website/package-lock.json'
 
-      - name: Install documentation dependencies
-        run: npm install
+      - name: Install dependencies
+        working-directory: docs/website
+        run: npm ci
 
-      - name: Build Honkit site
-        run: npm run docs:build
+      - name: Build Next.js site
+        working-directory: docs/website
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

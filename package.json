@@ -2,18 +2,14 @@
   "name": "fq-compressor-docs",
   "private": true,
   "version": "0.1.0",
-  "description": "Documentation tooling for fq-compressor",
+  "description": "Documentation for fq-compressor - Next.js + Nextra 3.x",
   "scripts": {
-    "docs:build": "honkit build docs/gitbook docs/.site",
-    "docs:serve": "honkit serve docs/gitbook",
-    "docs:pdf": "honkit pdf docs/gitbook docs/.site/fq-compressor.pdf"
+    "docs:build": "cd docs/website && npm install && npm run build",
+    "docs:dev": "cd docs/website && npm install && npm run dev",
+    "docs:serve": "cd docs/website && npm run start"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
-    "honkit": "^5.1.4",
-    "gitbook-plugin-expandable-chapters": "^0.2.0",
-    "gitbook-plugin-back-to-top-button": "^0.1.4",
-    "gitbook-plugin-search-pro": "^2.0.2"
+    "@commitlint/config-conventional": "^19.0.0"
   }
 }

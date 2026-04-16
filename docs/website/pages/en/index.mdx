@@ -1,0 +1,238 @@
+---
+title: fq-compressor
+---
+
+import { Callout, Tabs, Steps, Cards, Card } from 'nextra/components'
+import { 
+  Rocket, Zap, Database, Cpu, Shield, 
+  ArrowRight, Github, Package, BookOpen 
+} from 'lucide-react'
+
+<div className="relative overflow-hidden">
+  {/* Background gradient */}
+  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950 -z-10" />
+  
+  {/* Hero Section */}
+  <div className="container mx-auto px-4 py-16 text-center">
+    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium mb-8">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+      </span>
+      v0.1.0 Now Available
+    </div>
+    
+    <h1 className="text-5xl md:text-7xl font-bold mb-6">
+      <span className="gradient-text">fq-compressor</span>
+    </h1>
+    
+    <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+      High-performance FASTQ compression for the sequencing era. 
+      Assembly-based compression with <span className="font-semibold text-blue-600 dark:text-blue-400">3.97x ratio</span> 
+      and <span className="font-semibold text-blue-600 dark:text-blue-400">O(1) random access</span>.
+    </p>
+    
+    <div className="flex flex-wrap justify-center gap-4 mb-12">
+      <a 
+        href="/en/getting-started/quickstart"
+        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+      >
+        <Rocket className="w-5 h-5" />
+        Get Started
+      </a>
+      <a 
+        href="https://github.com/LessUp/fq-compressor"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 rounded-lg font-medium transition-colors"
+      >
+        <Github className="w-5 h-5" />
+        GitHub
+      </a>
+    </div>
+    
+    {/* Performance Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <div className="feature-card">
+        <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">3.97×</div>
+        <div className="text-gray-600 dark:text-gray-400">Compression Ratio</div>
+      </div>
+      <div className="feature-card">
+        <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">11.9 MB/s</div>
+        <div className="text-gray-600 dark:text-gray-400">Compression Speed</div>
+      </div>
+      <div className="feature-card">
+        <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">62.3 MB/s</div>
+        <div className="text-gray-600 dark:text-gray-400">Decompression Speed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* Features Grid */}
+<div className="container mx-auto px-4 py-16">
+  <h2 className="text-3xl font-bold text-center mb-12">Core Features</h2>
+  
+  <Cards className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <Card 
+      icon={<Database className="w-8 h-8 text-blue-600" />}
+      title="ABC Algorithm"
+      href="/en/core-concepts/algorithms"
+    >
+      Assembly-based Compression with minimizer bucketing and delta encoding. 
+      Near-entropy compression ratios for genomic data.
+    </Card>
+    
+    <Card 
+      icon={<Zap className="w-8 h-8 text-yellow-600" />}
+      title="SCM Quality"
+      href="/en/core-concepts/algorithms"
+    >
+      Statistical Context Mixing for quality scores. 
+      High-order prediction with adaptive arithmetic coding.
+    </Card>
+    
+    <Card 
+      icon={<Cpu className="w-8 h-8 text-green-600" />}
+      title="Intel oneTBB"
+      href="/en/core-concepts/pipeline"
+    >
+      Scalable Producer-Consumer pipeline with work-stealing scheduler. 
+      Maximizes multicore utilization.
+    </Card>
+    
+    <Card 
+      icon={<Shield className="w-8 h-8 text-purple-600" />}
+      title="Random Access"
+      href="/en/core-concepts/fqc-format"
+    >
+      Block-based format enables O(1) access to any read range. 
+      No full decompression required.
+    </Card>
+    
+    <Card 
+      icon={<Package className="w-8 h-8 text-red-600" />}
+      title="C++23 Modern"
+      href="/en/development/contributing"
+    >
+      Type-safe, high-performance codebase with Modern CMake, 
+      Conan 2.x, and comprehensive testing.
+    </Card>
+    
+    <Card 
+      icon={<BookOpen className="w-8 h-8 text-indigo-600" />}
+      title="Full Documentation"
+      href="/en/getting-started/quickstart"
+    >
+      Comprehensive bilingual documentation, 
+      API reference, and interactive examples.
+    </Card>
+  </Cards>
+</div>
+
+{/* Code Example */}
+<div className="container mx-auto px-4 py-16">
+  <h2 className="text-3xl font-bold text-center mb-12">Quick Start</h2>
+  
+  <div className="max-w-4xl mx-auto">
+    <Tabs items={['Install', 'Compress', 'Decompress']}>
+      <Tabs.Tab>
+        ```bash
+        # Linux / macOS (x86_64)
+        wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/\
+          fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+        tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+        sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+        ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+        ```bash
+        # Basic compression
+        fqc compress -i reads.fastq -o reads.fqc
+
+        # With progress and multi-threading
+        fqc compress -i reads.fastq -o reads.fqc -t 8 -v
+
+        # Paired-end data
+        fqc compress -i reads_1.fastq -i2 reads_2.fastq \
+          -o paired.fqc --paired
+        ```
+      </Tabs.Tab>
+      <Tabs.Tab>
+        ```bash
+        # Full decompression
+        fqc decompress -i reads.fqc -o restored.fastq
+
+        # Random access - extract subset
+        fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
+
+        # Restore original order
+        fqc decompress -i reads.fqc -o restored.fastq --original-order
+        ```
+      </Tabs.Tab>
+    </Tabs>
+  </div>
+</div>
+
+{/* Performance Comparison */}
+<div className="container mx-auto px-4 py-16">
+  <h2 className="text-3xl font-bold text-center mb-12">Performance Benchmark</h2>
+  
+  <div className="max-w-4xl mx-auto overflow-x-auto">
+    <table className="perf-table w-full">
+      <thead>
+        <tr>
+          <th>Compiler</th>
+          <th>Compression</th>
+          <th>Decompression</th>
+          <th>Ratio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>GCC 15.2</strong></td>
+          <td>11.30 MB/s</td>
+          <td>60.10 MB/s</td>
+          <td><span className="text-green-600 dark:text-green-400 font-semibold">3.97×</span></td>
+        </tr>
+        <tr>
+          <td><strong>Clang 21</strong></td>
+          <td>11.90 MB/s</td>
+          <td>62.30 MB/s</td>
+          <td><span className="text-green-600 dark:text-green-400 font-semibold">3.97×</span></td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+      Tested on Intel Core i7-9700 @ 3.00GHz (8 cores), 2.27M Illumina reads (511 MB uncompressed)
+    </p>
+  </div>
+</div>
+
+{/* CTA Section */}
+<div className="container mx-auto px-4 py-16">
+  <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 md:p-12 text-center text-white">
+    <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to compress?</h2>
+    <p className="text-lg md:text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+      Get started with fq-compressor and reduce your FASTQ storage by up to 4× 
+      while maintaining fast access to your genomic data.
+    </p>
+    <div className="flex flex-wrap justify-center gap-4">
+      <a 
+        href="/en/getting-started/installation"
+        className="inline-flex items-center gap-2 px-6 py-3 bg-white text-blue-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+      >
+        <Package className="w-5 h-5" />
+        Installation
+      </a>
+      <a 
+        href="/en/core-concepts/architecture"
+        className="inline-flex items-center gap-2 px-6 py-3 border-2 border-white text-white hover:bg-white/10 rounded-lg font-medium transition-colors"
+      >
+        <ArrowRight className="w-5 h-5" />
+        Learn More
+      </a>
+    </div>
+  </div>
+</div>

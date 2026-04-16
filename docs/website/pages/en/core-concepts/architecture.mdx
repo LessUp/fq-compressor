@@ -1,0 +1,204 @@
+---
+title: Architecture
+description: High-level architecture and design principles
+---
+
+# Architecture Overview
+
+fq-compressor is designed with a layered architecture that separates concerns and enables parallel processing.
+
+## Design Goals
+
+1. **High Compression Ratio**: Near-entropy limits for genomic data
+2. **Parallel Performance**: Maximize multicore utilization via Intel oneTBB
+3. **Random Access**: O(1) read range extraction without full decompression
+4. **Industrial Quality**: Production-ready error handling and memory management
+5. **Maintainability**: Clean C++23 code with clear separation of concerns
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      fq-compressor                          │
+├─────────────────────────────────────────────────────────────┤
+│  CLI Layer    │  Command Layer   │  Pipeline Layer          │
+│  ─────────    │  ─────────────   │  ─────────────           │
+│  CLI11        │  CompressCmd     │  TBB Pipeline            │
+│               │  DecompressCmd   │  Producer→Filter→Writer  │
+│               │  InfoCmd         │                           │
+│               │  VerifyCmd       │                           │
+├─────────────────────────────────────────────────────────────┤
+│  Format Layer           │  Algorithm Layer                   │
+│  ────────────           │  ─────────────                     │
+│  FQCReader              │  BlockCompressor                   │
+│  FQCWriter              │    ├── Sequence (ABC)              │
+│  ReorderMap             │    ├── Quality (SCM)               │
+│  BlockIndex             │    └── ID (Delta+Token)            │
+│                         │  GlobalAnalyzer                    │
+├─────────────────────────────────────────────────────────────┤
+│  I/O Layer                                                  │
+│  ─────────                                                  │
+│  FastqParser (.gz/.bz2/.xz)                                 │
+│  CompressedOutputStream                                     │
+│  Async I/O                                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Component Layers
+
+### 1. CLI Layer
+
+Handles command-line argument parsing using CLI11 library.
+
+**Responsibilities:**
+- Parse and validate arguments
+- Dispatch to command handlers  
+- Handle global options
+
+### 2. Command Layer
+
+Each CLI command is implemented as a separate class:
+
+- `CompressCommand`: Single-pass and two-phase compression
+- `DecompressCommand`: Full and partial decompression
+- `InfoCommand`: Archive metadata inspection
+- `VerifyCommand`: Integrity verification
+
+**Pattern**: Command pattern with unified error handling
+
+### 3. Pipeline Layer
+
+Parallel processing using Intel oneTBB:
+
+**Stages:**
+1. **Producer**: Reads FASTQ records from input
+2. **Compressor**: Compresses blocks in parallel
+3. **Writer**: Writes compressed blocks
+
+**Features:**
+- Token-based flow control (limits memory)
+- Work-stealing scheduler
+- Exception propagation from workers
+
+### 4. Format Layer
+
+FQC archive format implementation:
+
+- `FQCWriter`: Serializes compressed blocks
+- `FQCReader`: Deserializes archives
+- `ReorderMap`: Manages read ordering
+- `BlockIndex`: Enables O(1) random access
+
+### 5. Algorithm Layer
+
+Core compression algorithms:
+
+**Sequence (ABC)**:
+- `GlobalAnalyzer`: Minimizer bucketing and reordering
+- `SequenceCompressor`: Delta encoding from consensus
+
+**Quality (SCM)**:
+- `QualityCompressor`: Statistical context mixing
+- `ArithmeticCoder`: Entropy coding
+
+**ID Compression**:
+- `IDCompressor`: Tokenization and delta encoding
+
+### 6. I/O Layer
+
+High-performance I/O abstraction:
+
+- Transparent input decompression (.gz, .bz2, .xz)
+- Block-based compressed output (zstd, zlib)
+- Asynchronous I/O with prefetch
+- Buffered writing
+
+## Data Flow
+
+### Compression
+
+```
+FASTQ Input
+    ↓
+FastqParser (transparent decompression)
+    ↓
+GlobalAnalyzer (minimizer bucketing + reordering)
+    ↓
+ReorderMap (saved to archive)
+    ↓
+BlockCompressor
+    ├── IDCompressor (delta+token)
+    ├── SequenceCompressor (ABC)
+    └── QualityCompressor (SCM)
+    ↓
+FQCWriter (serialize with index)
+    ↓
+.fqc File
+```
+
+### Decompression
+
+```
+.fqc File
+    ↓
+FQCReader (parse header, load index)
+    ↓
+BlockDecompressor
+    ├── IDDecompressor
+    ├── SequenceDecompressor
+    └── QualityDecompressor
+    ↓
+RecordBuilder ← ReorderMap (optional restore)
+    ↓
+FASTQ Output
+```
+
+## Memory Management
+
+### Automatic Memory Budget
+
+1. **Detection**: Auto-detects available system memory
+2. **Allocation**: Distributes budget across subsystems
+3. **Throttling**: Token-based backpressure in pipeline
+4. **Limits**: Respects `--memory-limit` option
+
+### Memory Usage by Component
+
+| Component | Typical | Configurable |
+|-----------|---------|--------------|
+| Pipeline tokens | ~10% | Indirect |
+| Block buffers | ~30% | Block-size |
+| Sorting | ~40% | No |
+| Compression contexts | ~20% | No |
+
+## Threading Model
+
+### oneTBB Integration
+
+- **Flow Graph**: Producer → Compressor → Writer
+- **Parallel Algorithms**: `parallel_for` for blocks
+- **Concurrent Containers**: `concurrent_queue`
+
+### Thread Safety
+
+- **Parsing**: Single-threaded with lookahead
+- **Compression**: Thread-safe per block
+- **Writing**: Thread-safe with ordering preservation
+
+## Error Handling
+
+### Categories
+
+| Category | Handling | Example |
+|----------|----------|---------|
+| Parse | Fatal with location | Malformed FASTQ |
+| I/O | Fatal with path | Permission denied |
+| Memory | Fatal with stats | Out of memory |
+| Format | Fatal with context | Corrupted archive |
+
+### Strategy
+
+- Structured: `Result<T>` / `VoidResult` types
+- Contextual: Source location, file position
+- Logging: Structured via Quill
+- CLI: User-friendly messages
