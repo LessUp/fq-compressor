@@ -4,8 +4,8 @@
 
 | 依赖 | 最低版本 |
 |------|---------|
-| C++ 编译器 | GCC 13+ 或 Clang 16+ |
-| CMake | 3.20+ |
+| C++ 编译器 | GCC 14+ 或 Clang 18+ |
+| CMake | 3.28+ |
 | Conan | 2.x |
 | Ninja | 1.10+（推荐） |
 
@@ -25,13 +25,13 @@ cd fq-compressor
 conan install . --build=missing \
   -of=build/clang-release \
   -s build_type=Release \
-  -s compiler.cppstd=20
+  -s compiler.cppstd=23
 
 # 使用 GCC
 conan install . --build=missing \
   -of=build/gcc-release \
   -s build_type=Release \
-  -s compiler.cppstd=20
+  -s compiler.cppstd=23
 ```
 
 ### 3. 配置和构建

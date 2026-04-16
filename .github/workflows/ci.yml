@@ -129,13 +129,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Node.js for commitlint
+      - name: Setup Node.js for commitlint
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
-      - name: Install dependencies and run commitlint
+      - name: Install commitlint and run
         run: |
-          npm ci
+          npm install @commitlint/cli @commitlint/config-conventional
           npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose

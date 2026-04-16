@@ -4,8 +4,8 @@
 
 | Requirement | Minimum Version |
 |-------------|-----------------|
-| C++ Compiler | GCC 13+ or Clang 16+ |
-| CMake | 3.20+ |
+| C++ Compiler | GCC 14+ or Clang 18+ |
+| CMake | 3.28+ |
 | Conan | 2.x |
 | Ninja | 1.10+ (recommended) |
 
@@ -25,13 +25,13 @@ cd fq-compressor
 conan install . --build=missing \
   -of=build/clang-release \
   -s build_type=Release \
-  -s compiler.cppstd=20
+  -s compiler.cppstd=23
 
 # Using GCC
 conan install . --build=missing \
   -of=build/gcc-release \
   -s build_type=Release \
-  -s compiler.cppstd=20
+  -s compiler.cppstd=23
 ```
 
 ### 3. Configure and Build
