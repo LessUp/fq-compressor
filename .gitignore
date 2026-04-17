@@ -124,4 +124,6 @@ docs/.site/
 *.fqc
 *.fqc.idx
 
-ref-projects/
+# Reference projects (source code not tracked, but keep README)
+ref-projects/*
+!ref-projects/README.md

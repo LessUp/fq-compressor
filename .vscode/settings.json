@@ -112,5 +112,6 @@
     // =========================================================================
     // 其他
     // =========================================================================
-    "kiroAgent.configureMCP": "Disabled"
+    "kiroAgent.configureMCP": "Disabled",
+    "diffEditor.renderSideBySide": false
 }
