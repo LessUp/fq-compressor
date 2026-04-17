@@ -63,10 +63,10 @@ const config = {
     storageKey: 'theme',
   },
   banner: {
-    key: 'v0.1.0-release',
+    key: 'v0.2.0-release',
     text: (
       <a href="https://github.com/LessUp/fq-compressor/releases" target="_blank" rel="noreferrer">
-        🎉 fq-compressor v0.1.0 is released. Read more →
+        🎉 fq-compressor v0.2.0 is released. Read more →
       </a>
     ),
   },
@@ -79,19 +79,8 @@ const config = {
     ),
   },
   sidebar: {
-    titleComponent({ title, type }) {
-      if (type === 'separator') {
-        return <span className="cursor-default">{title}</span>
-      }
-      return <>{title}</>
-    },
     defaultMenuCollapseLevel: 1,
     toggleButton: true,
-  },
-  components: {
-    pre: ({ children }) => (
-      <pre className="nextra-pre">{children}</pre>
-    ),
   },
 }
 
