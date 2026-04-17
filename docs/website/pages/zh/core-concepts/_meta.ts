@@ -1,4 +1,4 @@
-{
+export default {
   "architecture": "架构概述",
   "algorithms": "核心算法",
   "fqc-format": "FQC 格式"

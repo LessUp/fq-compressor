@@ -1,5 +1,5 @@
-{
+export default {
   "installation": "Installation",
-  "quickstart": "Quick Start", 
+  "quickstart": "Quick Start",
   "cli-usage": "CLI Usage"
 }
