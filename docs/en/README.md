@@ -1,8 +1,8 @@
 ---
 title: fq-compressor Documentation
 description: Official documentation for fq-compressor - a high-performance FASTQ compression tool
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: en
 ---
 
@@ -37,9 +37,9 @@ Welcome to the official documentation for **fq-compressor**, a next-generation F
 
 ```bash
 # Quick installation (Linux x86_64)
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
-tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
-sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 
 # Compress your first FASTQ file
 fqc compress -i input.fastq -o output.fqc
@@ -92,4 +92,4 @@ We welcome contributions! Please see our [Contributing Guide](./development/cont
 
 ---
 
-**Version**: 0.1.0 | **Last Updated**: 2026-04-16
+**Version**: 0.2.0 | **Last Updated**: 2026-04-22

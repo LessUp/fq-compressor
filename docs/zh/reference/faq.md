@@ -1,8 +1,8 @@
 ---
 title: 常见问题解答
 description: 关于 fq-compressor 的常见问题和答案
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 

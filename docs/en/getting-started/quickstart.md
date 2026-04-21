@@ -1,8 +1,8 @@
 ---
 title: Quick Start
 description: Get started with fq-compressor in 5 minutes - from first compression to advanced usage
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: en
 ---
 

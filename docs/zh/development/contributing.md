@@ -1,7 +1,7 @@
 ---
 title: 贡献指南
 description: 如何为 fq-compressor 项目做出贡献
-version: 0.1.0
+version: 0.2.0
 last_updated: 2026-04-17
 language: zh
 ---

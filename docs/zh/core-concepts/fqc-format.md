@@ -1,8 +1,8 @@
 ---
 title: FQC 归档格式
 description: .fqc 归档格式的技术规范
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 

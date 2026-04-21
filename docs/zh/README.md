@@ -1,8 +1,8 @@
 ---
 title: fq-compressor 文档
 description: fq-compressor 官方文档——高性能 FASTQ 压缩工具
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 
@@ -37,9 +37,9 @@ language: zh
 
 ```bash
 # 快速安装（Linux x86_64）
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
-tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
-sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 
 # 压缩您的第一个 FASTQ 文件
 fqc compress -i input.fastq -o output.fqc
@@ -92,4 +92,4 @@ fqc decompress -i output.fqc -o restored.fastq
 
 ---
 
-**版本**: 0.1.0 | **最后更新**: 2026-04-16
+**版本**: 0.2.0 | **最后更新**: 2026-04-22

@@ -1,8 +1,8 @@
 ---
 title: 快速入门
 description: 5 分钟内开始使用 fq-compressor - 从第一次压缩到高级用法
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 

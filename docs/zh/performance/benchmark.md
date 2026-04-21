@@ -1,8 +1,8 @@
 ---
 title: 性能基准测试
 description: fq-compressor 综合基准测试指南
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 
