@@ -87,20 +87,33 @@ BufferPool::BufferPool(std::size_t bufferSize, std::size_t bufferCount)
 
     // Allocate all buffers upfront with cache line alignment
     buffers_.reserve(bufferCount);
-    for (std::size_t i = 0; i < bufferCount; ++i) {
-        // Use platform-aware aligned allocation for cache-line aligned memory
-        // This improves SIMD performance and reduces cache line bouncing
+
+    // Use scope guard pattern for exception safety - if any allocation fails,
+    // the already-allocated buffers will be cleaned up by the destructor
+    // through the unique_ptr mechanism in the vector.
+    try {
+        for (std::size_t i = 0; i < bufferCount; ++i) {
+            // Use platform-aware aligned allocation for cache-line aligned memory
+            // This improves SIMD performance and reduces cache line bouncing
 #ifdef _WIN32
-        void* ptr = _aligned_malloc(alignedSize, kCacheLineSize);
+            void* ptr = _aligned_malloc(alignedSize, kCacheLineSize);
 #else
-        void* ptr = std::aligned_alloc(kCacheLineSize, alignedSize);
+            void* ptr = std::aligned_alloc(kCacheLineSize, alignedSize);
 #endif
-        if (!ptr) {
-            throw std::bad_alloc();
+            if (!ptr) {
+                throw std::bad_alloc();
+            }
+            auto buffer = AlignedBuffer(static_cast<std::uint8_t*>(ptr));
+            available_.push(buffer.get());
+            buffers_.push_back(std::move(buffer));
         }
-        auto buffer = AlignedBuffer(static_cast<std::uint8_t*>(ptr));
-        available_.push(buffer.get());
-        buffers_.push_back(std::move(buffer));
+    } catch (...) {
+        // Clean up any buffers already allocated before re-throwing
+        while (!available_.empty()) {
+            available_.pop();
+        }
+        buffers_.clear();
+        throw;
     }
 
     FQC_LOG_DEBUG("BufferPool created: size={}, aligned_size={}, count={}, alignment={}",

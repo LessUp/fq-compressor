@@ -1,8 +1,8 @@
 ---
 title: 安装指南
 description: fq-compressor 安装指南——多种安装方式适用于不同平台和场景
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 
@@ -34,11 +34,11 @@ language: zh
 
 ```bash
 # 下载并解压
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
-tar -xzf fq-compressor-v0.1.0-linux-x86_64-musl.tar.gz
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 
 # 安装到 /usr/local/bin
-sudo mv fq-compressor-v0.1.0-linux-x86_64-musl/fqc /usr/local/bin/
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 sudo chmod +x /usr/local/bin/fqc
 
 # 验证安装
@@ -48,33 +48,33 @@ fqc --version
 #### Linux（x86_64，glibc - 动态链接）
 
 ```bash
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz
-tar -xzf fq-compressor-v0.1.0-linux-x86_64-glibc.tar.gz
-sudo mv fq-compressor-v0.1.0-linux-x86_64-glibc/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-glibc.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-glibc.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-glibc/fqc /usr/local/bin/
 ```
 
 #### Linux（ARM64，musl - 静态链接）
 
 ```bash
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz
-tar -xzf fq-compressor-v0.1.0-linux-aarch64-musl.tar.gz
-sudo mv fq-compressor-v0.1.0-linux-aarch64-musl/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-aarch64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-aarch64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-aarch64-musl/fqc /usr/local/bin/
 ```
 
 #### macOS（Intel）
 
 ```bash
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-macos-x86_64.tar.gz
-tar -xzf fq-compressor-v0.1.0-macos-x86_64.tar.gz
-sudo mv fq-compressor-v0.1.0-macos-x86_64/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-macos-x86_64.tar.gz
+tar -xzf fq-compressor-v0.2.0-macos-x86_64.tar.gz
+sudo mv fq-compressor-v0.2.0-macos-x86_64/fqc /usr/local/bin/
 ```
 
 #### macOS（Apple Silicon）
 
 ```bash
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.1.0/fq-compressor-v0.1.0-macos-arm64.tar.gz
-tar -xzf fq-compressor-v0.1.0-macos-arm64.tar.gz
-sudo mv fq-compressor-v0.1.0-macos-arm64/fqc /usr/local/bin/
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-macos-arm64.tar.gz
+tar -xzf fq-compressor-v0.2.0-macos-arm64.tar.gz
+sudo mv fq-compressor-v0.2.0-macos-arm64/fqc /usr/local/bin/
 ```
 
 ### 方式 2：从源码构建

@@ -672,6 +672,34 @@ void FQCReader::readBytes(void* buffer, std::size_t size) {
     }
 }
 
+// Cross-platform byte swap helper (shared with fqc_writer.cpp)
+namespace {
+
+template <typename T>
+[[nodiscard]] constexpr T byteSwap(T value) noexcept {
+    static_assert(std::is_unsigned_v<T>, "byteSwap only supports unsigned types");
+#if defined(_MSC_VER)
+    if constexpr (sizeof(T) == 2) {
+        return static_cast<T>(_byteswap_ushort(static_cast<std::uint16_t>(value)));
+    } else if constexpr (sizeof(T) == 4) {
+        return static_cast<T>(_byteswap_ulong(static_cast<std::uint32_t>(value)));
+    } else if constexpr (sizeof(T) == 8) {
+        return static_cast<T>(_byteswap_uint64(static_cast<std::uint64_t>(value)));
+    }
+#else
+    if constexpr (sizeof(T) == 2) {
+        return static_cast<T>(__builtin_bswap16(static_cast<std::uint16_t>(value)));
+    } else if constexpr (sizeof(T) == 4) {
+        return static_cast<T>(__builtin_bswap32(static_cast<std::uint32_t>(value)));
+    } else if constexpr (sizeof(T) == 8) {
+        return static_cast<T>(__builtin_bswap64(static_cast<std::uint64_t>(value)));
+    }
+#endif
+    return value;
+}
+
+}  // namespace
+
 template <typename T>
 T FQCReader::readLE() {
     static_assert(std::is_trivially_copyable_v<T>, "Type must be trivially copyable");
@@ -682,11 +710,11 @@ T FQCReader::readLE() {
     // Convert from little-endian if necessary
     if constexpr (std::endian::native == std::endian::big) {
         if constexpr (sizeof(T) == 2) {
-            value = static_cast<T>(__builtin_bswap16(static_cast<std::uint16_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint16_t>(value)));
         } else if constexpr (sizeof(T) == 4) {
-            value = static_cast<T>(__builtin_bswap32(static_cast<std::uint32_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint32_t>(value)));
         } else if constexpr (sizeof(T) == 8) {
-            value = static_cast<T>(__builtin_bswap64(static_cast<std::uint64_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint64_t>(value)));
         }
     }
 

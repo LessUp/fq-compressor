@@ -1,8 +1,8 @@
 ---
 title: CLI 使用指南
 description: fq-compressor 命令行接口完整参考
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 

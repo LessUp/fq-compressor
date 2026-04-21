@@ -1,8 +1,8 @@
 ---
 title: 核心算法
 description: fq-compressor 压缩算法深入解析 - ABC 和 SCM
-version: 0.1.0
-last_updated: 2026-04-16
+version: 0.2.0
+last_updated: 2026-04-22
 language: zh
 ---
 

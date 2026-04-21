@@ -130,29 +130,42 @@ void installSignalHandlers() {
 // xxHash64 Utility Functions
 // =============================================================================
 
+namespace {
+
+/// @brief RAII deleter for XXH64_state_t to ensure exception safety.
+struct XxHashStateDeleter {
+    void operator()(XXH64_state_t* state) const noexcept {
+        if (state) {
+            XXH64_freeState(state);
+        }
+    }
+};
+
+/// @brief Unique pointer type for XXH64_state_t with automatic cleanup.
+using XxHashStatePtr = std::unique_ptr<XXH64_state_t, XxHashStateDeleter>;
+
+}  // namespace
+
 std::uint64_t calculateXxHash64(const void* data, std::size_t size, std::uint64_t seed) {
     return XXH64(data, size, seed);
 }
 
 std::uint64_t calculateXxHash64(const std::vector<std::span<const std::uint8_t>>& segments,
                                 std::uint64_t seed) {
-    XXH64_state_t* state = XXH64_createState();
-    if (state == nullptr) {
+    XxHashStatePtr state(XXH64_createState());
+    if (!state) {
         throw IOError("Failed to create xxHash64 state");
     }
 
-    XXH64_reset(state, seed);
+    XXH64_reset(state.get(), seed);
 
     for (const auto& segment : segments) {
         if (!segment.empty()) {
-            XXH64_update(state, segment.data(), segment.size());
+            XXH64_update(state.get(), segment.data(), segment.size());
         }
     }
 
-    std::uint64_t hash = XXH64_digest(state);
-    XXH64_freeState(state);
-
-    return hash;
+    return XXH64_digest(state.get());
 }
 
 std::uint64_t calculateBlockChecksum(std::span<const std::uint8_t> idsData,
@@ -511,8 +524,13 @@ void FQCWriter::abort() noexcept {
         return;  // Already aborted
     }
 
+    // Note: We cannot safely call logging functions from a signal handler context.
+    // The cleanupTempFile() is minimal and only closes the stream and removes the file.
+    // This is acceptable for signal handler usage as it doesn't acquire locks.
     cleanupTempFile();
 
+    // Log outside signal handler context if possible (this may not execute
+    // if called from signal handler, which is acceptable)
     FQC_LOG_DEBUG("FQCWriter aborted: {}", tempPath_.string());
 }
 
@@ -553,6 +571,34 @@ void FQCWriter::writeBytesWithChecksum(const void* data, std::size_t size) {
     XXH64_update(static_cast<XXH64_state_t*>(xxhashState_), data, size);
 }
 
+// Cross-platform byte swap helper
+namespace {
+
+template <typename T>
+[[nodiscard]] constexpr T byteSwap(T value) noexcept {
+    static_assert(std::is_unsigned_v<T>, "byteSwap only supports unsigned types");
+#if defined(_MSC_VER)
+    if constexpr (sizeof(T) == 2) {
+        return static_cast<T>(_byteswap_ushort(static_cast<std::uint16_t>(value)));
+    } else if constexpr (sizeof(T) == 4) {
+        return static_cast<T>(_byteswap_ulong(static_cast<std::uint32_t>(value)));
+    } else if constexpr (sizeof(T) == 8) {
+        return static_cast<T>(_byteswap_uint64(static_cast<std::uint64_t>(value)));
+    }
+#else
+    if constexpr (sizeof(T) == 2) {
+        return static_cast<T>(__builtin_bswap16(static_cast<std::uint16_t>(value)));
+    } else if constexpr (sizeof(T) == 4) {
+        return static_cast<T>(__builtin_bswap32(static_cast<std::uint32_t>(value)));
+    } else if constexpr (sizeof(T) == 8) {
+        return static_cast<T>(__builtin_bswap64(static_cast<std::uint64_t>(value)));
+    }
+#endif
+    return value;
+}
+
+}  // namespace
+
 template <typename T>
 void FQCWriter::writeLE(T value) {
     static_assert(std::is_trivially_copyable_v<T>, "Type must be trivially copyable");
@@ -560,11 +606,11 @@ void FQCWriter::writeLE(T value) {
     // Convert to little-endian if necessary
     if constexpr (std::endian::native == std::endian::big) {
         if constexpr (sizeof(T) == 2) {
-            value = static_cast<T>(__builtin_bswap16(static_cast<std::uint16_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint16_t>(value)));
         } else if constexpr (sizeof(T) == 4) {
-            value = static_cast<T>(__builtin_bswap32(static_cast<std::uint32_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint32_t>(value)));
         } else if constexpr (sizeof(T) == 8) {
-            value = static_cast<T>(__builtin_bswap64(static_cast<std::uint64_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint64_t>(value)));
         }
     }
 
@@ -578,11 +624,11 @@ void FQCWriter::writeLEWithChecksum(T value) {
     // Convert to little-endian if necessary
     if constexpr (std::endian::native == std::endian::big) {
         if constexpr (sizeof(T) == 2) {
-            value = static_cast<T>(__builtin_bswap16(static_cast<std::uint16_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint16_t>(value)));
         } else if constexpr (sizeof(T) == 4) {
-            value = static_cast<T>(__builtin_bswap32(static_cast<std::uint32_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint32_t>(value)));
         } else if constexpr (sizeof(T) == 8) {
-            value = static_cast<T>(__builtin_bswap64(static_cast<std::uint64_t>(value)));
+            value = static_cast<T>(byteSwap(static_cast<std::uint64_t>(value)));
         }
     }
 
