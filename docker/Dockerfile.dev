@@ -81,11 +81,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     grep \
     ripgrep \
     jq \
-    # 压缩工具
+    # 压缩工具 (包括测试所需的 gzip, bzip2)
     zip \
     unzip \
     tar \
     xz-utils \
+    gzip \
+    bzip2 \
+    zstd \
     # 网络工具
     wget \
     curl \
