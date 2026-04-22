@@ -119,6 +119,9 @@ echo "Build type: $BUILD_TYPE"
 echo "Output: $BUILD_DIR"
 echo ""
 
+# 设置 CMake 策略版本最低值，以兼容旧版 CMake 配置的依赖包（如 rapidcheck）
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
+
 # 安装依赖
 conan install . \
     --output-folder="$BUILD_DIR" \
