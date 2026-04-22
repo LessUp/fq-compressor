@@ -93,7 +93,8 @@ class FQCompressorConan(ConanFile):
         # Testing Frameworks
         # =========================================================================
         # GTest: Google Test framework for unit testing
-        self.test_requires("gtest/1.15.0")
+        # Note: Using 1.12.1 for compatibility with rapidcheck
+        self.test_requires("gtest/1.12.1")
         # RapidCheck: Property-based testing framework with GTest integration
         self.test_requires("rapidcheck/cci.20230815")
 
