@@ -122,23 +122,61 @@ void shutdown();
 // =============================================================================
 // These macros provide a convenient interface for logging with automatic
 // source location information.
+// Note: These macros check if logger is initialized before logging to avoid
+// crashes when logging is used before initialization (e.g., in tests).
 
-/// @brief Log a trace message.
-#define FQC_LOG_TRACE(fmt, ...) LOG_TRACE_L1(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log a trace message (no-op if logger not initialized).
+#define FQC_LOG_TRACE(fmt, ...)                                           \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_TRACE_L1(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);    \
+        }                                                                 \
+    } while (0)
 
-/// @brief Log a debug message.
-#define FQC_LOG_DEBUG(fmt, ...) LOG_DEBUG(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log a debug message (no-op if logger not initialized).
+#define FQC_LOG_DEBUG(fmt, ...)                                           \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_DEBUG(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);       \
+        }                                                                 \
+    } while (0)
 
-/// @brief Log an info message.
-#define FQC_LOG_INFO(fmt, ...) LOG_INFO(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log an info message (no-op if logger not initialized).
+#define FQC_LOG_INFO(fmt, ...)                                            \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_INFO(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);        \
+        }                                                                 \
+    } while (0)
 
-/// @brief Log a warning message.
-#define FQC_LOG_WARNING(fmt, ...) LOG_WARNING(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log a warning message (no-op if logger not initialized).
+#define FQC_LOG_WARNING(fmt, ...)                                         \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_WARNING(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);     \
+        }                                                                 \
+    } while (0)
 
-/// @brief Log an error message.
-#define FQC_LOG_ERROR(fmt, ...) LOG_ERROR(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log an error message (no-op if logger not initialized).
+#define FQC_LOG_ERROR(fmt, ...)                                           \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_ERROR(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);       \
+        }                                                                 \
+    } while (0)
 
-/// @brief Log a critical message.
-#define FQC_LOG_CRITICAL(fmt, ...) LOG_CRITICAL(fqc::log::logger(), fmt __VA_OPT__(, ) __VA_ARGS__)
+/// @brief Log a critical message (no-op if logger not initialized).
+#define FQC_LOG_CRITICAL(fmt, ...)                                        \
+    do {                                                                  \
+        auto* _fqc_logger = fqc::log::logger();                           \
+        if (_fqc_logger) {                                                \
+            LOG_CRITICAL(_fqc_logger, fmt __VA_OPT__(, ) __VA_ARGS__);    \
+        }                                                                 \
+    } while (0)
 
 #endif  // FQC_COMMON_LOGGER_H
