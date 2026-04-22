@@ -73,6 +73,7 @@ jobs:
           docker build \
             -f docker/Dockerfile.dev \
             --target base \
+            --no-cache \
             -t ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} \
             .
 
