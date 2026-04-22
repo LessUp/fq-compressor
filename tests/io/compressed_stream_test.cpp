@@ -30,10 +30,10 @@ protected:
 
         // Generate test data
         std::mt19937 rng(42);
-        std::uniform_int_distribution<char> dist('A', 'Z');
+        std::uniform_int_distribution<int> dist('A', 'Z');
         testData_.resize(4096);
         for (auto& c : testData_) {
-            c = dist(rng);
+            c = static_cast<char>(dist(rng));
         }
     }
 

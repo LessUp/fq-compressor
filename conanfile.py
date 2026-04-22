@@ -14,7 +14,7 @@
 #   - Compression: zlib-ng, bzip2, xz_utils, zstd, libdeflate
 #   - Checksums: xxHash
 #   - Parallel processing: oneTBB
-#   - Testing: GTest (RapidCheck temporarily disabled)
+#   - Testing: GTest with RapidCheck
 # =============================================================================
 
 from conan import ConanFile
@@ -41,6 +41,8 @@ class FQCompressorConan(ConanFile):
     def configure(self):
         # onetbb requires hwloc to always be built as shared library.
         self.options["hwloc/*"].shared = True
+        # Enable RapidCheck GTest integration for property-based testing
+        self.options["rapidcheck/*"].enable_gtest = True
 
     def layout(self):
         cmake_layout(self)
@@ -92,7 +94,7 @@ class FQCompressorConan(ConanFile):
         # =========================================================================
         # GTest: Google Test framework for unit testing
         self.test_requires("gtest/1.15.0")
-        # RapidCheck: Property-based testing framework
+        # RapidCheck: Property-based testing framework with GTest integration
         self.test_requires("rapidcheck/cci.20230815")
 
     def generate(self):

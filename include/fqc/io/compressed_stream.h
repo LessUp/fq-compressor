@@ -76,6 +76,9 @@ enum class CompressionFormat : std::uint8_t {
 /// @note Uses zlib for streaming decompression.
 class GzipStreamBuf : public std::streambuf {
 public:
+    /// @brief Default constructor (for move semantics).
+    GzipStreamBuf() = default;
+
     /// @brief Construct a gzip stream buffer.
     /// @param source Source stream to decompress.
     /// @param bufferSize Internal buffer size.
@@ -134,6 +137,9 @@ private:
 /// @note Uses libbz2 for streaming decompression.
 class Bzip2StreamBuf : public std::streambuf {
 public:
+    /// @brief Default constructor (for move semantics).
+    Bzip2StreamBuf() = default;
+
     /// @brief Construct a bzip2 stream buffer.
     /// @param source Source stream to decompress.
     /// @param bufferSize Internal buffer size.
@@ -192,6 +198,9 @@ private:
 /// @note Uses liblzma for streaming decompression.
 class XzStreamBuf : public std::streambuf {
 public:
+    /// @brief Default constructor (for move semantics).
+    XzStreamBuf() = default;
+
     /// @brief Construct an xz stream buffer.
     /// @param source Source stream to decompress.
     /// @param bufferSize Internal buffer size.
