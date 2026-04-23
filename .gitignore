@@ -124,6 +124,39 @@ docs/.site/
 *.fqc
 *.fqc.idx
 
+# OpenSpec - AI tool directories (configure per-project as needed)
+# Most projects should track OpenSpec skills/commands for consistency
+# Uncomment to ignore all AI tool configs:
+# .agent/
+# .amazonq/
+# .augment/
+# .bob/
+# .cline/
+# .codebuddy/
+# .codex/
+# .continue/
+# .cospec/
+# .crush/
+# .cursor/
+# .factory/
+# .forge/
+# .gemini/
+# .iflow/
+# .junie/
+# .kilocode/
+# .kiro/
+# .lingma/
+# .opencode/
+# .pi/
+# .qoder/
+# .qwen/
+# .roo/
+# .trae/
+# .windsurf/
+
+# OpenSpec explorations (scratch/research docs, not tracked)
+openspec/explorations/
+
 # Reference projects (source code not tracked, but keep README)
 ref-projects/*
 !ref-projects/README.md
