@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "description": "Documentation for fq-compressor - Next.js + Nextra 3.x",
   "scripts": {
-    "docs:build": "cd docs/website && npm install && npm run build",
-    "docs:dev": "cd docs/website && npm install && npm run dev",
-    "docs:serve": "cd docs/website && npm run start"
+    "docs:install": "npm --prefix docs/website ci",
+    "docs:build": "npm --prefix docs/website ci && npm --prefix docs/website run build",
+    "docs:dev": "npm --prefix docs/website run dev",
+    "docs:serve": "npm --prefix docs/website run start"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

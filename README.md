@@ -256,7 +256,7 @@ Contributions are welcome! Please see our [Contributing Guide](https://lessup.gi
 - 🐛 Report bugs and issues
 - 💡 Suggest new features
 - 📝 Improve documentation
-- 🔧 Submit pull requests
+- 🔧 Share focused fixes or implementation ideas
 - 🧪 Test on different datasets
 
 ---
