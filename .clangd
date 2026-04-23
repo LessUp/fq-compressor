@@ -1,0 +1,13 @@
+CompileFlags:
+  CompilationDatabase: .
+Index:
+  Background: Build
+Diagnostics:
+  ClangTidy: Yes
+Completion:
+  AllScopes: Yes
+  HeaderInsertion: Never
+Hover:
+  ShowAKA: Yes
+InlayHints:
+  Enabled: Yes
