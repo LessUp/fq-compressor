@@ -1,0 +1,42 @@
+schema: spec-driven
+
+context: |
+  Tech stack: C++23, CMake 3.28+, Ninja, Conan 2.x
+  Compilers: GCC 14+ or Clang 18+
+  Parallel Framework: Intel oneTBB
+  CLI Parser: CLI11
+  Logging: Quill
+  Testing: GTest + RapidCheck (property-based)
+
+  Build commands:
+  - ./scripts/build.sh <preset> [jobs]
+  - ./scripts/test.sh [preset] [filter]
+  - ./scripts/lint.sh format|lint|all
+
+  Code style:
+  - snake_case files, PascalCase types, camelCase functions
+  - 4-space indent, 100 column limit
+  - clang-format-21, clang-tidy-21
+
+  Project: fq-compressor - High-performance FASTQ compression tool
+  - Combines Assembly-based Compression (ABC) and Statistical Context Mixing (SCM)
+  - Achieves near-entropy compression with O(1) random access
+  - Supports gzip/bzip2/xz input transparently
+  - Handles short reads, long reads, and paired-end data
+
+rules:
+  specs:
+    - Each capability gets its own directory under openspec/specs/
+    - Use SHALL/MUST for normative requirements
+    - Every requirement needs at least one scenario
+    - Scenarios use WHEN/THEN format with exactly 4 hashtags (####)
+    - Link requirements to acceptance criteria
+  tasks:
+    - Group related tasks under numbered headings
+    - Use `- [ ] X.Y Task description` format for tracking
+    - Include test verification steps
+    - Reference existing code patterns from include/fqc/ and src/
+  design:
+    - Document architectural decisions with alternatives considered
+    - Include migration/rollback plans for breaking changes
+    - Reference existing module structure (algo, commands, format, io, pipeline)
