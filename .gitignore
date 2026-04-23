@@ -120,6 +120,9 @@ docs/.site/
 .honkit/
 .cache/
 
+# Next.js build output
+docs/website/.next/
+
 # 压缩测试数据
 *.fqc
 *.fqc.idx

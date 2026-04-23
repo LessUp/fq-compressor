@@ -1,37 +1,47 @@
 ---
-title: fq-compressor Documentation
-description: High-performance FASTQ compression documentation
+title: fq-compressor
+description: High-performance FASTQ compression for storage reduction and O(1) random access
 ---
 
-import { Cards, Card } from 'nextra/components'
-import { ArrowRight } from 'lucide-react'
+# fq-compressor
 
-# fq-compressor Documentation
+**fq-compressor** is a high-performance FASTQ compressor built in **C++23** with
+**Assembly-based Compression (ABC)**, **Statistical Context Mixing (SCM)**, and
+**O(1) random access**.
 
-Welcome to the fq-compressor documentation. Choose your language:
-
-<Cards className="mt-8">
-  <Card 
-    icon={<span className="text-2xl">🇺🇸</span>}
-    title="English" 
-    href="/en"
-    arrow
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-10">
+  <a
+    href="/fq-compressor/en"
+    className="block rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:border-primary-500 hover:shadow-lg transition-all"
   >
-    Official documentation in English
-  </Card>
-  
-  <Card 
-    icon={<span className="text-2xl">🇨🇳</span>}
-    title="简体中文" 
-    href="/zh"
-    arrow
+    <div className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">English</div>
+    <div className="mt-2 text-2xl font-semibold">Product overview, install, docs</div>
+    <div className="mt-3 text-gray-600 dark:text-gray-400">
+      Start here if you want the architecture overview, quick start, and documentation in English.
+    </div>
+  </a>
+
+  <a
+    href="/fq-compressor/zh"
+    className="block rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:border-primary-500 hover:shadow-lg transition-all"
   >
-    中文官方文档
-  </Card>
-</Cards>
+    <div className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">简体中文</div>
+    <div className="mt-2 text-2xl font-semibold">项目介绍、安装与文档</div>
+    <div className="mt-3 text-gray-600 dark:text-gray-400">
+      如果你希望用中文快速了解项目定位、性能数据、安装方式和核心设计，从这里进入。
+    </div>
+  </a>
+</div>
 
-## Quick Links
+## Why this project matters
 
-- [GitHub Repository](https://github.com/LessUp/fq-compressor)
-- [Releases](https://github.com/LessUp/fq-compressor/releases)
-- [Issues](https://github.com/LessUp/fq-compressor/issues)
+- **Storage reduction** for sequencing datasets without giving up future access.
+- **Random access** so downstream workflows can extract subsets without full decompression.
+- **Modern implementation** using CMake presets, Conan, clangd, GitHub Actions, and OpenSpec.
+
+## Quick links
+
+- [GitHub repository](https://github.com/LessUp/fq-compressor)
+- [Latest releases](https://github.com/LessUp/fq-compressor/releases)
+- [English landing page](/fq-compressor/en)
+- [中文首页](/fq-compressor/zh)

@@ -2,110 +2,216 @@
 title: fq-compressor
 ---
 
-import { Callout, Tabs, Cards, Card } from 'nextra/components'
-import { Rocket, Zap, Database, Cpu, Shield, Package, BookOpen } from 'lucide-react'
+import { Hero, FeatureGrid, CodeShowcase } from '../../components'
+import { 
+  Database, Zap, Cpu, Shield, 
+  Package, BookOpen, GitBranch, Layers
+} from 'lucide-react'
 
-<div className="relative overflow-hidden">
-  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950 -z-10" />
+<Hero
+  title="fq-compressor"
+  subtitle="面向测序时代的高性能 FASTQ 压缩工具"
+  description="基于序列组装的压缩算法，实现 3.97 倍压缩率与 O(1) 随机访问。使用现代 C++23 和 Intel oneTBB 构建，追求极致性能。"
+  primaryCta={{ text: "快速开始", href: "/fq-compressor/zh/getting-started/quickstart" }}
+  secondaryCta={{ text: "查看 GitHub", href: "https://github.com/LessUp/fq-compressor" }}
+  stats={[
+    { value: "3.97×", label: "压缩率", color: "text-blue-600 dark:text-blue-400" },
+    { value: "11.9 MB/s", label: "压缩速度", color: "text-green-600 dark:text-green-400" },
+    { value: "62.3 MB/s", label: "解压速度", color: "text-purple-600 dark:text-purple-400" }
+  ]}
+/>
+
+<FeatureGrid
+  title="核心特性"
+  features={[
+    {
+      icon: Database,
+      iconColor: "bg-blue-500",
+      title: "ABC 算法",
+      description: "基于序列组装的压缩，使用 minimizer 分桶和差分编码，实现接近熵极限的压缩率。",
+      href: "/fq-compressor/zh/core-concepts/algorithms"
+    },
+    {
+      icon: Zap,
+      iconColor: "bg-yellow-500",
+      title: "SCM 质量压缩",
+      description: "统计上下文混合算法压缩质量分数，高阶预测与自适应算术编码相结合。",
+      href: "/fq-compressor/zh/core-concepts/algorithms"
+    },
+    {
+      icon: Cpu,
+      iconColor: "bg-green-500",
+      title: "Intel oneTBB",
+      description: "可扩展的生产者-消费者流水线，使用 work-stealing 调度器最大化多核利用率。",
+      href: "/fq-compressor/zh/core-concepts/architecture"
+    },
+    {
+      icon: Shield,
+      iconColor: "bg-purple-500",
+      title: "随机访问",
+      description: "基于块的格式支持 O(1) 时间访问任意读取范围，无需完整解压。",
+      href: "/fq-compressor/zh/core-concepts/fqc-format"
+    },
+    {
+      icon: GitBranch,
+      iconColor: "bg-bio-500",
+      title: "参考序列支持",
+      description: "利用参考基因组提升比对后测序数据的压缩率。",
+      href: "/fq-compressor/zh/core-concepts/algorithms"
+    },
+    {
+      icon: Package,
+      iconColor: "bg-red-500",
+      title: "现代 C++23",
+      description: "类型安全、高性能代码库，使用现代 CMake、Conan 2.x 和全面测试。",
+      href: "/fq-compressor/zh/development/contributing"
+    }
+  ]}
+/>
+
+<CodeShowcase
+  title="快速入门"
+  tabs={[
+    {
+      label: "安装",
+      code: `# Linux / macOS (x86_64)
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\\
+  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/`
+    },
+    {
+      label: "压缩",
+      code: `# 基本压缩
+fqc compress -i reads.fastq -o reads.fqc
+
+# 显示进度并使用多线程
+fqc compress -i reads.fastq -o reads.fqc -t 8 -v
+
+# 双端数据
+fqc compress -i reads_1.fastq -i2 reads_2.fastq \\
+  -o paired.fqc --paired`
+    },
+    {
+      label: "解压",
+      code: `# 完整解压
+fqc decompress -i reads.fqc -o restored.fastq
+
+# 随机访问 - 提取子集
+fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
+
+# 恢复原始顺序
+fqc decompress -i reads.fqc -o restored.fastq --original-order`
+    }
+  ]}
+/>
+
+{/* Performance Section */}
+<div className="container mx-auto px-4 py-16">
+  <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">性能基准测试</h2>
+  <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-12 rounded-full" />
   
-  <div className="container mx-auto px-4 py-16 text-center">
-    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium mb-8">
-      <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-      </span>
-      v0.2.0 正式发布
+  <div className="max-w-4xl mx-auto">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 dark:bg-gray-800">
+            <th className="px-6 py-4 text-left font-semibold">编译器</th>
+            <th className="px-6 py-4 text-left font-semibold">压缩速度</th>
+            <th className="px-6 py-4 text-left font-semibold">解压速度</th>
+            <th className="px-6 py-4 text-left font-semibold">压缩率</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tr className="bg-white dark:bg-gray-900/50">
+            <td className="px-6 py-4 font-medium">GCC 15.2</td>
+            <td className="px-6 py-4">11.30 MB/s</td>
+            <td className="px-6 py-4">60.10 MB/s</td>
+            <td className="px-6 py-4"><span className="text-green-600 dark:text-green-400 font-bold">3.97×</span></td>
+          </tr>
+          <tr className="bg-gray-50/50 dark:bg-gray-800/30">
+            <td className="px-6 py-4 font-medium">Clang 21</td>
+            <td className="px-6 py-4">11.90 MB/s</td>
+            <td className="px-6 py-4">62.30 MB/s</td>
+            <td className="px-6 py-4"><span className="text-green-600 dark:text-green-400 font-bold">3.97×</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     
-    <h1 className="text-5xl md:text-7xl font-bold mb-6">
-      <span className="gradient-text">fq-compressor</span>
-    </h1>
-    
-    <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-      面向测序时代的高性能 FASTQ 压缩工具。
-      基于组装的压缩实现 <span className="font-semibold text-blue-600 dark:text-blue-400">3.97 倍压缩比</span>，
-      支持 <span className="font-semibold text-blue-600 dark:text-blue-400">O(1) 随机访问</span>。
+    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+      测试环境：Intel Core i7-9700 @ 3.00GHz (8 核), 2.27M Illumina reads (511 MB 未压缩)
     </p>
+  </div>
+</div>
+
+{/* CTA Section */}
+<div className="container mx-auto px-4 py-16">
+  <div className="bg-gradient-to-r from-primary-600 via-purple-600 to-bio-500 rounded-2xl p-8 md:p-12 text-center text-white relative overflow-hidden">
+    {/* Decorative elements */}
+    <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+    <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
     
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-      <div className="feature-card">
-        <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">3.97×</div>
-        <div className="text-gray-600 dark:text-gray-400">压缩比</div>
-      </div>
-      <div className="feature-card">
-        <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">11.9 MB/s</div>
-        <div className="text-gray-600 dark:text-gray-400">压缩速度</div>
-      </div>
-      <div className="feature-card">
-        <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">62.3 MB/s</div>
-        <div className="text-gray-600 dark:text-gray-400">解压速度</div>
+    <div className="relative z-10">
+      <h2 className="text-3xl md:text-4xl font-bold mb-4">准备好开始压缩了吗？</h2>
+      <p className="text-lg md:text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+        使用 fq-compressor，将您的 FASTQ 存储空间减少最多 4 倍，
+        同时保持对基因组数据的快速访问。
+      </p>
+      <div className="flex flex-wrap justify-center gap-4">
+        <a 
+          href="/fq-compressor/zh/getting-started/installation"
+          className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-600 hover:bg-gray-100 rounded-xl font-semibold transition-all duration-200 hover:shadow-xl"
+        >
+          <Package className="w-5 h-5" />
+          安装指南
+        </a>
+        <a 
+          href="/fq-compressor/zh/core-concepts/architecture"
+          className="inline-flex items-center gap-2 px-8 py-4 border-2 border-white text-white hover:bg-white/10 rounded-xl font-semibold transition-all duration-200"
+        >
+          <BookOpen className="w-5 h-5" />
+          了解更多
+        </a>
       </div>
     </div>
   </div>
 </div>
 
+{/* Use Cases */}
 <div className="container mx-auto px-4 py-16">
-  <h2 className="text-3xl font-bold text-center mb-12">核心特性</h2>
+  <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">应用场景</h2>
+  <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-12 rounded-full" />
   
-  <Cards className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <Card icon={<Database className="w-8 h-8 text-blue-600" />} title="ABC 算法" href="/zh/core-concepts/algorithms">
-      基于组装的压缩，通过 minimizer 分桶和增量编码实现接近熵极限的压缩比。
-    </Card>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+    <div className="feature-card text-center">
+      <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
+        <Layers className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+      </div>
+      <h3 className="text-xl font-semibold mb-3">数据归档</h3>
+      <p className="text-gray-600 dark:text-gray-400">
+        测序数据的长期存储，显著节省空间并支持快速检索。
+      </p>
+    </div>
     
-    <Card icon={<Zap className="w-8 h-8 text-yellow-600" />} title="SCM 质量分数" href="/zh/core-concepts/algorithms">
-      统计上下文混合，高阶预测结合自适应算术编码，最优质量分数压缩。
-    </Card>
+    <div className="feature-card text-center">
+      <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+        <Database className="w-8 h-8 text-green-600 dark:text-green-400" />
+      </div>
+      <h3 className="text-xl font-semibold mb-3">云端传输</h3>
+      <p className="text-gray-600 dark:text-gray-400">
+        在云服务提供商之间传输大型基因组数据集时降低带宽成本。
+      </p>
+    </div>
     
-    <Card icon={<Cpu className="w-8 h-8 text-green-600" />} title="Intel oneTBB" href="/zh/core-concepts/architecture">
-      可扩展的生产者-消费者流水线，工作窃取调度器最大化多核利用率。
-    </Card>
-    
-    <Card icon={<Shield className="w-8 h-8 text-purple-600" />} title="随机访问" href="/zh/core-concepts/fqc-format">
-      基于块的格式实现 O(1) 访问任意 reads 范围，无需完整解压。
-    </Card>
-    
-    <Card icon={<Package className="w-8 h-8 text-red-600" />} title="现代 C++23" href="/zh/development/contributing">
-      类型安全、高性能的代码库，采用现代 CMake 和全面测试。
-    </Card>
-    
-    <Card icon={<BookOpen className="w-8 h-8 text-indigo-600" />} title="完整文档" href="/zh/getting-started/quickstart">
-      全双语种文档、API 参考和交互式示例。
-    </Card>
-  </Cards>
-</div>
-
-<div className="container mx-auto px-4 py-16">
-  <h2 className="text-3xl font-bold text-center mb-12">快速开始</h2>
-  
-  <div className="max-w-4xl mx-auto">
-    <Tabs items={['安装', '压缩', '解压']}>
-      <Tabs.Tab>
-        ```bash
-        # Linux / macOS (x86_64)
-        wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
-          fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-        tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-        sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
-        ```
-      </Tabs.Tab>
-      <Tabs.Tab>
-        ```bash
-        # 基本压缩
-        fqc compress -i reads.fastq -o reads.fqc
-        
-        # 并行压缩
-        fqc compress -i reads.fastq -o reads.fqc -t 8 -v
-        ```
-      </Tabs.Tab>
-      <Tabs.Tab>
-        ```bash
-        # 解压
-        fqc decompress -i reads.fqc -o restored.fastq
-        
-        # 随机访问 - 提取子集
-        fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-        ```
-      </Tabs.Tab>
-    </Tabs>
+    <div className="feature-card text-center">
+      <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
+        <Zap className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+      </div>
+      <h3 className="text-xl font-semibold mb-3">分析流水线</h3>
+      <p className="text-gray-600 dark:text-gray-400">
+        随机访问功能支持高效数据提取，无需完整解压即可进行靶向分析。
+      </p>
+    </div>
   </div>
 </div>

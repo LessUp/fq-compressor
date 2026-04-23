@@ -1,99 +1,31 @@
-# fq-compressor Document Hub
+# fq-compressor documentation
 
-> 📚 Comprehensive documentation for fq-compressor in multiple languages
+This repository keeps documentation intentionally **lean and bilingual**.
 
-Welcome to the fq-compressor documentation hub. Choose your preferred language below.
+## Source of truth by surface
 
----
+| Surface | Role |
+| --- | --- |
+| `README.md` | Repository entry point and quick orientation |
+| `docs/website/` | GitHub Pages source and primary public landing surface |
+| `docs/en/` | English documentation pages referenced by the site |
+| `docs/zh/` | Simplified Chinese documentation pages referenced by the site |
+| `openspec/` | Living specifications and planned work |
+| `specs/` | Archived historical specs only |
 
-## 🌐 Choose Language
+## Documentation policy
 
-| Language | Path | Status |
-|----------|------|--------|
-| 🇺🇸 English | [`docs/en/`](./en/README.md) | Complete |
-| 🇨🇳 简体中文 | [`docs/zh/`](./zh/README.md) | Complete |
+- Prefer **one good explanation** over the same explanation repeated in multiple places.
+- Keep English and Chinese onboarding paths aligned, but do not mirror every paragraph unless it
+  provides real value.
+- Use GitHub Pages to explain the project, show proof points, and direct users to the right docs.
+- Archive stale or low-value material instead of expanding the active docs tree.
 
----
+## Maintenance workflow
 
-## 📖 Documentation Structure
-
-```
-docs/
-├── en/                    # English Documentation
-│   ├── README.md
-│   ├── getting-started/
-│   │   ├── installation.md
-│   │   ├── quickstart.md
-│   │   └── cli-usage.md
-│   ├── core-concepts/
-│   │   ├── architecture.md
-│   │   ├── algorithms.md
-│   │   └── fqc-format.md
-│   ├── development/
-│   │   └── contributing.md
-│   ├── performance/
-│   │   └── benchmark.md
-│   └── reference/
-│       └── faq.md
-│
-├── zh/                    # Chinese Documentation (镜像结构)
-│   └── ...
-│
-├── specs/                 # Technical Specifications
-│   ├── requirements.md
-│   ├── design.md
-│   └── references.md
-│
-├── benchmark/             # Benchmarking Guide
-│   └── README.md
-│
-├── archive/               # Historical Documentation
-│   └── ...
-│
-└── website/               # Nextra Documentation Site
-    ├── en/
-    └── zh/
-```
-
----
-
-## 🚀 Quick Links
-
-### Getting Started
-- [Installation (EN)](en/getting-started/installation.md) | [安装指南 (ZH)](zh/getting-started/installation.md)
-- [Quick Start (EN)](en/getting-started/quickstart.md) | [快速入门 (ZH)](zh/getting-started/quickstart.md)
-- [CLI Usage (EN)](en/getting-started/cli-usage.md) | [CLI 使用指南 (ZH)](zh/getting-started/cli-usage.md)
-
-### Core Concepts
-- [Architecture (EN)](en/core-concepts/architecture.md) | [架构概述 (ZH)](zh/core-concepts/architecture.md)
-- [Algorithms (EN)](en/core-concepts/algorithms.md) | [核心算法 (ZH)](zh/core-concepts/algorithms.md)
-- [FQC Format (EN)](en/core-concepts/fqc-format.md) | [FQC 格式规范 (ZH)](zh/core-concepts/fqc-format.md)
-
-### Development
-- [Contributing (EN)](en/development/contributing.md)
-
----
-
-## 📊 External Resources
-
-- [GitBook Site](https://lessup.github.io/fq-compressor/) - Full bilingual documentation
-- [API Reference](https://lessup.github.io/fq-compressor/api-reference) - Generated API docs
-- [GitHub Repository](https://github.com/LessUp/fq-compressor) - Source code
-
----
-
-## 📝 Contributing to Documentation
-
-Documentation improvements are welcome! See the [Contributing Guide](en/development/contributing.md) for details.
-
-### Translation Guidelines
-
-When adding translations:
-1. Mirror the English directory structure
-2. Use UTF-8 encoding
-3. Include language frontmatter
-4. Cross-link between language versions
-
----
-
-**Version**: 0.2.0 | **Last Updated**: 2026-04-22
+1. Change behavior or scope in `openspec/` first when requirements move.
+2. Update the public-facing surface that actually owns the information:
+   - README for repository entry copy
+   - Pages for landing and navigation
+   - `docs/en/` and `docs/zh/` for maintained reference pages
+3. Remove redundant or outdated copies instead of preserving drift.

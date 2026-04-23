@@ -1,14 +1,13 @@
 export default {
   "index": {
     "title": "Home",
-    "type": "page"
+    "type": "page",
+    "display": "hidden"
   },
-  "docs": {
-    "title": "Documentation",
-    "type": "page"
+  "en": {
+    "title": "English"
   },
-  "api": {
-    "title": "API",
-    "type": "page"
+  "zh": {
+    "title": "简体中文"
   }
 }
