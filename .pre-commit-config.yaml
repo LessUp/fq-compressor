@@ -3,6 +3,7 @@
 #   pip install pre-commit
 #   pre-commit install
 #   pre-commit install --hook-type commit-msg
+#   pre-commit install --hook-type pre-push
 # Run manually: pre-commit run --all-files
 
 repos:
@@ -25,6 +26,15 @@ repos:
   # C++ 代码格式化
   - repo: local
     hooks:
+      - id: repo-preflight
+        name: repo-preflight
+        description: Check local repo state and active OpenSpec changes before push
+        entry: ./scripts/dev/preflight.sh --strict
+        language: script
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push, manual]
+
       - id: clang-format
         name: clang-format
         description: Format C++ code with clang-format

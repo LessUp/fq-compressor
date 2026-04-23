@@ -37,11 +37,23 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'docs/website/package-lock.json'
 
-      - name: Install dependencies
+      - name: Clean install dependencies
         run: npm ci
 
       - name: Build Next.js site
         run: npm run build
+
+      - name: Check build output
+        run: |
+          if [ ! -d "../.site" ]; then
+            echo "Error: Build output directory not found"
+            exit 1
+          fi
+          echo "Build output contents:"
+          ls -la ../.site/
+          echo "---"
+          echo "Files in root of site:"
+          ls ../.site/ | head -20
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
