@@ -9,13 +9,13 @@ const withNextra = require('nextra').default({
 const nextConfig = {
   output: 'export',
   distDir: '../.site',
+  basePath: '/fq-compressor',
+  assetPrefix: '/fq-compressor',
   images: {
     unoptimized: true,
   },
-  i18n: {
-    locales: ['en', 'zh'],
-    defaultLocale: 'en',
-  },
+  // Note: i18n is not compatible with output: 'export'
+  // We use file-based routing (pages/en/, pages/zh/) instead
 }
 
 module.exports = withNextra(nextConfig)
