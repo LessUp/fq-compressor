@@ -130,32 +130,34 @@ docs/website/.next/
 # OpenSpec - AI tool directories (configure per-project as needed)
 # Most projects should track OpenSpec skills/commands for consistency
 # Uncomment to ignore all AI tool configs:
-# .agent/
-# .amazonq/
-# .augment/
-# .bob/
-# .cline/
-# .codebuddy/
-# .codex/
-# .continue/
-# .cospec/
-# .crush/
-# .cursor/
-# .factory/
-# .forge/
-# .gemini/
-# .iflow/
-# .junie/
-# .kilocode/
-# .kiro/
-# .lingma/
-# .opencode/
-# .pi/
-# .qoder/
-# .qwen/
-# .roo/
-# .trae/
-# .windsurf/
+.agent/
+.amazonq/
+.augment/
+.bob/
+.cline/
+.clinerules/
+.codebuddy/
+.codex/
+.continue/
+.cospec/
+.crush/
+.cursor/
+.factory/
+.forge/
+.gemini/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.lingma/
+.omc/
+.opencode/
+.pi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
 
 # OpenSpec explorations (scratch/research docs, not tracked)
 openspec/explorations/
