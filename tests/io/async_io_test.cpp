@@ -523,8 +523,8 @@ TEST_F(AsyncWriterTest, Abort) {
     writer.abort();
 
     // File should not exist or be empty
-    EXPECT_FALSE(std::filesystem::exists(testFilePath_) ||
-                 std::filesystem::file_size(testFilePath_) == 0);
+    const bool exists = std::filesystem::exists(testFilePath_);
+    EXPECT_TRUE(!exists || std::filesystem::file_size(testFilePath_) == 0);
 }
 
 TEST_F(AsyncWriterTest, TryAcquireBuffer) {

@@ -321,6 +321,8 @@ public:
         readyQueue_.pop();
         lock.unlock();
 
+        position_ += buffer.size();
+
         // Signal prefetch thread that a buffer was consumed
         prefetchCv_.notify_one();
 
@@ -346,6 +348,8 @@ public:
         auto buffer = std::move(readyQueue_.front());
         readyQueue_.pop();
         lock.unlock();
+
+        position_ += buffer.size();
 
         prefetchCv_.notify_one();
 
@@ -464,7 +468,6 @@ private:
             if (bytesRead > 0) {
                 buffer.setSize(bytesRead);
                 totalBytesRead_ += bytesRead;
-                position_ += bytesRead;
 
                 // Add to ready queue
                 {

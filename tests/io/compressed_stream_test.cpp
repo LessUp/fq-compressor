@@ -261,8 +261,10 @@ TEST_F(GzipStreamBufTest, DecompressGzipStream) {
     // Create gzip file
     {
         auto plainPath = tempDir_ / "test_plain.txt";
-        std::ofstream file(plainPath);
-        file << testData;
+        {
+            std::ofstream file(plainPath);
+            file << testData;
+        }
         std::string cmd = "gzip -c " + plainPath.string() + " > " + compressedPath.string();
         ASSERT_EQ(system(cmd.c_str()), 0);
     }
@@ -284,8 +286,10 @@ TEST_F(GzipStreamBufTest, MoveSemantics) {
 
     {
         auto plainPath = tempDir_ / "test_plain.txt";
-        std::ofstream file(plainPath);
-        file << testData;
+        {
+            std::ofstream file(plainPath);
+            file << testData;
+        }
         std::string cmd = "gzip -c " + plainPath.string() + " > " + compressedPath.string();
         ASSERT_EQ(system(cmd.c_str()), 0);
     }
@@ -330,8 +334,10 @@ TEST_F(XzStreamBufTest, DecompressXzStream) {
 
     {
         auto plainPath = tempDir_ / "test_plain.txt";
-        std::ofstream file(plainPath);
-        file << testData;
+        {
+            std::ofstream file(plainPath);
+            file << testData;
+        }
         std::string cmd = "xz -c " + plainPath.string() + " > " + compressedPath.string();
         ASSERT_EQ(system(cmd.c_str()), 0);
     }
@@ -424,15 +430,16 @@ TEST_F(CompressedStreamTest, NonexistentFile) {
 
 TEST_F(CompressedStreamTest, InvalidGzipData) {
     auto path = tempDir_ / "invalid.gz";
-    std::ofstream file(path, std::ios::binary);
-    // Write invalid gzip data (looks like gzip but isn't)
-    file << "\x1f\x8b\x08\x00";
-    file << "this is not valid gzip compressed data";
+    {
+        std::ofstream file(path, std::ios::binary);
+        // Write invalid gzip data (looks like gzip but isn't)
+        file << "\x1f\x8b\x08\x00";
+        file << "this is not valid gzip compressed data";
+    }
 
     CompressedInputStream stream(path);
-    std::stringstream buffer;
-    // Reading should either fail or throw
-    EXPECT_TRUE(stream.bad() || !stream.good());
+    (void)stream.peek();
+    EXPECT_TRUE(stream.bad() || stream.fail() || stream.eof());
 }
 
 // =============================================================================

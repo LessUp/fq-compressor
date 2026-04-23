@@ -264,29 +264,47 @@ std::size_t GzipStreamBuf::decompress() {
     }
 
     auto* stream = static_cast<z_stream*>(zlibStream_);
-
-    // Read more compressed data if needed
-    if (stream->avail_in == 0 && !source_->eof()) {
-        source_->read(reinterpret_cast<char*>(inputBuffer_.data()),
-                      static_cast<std::streamsize>(inputBuffer_.size()));
-        auto bytesRead = static_cast<std::size_t>(source_->gcount());
-        if (bytesRead > 0) {
-            stream->avail_in = static_cast<uInt>(bytesRead);
-            stream->next_in = inputBuffer_.data();
-        }
-    }
-
-    // Setup output buffer
     stream->avail_out = static_cast<uInt>(outputBuffer_.size());
     stream->next_out = reinterpret_cast<Bytef*>(outputBuffer_.data());
 
-    // Decompress
-    int ret = inflate(stream, Z_NO_FLUSH);
+    while (stream->avail_out > 0) {
+        if (stream->avail_in == 0 && !source_->eof()) {
+            source_->read(reinterpret_cast<char*>(inputBuffer_.data()),
+                          static_cast<std::streamsize>(inputBuffer_.size()));
+            const auto bytesRead = static_cast<std::size_t>(source_->gcount());
+            if (bytesRead > 0) {
+                stream->avail_in = static_cast<uInt>(bytesRead);
+                stream->next_in = inputBuffer_.data();
+            }
+        }
 
-    if (ret == Z_STREAM_END) {
-        streamEnd_ = true;
-    } else if (ret != Z_OK && ret != Z_BUF_ERROR) {
-        throw IOError("Gzip decompression failed: " + std::string(zError(ret)));
+        const auto availInBefore = stream->avail_in;
+        const auto availOutBefore = stream->avail_out;
+        const int ret = inflate(stream, Z_NO_FLUSH);
+
+        if (ret == Z_STREAM_END) {
+            streamEnd_ = true;
+            break;
+        }
+
+        if (ret != Z_OK && ret != Z_BUF_ERROR) {
+            throw IOError("Gzip decompression failed: " + std::string(zError(ret)));
+        }
+
+        const bool producedOutput = stream->avail_out < availOutBefore;
+        if (producedOutput) {
+            break;
+        }
+
+        const bool consumedInput = stream->avail_in < availInBefore;
+        const bool inputExhausted = source_->eof() && stream->avail_in == 0;
+        if (inputExhausted && !streamEnd_) {
+            throw IOError("Gzip decompression failed: truncated or invalid gzip stream");
+        }
+
+        if (!consumedInput && ret == Z_BUF_ERROR) {
+            break;
+        }
     }
 
     return outputBuffer_.size() - stream->avail_out;
