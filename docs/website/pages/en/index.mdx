@@ -1,217 +1,28 @@
 ---
-title: fq-compressor
+title: Documentation
+description: fq-compressor English documentation hub
 ---
 
-import { Hero, FeatureGrid, CodeShowcase } from '../../components'
-import { 
-  Database, Zap, Cpu, Shield, 
-  Package, BookOpen, GitBranch, Layers
-} from 'lucide-react'
+# Documentation
 
-<Hero
-  title="fq-compressor"
-  subtitle="High-performance FASTQ compression for the sequencing era"
-  description="Assembly-based compression with 3.97x compression ratio and O(1) random access. Built with modern C++23 and Intel oneTBB for maximum performance."
-  primaryCta={{ text: "Get Started", href: "/fq-compressor/en/getting-started/quickstart" }}
-  secondaryCta={{ text: "View on GitHub", href: "https://github.com/LessUp/fq-compressor" }}
-  stats={[
-    { value: "3.97×", label: "Compression Ratio", color: "text-blue-600 dark:text-blue-400" },
-    { value: "11.9 MB/s", label: "Compression Speed", color: "text-green-600 dark:text-green-400" },
-    { value: "62.3 MB/s", label: "Decompression", color: "text-purple-600 dark:text-purple-400" }
-  ]}
-/>
+Welcome to the fq-compressor documentation. Below are the main sections.
 
-<FeatureGrid
-  title="Core Features"
-  features={[
-    {
-      icon: Database,
-      iconColor: "bg-blue-500",
-      title: "ABC Algorithm",
-      description: "Assembly-based Compression with minimizer bucketing and delta encoding. Near-entropy compression ratios for genomic data.",
-      href: "/fq-compressor/en/core-concepts/algorithms"
-    },
-    {
-      icon: Zap,
-      iconColor: "bg-yellow-500",
-      title: "SCM Quality",
-      description: "Statistical Context Mixing for quality scores with high-order prediction and adaptive arithmetic coding.",
-      href: "/fq-compressor/en/core-concepts/algorithms"
-    },
-    {
-      icon: Cpu,
-      iconColor: "bg-green-500",
-      title: "Intel oneTBB",
-      description: "Scalable Producer-Consumer pipeline with work-stealing scheduler maximizing multicore utilization.",
-      href: "/fq-compressor/en/core-concepts/architecture"
-    },
-    {
-      icon: Shield,
-      iconColor: "bg-purple-500",
-      title: "Random Access",
-      description: "Block-based format enables O(1) access to any read range without full decompression.",
-      href: "/fq-compressor/en/core-concepts/fqc-format"
-    },
-    {
-      icon: GitBranch,
-      iconColor: "bg-bio-500",
-      title: "Reference-Based",
-      description: "Leverage reference genomes for improved compression ratios on aligned sequencing data.",
-      href: "/fq-compressor/en/core-concepts/algorithms"
-    },
-    {
-      icon: Package,
-      iconColor: "bg-red-500",
-      title: "C++23 Modern",
-      description: "Type-safe, high-performance codebase with Modern CMake, Conan 2.x, and comprehensive testing.",
-      href: "/fq-compressor/en/development/contributing"
-    }
-  ]}
-/>
+## Quick Links
 
-<CodeShowcase
-  title="Quick Start"
-  tabs={[
-    {
-      label: "Install",
-      code: `# Linux / macOS (x86_64)
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\\
-  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/`
-    },
-    {
-      label: "Compress",
-      code: `# Basic compression
-fqc compress -i reads.fastq -o reads.fqc
+| Topic | What's Here |
+|-------|-----------|
+| **[Getting Started](/fq-compressor/en/getting-started/installation)** | Installation, quickstart, CLI basics |
+| **[Architecture](/fq-compressor/en/core-concepts/architecture)** | Design, algorithms, components |
+| **[CLI Reference](/fq-compressor/en/getting-started/cli-usage)** | Commands, options, examples |
+| **[Format Spec](/fq-compressor/en/core-concepts/fqc-format)** | FQC binary format, block structure |
+| **[Performance](/fq-compressor/en/performance/benchmark)** | Benchmarks, throughput, memory |
+| **[FAQ](/fq-compressor/en/reference/faq)** | Common questions, troubleshooting |
+| **[Contributing](/fq-compressor/en/development/contributing)** | Development workflow, OpenSpec, testing |
 
-# With progress and multi-threading
-fqc compress -i reads.fastq -o reads.fqc -t 8 -v
+## Start Here
 
-# Paired-end data
-fqc compress -i reads_1.fastq -i2 reads_2.fastq \\
-  -o paired.fqc --paired`
-    },
-    {
-      label: "Decompress",
-      code: `# Full decompression
-fqc decompress -i reads.fqc -o restored.fastq
-
-# Random access - extract subset
-fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-
-# Restore original order
-fqc decompress -i reads.fqc -o restored.fastq --original-order`
-    }
-  ]}
-/>
-
-{/* Performance Section */}
-<div className="container mx-auto px-4 py-16">
-  <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Performance Benchmark</h2>
-  <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-12 rounded-full" />
-  
-  <div className="max-w-4xl mx-auto">
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-gray-50 dark:bg-gray-800">
-            <th className="px-6 py-4 text-left font-semibold">Compiler</th>
-            <th className="px-6 py-4 text-left font-semibold">Compression</th>
-            <th className="px-6 py-4 text-left font-semibold">Decompression</th>
-            <th className="px-6 py-4 text-left font-semibold">Ratio</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-          <tr className="bg-white dark:bg-gray-900/50">
-            <td className="px-6 py-4 font-medium">GCC 15.2</td>
-            <td className="px-6 py-4">11.30 MB/s</td>
-            <td className="px-6 py-4">60.10 MB/s</td>
-            <td className="px-6 py-4"><span className="text-green-600 dark:text-green-400 font-bold">3.97×</span></td>
-          </tr>
-          <tr className="bg-gray-50/50 dark:bg-gray-800/30">
-            <td className="px-6 py-4 font-medium">Clang 21</td>
-            <td className="px-6 py-4">11.90 MB/s</td>
-            <td className="px-6 py-4">62.30 MB/s</td>
-            <td className="px-6 py-4"><span className="text-green-600 dark:text-green-400 font-bold">3.97×</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    
-    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-      Tested on Intel Core i7-9700 @ 3.00GHz (8 cores), 2.27M Illumina reads (511 MB uncompressed)
-    </p>
-  </div>
-</div>
-
-{/* CTA Section */}
-<div className="container mx-auto px-4 py-16">
-  <div className="bg-gradient-to-r from-primary-600 via-purple-600 to-bio-500 rounded-2xl p-8 md:p-12 text-center text-white relative overflow-hidden">
-    {/* Decorative elements */}
-    <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-    <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-    
-    <div className="relative z-10">
-      <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to compress?</h2>
-      <p className="text-lg md:text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-        Get started with fq-compressor and reduce your FASTQ storage by up to 4× 
-        while maintaining fast access to your genomic data.
-      </p>
-      <div className="flex flex-wrap justify-center gap-4">
-        <a 
-          href="/fq-compressor/en/getting-started/installation"
-          className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-600 hover:bg-gray-100 rounded-xl font-semibold transition-all duration-200 hover:shadow-xl"
-        >
-          <Package className="w-5 h-5" />
-          Installation Guide
-        </a>
-        <a 
-          href="/fq-compressor/en/core-concepts/architecture"
-          className="inline-flex items-center gap-2 px-8 py-4 border-2 border-white text-white hover:bg-white/10 rounded-xl font-semibold transition-all duration-200"
-        >
-          <BookOpen className="w-5 h-5" />
-          Learn More
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-{/* Use Cases */}
-<div className="container mx-auto px-4 py-16">
-  <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Use Cases</h2>
-  <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-12 rounded-full" />
-  
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-    <div className="feature-card text-center">
-      <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
-        <Layers className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-      </div>
-      <h3 className="text-xl font-semibold mb-3">Data Archival</h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Long-term storage of sequencing data with significant space savings and fast retrieval capabilities.
-      </p>
-    </div>
-    
-    <div className="feature-card text-center">
-      <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
-        <Database className="w-8 h-8 text-green-600 dark:text-green-400" />
-      </div>
-      <h3 className="text-xl font-semibold mb-3">Cloud Transfer</h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Reduced bandwidth costs when transferring large genomic datasets between cloud providers.
-      </p>
-    </div>
-    
-    <div className="feature-card text-center">
-      <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
-        <Zap className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-      </div>
-      <h3 className="text-xl font-semibold mb-3">Analysis Pipelines</h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Random access enables efficient data extraction for targeted analysis without full decompression.
-      </p>
-    </div>
-  </div>
-</div>
+- **New to fq-compressor?** Start with [Installation](/fq-compressor/en/getting-started/installation)
+- **Want to understand the design?** See [Architecture](/fq-compressor/en/core-concepts/architecture)
+- **Looking for command details?** Check [CLI Usage](/fq-compressor/en/getting-started/cli-usage)
+- **Evaluating compression?** See [Benchmarks](/fq-compressor/en/performance/benchmark)
+- **Contributing or forking?** Read [Contributing Guide](/fq-compressor/en/development/contributing)

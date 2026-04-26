@@ -1,47 +1,125 @@
 ---
 title: fq-compressor
-description: High-performance FASTQ compression for storage reduction and O(1) random access
+description: High-performance FASTQ compression with O(1) random access
 ---
+
+import { Callout, Tabs } from 'nextra/components'
 
 # fq-compressor
 
-**fq-compressor** is a high-performance FASTQ compressor built in **C++23** with
-**Assembly-based Compression (ABC)**, **Statistical Context Mixing (SCM)**, and
-**O(1) random access**.
+**High-performance FASTQ compression for the sequencing era**
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-10">
-  <a
-    href="/fq-compressor/en"
-    className="block rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:border-primary-500 hover:shadow-lg transition-all"
-  >
-    <div className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">English</div>
-    <div className="mt-2 text-2xl font-semibold">Product overview, install, docs</div>
-    <div className="mt-3 text-gray-600 dark:text-gray-400">
-      Start here if you want the architecture overview, quick start, and documentation in English.
-    </div>
-  </a>
+A C++23 FASTQ compressor with **3.97× compression** and **O(1) random access**. Built for production FASTQ archives.
 
-  <a
-    href="/fq-compressor/zh"
-    className="block rounded-2xl border border-gray-200 dark:border-gray-800 p-6 hover:border-primary-500 hover:shadow-lg transition-all"
-  >
-    <div className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">简体中文</div>
-    <div className="mt-2 text-2xl font-semibold">项目介绍、安装与文档</div>
-    <div className="mt-3 text-gray-600 dark:text-gray-400">
-      如果你希望用中文快速了解项目定位、性能数据、安装方式和核心设计，从这里进入。
-    </div>
-  </a>
-</div>
+## Key Metrics
 
-## Why this project matters
+| Metric | Value |
+|--------|-------|
+| **Compression Ratio** | 3.97× on Illumina data |
+| **Compression Speed** | 11.9 MB/s (multithreaded) |
+| **Decompression Speed** | 62.3 MB/s (multithreaded) |
+| **Random Access** | O(1) without full decompression |
 
-- **Storage reduction** for sequencing datasets without giving up future access.
-- **Random access** so downstream workflows can extract subsets without full decompression.
-- **Modern implementation** using CMake presets, Conan, clangd, GitHub Actions, and OpenSpec.
+## Why fq-compressor
 
-## Quick links
+1. **Storage reduction with retrieval** — Compress aggressively without sacrificing random access or verification
+2. **Fast to practical use** — Prebuilt binaries, simple CLI, documented defaults
+3. **Modern C++23 stack** — Intel oneTBB, CMake presets, Conan 2, clangd-friendly
+4. **Archive inspection** — Block-based access, metadata queries, checksums
+5. **Transparent input handling** — Works with .gz, .bz2, .xz inputs transparently
+6. **Clean engineering workflow** — OpenSpec-driven repo, enforced quality gates, archive-grade maintenance
 
-- [GitHub repository](https://github.com/LessUp/fq-compressor)
-- [Latest releases](https://github.com/LessUp/fq-compressor/releases)
-- [English landing page](/fq-compressor/en)
-- [中文首页](/fq-compressor/zh)
+## Quick Start
+
+<Tabs items={['Install', 'Compress', 'Decompress', 'Verify']}>
+<Tabs.Tab>
+```bash
+# Download prebuilt binary (Linux x86_64, static musl)
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
+  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
+
+fqc --version
+```
+</Tabs.Tab>
+
+<Tabs.Tab>
+```bash
+# Compress a FASTQ file
+fqc compress -i reads.fastq -o reads.fqc
+
+# With threads and progress
+fqc compress -i reads.fastq -o reads.fqc --threads 8
+```
+</Tabs.Tab>
+
+<Tabs.Tab>
+```bash
+# Full decompression
+fqc decompress -i reads.fqc -o restored.fastq
+
+# Random access (range)
+fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
+
+# Streaming (no temp files)
+fqc decompress -i reads.fqc --stdout | gzip > output.fq.gz
+```
+</Tabs.Tab>
+
+<Tabs.Tab>
+```bash
+# Verify archive integrity
+fqc verify reads.fqc
+
+# Show compression details
+fqc info reads.fqc
+
+# JSON output for scripting
+fqc info reads.fqc --json | jq '.ratio'
+```
+</Tabs.Tab>
+</Tabs>
+
+## Choose Your Entry Path
+
+**[English Documentation](/fq-compressor/en/)** — Installation guide, CLI reference, architecture, performance benchmarks, FAQ
+
+**[中文文档](/fq-compressor/zh/)** — 安装指南、命令参考、架构说明、性能基准
+
+**[Source Code](https://github.com/LessUp/fq-compressor)** — GitHub repository, OpenSpec workflow, issues
+
+**[Releases](https://github.com/LessUp/fq-compressor/releases)** — Download prebuilt binaries
+
+## Project Status
+
+<Callout type="info">
+**v0.2.0 — Stable & Archive-Ready**
+
+fq-compressor is in **closeout mode**: stable, production-tested, and maintaining archive-grade repository hygiene. No breaking changes planned. Focus is on finishing, stabilizing, and documentation polish.
+</Callout>
+
+---
+
+## Technical Highlights
+
+- **Compression Algorithms**: Assembly-based Compression (ABC) + Statistical Context Mixing (SCM)
+- **Parallelism**: Intel oneTBB pipeline, tunable threads, zero-copy where possible
+- **Format**: Custom FQC binary format with block-based structure for O(1) random access
+- **Quality Modes**: Lossless, lossy, or discard quality scores
+- **Integrity**: xxh64 checksums, built-in verification
+- **Transparency**: Read directly from .gz, .bz2, .xz FASTQ inputs
+
+---
+
+## Development
+
+**Build**, **test**, and **lint** use single commands:
+
+```bash
+./scripts/build.sh clang-debug        # Build with Clang
+./scripts/test.sh clang-debug          # Run all tests
+./scripts/lint.sh format-check         # Check formatting
+```
+
+See [Development Guide](/fq-compressor/en/development/contributing) for full details.

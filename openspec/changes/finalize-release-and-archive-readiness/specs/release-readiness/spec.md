@@ -25,5 +25,13 @@ The closeout process SHALL leave no unmanaged active changes or lingering local 
 
 #### Scenario: Running the final closeout pass
 - **WHEN** the final readiness pass is executed
-- **THEN** active OpenSpec changes are intentionally resolved or carried forward
+- **THEN** active OpenSpec changes are intentionally consolidated, archived, or carried forward
 - **AND** any temporary local cleanup artifacts are intentionally removed or documented
+
+### Requirement: Closeout is driven from one active umbrella change
+The repository SHALL use one active closeout change to coordinate the final repository-hardening pass.
+
+#### Scenario: Starting the closeout program
+- **WHEN** the repository enters a broad closeout refactor
+- **THEN** one umbrella change owns the closeout plan
+- **AND** overlapping closeout-oriented changes are superseded or archived instead of remaining active

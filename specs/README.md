@@ -1,27 +1,25 @@
 # fq-compressor Specifications
 
-This directory contains archived specification documents. **For active development, see the [openspec/](../openspec/) directory.**
+This directory is **archive-only**. Do not use it as the source of truth for active development.
 
-## Migration Note
+## Active sources of truth
 
-As of 2026-04-23, the project has migrated to [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development.
+- **Living specifications:** `openspec/specs/`
+- **Active change work:** `openspec/changes/`
+- **Project context:** `openspec/config.yaml`
 
-- **Living specifications**: `openspec/specs/`
-- **Change proposals**: `openspec/changes/`
-- **Project context**: `openspec/config.yaml`
+If you are planning or implementing current work, stop reading here and switch to `openspec/`.
 
-## Archived Documents
+## Archived documents kept for reference
 
-The following documents are kept for historical reference:
-
-### Product Specifications (`specs/product/`)
+### Product specifications (`specs/product/`)
 
 | Document | Status |
 |----------|--------|
 | [requirements.md](product/requirements.md) | Archived - migrated to OpenSpec |
-| [tasks.md](product/tasks.md) | Completed - archived |
+| [tasks.md](product/tasks.md) | Archived - superseded by OpenSpec change tasks |
 
-### Technical Design (`specs/rfc/`)
+### Technical design (`specs/rfc/`)
 
 | Document | Status |
 |----------|--------|
@@ -31,19 +29,19 @@ The following documents are kept for historical reference:
 | [0004-long-read-support.md](rfc/0004-long-read-support.md) | Archived - migrated to `compression` spec |
 | [0005-paired-end-support.md](rfc/0005-paired-end-support.md) | Archived - migrated to `compression` spec |
 
-### Testing Specifications (`specs/testing/`)
+### Testing specifications (`specs/testing/`)
 
 | Document | Status |
 |----------|--------|
-| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - scenarios in OpenSpec specs |
-| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - scenarios in OpenSpec specs |
+| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - scenarios migrated into OpenSpec |
+| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - scenarios migrated into OpenSpec |
 
-## OpenSpec Workflow
+## Workflow note
 
-For new development, use OpenSpec commands:
+Use OpenSpec for all new work:
 
-- `/opsx:propose "<idea>"` - Start a new change proposal
-- `/opsx:apply <change>` - Implement the change
-- `/opsx:archive <change>` - Complete and archive
+- `/opsx:propose "<idea>"`
+- `/opsx:apply <change>`
+- `/opsx:archive <change>`
 
-See [AGENTS.md](../AGENTS.md) for full workflow details.
+See [AGENTS.md](../AGENTS.md) for repository workflow details.
