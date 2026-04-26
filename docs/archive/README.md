@@ -1,17 +1,21 @@
 # Archive Directory
 
-This directory contains historical and legacy documents that are no longer actively maintained.
-Current specifications and active documentation are in the `/specs` directory at the project root.
+This directory contains **historical reference material only**. These files are not the source of
+truth for current development, closeout work, or repository governance.
 
-## Contents
+## Use these surfaces instead
 
-- Old requirements and design documents (superseded by `/specs/product/` and `/specs/rfc/`)
-- Historical research and analysis documents
-- Past review summaries and phase reports
+- `openspec/specs/` — living requirements
+- `openspec/changes/` — active change work
+- `README.md` / `README.zh-CN.md` — repository entry copy
+- `docs/website/` — GitHub Pages source
+- `docs/en/` / `docs/zh/` — maintained reference pages
 
-## Reference
+## What belongs here
 
-For current project specifications, see:
-- `/specs/product/` - Product requirements and tasks
-- `/specs/rfc/` - Technical design documents (RFCs)
-- `/specs/testing/` - Testing criteria and boundary conditions
+- Superseded research, planning notes, and historical reviews
+- Legacy release notes or migration notes kept only for reference
+- Diagnostic material that may still be useful for retrospective bug revalidation
+
+If a document here becomes actively maintained again, it should move back to an authoritative surface
+instead of being edited in place.

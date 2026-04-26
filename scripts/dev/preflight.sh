@@ -51,8 +51,8 @@ if [[ -n "$dirty_status" ]]; then
     warnings+=("working tree has uncommitted changes")
 fi
 
-active_changes=$(openspec list --json 2>/dev/null || echo '[]')
-active_change_count=$(printf '%s' "$active_changes" | jq 'length' 2>/dev/null || echo 0)
+active_changes=$(openspec list --json 2>/dev/null || echo '{"changes":[]}')
+active_change_count=$(printf '%s' "$active_changes" | jq 'if type == "object" then (.changes // [] | length) else length end' 2>/dev/null || echo 0)
 if [[ "$active_change_count" != "0" && "$active_change_count" != "1" ]]; then
     warnings+=("more than one OpenSpec change is active")
 fi

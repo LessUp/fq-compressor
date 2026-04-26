@@ -1,31 +1,39 @@
 # fq-compressor documentation
 
-This repository keeps documentation intentionally **lean and bilingual**.
+This repository keeps documentation intentionally **lean, layered, and bilingual where it matters**.
 
-## Source of truth by surface
+## Authoritative surfaces
 
-| Surface | Role |
-| --- | --- |
-| `README.md` | Repository entry point and quick orientation |
-| `docs/website/` | GitHub Pages source and primary public landing surface |
-| `docs/en/` | English documentation pages referenced by the site |
-| `docs/zh/` | Simplified Chinese documentation pages referenced by the site |
-| `openspec/` | Living specifications and planned work |
-| `specs/` | Archived historical specs only |
+| Surface | Role | Edit when |
+| --- | --- | --- |
+| `openspec/` | Living requirements, change intent, closeout planning | Product or workflow requirements change |
+| `README.md` / `README.zh-CN.md` | Repository entry summary | The top-level project story or quick-start pointers change |
+| `docs/website/` | GitHub Pages source and public landing experience | The landing page, site IA, or public navigation changes |
+| `docs/en/` / `docs/zh/` | Maintained reference pages used by Pages | A maintained reference page needs updating |
+
+## Archived and generated surfaces
+
+| Surface | Status | Notes |
+| --- | --- | --- |
+| `specs/` | Archive-only | Historical specs; do not treat as living requirements |
+| `docs/archive/` | Archive-only | Historical notes, research, and superseded docs |
+| `docs/.site/` | Generated output | Build artifact for Pages; never edit as source |
 
 ## Documentation policy
 
-- Prefer **one good explanation** over the same explanation repeated in multiple places.
-- Keep English and Chinese onboarding paths aligned, but do not mirror every paragraph unless it
-  provides real value.
-- Use GitHub Pages to explain the project, show proof points, and direct users to the right docs.
-- Archive stale or low-value material instead of expanding the active docs tree.
+- Prefer **one good explanation** over multiple competing copies.
+- Keep English and Chinese onboarding paths aligned, but do not mirror long-form text paragraph by
+  paragraph without clear value.
+- Use GitHub Pages as the public landing surface; use README as the repository entry surface.
+- Remove, archive, or merge low-value documents instead of preserving drift.
+- Treat migration notes, release notes, and historical diagnosis documents as disposable unless they
+  still provide reference value that is not already captured elsewhere.
 
 ## Maintenance workflow
 
-1. Change behavior or scope in `openspec/` first when requirements move.
-2. Update the public-facing surface that actually owns the information:
+1. Change requirements or workflow policy in `openspec/` first.
+2. Update only the surface that owns the affected information:
    - README for repository entry copy
    - Pages for landing and navigation
-   - `docs/en/` and `docs/zh/` for maintained reference pages
-3. Remove redundant or outdated copies instead of preserving drift.
+   - `docs/en/` / `docs/zh/` for maintained reference content
+3. Archive or delete stale duplicates instead of keeping them "just in case".
