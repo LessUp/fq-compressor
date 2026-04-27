@@ -15,6 +15,8 @@
       documentation website requirements
 - [x] 2.2 Create `openspec/changes/introduce-closeout-roadmap/specs/release-engineering/spec.md`
       with release artifact and distribution requirements
+- [x] 2.3 Create `openspec/changes/introduce-closeout-roadmap/specs/build-system/spec.md` with
+      build system configuration and reproducible build requirements
 
 ## 3. Add capability spec deltas
 
@@ -24,8 +26,6 @@
       `openspec/changes/introduce-closeout-roadmap/specs/performance/spec.md`
 - [x] 3.3 Add closeout-phase requirements to
       `openspec/changes/introduce-closeout-roadmap/specs/compatibility/spec.md`
-- [x] 3.4 Add closeout-phase requirements to
-      `openspec/changes/introduce-closeout-roadmap/specs/build-system/spec.md`
 
 ## 4. Validate and commit
 
