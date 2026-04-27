@@ -124,6 +124,12 @@ fqc_add_test(original_order_command_test
     LIBRARIES fqc_cli
 )
 
+# Archive regression tests
+fqc_add_test(archive_regression_test
+    SOURCES commands/archive_regression_test.cpp
+    LIBRARIES fqc_cli
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================
