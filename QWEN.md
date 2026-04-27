@@ -164,7 +164,7 @@ fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 fqc compress -i reads.fastq -o reads.fqc -t 8 -v
 
 # Paired-end data
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired
 
 # Archive inspection
 fqc info reads.fqc

@@ -110,7 +110,7 @@ fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 fqc compress -i reads.fastq -o reads.fqc -t 8 -v
 
 # 双端数据
-fqc compress -i reads_1.fastq -i2 reads_2.fastq \
+fqc compress -i reads_1.fastq -2 reads_2.fastq \
   -o paired.fqc --paired
 
 # 查看归档信息
@@ -119,145 +119,55 @@ fqc info reads.fqc
 
 ---
 
-## 📊 性能基准测试
+## 📊 核心证明点
 
-**测试数据集：** 2.27M Illumina reads（511 MB 未压缩）  
-**硬件：** Intel Core i7-9700 @ 3.00GHz（8 核）
+- **3.97× 压缩比**，同时保留 **O(1) 随机访问**
+- **11.9 MB/s 压缩**、**62.3 MB/s 解压**（多线程）
+- 通过 `fqc info` 和 `fqc verify` 提供**归档检查与完整性验证**
+- **透明支持** `.gz`、`.bz2`、`.xz` FASTQ 输入
 
-| 编译器 | 压缩速度 | 解压速度 | 压缩比 |
-|--------|----------|----------|--------|
-| **GCC 15.2** | 11.30 MB/s | 60.10 MB/s | **3.97×** |
-| **Clang 21** | 11.90 MB/s | 62.30 MB/s | **3.97×** |
-
-### 与其他工具对比
-
-| 工具 | 压缩比 | 压缩速度 | 解压速度 | 并行 | 随机访问 |
-|------|--------|----------|----------|------|----------|
-| **fq-compressor** | **3.97×** | 11.9 MB/s | 62 MB/s | ✓ | ✓ |
-| Spring | 4.5× | 3 MB/s | 25 MB/s | ✓ | ✗ |
-| fqzcomp5 | 3.5× | 8 MB/s | 35 MB/s | ✗ | ✗ |
-| gzip | 2.1× | 45 MB/s | 180 MB/s | ✗ | ✗ |
-| zstd | 2.5× | 220 MB/s | 500 MB/s | ✗ | ✗ |
-
-*更多对比参见 [详细基准测试](https://lessup.github.io/fq-compressor/zh/performance/benchmark)*
+更详细的性能数据、算法说明和格式设计请查看维护中的文档，而不是继续把 README 扩成第二个站点首页。
 
 ---
 
-## 🔬 核心算法
+## 📚 文档与项目表面
 
-### 基于组装的压缩（ABC）
-
-fq-compressor 将 reads 视为**基因组片段**而非独立字符串：
-
-1. **Minimizer 分桶** — 按共享 k-mer 签名分组 reads
-2. **TSP 重排序** — 通过旅行商优化最大化相邻相似性
-3. **共识生成** — 为每个桶构建局部共识序列
-4. **增量编码** — 仅存储相对共识序列的编辑内容
-
-### 统计上下文混合（SCM）
-
-针对质量分数，fq-compressor 使用：
-
-- **上下文：** 前序 QVs + 当前碱基 + 位置
-- **预测：** 高阶上下文建模
-- **编码：** 自适应算术编码
-- **结果：** 质量数据接近熵极限的压缩
-
----
-
-## 📚 文档
-
-| 资源 | 描述 |
+| 表面 | 角色 |
 |------|------|
-| [📖 在线文档](https://lessup.github.io/fq-compressor/) | 完整文档（中英双语） |
-| [🚀 快速入门](https://lessup.github.io/fq-compressor/zh/getting-started/quickstart) | 5 分钟内开始 |
-| [⌨️ CLI 参考](https://lessup.github.io/fq-compressor/zh/getting-started/cli-usage) | 完整命令参考 |
-| [🏗️ 架构](https://lessup.github.io/fq-compressor/zh/core-concepts/architecture) | 高层设计 |
-| [🧬 算法](https://lessup.github.io/fq-compressor/zh/core-concepts/algorithms) | 压缩算法深入解析 |
-| [📋 FQC 格式](https://lessup.github.io/fq-compressor/zh/core-concepts/fqc-format) | 归档格式规范 |
-| [🤝 贡献指南](https://lessup.github.io/fq-compressor/zh/development/contributing) | 开发者指南 |
+| [📖 GitHub Pages](https://lessup.github.io/fq-compressor/) | 对外 landing page 与中英文入口 |
+| [English docs](https://lessup.github.io/fq-compressor/en/) | 安装、CLI、架构、性能说明 |
+| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 安装、命令参考、架构说明、性能基准 |
+| [📦 发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
+| [🤝 贡献指南](https://lessup.github.io/fq-compressor/zh/development/contributing) | 面向 closeout 阶段的开发流程 |
 
 ---
 
 ## 🛠️ 开发
 
-### 快速构建
+`fq-compressor` 当前采用 **OpenSpec 驱动**，并处于 **closeout mode**。推荐本地循环：
 
 ```bash
-# 调试构建
-./scripts/build.sh gcc-debug
-
-# 发布构建
-./scripts/build.sh gcc-release
-
-# 运行测试
-./scripts/test.sh gcc-release
+./scripts/dev/preflight.sh
+openspec list --json
+./scripts/build.sh clang-debug
+./scripts/lint.sh format-check
+./scripts/test.sh clang-debug
 ```
 
-### 构建预设
-
-| 预设 | 编译器 | 模式 | 消毒剂 |
-|------|--------|------|--------|
-| `gcc-debug` | GCC 15.2 | Debug | 无 |
-| `gcc-release` | GCC 15.2 | Release | 无 |
-| `clang-debug` | Clang 21 | Debug | 无 |
-| `clang-asan` | Clang 21 | Debug | AddressSanitizer |
-| `clang-tsan` | Clang 21 | Debug | ThreadSanitizer |
-| `coverage` | GCC 15.2 | Debug | 覆盖率 |
-
-### 代码质量
-
-```bash
-# 格式化代码
-./scripts/lint.sh format
-
-# 运行代码检查
-./scripts/lint.sh lint clang-debug
-
-# 全面检查
-./scripts/lint.sh all clang-debug
-```
-
----
-
-## 🐳 Docker 使用
-
-```bash
-# 构建镜像
-docker build -f docker/Dockerfile -t fq-compressor .
-
-# 压缩数据
-docker run --rm -v $(pwd):/data \
-  fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
-
-# 解压数据
-docker run --rm -v $(pwd):/data \
-  fq-compressor decompress -i /data/reads.fqc -o /data/restored.fastq
-```
-
----
-
-## 🗺️ 路线图
-
-- [x] v0.1.0 - 初始发布，ABC + SCM 算法
-- [x] v0.2.0 - 双端优化，长读支持
-- [ ] 流式压缩模式
-- [ ] 额外的有损质量模式
-- [ ] AWS S3/GCS 原生集成
-- [ ] Python 绑定
+请将 `openspec/specs/` 视为唯一活规范源；`specs/` 与 `docs/archive/` 仅为历史参考材料。
 
 ---
 
 ## 🤝 贡献
 
-欢迎贡献！详情请参见我们的 [贡献指南](https://lessup.github.io/fq-compressor/zh/development/contributing)。
+欢迎面向收尾阶段的聚焦贡献，尤其包括：
 
-**贡献方式：**
-- 🐛 报告错误和问题
-- 💡 建议新功能
-- 📝 改进文档
-- 🔧 提交拉取请求
-- 🧪 在不同数据集上测试
+- 文档清理与职责边界收紧
+- 基于证据的缺陷修复与回归覆盖
+- 工作流与工具链精简
+- archive-readiness 打磨
+
+具体流程请参阅 [贡献指南](https://lessup.github.io/fq-compressor/zh/development/contributing)。
 
 ---
 

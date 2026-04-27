@@ -110,7 +110,7 @@ fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 fqc compress -i reads.fastq -o reads.fqc -t 8 -v
 
 # Paired-end data
-fqc compress -i reads_1.fastq -i2 reads_2.fastq \
+fqc compress -i reads_1.fastq -2 reads_2.fastq \
   -o paired.fqc --paired
 
 # Archive inspection
@@ -119,145 +119,58 @@ fqc info reads.fqc
 
 ---
 
-## 📊 Performance Benchmarks
+## 📊 Proof Points
 
-**Test dataset:** 2.27M Illumina reads (511 MB uncompressed)  
-**Hardware:** Intel Core i7-9700 @ 3.00GHz (8 cores)
+- **3.97× compression** on Illumina data with **O(1) random access**
+- **11.9 MB/s compression** and **62.3 MB/s decompression** in multithreaded runs
+- **Archive inspection and verification** via `fqc info` and `fqc verify`
+- **Transparent input handling** for `.gz`, `.bz2`, and `.xz` FASTQ inputs
 
-| Compiler | Compression | Decompression | Ratio |
-|----------|-------------|---------------|-------|
-| **GCC 15.2** | 11.30 MB/s | 60.10 MB/s | **3.97×** |
-| **Clang 21** | 11.90 MB/s | 62.30 MB/s | **3.97×** |
-
-### Comparison with Other Tools
-
-| Tool | Ratio | Compress | Decompress | Parallel | Random Access |
-|------|-------|----------|------------|----------|---------------|
-| **fq-compressor** | **3.97×** | 11.9 MB/s | 62 MB/s | ✓ | ✓ |
-| Spring | 4.5× | 3 MB/s | 25 MB/s | ✓ | ✗ |
-| fqzcomp5 | 3.5× | 8 MB/s | 35 MB/s | ✗ | ✗ |
-| gzip | 2.1× | 45 MB/s | 180 MB/s | ✗ | ✗ |
-| zstd | 2.5× | 220 MB/s | 500 MB/s | ✗ | ✗ |
-
-*See [detailed benchmarks](https://lessup.github.io/fq-compressor/en/performance/benchmark) for more comparisons.*
+For deeper benchmark data, algorithm notes, and file-format details, use the maintained docs rather
+than this repository entry page.
 
 ---
 
-## 🔬 Core Algorithms
+## 📚 Documentation & Project Surfaces
 
-### Assembly-based Compression (ABC)
-
-fq-compressor treats reads as **genome fragments** rather than independent strings:
-
-1. **Minimizer Bucketing** — Groups reads by shared k-mer signatures
-2. **TSP Reordering** — Maximizes neighbor similarity via Traveling Salesman optimization
-3. **Consensus Generation** — Builds local consensus per bucket
-4. **Delta Encoding** — Stores only edits from consensus sequence
-
-### Statistical Context Mixing (SCM)
-
-For quality scores, fq-compressor uses:
-
-- **Context:** Previous QVs + current base + position
-- **Prediction:** High-order context modeling
-- **Coding:** Adaptive arithmetic coding
-- **Result:** Near-entropy compression for quality data
-
----
-
-## 📚 Documentation
-
-| Resource | Description |
-|----------|-------------|
-| [📖 Online Docs](https://lessup.github.io/fq-compressor/) | Full documentation (EN/ZH) |
-| [🚀 Quick Start](https://lessup.github.io/fq-compressor/en/getting-started/quickstart) | Get started in 5 minutes |
-| [⌨️ CLI Reference](https://lessup.github.io/fq-compressor/en/getting-started/cli-usage) | Complete command reference |
-| [🏗️ Architecture](https://lessup.github.io/fq-compressor/en/core-concepts/architecture) | High-level design |
-| [🧬 Algorithms](https://lessup.github.io/fq-compressor/en/core-concepts/algorithms) | Compression algorithms |
-| [📋 FQC Format](https://lessup.github.io/fq-compressor/en/core-concepts/fqc-format) | Archive format specification |
-| [🤝 Contributing](https://lessup.github.io/fq-compressor/en/development/contributing) | Developer guide |
+| Surface | Role |
+|---------|------|
+| [📖 GitHub Pages](https://lessup.github.io/fq-compressor/) | Public landing page and EN/ZH entry paths |
+| [🚀 English docs](https://lessup.github.io/fq-compressor/en/) | Installation, CLI, architecture, performance |
+| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 安装、命令参考、架构说明、性能基准 |
+| [📦 Releases](https://github.com/LessUp/fq-compressor/releases) | Prebuilt binaries |
+| [🤝 Contributing Guide](https://lessup.github.io/fq-compressor/en/development/contributing) | Closeout-oriented development workflow |
 
 ---
 
 ## 🛠️ Development
 
-### Quick Build
+`fq-compressor` is **OpenSpec-driven** and currently in **closeout mode**. The expected local loop is:
 
 ```bash
-# Debug build with all features
-./scripts/build.sh gcc-debug
-
-# Release build
-./scripts/build.sh gcc-release
-
-# Run tests
-./scripts/test.sh gcc-release
+./scripts/dev/preflight.sh
+openspec list --json
+./scripts/build.sh clang-debug
+./scripts/lint.sh format-check
+./scripts/test.sh clang-debug
 ```
 
-### Build Presets
-
-| Preset | Compiler | Mode | Sanitizers |
-|--------|----------|------|------------|
-| `gcc-debug` | GCC 15.2 | Debug | None |
-| `gcc-release` | GCC 15.2 | Release | None |
-| `clang-debug` | Clang 21 | Debug | None |
-| `clang-asan` | Clang 21 | Debug | AddressSanitizer |
-| `clang-tsan` | Clang 21 | Debug | ThreadSanitizer |
-| `coverage` | GCC 15.2 | Debug | Coverage |
-
-### Code Quality
-
-```bash
-# Format code
-./scripts/lint.sh format
-
-# Run linters
-./scripts/lint.sh lint clang-debug
-
-# Check all
-./scripts/lint.sh all clang-debug
-```
-
----
-
-## 🐳 Docker Usage
-
-```bash
-# Build image
-docker build -f docker/Dockerfile -t fq-compressor .
-
-# Compress data
-docker run --rm -v $(pwd):/data \
-  fq-compressor compress -i /data/reads.fastq -o /data/reads.fqc
-
-# Decompress data
-docker run --rm -v $(pwd):/data \
-  fq-compressor decompress -i /data/reads.fqc -o /data/restored.fastq
-```
-
----
-
-## 🗺️ Roadmap
-
-- [x] v0.1.0 - Initial release with ABC + SCM
-- [x] v0.2.0 - Paired-end optimization, long-read support
-- [ ] Streaming compression mode
-- [ ] Additional lossy quality modes
-- [ ] AWS S3/GCS native integration
-- [ ] Python bindings
+Use `openspec/specs/` as the living requirements source. Treat `specs/` and `docs/archive/` as
+historical reference only.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see our [Contributing Guide](https://lessup.github.io/fq-compressor/en/development/contributing) for details.
+Focused contributions are welcome, especially for:
 
-**Ways to contribute:**
-- 🐛 Report bugs and issues
-- 💡 Suggest new features
-- 📝 Improve documentation
-- 🔧 Share focused fixes or implementation ideas
-- 🧪 Test on different datasets
+- documentation cleanup and ownership tightening
+- evidence-driven bug fixes with regression coverage
+- workflow and tooling simplification
+- archive-readiness polish
+
+See the [Contributing Guide](https://lessup.github.io/fq-compressor/en/development/contributing) for
+the repository workflow.
 
 ---
 
