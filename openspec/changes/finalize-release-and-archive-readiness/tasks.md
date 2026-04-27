@@ -1,50 +1,64 @@
-## 1. Consolidate the closeout track
+## 1. Keep the one-change closeout baseline explicit
 
-- [ ] 1.1 Rewrite this change so it absorbs the scope of the other five closeout-oriented active
-      changes
-- [ ] 1.2 Preserve the absorbed scope by moving the superseded change directories into
+- [x] 1.1 Refresh this umbrella change so it records the already-absorbed scope of the five
+      superseded closeout-oriented changes
+- [x] 1.2 Preserve the absorbed scope by keeping the superseded change directories under
       `openspec/changes/archive/`
-- [ ] 1.3 Fix `./scripts/dev/preflight.sh` so it reports the actual active-change count from
+- [x] 1.3 Keep `./scripts/dev/preflight.sh` reporting the actual active-change count from
       `openspec list --json`
+- [x] 1.4 Make proposal/design/tasks state that this is the only active change and the only closeout
+      execution surface
 
-## 2. Audit repository surfaces
+## 2. Phase 1 - aggressive review and OpenSpec-driven normalization
 
-- [ ] 2.1 Classify major repository surfaces as keep, merge, archive, remove, or rewrite
-- [ ] 2.2 Publish the closeout definition of done covering validation, documentation, metadata,
+- [x] 2.1 Classify major repository surfaces as keep, merge, archive, remove, or rewrite
+- [x] 2.2 Publish the closeout definition of done covering validation, documentation, metadata,
       OpenSpec state, and repository hygiene
+- [x] 2.3 Update contributor-facing docs so `openspec/specs/` is the only living requirements source
+- [x] 2.4 Mark `specs/` and archived docs as reference-only surfaces
+- [x] 2.5 Remove or archive low-value duplicated docs and keep generated site output out of version
+      control
+- [ ] 2.6 Recheck historical diagnosis and progress documents against the current codebase and
+      current default gate outputs
+- [ ] 2.7 Classify each historical bug candidate as fixed, still present, stale, or unproven before
+      scheduling any code change
+- [ ] 2.8 Fix only confirmed closeout-critical defects, keep the diff narrow, and add focused
+      regression coverage only where evidence justifies it
+- [ ] 2.9 Re-run `./scripts/lint.sh format-check` and `./scripts/test.sh clang-debug` after any bug
+      work to preserve the green default baseline
 
-## 3. Normalize active versus archived documentation
+## 3. Phase 2 - engineering and GitHub integration convergence
 
-- [ ] 3.1 Update contributor-facing docs so `openspec/specs/` is the only living requirements source
-- [ ] 3.2 Mark `specs/` and archived docs as reference-only surfaces
-- [ ] 3.3 Remove or archive low-value duplicated docs and checked-in generated site output
+- [x] 3.1 Rework the Pages root and navigation into a lean landing surface with EN/ZH entry paths
+- [x] 3.2 Align README, Pages, and docs ownership so they do not mirror each other
+- [x] 3.3 Update GitHub About metadata (description, homepage, topics) to match the landing story
+- [ ] 3.4 Keep CI, Pages, and release-facing workflows aligned with existing repository scripts and
+      deterministic installs
+- [ ] 3.5 Simplify workflow, release, and metadata surfaces so they support closeout readiness
+      without adding a new governance layer
+- [ ] 3.6 Verify repository metadata, release anchors, and public entry surfaces tell the same lean
+      project story
 
-## 4. Reposition Pages and GitHub presentation
+## 4. Phase 3 - AI tooling and Vibe Coding governance
 
-- [ ] 4.1 Rework the Pages root and navigation into a lean landing surface with EN/ZH entry paths
-- [ ] 4.2 Align README, Pages, and docs ownership so they do not mirror each other
-- [ ] 4.3 Update GitHub About metadata (description, homepage, topics) to match the landing story
+- [ ] 4.1 Unify `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` around the same
+      OpenSpec-first, preflight-first, closeout workflow
+- [ ] 4.2 Review project-level AI assets (`.claude/`, `.github/prompts/`, `.github/skills/`, and
+      similar tracked surfaces) and remove or consolidate anything that recreates prompt drift
+- [ ] 4.3 Decide and document the boundary between MCP, CLI skills, optional helpers, and repository
+      contract so convenience tooling does not become required governance
+- [ ] 4.4 Keep `.clangd`, editor settings, and optional helper surfaces minimal, clangd-centered, and
+      suitable for low-context maintenance
 
-## 5. Revalidate and finish the closeout health baseline
+## 5. Phase 4 - final checklist, handoff, and archive readiness
 
-- [ ] 5.1 Recheck historical diagnosis and progress documents against the current codebase
-- [ ] 5.2 Classify historical bug candidates as fixed, still present, stale, or unproven
-- [ ] 5.3 Fix any real remaining closeout-critical defects and add focused regression coverage
-- [ ] 5.4 Keep `./scripts/lint.sh format-check` and `./scripts/test.sh clang-debug` green
-
-## 6. Simplify workflows, tooling, and AI guidance
-
-- [ ] 6.1 Keep CI and Pages workflows aligned with existing repository scripts and deterministic
-      installs
-- [ ] 6.2 Unify AGENTS/CLAUDE/Copilot guidance around the same OpenSpec-first closeout workflow
-- [ ] 6.3 Review project-level AI assets, LSP/editor config, and optional helpers to remove drift and
-      unnecessary maintenance surface
-
-## 7. Finalize release-readiness and handoff
-
-- [ ] 7.1 Write the internal closeout checklist covering validation, docs, metadata, and repository
-      hygiene
-- [ ] 7.2 Decide which remaining items must land before archive-readiness review
-- [ ] 7.3 Run `/review` on the final closeout diff set when the resulting change is risky or unusually
+- [ ] 5.1 Write the internal closeout checklist covering validation, docs, metadata, AI/tooling
+      governance, and repository hygiene
+- [ ] 5.2 Decide which remaining items must land before archive-readiness review and which may remain
+      explicitly deferred with rationale
+- [ ] 5.3 Prepare handoff notes so a low-context maintainer or GLM pass can continue safely from this
+      umbrella change alone
+- [ ] 5.4 Run `/review` on the final closeout diff set when the resulting change is risky or unusually
       broad
-- [ ] 7.4 Archive this umbrella change once the repository meets the checklist
+- [ ] 5.5 Archive this umbrella change once the checklist is satisfied and the repository is judged
+      archive-ready
