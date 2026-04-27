@@ -78,7 +78,7 @@ These capabilities govern ownership surfaces currently missing from `openspec/sp
 
 1. Create scaffold: proposal.md, design.md, tasks.md.
 2. Add roadmap doc: `openspec/roadmap/closeout.md`.
-3. Add new capability specs: `docs-site.yaml`, `release-engineering.yaml`.
+3. Add new capability specs: `specs/docs-site/spec.md`, `specs/release-engineering/spec.md`.
 4. Add deltas to existing capabilities: `random-access`, `performance`, `compatibility`,
    `build-system`.
 5. Validate with `./scripts/dev/preflight.sh`, `openspec list --json`,
