@@ -23,6 +23,8 @@ stabilize rather than expand, and what order leads to release-ready closeout.
 Roadmap defines which capabilities to strengthen/stabilize and in what order, while capability
 specs define the requirements themselves.
 
+The roadmap document is stored at openspec/roadmap/closeout.md so that capability-state policy, phase order, and near-term change queue stay visible without replacing the living capability specs.
+
 **Alternatives considered:**
 - Embed roadmap state directly in each capability spec: rejected because it mixes temporal planning
   with timeless requirements.
