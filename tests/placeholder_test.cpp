@@ -2,8 +2,6 @@
 // Build and CLI smoke tests for the test harness
 // =============================================================================
 
-#include <gtest/gtest.h>
-
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +10,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -87,8 +87,9 @@ TEST(BuildSmokeTest, AllowsGlobalOptionsAfterSubcommand) {
         out << "@r1\nACGT\n+\nIIII\n";
     }
 
-    const std::string command = quote(binary.string()) + " compress -i " + quote(inputPath.string()) +
-        " -o " + quote(outputPath.string()) + " -t 1 --no-progress >/dev/null 2>&1";
+    const std::string command = quote(binary.string()) + " compress -i " +
+        quote(inputPath.string()) + " -o " + quote(outputPath.string()) +
+        " -t 1 --no-progress >/dev/null 2>&1";
 
     EXPECT_EQ(std::system(command.c_str()), 0);
     EXPECT_TRUE(std::filesystem::exists(outputPath));
@@ -108,18 +109,17 @@ TEST(BuildSmokeTest, SupportsPositionalInfoAndVerify) {
         out << "@r1\nACGT\n+\nIIII\n";
     }
 
-    const std::string compressCommand = quote(binary.string()) + " -t 1 --no-progress compress -i " +
-        quote(inputPath.string()) + " -o " + quote(archivePath.string()) + " >/dev/null 2>&1";
+    const std::string compressCommand = quote(binary.string()) +
+        " -t 1 --no-progress compress -i " + quote(inputPath.string()) + " -o " +
+        quote(archivePath.string()) + " >/dev/null 2>&1";
     ASSERT_EQ(std::system(compressCommand.c_str()), 0);
 
-    const std::string infoCommand =
-        quote(binary.string()) + " info --json " + quote(archivePath.string()) + " >" +
-        quote(infoPath.string()) + " 2>/dev/null";
+    const std::string infoCommand = quote(binary.string()) + " info --json " +
+        quote(archivePath.string()) + " >" + quote(infoPath.string()) + " 2>/dev/null";
     EXPECT_EQ(std::system(infoCommand.c_str()), 0);
 
-    const std::string verifyCommand =
-        quote(binary.string()) + " verify " + quote(archivePath.string()) + " >" +
-        quote(verifyPath.string()) + " 2>/dev/null";
+    const std::string verifyCommand = quote(binary.string()) + " verify " +
+        quote(archivePath.string()) + " >" + quote(verifyPath.string()) + " 2>/dev/null";
     EXPECT_EQ(std::system(verifyCommand.c_str()), 0);
 }
 
@@ -128,8 +128,8 @@ TEST(BuildSmokeTest, ReportsProjectVersion) {
     const auto binary = locateCliBinary();
     const auto versionPath = tempDir.path / "version.txt";
 
-    const std::string command = quote(binary.string()) + " --version >" + quote(versionPath.string()) +
-        " 2>/dev/null";
+    const std::string command =
+        quote(binary.string()) + " --version >" + quote(versionPath.string()) + " 2>/dev/null";
 
     ASSERT_EQ(std::system(command.c_str()), 0);
     EXPECT_EQ(readFile(versionPath), "0.2.0\n");
