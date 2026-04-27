@@ -111,7 +111,7 @@ diff sample.fastq restored.fastq
 
 ```bash
 # Separate files
-fqc compress -i reads_R1.fastq -i2 reads_R2.fastq -o paired.fqc --paired
+fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc --paired
 
 # One interleaved file
 fqc compress -i interleaved.fastq -o paired.fqc --paired
@@ -165,7 +165,7 @@ fqc decompress -i output.fqc -o restored.fastq      # 4. Decompress
 |--------|-------------|---------|
 | `-i, --input` | Input FASTQ file | `-i reads.fastq` |
 | `-o, --output` | Output file | `-o reads.fqc` |
-| `-i2` | Second input for paired-end | `-i2 reads_2.fastq` |
+| `-2` | Second input for paired-end | `-2 reads_2.fastq` |
 | `--paired` | Enable paired-end mode | `--paired` |
 | `-t, --threads` | Number of threads | `-t 8` |
 | `--memory-limit` | Memory limit in MB | `--memory-limit 4096` |

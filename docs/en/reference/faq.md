@@ -65,7 +65,7 @@ Two modes supported:
 
 ```bash
 # Separate files
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired
 
 # Interleaved file
 fqc compress -i interleaved.fastq -o paired.fqc --paired

@@ -40,7 +40,7 @@ fqc compress [选项] -i <输入> -o <输出>
 | 选项 | 简写 | 描述 | 默认值 |
 |------|------|------|--------|
 | `--input` | `-i` | 输入 FASTQ 文件（必需） | - |
-| `--input2` | `-i2` | 双端第二个输入文件 | - |
+| `--input2` | `-2` | 双端第二个输入文件 | - |
 | `--output` | `-o` | 输出 FQC 文件（必需） | - |
 | `--paired` | - | 启用双端模式 | false |
 | `--mode` | `-m` | 压缩模式（fast/balanced/best） | balanced |
@@ -58,7 +58,7 @@ fqc compress -i reads.fastq -o reads.fqc
 fqc compress -i reads.fastq -o reads.fqc -t 8
 
 # 双端测序（分离文件）
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired
 
 # 双端测序（交错文件）
 fqc compress -i interleaved.fastq -o paired.fqc --paired
@@ -309,7 +309,7 @@ fqc decompress -i output.fqc -o restored.fastq
 
 ```bash
 # 压缩双端测序数据
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired -t 8
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired -t 8
 
 # 分离回独立文件
 fqc split-pe -i paired.fqc -1 out_1.fastq -2 out_2.fastq

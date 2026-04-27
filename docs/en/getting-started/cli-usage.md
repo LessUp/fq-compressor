@@ -40,7 +40,7 @@ fqc compress [OPTIONS] -i <input> -o <output>
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--input` | `-i` | Input FASTQ file (required) | - |
-| `--input2` | `-i2` | Second input file for paired-end | - |
+| `--input2` | `-2` | Second input file for paired-end | - |
 | `--output` | `-o` | Output FQC file (required) | - |
 | `--paired` | - | Enable paired-end mode | false |
 | `--mode` | `-m` | Compression mode (fast/balanced/best) | balanced |
@@ -58,7 +58,7 @@ fqc compress -i reads.fastq -o reads.fqc
 fqc compress -i reads.fastq -o reads.fqc -t 8
 
 # Paired-end (separate files)
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired
 
 # Paired-end (interleaved)
 fqc compress -i interleaved.fastq -o paired.fqc --paired
@@ -309,7 +309,7 @@ fqc decompress -i output.fqc -o restored.fastq
 
 ```bash
 # Compress paired-end data
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired -t 8
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired -t 8
 
 # Split back to separate files
 fqc split-pe -i paired.fqc -1 out_1.fastq -2 out_2.fastq

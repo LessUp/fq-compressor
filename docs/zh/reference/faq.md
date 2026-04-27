@@ -65,7 +65,7 @@ fqc compress -i reads.fastq.gz -o reads.fqc
 
 ```bash
 # 分离文件
-fqc compress -i reads_1.fastq -i2 reads_2.fastq -o paired.fqc --paired
+fqc compress -i reads_1.fastq -2 reads_2.fastq -o paired.fqc --paired
 
 # 交错文件
 fqc compress -i interleaved.fastq -o paired.fqc --paired

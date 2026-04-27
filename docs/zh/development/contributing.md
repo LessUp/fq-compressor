@@ -1,260 +1,122 @@
 ---
 title: 贡献指南
-description: 如何为 fq-compressor 项目做出贡献
+description: fq-compressor 的 closeout 阶段贡献工作流
 version: 0.2.0
-last_updated: 2026-04-17
+last_updated: 2026-04-27
 language: zh
 ---
 
 # 贡献指南
 
-感谢您有兴趣为 fq-compressor 做出贡献！本文档提供了项目的贡献指南。
+`fq-compressor` 当前处于 **closeout mode**。贡献应优先聚焦于**收尾、精简、稳定、修复和文档治理**，而不是继续扩展产品表面。
 
-## 行为准则
+## 仓库姿态
 
-- 在所有交流中保持尊重和建设性
-- 关注技术价值和项目改进
-- 帮助为新来者创造友好的环境
+- **OpenSpec 驱动**：`openspec/specs/` 是唯一活规范源
+- **一次只做一个 active change**：避免再开平行清理战线
+- **文档分层明确**：尽量保留一个权威解释，而不是多个镜像版本
+- **工具链最小化**：当更简单的流程已经足够时，不再引入额外维护面
 
-## 快速开始
+## 事实来源边界
 
-### 开发环境设置
+请有意识地区分这些表面：
 
-1. **Fork 并克隆** 仓库
-2. **设置构建环境**:
+| 表面 | 角色 |
+| --- | --- |
+| `openspec/specs/` | 活规范 |
+| `openspec/changes/` | 当前变更与执行上下文 |
+| `README.md` / `README.zh-CN.md` | 仓库入口摘要 |
+| `docs/website/` | GitHub Pages 源码 |
+| `docs/en/` / `docs/zh/` | 维护中的参考文档 |
+| `specs/` | 仅历史参考，不是当前规范 |
+| `docs/archive/` | 仅历史参考，不是当前事实 |
+
+如果你准备修改 `specs/` 或 `docs/archive/`，请先停下来确认：这份内容是否真的应该继续留在归档表面，而不是回到权威位置。
+
+## 默认收尾工作流
+
+1. 先运行仓库预检：
    ```bash
-   conan install . --build=missing -of=build/clang-debug
-   cmake --preset clang-debug
+   ./scripts/dev/preflight.sh
+   openspec list --json
    ```
-3. **构建并测试**:
+2. 直接对齐当前 active OpenSpec change，不要依据自由发挥的提示词单独施工。
+3. 先做最小必要修改和定向检查，再跑默认门禁。
+4. 保持默认本地门禁为绿色：
    ```bash
-   cmake --build --preset clang-debug -j$(nproc)
+   ./scripts/lint.sh format-check
    ./scripts/test.sh clang-debug
    ```
+5. 当 diff 风险较高、跨文件较多或带有架构性质时，使用 `/review`。
+6. 相关检查通过后直接推送即可；对本仓库而言，PR 是可选项，不是默认单人维护路径。
 
-### DevContainer（推荐）
+## 可选隔离方式
 
-为了获得一致的开发环境：
-
-1. 在 VS Code 中打开项目
-2. 运行 `Dev Containers: Reopen in Container`
-3. 所有工具已预装
-
-## 开发工作流
-
-### 分支命名
-
-- `feature/description` - 新功能
-- `fix/description` - Bug 修复
-- `docs/description` - 文档更新
-- `refactor/description` - 代码重构
-
-### 提交信息
-
-遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-```
-<类型>(<范围>): <描述>
-
-[可选正文]
-
-[可选页脚]
-```
-
-类型：
-- `feat` - 新功能
-- `fix` - Bug 修复
-- `docs` - 仅文档更改
-- `style` - 格式更改
-- `refactor` - 代码重构
-- `perf` - 性能改进
-- `test` - 测试更新
-- `chore` - 构建/工具更改
-
-示例：
-```
-feat(compressor): add quality score binning option
-fix(parser): handle empty FASTQ files
-docs(readme): update installation instructions
-```
-
-### 代码风格
-
-项目使用自动格式化和静态检查：
+默认工作流允许直接在当前分支上推进。如果你需要额外隔离，可以根据 OpenSpec change 名称创建 worktree：
 
 ```bash
-# 格式化代码
-./scripts/lint.sh format
+./scripts/dev/create-worktree.sh <change-name>
+```
 
-# 运行静态检查
+这是**可选项**，不是强制流程。
+
+## 构建、测试与静态检查
+
+尽量使用仓库现有脚本，而不是临时拼接命令：
+
+```bash
+./scripts/build.sh clang-debug
+./scripts/test.sh clang-debug
+./scripts/lint.sh format-check
 ./scripts/lint.sh lint clang-debug
-
-# 检查所有
-./scripts/lint.sh all clang-debug
 ```
 
-风格指南：
-- 4 空格缩进
-- 100 列行宽限制
-- 文件名 snake_case，类型名 PascalCase，函数名 camelCase
-- 重要返回值使用 `[[nodiscard]]`
-- 不使用裸指针管理资源
+C++ 编辑器/LSP 的主路径应保持为：
 
-## 提交更改
+- `clangd`
+- `compile_commands.json`
+- CMake presets
+- 根目录 `.clangd`
 
-### Pull Request 流程
+除非有明确、成文的理由，否则不要再引入第二套项目级 C++ 语言服务主栈。
 
-1. **创建分支** 从 `main`
-2. **进行更改** 并编写清晰的提交信息
-3. **确保测试通过**:
-   ```bash
-   ./scripts/test.sh clang-release
-   ```
-4. **更新文档**（如需要）
-5. **提交 PR** 并附上清晰的描述
+## 当前阶段适合的贡献类型
 
-### PR 检查清单
+适合当前收尾阶段的贡献：
 
-- [ ] 代码编译无警告
-- [ ] 所有测试通过
-- [ ] 新功能添加了新测试
-- [ ] 文档已更新
-- [ ] 更新日志已更新（如适用）
-- [ ] 代码已用 clang-format 格式化
-- [ ] 无 clang-tidy 警告
+- 删除重复或过时文档
+- 收紧 README / Pages / docs 的职责边界
+- 重新验证并修复真实缺陷，同时补充聚焦回归测试
+- 精简 CI、Release、Pages 工作流
+- 收敛 AI 指南与本地工具配置
 
-### 审核流程
+当前阶段不鼓励或应提高门槛的贡献：
 
-1. 维护者将在 48 小时内审核
-2. 及时响应审核反馈
-3. 如要求则压缩提交
-4. 批准后，维护者将合并
+- 增加大型新功能
+- 在没有充分证据的情况下扩张 CI 矩阵
+- 引入新的大型工具链或治理层
+- 仅仅为了“以防万一”保留重复文档
 
-## 测试指南
+## 文档归属原则
 
-### 单元测试
+只更新真正拥有该信息的表面：
 
-使用 Google Test：
+- 仓库入口摘要 -> `README*.md`
+- 对外 landing story -> `docs/website/`
+- 维护中的参考文档 -> `docs/en/` / `docs/zh/`
+- 需求与工作流规则 -> `openspec/`
 
-```cpp
-#include <gtest/gtest.h>
+优先考虑**删除、归档、合并**，而不是把同一段说明复制到更多文件。
 
-TEST(CompressionTest, BasicCompression) {
-    // 准备
-    Compressor comp;
+## 审查与收尾
 
-    // 执行
-    auto result = comp.compress(data);
+完成一个非平凡变更前，请确认：
 
-    // 断言
-    EXPECT_TRUE(result.has_value());
-    EXPECT_LT(result->size(), data.size());
-}
-```
-
-### 属性测试
-
-当 RapidCheck 可用时使用：
-
-```cpp
-RC_GTEST_PROP(CompressorTest, RoundTrip, ()) {
-    auto data = *rc::gen::container<std::vector<uint8_t>>(
-        rc::gen::inRange(0, 255)
-    );
-
-    auto compressed = compress(data);
-    auto restored = decompress(compressed);
-
-    RC_ASSERT(restored == data);
-}
-```
-
-### 添加测试
-
-在 `tests/` 中添加测试到适当的文件：
-
-```cmake
-# 在 tests/CMakeLists.txt 中
-fqc_add_test(my_feature_test src/my_feature_test.cpp)
-```
-
-## 性能考虑
-
-修改压缩代码时：
-
-1. **前后性能基准测试**:
-   ```bash
-   python3 benchmark/compiler_benchmark.py \
-       --input test_data.fq \
-       --gcc-binary build/gcc-release/src/fqc \
-       --visualize
-   ```
-
-2. **内存分析**:
-   ```bash
-   valgrind --tool=massif ./fqc compress -i large.fastq -o out.fqc
-   ```
-
-3. **目标指标**:
-   - 压缩比：保持或改进
-   - 速度：可接受最小回退
-   - 内存：保持在预算系统限制内
-
-## 文档
-
-### 代码文档
-
-公共 API 使用 Doxygen 风格注释：
-
-```cpp
-/**
- * 将 FASTQ 文件压缩为 FQC 格式。
- *
- * @param input 输入 FASTQ 文件路径
- * @param output 输出 FQC 文件路径
- * @param options 压缩配置
- * @return 表示成功或错误详情的 Result
- *
- * @throws FQCException 遇到不可恢复的错误时
- */
-Result<void> compressFile(const std::filesystem::path& input,
-                          const std::filesystem::path& output,
-                          const CompressOptions& options);
-```
-
-### 用户文档
-
-更新相关文档：
-- CLI 更改 → `docs/zh/getting-started/cli-usage.md`
-- 算法更改 → `docs/zh/core-concepts/algorithms.md`
-- 格式更改 → `docs/zh/core-concepts/fqc-format.md`
-- 破坏性更改 → `CHANGELOG.md`
-
-## 贡献领域
-
-### 适合新手的任务
-
-- 文档改进
-- 增加测试覆盖
-- 错误信息改进
-- 日志信息优化
-
-### 高级贡献
-
-- 算法优化
-- 新压缩模式
-- 平台支持扩展
-- 工具改进
-
-## 有问题？
-
-- 在 [讨论区](https://github.com/LessUp/fq-compressor/discussions) 提问
-- 加入社区聊天（即将推出）
+1. 已重跑相关检查；
+2. 变更仍然对齐当前 active OpenSpec tasks；
+3. 如果 diff 风险较高，已使用 `/review`；
+4. 仓库状态仍足够清晰，方便后续低上下文维护者或模型接手。
 
 ## 许可证
 
 通过贡献，您同意您的贡献将按照 MIT 许可证授权。
-
----
-
-感谢您为 fq-compressor 做出贡献！

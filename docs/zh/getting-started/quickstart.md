@@ -111,7 +111,7 @@ diff sample.fastq restored.fastq
 
 ```bash
 # 分离文件
-fqc compress -i reads_R1.fastq -i2 reads_R2.fastq -o paired.fqc --paired
+fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc --paired
 
 # 交错文件
 fqc compress -i interleaved.fastq -o paired.fqc --paired
@@ -165,7 +165,7 @@ fqc decompress -i output.fqc -o restored.fastq      # 4. 解压
 |------|------|------|
 | `-i, --input` | 输入 FASTQ 文件 | `-i reads.fastq` |
 | `-o, --output` | 输出文件 | `-o reads.fqc` |
-| `-i2` | 双端测序第二个输入 | `-i2 reads_2.fastq` |
+| `-2` | 双端测序第二个输入 | `-2 reads_2.fastq` |
 | `--paired` | 启用双端模式 | `--paired` |
 | `-t, --threads` | 线程数 | `-t 8` |
 | `--memory-limit` | 内存限制（MB） | `--memory-limit 4096` |
