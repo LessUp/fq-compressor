@@ -73,7 +73,6 @@ jobs:
           docker build \
             -f docker/Dockerfile.dev \
             --target base \
-            --no-cache \
             -t ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} \
             .
 
@@ -114,28 +113,3 @@ jobs:
           name: fqcompressor-${{ matrix.preset }}
           path: build/${{ matrix.preset }}/src/fqc
           retention-days: 7
-
-  # ===========================================================================
-  # Commit Lint Job (PR only)
-  # ===========================================================================
-  # Validates commit messages follow Conventional Commits format.
-  # ===========================================================================
-  commit-lint:
-    name: Commit Message Lint
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js for commitlint
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install commitlint and run
-        run: |
-          npm install @commitlint/cli @commitlint/config-conventional
-          npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose

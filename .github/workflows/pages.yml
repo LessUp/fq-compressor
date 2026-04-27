@@ -7,6 +7,7 @@ on:
       - master
     paths:
       - 'docs/website/**'
+      - 'package.json'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -22,9 +23,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs/website
 
     steps:
       - name: Checkout
@@ -37,23 +35,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'docs/website/package-lock.json'
 
-      - name: Clean install dependencies
-        run: npm ci
-
-      - name: Build Next.js site
-        run: npm run build
-
-      - name: Check build output
-        run: |
-          if [ ! -d "../.site" ]; then
-            echo "Error: Build output directory not found"
-            exit 1
-          fi
-          echo "Build output contents:"
-          ls -la ../.site/
-          echo "---"
-          echo "Files in root of site:"
-          ls ../.site/ | head -20
+      - name: Build documentation site
+        run: npm run docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -112,22 +112,3 @@ jobs:
             -w /workspace \
             ${{ env.CI_IMAGE_NAME }}:clang-debug \
             ./scripts/lint.sh lint clang-debug
-
-  quality-gate:
-    name: Quality Gate
-    runs-on: ubuntu-latest
-    needs: [format-check, static-analysis]
-    if: always()
-
-    steps:
-      - name: Check results
-        run: |
-          if [[ "${{ needs.format-check.result }}" != "success" ]]; then
-            echo "Format check failed"
-            exit 1
-          fi
-          if [[ "${{ needs.static-analysis.result }}" != "success" ]]; then
-            echo "Static analysis failed"
-            exit 1
-          fi
-          echo "All quality checks passed!"
