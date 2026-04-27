@@ -26,7 +26,7 @@ fqc compress [选项] -i <输入> -o <输出>
 | 选项 | 简写 | 描述 | 默认值 |
 |--------|-------|-------------|---------|
 | `--input` | `-i` | 输入 FASTQ (必需) | - |
-| `--input2` | `-i2` | 第二个输入 (双端) | - |
+| `--input2` | `-2` | 第二个输入 (双端) | - |
 | `--output` | `-o` | 输出 FQC (必需) | - |
 | `--paired` | - | 启用双端模式 | false |
 | `--mode` | `-m` | 压缩模式 | balanced |
@@ -44,7 +44,7 @@ fqc compress -i reads.fastq -o reads.fqc -t 8
 fqc compress -i reads.fastq -o reads.fqc --mode best
 
 # 双端测序
-fqc compress -i r1.fastq -i2 r2.fastq -o paired.fqc --paired
+fqc compress -i r1.fastq -2 r2.fastq -o paired.fqc --paired
 ```
 
 ### `decompress` - 解压
