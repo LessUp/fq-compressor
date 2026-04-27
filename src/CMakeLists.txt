@@ -103,6 +103,11 @@ target_link_libraries(fqc
         fqc_cli
 )
 
+target_compile_definitions(fqc
+    PRIVATE
+        FQC_VERSION="${PROJECT_VERSION}"
+)
+
 target_include_directories(fqc
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}

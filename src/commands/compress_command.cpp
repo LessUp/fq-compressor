@@ -230,7 +230,9 @@ void CompressCommand::setupCompressionParams() {
     switch (lengthClass) {
         case ReadLengthClass::kShort:
             // Short reads: ABC + reordering, 100K block
-            options_.blockSize = 100000;
+            if (!options_.blockSizeExplicit) {
+                options_.blockSize = 100000;
+            }
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 0;  // No limit for short reads
             }
@@ -239,7 +241,9 @@ void CompressCommand::setupCompressionParams() {
 
         case ReadLengthClass::kMedium:
             // Medium reads: Zstd, no reordering, 50K block
-            options_.blockSize = 50000;
+            if (!options_.blockSizeExplicit) {
+                options_.blockSize = 50000;
+            }
             options_.enableReordering = false;
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 200 * 1024 * 1024;  // 200MB
@@ -249,7 +253,9 @@ void CompressCommand::setupCompressionParams() {
 
         case ReadLengthClass::kLong:
             // Long reads: Zstd, no reordering, 10K block
-            options_.blockSize = 10000;
+            if (!options_.blockSizeExplicit) {
+                options_.blockSize = 10000;
+            }
             options_.enableReordering = false;
             if (options_.maxBlockBases == 0) {
                 options_.maxBlockBases = 50 * 1024 * 1024;  // 50MB for ultra-long
@@ -270,6 +276,14 @@ void CompressCommand::runCompression() {
     FQC_LOG_INFO("  Reordering: {}", options_.enableReordering ? "enabled" : "disabled");
     FQC_LOG_INFO("  Block size: {} reads", options_.blockSize);
     FQC_LOG_INFO("  Threads: {}", options_.threads > 0 ? std::to_string(options_.threads) : "auto");
+
+    const bool requiresPipelinePath =
+        options_.paired || options_.interleaved || !options_.input2Path.empty();
+    if (requiresPipelinePath) {
+        FQC_LOG_INFO("Using pipeline compression for paired-end input");
+        runCompressionParallel();
+        return;
+    }
 
     // =========================================================================
     // TBB Parallel Pipeline Path (threads > 1)
@@ -318,8 +332,10 @@ void CompressCommand::runCompression() {
     std::uint64_t totalBases = 0;
     for (auto& fastqRec : allRecords) {
         totalBases += fastqRec.length();  // read length BEFORE move
-        readRecords.emplace_back(
-            std::move(fastqRec.id), std::move(fastqRec.sequence), std::move(fastqRec.quality));
+        readRecords.emplace_back(std::move(fastqRec.id),
+                                 std::move(fastqRec.comment),
+                                 std::move(fastqRec.sequence),
+                                 std::move(fastqRec.quality));
     }
 
     // Update basic stats
@@ -416,7 +432,9 @@ void CompressCommand::runCompression() {
 
     format::GlobalHeader globalHeader;
     globalHeader.headerSize = headerSize;
-    globalHeader.compressionAlgo = static_cast<std::uint8_t>(CodecFamily::kAbcV1);
+    globalHeader.compressionAlgo = static_cast<std::uint8_t>(
+        options_.longReadMode == ReadLengthClass::kShort ? CodecFamily::kAbcV1
+                                                         : CodecFamily::kZstdPlain);
     globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
     globalHeader.reserved = 0;  // Explicitly set to 0 (required by isValid)
 

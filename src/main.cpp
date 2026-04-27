@@ -42,7 +42,11 @@ namespace {
 // Version Information
 // =============================================================================
 
-constexpr const char* kVersion = "0.1.0";
+#ifndef FQC_VERSION
+#define FQC_VERSION "0.2.0"
+#endif
+
+constexpr const char* kVersion = FQC_VERSION;
 constexpr const char* kDescription =
     "fq-compressor: High-performance FASTQ compressor with random access support\n"
     "Combines Spring's ABC algorithm with modern C++23 and TBB parallelism.\n\n"
@@ -90,6 +94,7 @@ struct CliCompressOptions {
     std::string idMode = "exact";
     std::string longReadMode = "auto";
     std::size_t blockReads = 100000;
+    bool blockReadsExplicit = false;
     std::size_t maxBlockBases = 0;
     bool scanAllLengths = false;
     bool paired = false;
@@ -145,7 +150,7 @@ void setupCompressCommand(CLI::App& app, GlobalOptions& gOpts, CliCompressOption
         ->required()
         ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
 
-    compress->add_option("-2", opts.input2, "Second input file for paired-end (R2)")
+    compress->add_option("-2,--input2", opts.input2, "Second input file for paired-end (R2)")
         ->check(CLI::ExistingFile);
 
     compress->add_option("-o,--output", opts.output, "Output .fqc file")->required();
@@ -182,10 +187,11 @@ void setupCompressCommand(CLI::App& app, GlobalOptions& gOpts, CliCompressOption
         ->default_val("auto")
         ->check(CLI::IsMember({"auto", "short", "medium", "long"}));
 
-    compress
-        ->add_option(
-            "--block-reads", opts.blockReads, "Number of reads per block (default: 100000)")
-        ->default_val(100000);
+    auto* blockReadsOpt = compress
+                              ->add_option("--block-reads",
+                                           opts.blockReads,
+                                           "Number of reads per block (default: 100000)")
+                              ->default_val(100000);
 
     compress
         ->add_option(
@@ -219,7 +225,7 @@ void setupCompressCommand(CLI::App& app, GlobalOptions& gOpts, CliCompressOption
 
     compress->add_flag("-f,--force", opts.force, "Overwrite existing output file");
 
-    compress->callback([&opts]() {
+    compress->callback([&opts, blockReadsOpt]() {
         if (opts.input == "-") {
             if (!opts.streaming) {
                 FQC_LOG_WARNING(
@@ -235,6 +241,7 @@ void setupCompressCommand(CLI::App& app, GlobalOptions& gOpts, CliCompressOption
         if (opts.preserveOrder) {
             opts.reorder = false;
         }
+        opts.blockReadsExplicit = blockReadsOpt->count() > 0;
     });
 }
 
@@ -299,7 +306,7 @@ void setupInfoCommand(CLI::App& app, CliInfoOptions& opts) {
     auto* info = app.add_subcommand("info", "Display archive information");
     info->alias("i");
 
-    info->add_option("-i,--input", opts.input, "Input .fqc file")
+    info->add_option("input,-i,--input", opts.input, "Input .fqc file")
         ->required()
         ->check(CLI::ExistingFile);
 
@@ -317,7 +324,7 @@ void setupVerifyCommand(CLI::App& app, CliVerifyOptions& opts) {
     auto* verify = app.add_subcommand("verify", "Verify archive integrity");
     verify->alias("v");
 
-    verify->add_option("-i,--input", opts.input, "Input .fqc file")
+    verify->add_option("input,-i,--input", opts.input, "Input .fqc file")
         ->required()
         ->check(CLI::ExistingFile);
 
@@ -351,6 +358,7 @@ int main(int argc, char* argv[]) {
 
     CLI::App app{kDescription};
     app.set_version_flag("-V,--version", kVersion);
+    app.fallthrough();
 
     // Global options
     app.add_option("-t,--threads", globalOpts.threads, "Number of threads (0 = auto-detect)")
@@ -436,6 +444,7 @@ int main(int argc, char* argv[]) {
             opts.idMode = parseIdMode(compressOpts.idMode);
             opts.maxBlockBases = compressOpts.maxBlockBases;
             opts.blockSize = compressOpts.blockReads;
+            opts.blockSizeExplicit = compressOpts.blockReadsExplicit;
             opts.scanAllLengths = compressOpts.scanAllLengths;
             opts.paired = compressOpts.paired;
             opts.interleaved = compressOpts.interleaved;

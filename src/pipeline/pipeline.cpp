@@ -84,6 +84,38 @@ bool hasEnoughMemory(const CompressionPipelineConfig& config, std::size_t estima
     return estimated <= limitBytes;
 }
 
+void filterChunkToReadRange(ReadChunk& chunk, ReadId rangeStart, ReadId rangeEnd) {
+    if (chunk.reads.empty() || (rangeStart == 0 && rangeEnd == 0)) {
+        return;
+    }
+
+    const ReadId chunkStart = chunk.startReadId;
+    const ReadId chunkEnd = chunk.startReadId + static_cast<ReadId>(chunk.reads.size()) - 1;
+    const ReadId effectiveStart = rangeStart > 0 ? std::max(rangeStart, chunkStart) : chunkStart;
+    const ReadId effectiveEnd = rangeEnd > 0 ? std::min(rangeEnd, chunkEnd) : chunkEnd;
+
+    if (effectiveStart > effectiveEnd) {
+        chunk.reads.clear();
+        return;
+    }
+
+    const auto beginOffset = static_cast<std::size_t>(effectiveStart - chunkStart);
+    const auto endOffset = static_cast<std::size_t>(effectiveEnd - chunkStart + 1);
+
+    if (beginOffset == 0 && endOffset == chunk.reads.size()) {
+        return;
+    }
+
+    std::vector<ReadRecord> filteredReads;
+    filteredReads.reserve(endOffset - beginOffset);
+    for (std::size_t i = beginOffset; i < endOffset; ++i) {
+        filteredReads.push_back(std::move(chunk.reads[i]));
+    }
+
+    chunk.reads = std::move(filteredReads);
+    chunk.startReadId = effectiveStart;
+}
+
 // =============================================================================
 // CompressionPipelineConfig Implementation
 // =============================================================================
@@ -195,11 +227,11 @@ public:
             format::GlobalHeader globalHeader;
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
             globalHeader.flags = format::buildFlags(
-                false,                                            // isPaired
-                !config_.enableReorder || config_.streamingMode,  // preserveOrder
+                false,  // isPaired
+                true,   // preserveOrder
                 config_.qualityMode,
                 config_.idMode,
-                config_.saveReorderMap && config_.enableReorder && !config_.streamingMode,
+                false,  // reorder map is not produced by the current pipeline path
                 PELayout::kInterleaved,
                 config_.readLengthClass,
                 config_.streamingMode);
@@ -209,7 +241,8 @@ public:
             globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
             globalHeader.totalReadCount = reader.estimatedTotalReads();
 
-            auto writerOpenResult = writer.open(outputPath, globalHeader);
+            auto writerOpenResult =
+                writer.open(outputPath, globalHeader, inputPath.filename().string());
             if (!writerOpenResult) {
                 running_.store(false);
                 return writerOpenResult;
@@ -365,6 +398,11 @@ public:
 
             // Finalize
             if (!cancelled_.load()) {
+                auto updateHeaderResult = writer.updateTotalReadCount(readsProcessed.load());
+                if (!updateHeaderResult) {
+                    running_.store(false);
+                    return updateHeaderResult;
+                }
                 auto finalizeResult = writer.finalize(std::nullopt);
                 if (!finalizeResult) {
                     running_.store(false);
@@ -454,10 +492,10 @@ public:
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
             globalHeader.flags = format::buildFlags(
                 true,  // isPaired
-                !config_.enableReorder || config_.streamingMode,
+                true,  // preserveOrder
                 config_.qualityMode,
                 config_.idMode,
-                config_.saveReorderMap && config_.enableReorder && !config_.streamingMode,
+                false,  // reorder map is not produced by the current pipeline path
                 PELayout::kInterleaved,
                 config_.readLengthClass,
                 config_.streamingMode);
@@ -467,7 +505,8 @@ public:
             globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
             globalHeader.totalReadCount = reader.estimatedTotalReads();
 
-            auto writerOpenResult = writer.open(outputPath, globalHeader);
+            auto writerOpenResult =
+                writer.open(outputPath, globalHeader, input1Path.filename().string());
             if (!writerOpenResult) {
                 running_.store(false);
                 return writerOpenResult;
@@ -610,6 +649,11 @@ public:
 
             // Finalize
             if (!cancelled_.load()) {
+                auto updateHeaderResult = writer.updateTotalReadCount(readsProcessed.load());
+                if (!updateHeaderResult) {
+                    running_.store(false);
+                    return updateHeaderResult;
+                }
                 auto finalizeResult = writer.finalize(std::nullopt);
                 if (!finalizeResult) {
                     running_.store(false);
@@ -843,6 +887,12 @@ public:
                                     return std::nullopt;
                                 }
 
+                                filterChunkToReadRange(
+                                    *decompressResult, config_.rangeStart, config_.rangeEnd);
+                                if (decompressResult->reads.empty()) {
+                                    return std::nullopt;
+                                }
+
                                 return std::move(*decompressResult);
                             }) &
 
@@ -1022,6 +1072,11 @@ public:
                     }
                     running_.store(false);
                     return std::unexpected(decompressResult.error());
+                }
+
+                filterChunkToReadRange(*decompressResult, config_.rangeStart, config_.rangeEnd);
+                if (decompressResult->reads.empty()) {
+                    continue;
                 }
 
                 auto writeResult = writer.writeChunk(std::move(*decompressResult));

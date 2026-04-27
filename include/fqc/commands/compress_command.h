@@ -93,6 +93,9 @@ struct CompressOptions {
     /// @brief Block size in reads.
     std::size_t blockSize = 100000;
 
+    /// @brief Whether blockSize was explicitly provided by the caller/CLI.
+    bool blockSizeExplicit = false;
+
     /// @brief Save reorder map for original order reconstruction.
     bool saveReorderMap = true;
 

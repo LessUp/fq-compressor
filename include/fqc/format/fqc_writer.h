@@ -173,6 +173,12 @@ public:
                          std::span<const std::uint8_t> forwardMapData,
                          std::span<const std::uint8_t> reverseMapData);
 
+    /// @brief Update the declared total read count in the already-written global header.
+    /// @param totalReadCount The exact total read count to persist.
+    /// @throws IOError on write failure.
+    /// @throws FormatError if called before header write or after finalization.
+    void updateTotalReadCount(std::uint64_t totalReadCount);
+
     /// @brief Finalize the archive.
     /// @throws IOError on write failure or rename failure.
     /// @note Writes block index, file footer, and renames temp to final.
@@ -273,6 +279,10 @@ private:
     /// @brief Write the file footer.
     /// @throws IOError on write failure.
     void writeFileFooter();
+
+    /// @brief Rebuild the running global checksum state from the temp file contents written so far.
+    /// @throws IOError on read failure.
+    void rebuildChecksumState();
 
     /// @brief Cleanup temporary file.
     void cleanupTempFile() noexcept;
