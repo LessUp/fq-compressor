@@ -31,13 +31,13 @@ The roadmap document is stored at openspec/roadmap/closeout.md so that capabilit
 - Use a project management tool outside the repository: rejected because it fragments the planning
   surface.
 
-### Add new capabilities: docs-site and release-engineering
+### Add new capabilities: docs-site, release-engineering, and build-system
 
 These capabilities govern ownership surfaces currently missing from `openspec/specs/`.
 
 **Alternatives considered:**
-- Treat documentation and releases as build-system concerns: rejected because they have distinct
-  workflows and stakeholders.
+- Treat documentation and releases as part of other capabilities: rejected because they have
+  distinct workflows and stakeholders.
 - Define these capabilities later: rejected because roadmap planning requires complete capability
   coverage.
 
@@ -78,9 +78,9 @@ These capabilities govern ownership surfaces currently missing from `openspec/sp
 
 1. Create scaffold: proposal.md, design.md, tasks.md.
 2. Add roadmap doc: `openspec/roadmap/closeout.md`.
-3. Add new capability specs: `specs/docs-site/spec.md`, `specs/release-engineering/spec.md`.
-4. Add deltas to existing capabilities: `random-access`, `performance`, `compatibility`,
-   `build-system`.
+3. Add new capability specs: `specs/docs-site/spec.md`, `specs/release-engineering/spec.md`,
+   `specs/build-system/spec.md`.
+4. Add deltas to existing capabilities: `random-access`, `performance`, `compatibility`.
 5. Validate with `./scripts/dev/preflight.sh`, `openspec list --json`,
    `./scripts/lint.sh format-check`, and `./scripts/test.sh clang-debug`.
 

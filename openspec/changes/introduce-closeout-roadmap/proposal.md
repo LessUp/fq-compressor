@@ -9,8 +9,8 @@ readiness, and documentation clarity rather than broad feature expansion.
 
 - Add one active OpenSpec change for a project-level closeout roadmap.
 - Add `openspec/roadmap/closeout.md`.
-- Add `docs-site` and `release-engineering` capability specs.
-- Add requirement deltas for `random-access`, `performance`, `compatibility`, and `build-system`.
+- Add `docs-site`, `release-engineering`, and `build-system` capability specs.
+- Add requirement deltas for `random-access`, `performance`, and `compatibility`.
 - Keep the roadmap closeout-oriented.
 
 ## Capabilities
@@ -19,14 +19,14 @@ readiness, and documentation clarity rather than broad feature expansion.
 
 - `docs-site`: governs the documentation website structure, build, and deployment.
 - `release-engineering`: governs release artifact generation, distribution, and verification.
+- `build-system`: governs the build system configuration, reproducible builds, and release artifact
+  generation.
 
 ### Modified Capabilities
 
 - `random-access`: add closeout-phase requirements for reproducibility and performance validation.
 - `performance`: add closeout-phase requirements for benchmark reproducibility and CI integration.
 - `compatibility`: add closeout-phase requirements for version stability and migration guidance.
-- `build-system`: add closeout-phase requirements for reproducible builds and release artifact
-  generation.
 
 ## Impact
 
