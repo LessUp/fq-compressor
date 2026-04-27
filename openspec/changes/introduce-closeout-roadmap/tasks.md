@@ -11,16 +11,21 @@
 
 ## 2. Add new capability specs
 
-- [x] 2.1 Create `openspec/specs/docs-site.yaml` with documentation website requirements
-- [x] 2.2 Create `openspec/specs/release-engineering.yaml` with release artifact and distribution
-      requirements
+- [x] 2.1 Create `openspec/changes/introduce-closeout-roadmap/specs/docs-site/spec.md` with
+      documentation website requirements
+- [x] 2.2 Create `openspec/changes/introduce-closeout-roadmap/specs/release-engineering/spec.md`
+      with release artifact and distribution requirements
 
 ## 3. Add capability spec deltas
 
-- [x] 3.1 Add closeout-phase requirements to `openspec/specs/random-access.yaml`
-- [x] 3.2 Add closeout-phase requirements to `openspec/specs/performance.yaml`
-- [x] 3.3 Add closeout-phase requirements to `openspec/specs/compatibility.yaml`
-- [x] 3.4 Add closeout-phase requirements to `openspec/specs/build-system.yaml`
+- [x] 3.1 Add closeout-phase requirements to
+      `openspec/changes/introduce-closeout-roadmap/specs/random-access/spec.md`
+- [x] 3.2 Add closeout-phase requirements to
+      `openspec/changes/introduce-closeout-roadmap/specs/performance/spec.md`
+- [x] 3.3 Add closeout-phase requirements to
+      `openspec/changes/introduce-closeout-roadmap/specs/compatibility/spec.md`
+- [x] 3.4 Add closeout-phase requirements to
+      `openspec/changes/introduce-closeout-roadmap/specs/build-system/spec.md`
 
 ## 4. Validate and commit
 
