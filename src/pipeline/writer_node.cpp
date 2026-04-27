@@ -27,14 +27,17 @@ class WriterNodeImpl {
 public:
     explicit WriterNodeImpl(WriterNodeConfig config) : config_(std::move(config)) {}
 
-    VoidResult open(const std::filesystem::path& path, const format::GlobalHeader& globalHeader) {
+    VoidResult open(const std::filesystem::path& path,
+                    const format::GlobalHeader& globalHeader,
+                    std::string_view originalFilename) {
         try {
             outputPath_ = path;
             globalHeader_ = globalHeader;
 
             writer_ = std::make_unique<format::FQCWriter>(path);
 
-            std::string filename = path.filename().string();
+            std::string filename =
+                originalFilename.empty() ? path.filename().string() : std::string(originalFilename);
             auto timestamp = static_cast<std::uint64_t>(
                 std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
@@ -186,6 +189,24 @@ public:
         return totalBytesWritten_;
     }
 
+    VoidResult updateTotalReadCount(std::uint64_t totalReadCount) {
+        if (state_ != NodeState::kRunning || !writer_) {
+            return makeVoidError(ErrorCode::kInvalidState, "Writer not open");
+        }
+
+        try {
+            writer_->updateTotalReadCount(totalReadCount);
+            return {};
+        } catch (const FQCException& e) {
+            state_ = NodeState::kError;
+            return std::unexpected(Error{e.code(), e.what()});
+        } catch (const std::exception& e) {
+            state_ = NodeState::kError;
+            return std::unexpected(
+                Error{ErrorCode::kIOError, fmt::format("Failed to update header: {}", e.what())});
+        }
+    }
+
     void close() noexcept {
         if (writer_ && !writer_->isFinalized()) {
             writer_->abort();
@@ -271,8 +292,9 @@ WriterNode::WriterNode(WriterNode&&) noexcept = default;
 WriterNode& WriterNode::operator=(WriterNode&&) noexcept = default;
 
 VoidResult WriterNode::open(const std::filesystem::path& path,
-                            const format::GlobalHeader& globalHeader) {
-    return impl_->open(path, globalHeader);
+                            const format::GlobalHeader& globalHeader,
+                            std::string_view originalFilename) {
+    return impl_->open(path, globalHeader, originalFilename);
 }
 
 VoidResult WriterNode::writeBlock(CompressedBlock block) {
@@ -293,6 +315,10 @@ std::uint32_t WriterNode::totalBlocksWritten() const noexcept {
 
 std::uint64_t WriterNode::totalBytesWritten() const noexcept {
     return impl_->totalBytesWritten();
+}
+
+VoidResult WriterNode::updateTotalReadCount(std::uint64_t totalReadCount) {
+    return impl_->updateTotalReadCount(totalReadCount);
 }
 
 void WriterNode::close() noexcept {

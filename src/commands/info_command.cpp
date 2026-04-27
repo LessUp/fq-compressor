@@ -290,8 +290,8 @@ void InfoCommand::printJsonInfo() {
     }
     std::cout << "    \"preserve_order\": "
               << (format::isPreserveOrder(gh.flags) ? "true" : "false") << "," << std::endl;
-    std::cout << "    \"has_reorder_map\": " << (format::hasReorderMap(gh.flags) ? "true" : "false")
-              << "," << std::endl;
+    std::cout << "    \"has_reorder_map\": " << (reader.hasReorderMap() ? "true" : "false") << ","
+              << std::endl;
     std::cout << "    \"streaming_mode\": "
               << (format::isStreamingMode(gh.flags) ? "true" : "false") << "," << std::endl;
     std::cout << "    \"original_filename\": \"" << jsonEscape(reader.originalFilename()) << "\","

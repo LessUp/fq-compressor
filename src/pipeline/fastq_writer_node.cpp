@@ -190,6 +190,10 @@ private:
 
         result += '@';
         result += record.id;
+        if (!record.comment.empty()) {
+            result += ' ';
+            result += record.comment;
+        }
         result += '\n';
 
         if (config_.lineWidth > 0 && record.sequence.size() > config_.lineWidth) {

@@ -284,17 +284,48 @@ private:
     }
 
     Result<std::vector<std::uint8_t>> compressLengths(std::span<const std::uint32_t> lengths) {
-        // Delta + Varint encoding for lengths
-        std::vector<std::int64_t> deltas;
-        deltas.reserve(lengths.size());
-
-        std::int64_t prev = 0;
-        for (auto len : lengths) {
-            deltas.push_back(static_cast<std::int64_t>(len) - prev);
-            prev = static_cast<std::int64_t>(len);
+        if (lengths.empty()) {
+            return std::vector<std::uint8_t>{};
         }
 
-        return algo::deltaVarintEncode(deltas);
+        // Delta + Varint encoding for lengths
+        std::vector<std::uint8_t> encoded;
+        encoded.reserve(lengths.size() * 4);
+
+        std::int32_t prev = 0;
+        for (auto len : lengths) {
+            const std::int32_t current = static_cast<std::int32_t>(len);
+            std::uint64_t zigzag = algo::zigzagEncode(static_cast<std::int64_t>(current - prev));
+            prev = current;
+
+            do {
+                std::uint8_t byte = static_cast<std::uint8_t>(zigzag & 0x7F);
+                zigzag >>= 7;
+                if (zigzag != 0) {
+                    byte |= 0x80;
+                }
+                encoded.push_back(byte);
+            } while (zigzag != 0);
+        }
+
+        const std::size_t compressBound = ZSTD_compressBound(encoded.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        const std::size_t compressedSize =
+            ZSTD_compress(compressed.data(),
+                          compressed.size(),
+                          encoded.data(),
+                          encoded.size(),
+                          config_.zstdLevel > 0 ? config_.zstdLevel : 3);
+
+        if (ZSTD_isError(compressedSize)) {
+            return makeError<std::vector<std::uint8_t>>(
+                ErrorCode::kIOError,
+                "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
     }
 
     Result<std::vector<std::uint8_t>> compressWithZstd(

@@ -300,7 +300,8 @@ public:
     /// @param globalHeader Global header to write
     /// @return VoidResult indicating success or error
     [[nodiscard]] VoidResult open(const std::filesystem::path& path,
-                                  const format::GlobalHeader& globalHeader);
+                                  const format::GlobalHeader& globalHeader,
+                                  std::string_view originalFilename = {});
 
     /// @brief Write a compressed block
     /// @param block Compressed block to write
@@ -321,6 +322,9 @@ public:
 
     /// @brief Get total bytes written
     [[nodiscard]] std::uint64_t totalBytesWritten() const noexcept;
+
+    /// @brief Update the declared total read count in the archive header.
+    [[nodiscard]] VoidResult updateTotalReadCount(std::uint64_t totalReadCount);
 
     /// @brief Close output (without finalizing)
     void close() noexcept;

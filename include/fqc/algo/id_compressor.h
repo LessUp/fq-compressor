@@ -463,7 +463,7 @@ std::uint64_t uvarintDecode(std::span<const std::uint8_t> data, std::size_t& byt
 /// @param value Signed integer
 /// @return ZigZag encoded unsigned integer
 [[nodiscard]] inline constexpr std::uint64_t zigzagEncode(std::int64_t value) noexcept {
-    return static_cast<std::uint64_t>((value << 1) ^ (value >> 63));
+    return (static_cast<std::uint64_t>(value) << 1) ^ static_cast<std::uint64_t>(value >> 63);
 }
 
 /// @brief ZigZag decode an unsigned integer back to signed

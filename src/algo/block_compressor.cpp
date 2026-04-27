@@ -8,6 +8,7 @@
 
 #include "fqc/algo/block_compressor.h"
 
+#include "fqc/algo/id_compressor.h"
 #include "fqc/algo/quality_compressor.h"
 #include "fqc/common/logger.h"
 
@@ -984,9 +985,9 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
         prevLen = len;
 
         // Varint encoding for delta
-        std::uint32_t zigzag = static_cast<std::uint32_t>((delta << 1) ^ (delta >> 31));
+        std::uint64_t zigzag = zigzagEncode(static_cast<std::int64_t>(delta));
         do {
-            std::uint8_t byte = zigzag & 0x7F;
+            std::uint8_t byte = static_cast<std::uint8_t>(zigzag & 0x7F);
             zigzag >>= 7;
             if (zigzag != 0) {
                 byte |= 0x80;

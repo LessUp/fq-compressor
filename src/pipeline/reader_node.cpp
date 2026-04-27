@@ -88,18 +88,13 @@ public:
                 }
             }
 
-            // Set effective block size from detected or configured length class
-            if (estimatedTotalReads_ > 0) {
-                if (config_.readLengthClass == ReadLengthClass::kShort) {
-                    effectiveBlockSize_ = recommendedBlockSize(detectedLengthClass_);
-                } else {
-                    effectiveBlockSize_ = recommendedBlockSize(config_.readLengthClass);
-                }
-            } else {
-                // Streaming mode - use conservative defaults
+            if (estimatedTotalReads_ == 0) {
+                // Streaming mode - keep a conservative detected class for stats/progress only.
                 detectedLengthClass_ = ReadLengthClass::kMedium;
-                effectiveBlockSize_ = config_.blockSize;
             }
+            effectiveBlockSize_ = config_.blockSize > 0
+                ? config_.blockSize
+                : recommendedBlockSize(detectedLengthClass_);
 
             state_ = NodeState::kRunning;
             chunkId_ = 0;
@@ -148,16 +143,13 @@ public:
                 estimatedTotalReads_ = estimateTotalReads(path1, sampleStats) * 2;
                 detectedLengthClass_ = io::detectReadLengthClass(sampleStats);
 
-                if (config_.readLengthClass == ReadLengthClass::kShort) {
-                    effectiveBlockSize_ = recommendedBlockSize(detectedLengthClass_);
-                } else {
-                    effectiveBlockSize_ = recommendedBlockSize(config_.readLengthClass);
-                }
             } else {
                 estimatedTotalReads_ = 0;
                 detectedLengthClass_ = ReadLengthClass::kMedium;
-                effectiveBlockSize_ = config_.blockSize;
             }
+            effectiveBlockSize_ = config_.blockSize > 0
+                ? config_.blockSize
+                : recommendedBlockSize(detectedLengthClass_);
 
             state_ = NodeState::kRunning;
             chunkId_ = 0;
@@ -197,7 +189,7 @@ public:
 
             if (isPaired_) {
                 // Read interleaved from both files
-                while (chunk.reads.size() < targetReads * 2) {
+                while (chunk.reads.size() < targetReads) {
                     auto r1 = parser_->readRecord();
                     auto r2 = parser2_->readRecord();
 
@@ -254,7 +246,7 @@ public:
             // the target size, which means the parser has reached EOF.
             bool reachedEof = false;
             if (isPaired_) {
-                reachedEof = chunk.reads.size() < targetReads * 2;
+                reachedEof = chunk.reads.size() < targetReads;
             } else {
                 reachedEof = chunk.reads.size() < targetReads;
             }

@@ -331,7 +331,7 @@ VerificationResult VerifyCommand::verifyBlockIndex() {
     }
 
     // Read and validate each index entry
-    std::uint64_t expectedArchiveId = 0;
+    std::uint64_t expectedArchiveId = 1;
     for (std::uint64_t i = 0; i < indexHeader.numBlocks; ++i) {
         format::IndexEntry entry;
         file.read(reinterpret_cast<char*>(&entry), sizeof(entry));

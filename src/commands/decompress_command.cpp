@@ -293,6 +293,14 @@ void DecompressCommand::runDecompression() {
         return;
     }
 
+    const bool requiresPipelinePath =
+        options_.splitPairedEnd || options_.range.has_value() || options_.rangePairs.has_value();
+    if (requiresPipelinePath) {
+        FQC_LOG_INFO("Using pipeline decompression for split/range features");
+        runDecompressionParallel();
+        return;
+    }
+
     // =========================================================================
     // TBB Parallel Pipeline Path (threads > 1)
     // =========================================================================
@@ -509,6 +517,14 @@ void DecompressCommand::runDecompressionOriginalOrder() {
     reader.open();
 
     if (!reader.hasReorderMap()) {
+        if (format::isPreserveOrder(reader.globalHeader().flags)) {
+            FQC_LOG_DEBUG(
+                "Original-order output requested for preserve-order archive; falling back to "
+                "archive-order decompression");
+            options_.originalOrder = false;
+            runDecompression();
+            return;
+        }
         throw FormatError("Original order requested but reorder map not present");
     }
 

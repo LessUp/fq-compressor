@@ -472,6 +472,43 @@ void FQCWriter::writeReorderMap(const ReorderMap& mapHeader,
                   reverseMapData.size());
 }
 
+void FQCWriter::updateTotalReadCount(std::uint64_t totalReadCount) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (!headerWritten_) {
+        throw FormatError("Global header must be written before updating total read count");
+    }
+
+    if (finalized_ || aborted_) {
+        throw FormatError("Writer is finalized or aborted");
+    }
+
+    stream_.flush();
+    if (!stream_.good()) {
+        throw IOError("Failed to flush output file", ErrorContext(tempPath_.string()));
+    }
+
+    const auto currentPos = stream_.tellp();
+    constexpr std::streamoff kTotalReadCountOffset = static_cast<std::streamoff>(
+        kMagicHeaderSize + sizeof(std::uint32_t) + sizeof(std::uint64_t) + sizeof(std::uint8_t) +
+        sizeof(std::uint8_t) + sizeof(std::uint16_t));
+
+    stream_.seekp(kTotalReadCountOffset, std::ios::beg);
+    if (!stream_.good()) {
+        throw IOError("Failed to seek to total read count field", ErrorContext(tempPath_.string()));
+    }
+
+    writeLE(totalReadCount);
+
+    stream_.seekp(currentPos, std::ios::beg);
+    if (!stream_.good()) {
+        throw IOError("Failed to restore output position", ErrorContext(tempPath_.string()));
+    }
+
+    totalReadCount_ = totalReadCount;
+    rebuildChecksumState();
+}
+
 void FQCWriter::finalize() {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -658,6 +695,40 @@ void FQCWriter::writeBlockIndex() {
     }
 
     FQC_LOG_DEBUG("Block index written: offset={}, numBlocks={}", indexOffset, index_.size());
+}
+
+void FQCWriter::rebuildChecksumState() {
+    stream_.flush();
+    if (!stream_.good()) {
+        throw IOError("Failed to flush output file", ErrorContext(tempPath_.string()));
+    }
+
+    std::ifstream input(tempPath_, std::ios::binary);
+    if (!input.is_open()) {
+        throw IOError("Failed to reopen temp file for checksum rebuild",
+                      ErrorContext(tempPath_.string()));
+    }
+
+    if (xxhashState_ == nullptr) {
+        throw IOError("Checksum state is not initialized", ErrorContext(tempPath_.string()));
+    }
+
+    XXH64_reset(static_cast<XXH64_state_t*>(xxhashState_), 0);
+
+    std::array<char, 64 * 1024> buffer{};
+    while (input) {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto bytesRead = input.gcount();
+        if (bytesRead > 0) {
+            XXH64_update(static_cast<XXH64_state_t*>(xxhashState_),
+                         buffer.data(),
+                         static_cast<std::size_t>(bytesRead));
+        }
+    }
+
+    if (!input.eof()) {
+        throw IOError("Failed while rebuilding checksum state", ErrorContext(tempPath_.string()));
+    }
 }
 
 void FQCWriter::writeFileFooter() {
