@@ -162,6 +162,9 @@ docs/website/.next/
 # OpenSpec explorations (scratch/research docs, not tracked)
 openspec/explorations/
 
+# Local git worktrees
+.worktrees/
+
 # Reference projects (source code not tracked, but keep README)
 ref-projects/*
 !ref-projects/README.md
