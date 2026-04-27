@@ -32,10 +32,10 @@ readiness, and documentation clarity rather than broad feature expansion.
 
 - `openspec/changes/introduce-closeout-roadmap/`
 - `openspec/roadmap/closeout.md`
-- `openspec/specs/docs-site.yaml`
-- `openspec/specs/release-engineering.yaml`
-- `openspec/specs/random-access.yaml`
-- `openspec/specs/performance.yaml`
-- `openspec/specs/compatibility.yaml`
-- `openspec/specs/build-system.yaml`
+- `openspec/changes/introduce-closeout-roadmap/specs/docs-site/spec.md`
+- `openspec/changes/introduce-closeout-roadmap/specs/release-engineering/spec.md`
+- `openspec/changes/introduce-closeout-roadmap/specs/random-access/spec.md`
+- `openspec/changes/introduce-closeout-roadmap/specs/performance/spec.md`
+- `openspec/changes/introduce-closeout-roadmap/specs/compatibility/spec.md`
+- `openspec/changes/introduce-closeout-roadmap/specs/build-system/spec.md`
 - Contributor workflow anchored by `./scripts/dev/preflight.sh` and `openspec list --json`
