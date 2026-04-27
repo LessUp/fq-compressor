@@ -1,8 +1,126 @@
 # fq-compressor 项目全面诊断报告
 
+> **Archive-only historical document.** This report reflects repository state from 2026-01-29 and
+> is kept only as retrospective input. Do not treat it as current project truth; use `openspec/`
+> and maintained docs for active work.
+
 > 诊断时间: 2026-01-29
 > 代码版本: master (commit 3cf4a6d)
 > 诊断深度: Very Thorough
+
+---
+
+## 0. 2026-04-27 真实数据复核增补
+
+> **This addendum supersedes several 2026-01-29 conclusions.** The original diagnosis below remains
+> archived as historical context only. Current closeout work must use this addendum, maintained
+> `openspec/`, and current repository checks as the source of truth.
+
+### 0.1 当前复核边界
+
+- 当前默认门禁已可通过：`./scripts/lint.sh format-check` 与 `./scripts/test.sh clang-debug`
+- 本次复核使用用户提供的真实数据：
+  - `/home/shane/data/HG001.novaseq.wes_truseq.50x.R1.fastq.gz`
+  - `/home/shane/data/HG001.novaseq.wes_truseq.50x.R2.fastq.gz`
+  - `/home/shane/data/HG004.2.pacbio_hifi.fastq.gz`
+- 三个 `.gz` 输入均为 **truncated gzip**：`gzip -t`、`zcat >/dev/null`、Python `gzip.open()` 均报 EOF / unexpected end of file
+- 为继续做功能与性能复核，本轮从损坏 `.gz` 中恢复了可读 FASTQ 前缀到 `build/real-data-tests/recovered/`，并切出 1k / 100k / 1M 子集做最小复现
+
+### 0.2 已确认会被本增补推翻的旧结论
+
+| 旧结论 | 当前状态 |
+|------|------|
+| “所有测试用例失败，无法正常压缩数据” | **已过时**。默认仓库门禁为绿，且真实数据上的多条压缩路径可以成功运行 |
+| “Decompress 命令核心逻辑未实现 / 大量占位符” | **已过时但仍有严重缺陷**。解压路径存在，但在真实数据复核下暴露出精确回放与线程相关稳定性问题 |
+| “Info 命令全为 TODO 占位符” | **已过时**。`fqc info --json` 可输出结构化元数据，但本轮发现其结果与 archive footer/header 存在不一致 |
+
+### 0.3 本轮真实数据复核结论
+
+| 类别 | 场景 | 结果 | 证据摘要 |
+|------|------|------|----------|
+| 输入健壮性 | 直接使用用户提供的 3 个 `.gz` | **失败但行为合理** | 输入文件本身缺少 gzip 结束标记；`fqc` 直接压缩时，HiFi 单端报 `unexpected EOF`，WES paired 报 `quality length does not match sequence length` |
+| Verify | paired 1k / single 1k / HiFi full (`t=1`,`t=8`) | **一致失败** | `fqc verify --mode full` 均报 `Archive ID discontinuity at block 0` |
+| 精确回放 | single 1k / paired 1k / HiFi full `t=1` | **失败** | 解压后 read count 保持一致，但 FASTQ header 在首个空格后被截断；序列和质量串保持一致 |
+| Paired original-order | paired 1k | **失败** | `fqc decompress --split-pe --original-order` 报 `Original order requested but reorder map not present` |
+| Metadata 一致性 | paired 1k | **失败** | `info --json` 显示 `has_reorder_map: true`，但 footer 中 `reorder_map_offset: 0` |
+| Metadata 一致性 | HiFi full `t=8` | **失败** | `compression_algo` 显示为 `Zstd`，`original_filename` 变成输出归档名，`global_header.total_reads` 与 block read_count 总和不一致 |
+| 解压稳定性 | HiFi full `t=8` | **失败** | `Failed to decompress block 0: Invalid Zstd frame` |
+| 解压稳定性 | HiFi full `t=1` | **部分成功** | 可解压，但仍无法精确回放完整 header |
+
+### 0.4 本轮性能观察（真实数据）
+
+| 数据集 | 命令 | 观察 |
+|------|------|------|
+| WES paired 1k（约 0.7 MB） | `fqc -t 8 -q compress ... --paired` | 完成；摘要显示 11.81 s、0.06 MB/s、5.62x。样本过小，吞吐数字仅说明高固定开销 |
+| WES paired 100k（约 70 MB） | `fqc -t 8 -q compress ... --paired` | **10 分钟未完成**，明显低于 README / benchmark 文档宣称的目标量级 |
+| WES paired 1M（约 690 MB） | `fqc -t 8 -q compress ... --paired` | **15 分钟未完成** |
+| WES paired recovered full（约 13.8 GiB） | `fqc -t 8 -q compress ... --paired` | **45 分钟 soak 观察未完成**，CPU 持续高占用 |
+| HiFi recovered full（372,615,254 bytes） | `fqc -t 8 -q compress ...` | 完成；摘要显示 20.30 s、17.50 MB/s、3.24x |
+| HiFi recovered full（同一输入） | `fqc -t 1 -q compress ...` | 完成；摘要显示 26.70 s、6.64 MB/s、1.62x，但摘要里的 `Input size` / `Total bases` 仅约真实输入的一半，存在线程相关统计异常 |
+
+### 0.5 最小可复现缺陷清单
+
+1. **`verify` 的 Block Index 校验存在系统性错误或与 writer/index 契约不一致**  
+   最小样本：`build/real-data-tests/artifacts/single_r1_1k_t8.fqc`
+2. **FASTQ header 精确回放失败**  
+   最小样本：single 1k、paired 1k、HiFi full `t=1`；现象为 header 在首个空格后被截断
+3. **reorder map 元数据自相矛盾**  
+   最小样本：`build/real-data-tests/artifacts/paired_subset_1k_t8.fqc`
+4. **多线程长读 archive 的元数据/解压稳定性异常**  
+   最小样本：`build/real-data-tests/artifacts/hifi_full_t8.fqc`
+
+### 0.6 当前修复批次结果（2026-04-27 晚）
+
+- 已修复并补回归测试的真实缺陷：
+  1. `verify` 的 block index 连续性校验改为与 writer / index 契约一致的 **1-based**
+  2. 单线程压缩不再丢失 FASTQ header comment
+  3. 并行解压写 FASTQ 时不再截断 comment
+  4. 并行 archive 的 header 元数据改为诚实反映当前实现：`preserve_order=true`、`has_reorder_map=false`
+  5. pipeline 写入的 `original_filename` 与 `total_reads` 改为真实值，不再写出输出文件名或估算值
+  6. `--original-order` 对 preserve-order 且无 reorder map 的 archive 现会安全回退到 archive order 解压
+  7. 单线程长读 archive 的 `compression_algo` 元数据改为正确的 `Zstd`
+  8. 并行长读 aux stream 改为与解压契约一致的 `delta-varint + Zstd`，修复 `Invalid Zstd frame`
+- 新增回归测试 `archive_regression_test`，覆盖上述 7 类最小复现行为（含非单调长读长度回放）；当前已全部通过
+
+### 0.7 新样本 `test_1.fq.gz` / `test_2.fq.gz` 复测
+
+- 新样本本身是完整 gzip：`gzip -t` 通过
+- 对**完整全量样本**的 paired 压缩仍观察到明显性能/可进展性问题：
+  - `fqc -t 8 compress -i test_1.fq.gz -2 test_2.fq.gz --paired`
+    在 **32 分钟** 观察窗口内，临时归档仍为 **0 字节**，进程约 **478% CPU / 2.6 GiB RSS**
+  - `fqc -t 8 compress ... --paired --streaming --block-reads 2000`
+    在 **10 分钟** 观察窗口内同样未产出首个 block，临时归档仍为 **0 字节**
+- 为验证本轮 correctness 修复，使用同源 **1k 对子集** 完成了端到端回归：
+
+| 场景 | 结果 | 证据摘要 |
+|------|------|----------|
+| paired 1k 子集压缩 | **成功** | 原始 FASTQ 合计 `671,572` bytes，归档 `193,754` bytes，压缩比 **3.47x** |
+| paired 1k 子集 `verify` | **成功** | `5/5 passed` |
+| paired 1k 子集 `info --json` | **成功** | `total_reads=2000`、`paired=true`、`preserve_order=true`、`has_reorder_map=false`、`original_filename=test_1_1k.fastq` |
+| paired 1k 子集 `decompress --split-pe --original-order` | **成功** | R1 / R2 与输入子集逐字节一致 |
+| paired 1k 子集吞吐 | **仅供参考** | 压缩 `23.40 s / 0.03 MB/s`，解压 `0.60 s / 1.07 MB/s`；样本过小，只说明当前固定开销仍然偏高 |
+
+- 在继续排查 paired 全量样本“首块长期不产出”问题时，又确认并修复了一个直接根因：
+  1. `CompressCommand::setupCompressionParams()` 会覆盖调用方显式传入的 `blockSize`
+  2. `ReaderNode` 的 paired chunk 读取又把目标块大小按 `* 2` 放大
+- 修复后，`ArchiveRegressionTest.ParallelPairedCompressionHonorsExplicitBlockSize` 已覆盖该行为。
+- 基于同一批真实样本重新复测：
+  - 对**完整全量样本**执行 `--streaming --block-reads 2000` 时，`.tmp` 归档已不再长期保持 0 字节；在约 **141 s** 观察窗口内已增长到 **10,146,596 bytes**，说明首个 block 已开始稳定落盘。
+  - 对从同源样本切出的 **5k 对子集**（共 `10,000` reads）执行同一路径，压缩在 **16.23 s** 内完成，`verify` 通过，`info --json` 显示：
+    - `block_count = 5`
+    - 每个 block 的 `read_count = 2000`
+    - `archive_id_start` 依次为 `1 / 2001 / 4001 / 6001 / 8001`
+- 这说明此前“`--streaming --block-reads 2000` 仍然不产出首块”的结论已被当前修复部分推翻；但**默认大块配置下的全量 paired 吞吐/等待时长**仍需单独复测，不能直接视为已完全收敛。
+
+### 0.8 对后续 closeout 的直接含义
+
+- 旧报告中“全局不可用、核心命令仍是占位符”的判断已经不再适合作为修复依据
+- 当前更高优先级的问题是：
+  1. `verify` / block index 契约
+  2. header exact roundtrip
+  3. reorder map 写入/宣告一致性
+  4. 多线程长读路径的 metadata 与解压稳定性
+- 在这些问题修复前，不应继续沿用现有 benchmark 文档中的性能叙事对外宣传“已验证”的随机访问/精确回放能力
 
 ---
 
