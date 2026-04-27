@@ -32,7 +32,7 @@ fqc compress [OPTIONS] -i <input> -o <output>
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--input` | `-i` | Input FASTQ (required) | - |
-| `--input2` | `-i2` | Second input (paired-end) | - |
+| `--input2` | `-2` | Second input (paired-end) | - |
 | `--output` | `-o` | Output FQC (required) | - |
 | `--paired` | - | Enable paired-end mode | false |
 | `--mode` | `-m` | Compression mode | balanced |
@@ -51,7 +51,7 @@ fqc compress -i reads.fastq -o reads.fqc -t 8
 fqc compress -i reads.fastq -o reads.fqc --mode best
 
 # Paired-end
-fqc compress -i r1.fastq -i2 r2.fastq -o paired.fqc --paired
+fqc compress -i r1.fastq -2 r2.fastq -o paired.fqc --paired
 
 # From compressed input
 fqc compress -i reads.fastq.gz -o reads.fqc
