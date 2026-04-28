@@ -1,199 +1,86 @@
 ---
 title: Performance Benchmarking
-description: Comprehensive benchmarking guide for fq-compressor
+description: Tracked benchmark evidence and scope for fq-compressor
 version: 0.2.0
-last_updated: 2026-04-22
+last_updated: 2026-04-28
 language: en
 ---
 
 # Performance Benchmarking
 
-> Evaluate fq-compressor performance on your data
+> Benchmark claims in this repository are now limited to tracked result artifacts.
 
-## Overview
+## Tracked Evidence
 
-fq-compressor includes comprehensive benchmarking tools to evaluate:
+- JSON artifact: `benchmark/results/err091571-local-supported.json`
+- Markdown artifact: `benchmark/results/err091571-local-supported.md`
+- Dataset manifest: `benchmark/datasets.yaml`
+- Runner entrypoint: `scripts/benchmark.sh`
 
-- **Compression Ratio**: How much smaller is the compressed data?
-- **Speed**: Throughput for compression and decompression
-- **Memory Usage**: Peak memory consumption
-- **Scalability**: Performance scaling with thread count
+## Current Verified Scope
 
-## Benchmark Suite
+The current tracked result set is intentionally narrow.
 
-### Quick Benchmark
+- Dataset: ENA `ERR091571`
+- Workload: public Illumina paired-end human WGS run
+- Measured input: the first 2,000 records streamed from read 1 into `benchmark/data/ERR091571/ERR091571_1.2000.fastq`
+- Measured local tools: `fqc`, `gzip`, `xz`, `bzip2`
+- Deferred specialized peer: `spring`
 
-```bash
-# Simple single-run benchmark
-./scripts/benchmark.sh --quick --input data.fastq
-```
+This means the current repository can only make claims about the supported local toolset on this measured workload slice.
 
-### Full Benchmark
+## Current Findings
 
-```bash
-# Comprehensive benchmark with multiple runs
-./scripts/benchmark.sh --full --input data.fastq
-```
+From `benchmark/results/err091571-local-supported.json`:
 
-## Metrics
+- Compression ratio: `fq-compressor` does not lead the measured set; `bzip2` is best on this artifact
+- Compression speed: `fq-compressor` does not lead the measured set; `bzip2` is faster on this artifact
+- Decompression speed: `fq-compressor` does not lead the measured set; `xz` is fastest on this artifact
+- Specialized FASTQ-peer ranking: still unproven because `spring` is deferred, not measured
 
-### Compression Metrics
+The evidence-backed answer today is therefore not "fq-compressor is first-tier." The honest answer is that it is not first-tier on the currently measured local-supported dimensions, and specialized-peer comparison remains incomplete.
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Compression Ratio** | Original / Compressed | 3.5-5x |
-| **Bits per Base** | Compressed bits per nucleotide | 0.4-0.6 |
-| **Speed** | MB/s of uncompressed data | >10 MB/s |
-| **Memory** | Peak RAM usage | <2 GB (100MB file) |
+## Why The Tracked Dataset Is Small
 
-### Decompression Metrics
+The benchmark framework now uses a public dataset manifest and stores provenance inside the result artifact.
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| **Speed** | MB/s of compressed data | >50 MB/s |
-| **Memory** | Peak RAM usage | <500 MB |
+The tracked artifact is pinned to a 2,000-record subset because:
 
-## GCC vs Clang Comparison
+- it is streamed directly from a public ENA source
+- it completes inside the closeout validation loop
+- the current `fq-compressor` build regresses sharply on the larger 20,000-record exploratory subset for this workload
 
-The benchmark framework can compare compiler builds:
+That larger subset is useful for investigation, but it is not the pinned tracked evidence artifact.
+
+## Reproducing The Tracked Result
 
 ```bash
-# Build both versions
-./scripts/build.sh gcc-release
-./scripts/build.sh clang-release
-
-# Run comparison
-python3 benchmark/compiler_benchmark.py \
-    --input test_data.fastq.gz \
-    --gcc-binary build/gcc-release/src/fqc \
-    --clang-binary build/clang-release/src/fqc \
-    --threads 1 4 8 \
-    --runs 3 \
-    --visualize
+./scripts/benchmark.sh \
+  --dataset err091571-local-supported \
+  --prepare \
+  --build \
+  --tools fqc,gzip,xz,bzip2,spring \
+  --threads 1 \
+  --runs 1
 ```
 
-### Expected Results
+This updates:
 
-| Compiler | Compression | Decompression | Notes |
-|----------|-------------|---------------|-------|
-| GCC 15.2 | ~11.3 MB/s | ~60 MB/s | Stable |
-| Clang 21 | ~11.9 MB/s | ~62 MB/s | +5% faster |
+- `benchmark/results/err091571-local-supported.json`
+- `benchmark/results/err091571-local-supported.md`
 
-## Multi-Tool Comparison
+## Scope Boundary
 
-Compare fq-compressor against other tools:
+Do not read the current result set as a universal ranking.
 
-```bash
-python3 benchmark/benchmark.py \
-    --input data.fastq \
-    --tools fqc,gzip,pigz,zstd \
-    --threads 1,4,8 \
-    --output-dir results/
-```
+- It covers one public workload slice
+- It covers only the supported local toolset
+- It explicitly excludes deferred specialized peers from verified comparison claims
 
-### Typical Comparison
+## Related Notes
 
-| Tool | Ratio | Compress | Decompress | Parallel |
-|------|-------|----------|------------|----------|
-| fq-compressor | 3.97x | 11.9 MB/s | 62.3 MB/s | ✓ |
-| gzip | 2.1x | 45 MB/s | 180 MB/s | ✗ |
-| pigz | 2.1x | 150 MB/s | 180 MB/s | ✓ |
-| zstd | 2.5x | 220 MB/s | 500 MB/s | ✗ |
-
-## Interpreting Results
-
-### Speed vs Ratio Trade-off
-
-fq-compressor prioritizes compression ratio over raw speed:
-
-```
-High Compression ──────────────────► Fast Decompression
-     │                                       │
-  fq-compressor                          gzip
-  Spring                                 pigz
-  fqzcomp5                               zstd
-```
-
-### Memory Scaling
-
-Memory usage should scale roughly linearly with thread count:
-
-```
-Threads:  1    2    4    8    16
-Memory:   500M 800M 1.2G 1.8G 2.5G (example)
-```
-
-Use `--memory-limit` to constrain usage.
-
-## Continuous Benchmarking
-
-### CI Integration
-
-Add to GitHub Actions:
-
-```yaml
-- name: Benchmark
-  run: |
-    python3 benchmark/compiler_benchmark.py \
-        --input benchmarks/test_data.fq.gz \
-        --gcc-binary build/gcc-release/src/fqc \
-        --clang-binary build/clang-release/src/fqc \
-        --output-dir benchmark-results/
-    
-- name: Upload Results
-  uses: actions/upload-artifact@v4
-  with:
-    name: benchmark-results
-    path: benchmark-results/
-```
-
-### Performance Regression Detection
-
-```bash
-# Compare against baseline
-python3 benchmark/compare_baseline.py \
-    --baseline results/baseline.json \
-    --current results/current.json \
-    --threshold 5%  # Fail if >5% regression
-```
-
-## Benchmarking Best Practices
-
-### Data Selection
-
-- Use representative datasets from your domain
-- Include both small (<100MB) and large (>1GB) files
-- Test paired-end and single-end data
-
-### Environment
-
-- Close other CPU-intensive applications
-- Ensure sufficient RAM (avoid swapping)
-- Use warm cache (run once before timing)
-- Run multiple iterations for accuracy
-
-### Reporting
-
-Include in reports:
-- Hardware specs (CPU, RAM, storage)
-- Software versions (OS, compiler, fqc)
-- Dataset characteristics (size, read count, read length)
-- Command-line options used
-
-## Troubleshooting
-
-### Variable Results
-
-- Ensure CPU frequency scaling is disabled
-- Check for thermal throttling
-- Run with `taskset` to pin to specific cores
-
-### Out of Memory
-
-```bash
-# Reduce parallelism or block size
-fqc compress -i large.fastq -o out.fqc --threads 4 --memory-limit 4096
-```
+- For benchmark framework details, see `docs/benchmark/README.md`
+- For the full tracked report, read `benchmark/results/err091571-local-supported.md`
 
 ---
 

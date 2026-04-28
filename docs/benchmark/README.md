@@ -1,259 +1,105 @@
 # fq-compressor Benchmark Framework
 
-本文档详细说明了 fq-compressor 的性能评估框架、如何运行基准测试以及如何解释结果。
+本文档说明当前仓库中的基准测试证据链、数据来源，以及如何重新生成已跟踪的结果文件。
 
-## 框架概览
+## 当前进展
 
-fq-compressor 包含一个完整的性能评估框架，用于：
+- 当前已跟踪结果文件：`benchmark/results/err091571-local-supported.json`
+- 对应报告：`benchmark/results/err091571-local-supported.md`
+- 当前公开数据集：ENA `ERR091571`
+- 当前已验证工具范围：`fqc`、`gzip`、`xz`、`bzip2`
+- 当前显式延后工具：`spring`
 
-1. **编译器性能对比**: 比较 GCC 和 Clang 编译优化的影响
-2. **多维度性能分析**: 评估压缩/解压速度、压缩率、内存使用、并行扩展性
-3. **可视化报告生成**: 自动生成 PNG 图表、Markdown 和 HTML 格式的综合报告
+## 为什么要改成跟踪结果
 
-## 目录结构
+旧版 benchmark 文档混合了历史数字、未跟踪结果表和仓库内不存在的私有数据路径。现在的规则是：
 
-```
-docs/benchmark/
-├── README.md                       # 本文件（框架说明）
-└── results/                        # 自动生成的测试结果（gitignore）
-    ├── results-TIMESTAMP.json      # 原始 JSON 数据
-    ├── report-TIMESTAMP.md         # Markdown 报告
-    └── charts-TIMESTAMP.html       # 交互式可视化
-```
+- 公共 benchmark 结论必须指向仓库内的 JSON/Markdown 结果文件
+- 数据集来源必须可公开重现
+- 已请求、已测量、缺失和延后的工具必须显式记录
+- 结论必须按维度拆开，而不是给出一个无边界的“第一梯队”总排名
 
-> **注意**: 运行 benchmark 还会在本目录生成 PNG 图表、HTML/MD 报告等文件，
-> 这些生成文件已在 `.gitignore` 中排除。
+## 数据集清单
 
-## 快速开始
+数据集清单位于 `benchmark/datasets.yaml`。
 
-### 构建性能基准
+当前跟踪条目：`err091571-local-supported`
 
-首先，构建 GCC Release 和 Clang Release 两个版本：
+- 来源：ENA `ERR091571`
+- 工作负载：Illumina 双端人类 WGS 运行的一部分
+- 当前跟踪输入：`benchmark/data/ERR091571/ERR091571_1.2000.fastq`
+- 说明：为了保持 closeout 验证回路可执行，当前跟踪工件固定为从公共 `ERR091571` read 1 流式截取的前 2,000 条记录
+- 限制：更大的 20,000-record 子集也可流式准备，但当前 `fq-compressor` 构建在该规模上出现明显性能回归，因此未作为正式跟踪工件
 
-```bash
-# 构建 GCC Release 版本
-./scripts/build.sh gcc-release 4
+## 当前调研结论
 
-# 构建 Clang Release 版本
-./scripts/build.sh clang-release 4
-```
+基于 `benchmark/results/err091571-local-supported.json` 的当前可证实结论：
 
-### 运行编译器对比基准测试
+- 压缩比：在本次已测量集合里，`fq-compressor` 不是最优；`bzip2` 更好
+- 压缩速度：在本次已测量集合里，`fq-compressor` 不是最优；`bzip2` 更快
+- 解压速度：在本次已测量集合里，`fq-compressor` 不是最优；`xz` 更快
+- FASTQ 专用同类对比：`Spring` 仍处于延后状态，因此当前仓库还不能回答 `fq-compressor` 相对专用同类工具是否处于第一梯队
 
-使用提供的测试数据运行编译器性能对比：
+这意味着当前仓库可以诚实地说：
 
-```bash
-python3 benchmark/compiler_benchmark.py \
-  --input fq-data/E150035817_L01_1201_1.sub10.fq.gz \
-  --gcc-binary build/gcc-release/src/fqc \
-  --clang-binary build/clang-release/src/fqc \
-  -t 1 4 8 \
-  -r 3 \
-  --output-dir docs/benchmark \
-  --visualize
-```
+- 对这个已测量的小型公共子集和当前本地支持工具集，`fq-compressor` 尚未在压缩比、压缩速度或解压速度上领先
+- 对 FASTQ 专用对手的比较仍未证实，不能用这份结果做普遍排名宣传
 
-参数说明：
-- `--input`: 输入 FASTQ 或 FASTQ.GZ 文件
-- `--gcc-binary`: GCC 编译的 fqc 二进制文件路径
-- `--clang-binary`: Clang 编译的 fqc 二进制文件路径
-- `-t, --threads`: 要测试的线程数（空格分隔）
-- `-r, --runs`: 每个配置运行的次数（默认：3）
-- `--output-dir`: 输出报告目录（默认：docs/benchmark）
-- `--visualize`: 生成可视化图表和报告
+## 如何重跑
 
-### 使用 Shell 脚本
+1. 准备公共数据子集
 
 ```bash
-./scripts/benchmark.sh --quick       # 快速模式（1 轮）
-./scripts/benchmark.sh --full        # 完整模式（5 轮）
-./scripts/benchmark.sh --gcc-only    # 仅测试 GCC
-./scripts/benchmark.sh --clang-only  # 仅测试 Clang
+./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only
 ```
 
-## 评估指标
-
-### 压缩性能
-- **压缩速度 (MB/s)**: 每秒处理的原始数据量
-- **压缩率**: 压缩后大小 / 原始大小（越小越好）
-- **比特/碱基**: 每个碱基的比特数（越小越好，理论极限 ~0.4-0.5）
-- **内存使用 (MB)**: 压缩过程中的峰值内存使用
-
-### 解压性能
-- **解压速度 (MB/s)**: 每秒处理的压缩数据量
-- **内存使用 (MB)**: 解压过程中的峰值内存使用
-
-### 并行扩展性
-- **加速比**: 相对于单线程的性能改进倍数
-- **并行效率**: (最大线程数时的加速比) / (最大线程数)
-
-## 性能目标
-
-| 指标 | 目标 | 备注 |
-|------|------|------|
-| 压缩比 | 0.4-0.6 bits/base | 接近理论上限 |
-| 压缩速度 | >10 MB/s | 单线程 Release 构建 |
-| 并行效率 | >70% | 8线程相对单线程 |
-| 内存使用 | <2GB | 对于 100MB+ 文件 |
-
-## 基准测试工具
-
-### compiler_benchmark.py
-
-专门用于 GCC vs Clang 编译器性能对比的工具。
-
-**特点**：
-- 自动解压 `.gz` 输入文件
-- 测量压缩/解压时间和内存使用
-- 支持自定义线程数
-- 生成多格式报告（JSON、Markdown、HTML）
+2. 构建 release 二进制
 
 ```bash
-# 基础使用
-python3 benchmark/compiler_benchmark.py \
-  --input data.fq.gz \
-  --gcc-binary build/gcc-release/src/fqc \
-  --clang-binary build/clang-release/src/fqc
-
-# 完整使用（含所有选项）
-python3 benchmark/compiler_benchmark.py \
-  --input data.fq.gz \
-  --gcc-binary build/gcc-release/src/fqc \
-  --clang-binary build/clang-release/src/fqc \
-  --threads 1 2 4 8 \
-  --runs 5 \
-  --report reports/gcc_vs_clang.md \
-  --json reports/benchmark.json \
-  --output-dir reports/gcc_vs_clang \
-  --visualize
+./scripts/build.sh clang-release
 ```
 
-### benchmark.py
-
-通用基准框架，支持多个压缩工具的对比。
-
-**支持的工具**：fqc, spring, gzip, pigz, zstd, xz, bzip2
+3. 生成跟踪结果
 
 ```bash
-# 对比 fqc 和 gzip
+./scripts/benchmark.sh \
+  --dataset err091571-local-supported \
+  --build \
+  --tools fqc,gzip,xz,bzip2,spring \
+  --threads 1 \
+  --runs 1
+```
+
+4. 直接使用 Python 运行器也可以
+
+```bash
 python3 benchmark/benchmark.py \
-  --input data.fq \
-  --tools fqc,gzip \
-  --threads 1 4 8 \
-  --report reports/fqc_vs_gzip.md
-
-# 测试所有可用工具
-python3 benchmark/benchmark.py \
-  --input data.fq \
-  --all \
-  --report reports/all_tools.md
+  --dataset err091571-local-supported \
+  --tools fqc,gzip,xz,bzip2,spring \
+  --threads 1 \
+  --runs 1 \
+  --json benchmark/results/err091571-local-supported.json \
+  --report benchmark/results/err091571-local-supported.md
 ```
 
-### visualize_benchmark.py
+## 结果结构
 
-独立的可视化工具，用于生成图表和报告。
+`benchmark/results/err091571-local-supported.json` 现在包含：
 
-```bash
-# 生成所有格式（PNG、Markdown、HTML）
-python3 benchmark/visualize_benchmark.py \
-  --json benchmark-results.json \
-  --output-dir docs/benchmark
+- 数据集 provenance
+- 基准命令与工作目录
+- 请求工具列表
+- 已测量工具列表
+- 不可用工具列表
+- 延后工具列表
+- 原始结果条目
+- 按维度拆开的结论摘要
 
-# 仅生成 PNG 图表
-python3 benchmark/visualize_benchmark.py \
-  --json benchmark-results.json \
-  --output-dir docs/benchmark \
-  --format png
-```
+## Smoke Test
 
-## 测试数据
+仓库内基准链路的功能验证另外使用你本机的小样本数据完成：
 
-项目包含以下测试数据集用于基准测试：
+- `/home/shane/data/test/small/test_bgi_1.fq.gz`
+- `/home/shane/data/test/small/test_bgi_2.fq.gz`
 
-| 文件 | 大小 |
-|------|------|
-| `fq-data/E150035817_L01_1201_1.sub10.fq.gz` | 157 MB |
-| `fq-data/E150035817_L01_1201_2.sub10.fq.gz` | 165 MB |
-
-总计：~2.27M reads, ~322 MB（压缩前）
-
-## 报告解读
-
-### 压缩速度图表
-- **X轴**: 线程数（1, 4, 8）
-- **Y轴**: 速度（MB/s）
-- Clang > GCC 说明 Clang 编译优化更好
-
-### 并行扩展性图表
-- **虚线**: 理想的线性加速
-- **实线**: 实际加速比
-- 实线接近虚线说明并行扩展性好
-
-### 内存使用图表
-- **左侧**: 压缩内存使用
-- **右侧**: 解压内存使用
-- 关键指标：看峰值是否随线程数线性增长
-
-## 故障排除
-
-### "Binary not found" 错误
-
-确保已经构建了对应的二进制文件：
-
-```bash
-./scripts/build.sh gcc-release 4
-./scripts/build.sh clang-release 4
-```
-
-### matplotlib 字体警告
-
-这是正常的中文字体问题，不影响图表生成。如果需要中文标签：
-
-```bash
-sudo apt install fonts-noto-cjk
-```
-
-## 持续集成
-
-Benchmark 测试可以集成到 CI/CD 流水线中：
-
-```yaml
-# GitHub Actions 示例
-- name: Run Compiler Benchmark
-  run: |
-    python3 benchmark/compiler_benchmark.py \
-      --input fq-data/E150035817_L01_1201_1.sub10.fq.gz \
-      --gcc-binary build/gcc-release/src/fqc \
-      --clang-binary build/clang-release/src/fqc \
-      --output-dir docs/benchmark \
-      --visualize
-```
-
-## JSON 数据格式
-
-`benchmark-results.json` 包含以下结构：
-
-```json
-{
-  "timestamp": "ISO8601时间戳",
-  "input_file": "输入文件路径",
-  "input_size": 0,
-  "threads_tested": [1, 4, 8],
-  "results": [
-    {
-      "compiler": "GCC|Clang",
-      "operation": "compress|decompress",
-      "input_size": 0,
-      "output_size": 0,
-      "elapsed_seconds": 0.0,
-      "threads": 1,
-      "success": true,
-      "peak_memory_mb": 0.0
-    }
-  ]
-}
-```
-
----
-
-**最后更新**: 2026-03-08
+这些小样本用于验证脚本与工具链工作正常，不作为公开 benchmark 证据工件。

@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-04-28T20:21:29",
+  "input_file": "/home/shane/data/test/small/test_1.fq.gz",
+  "input_size": 341777792,
+  "dataset": {
+    "dataset_id": "ad-hoc-input",
+    "name": "ad-hoc input",
+    "benchmark_input": "/home/shane/data/test/small/test_1.fq.gz",
+    "claim_scope": "local-only"
+  },
+  "benchmark_command": {
+    "command_path": "benchmark/benchmark.py",
+    "runner": "benchmark/benchmark.py",
+    "working_directory": "/home/shane/dev/fq-compressor",
+    "invocation": "python3 benchmark/benchmark.py --input /home/shane/data/test/small/test_1.fq.gz --tools gzip --threads 1 --runs 1"
+  },
+  "requested_tools": [
+    "gzip"
+  ],
+  "measured_tools": [
+    "gzip"
+  ],
+  "unavailable_tools": [],
+  "deferred_tools": [],
+  "system_info": {
+    "cpu_cores": 16,
+    "memory_gb": 47.0,
+    "kernel": "6.6.87.2-microsoft-standard-WSL2"
+  },
+  "tools": {
+    "gzip": {
+      "name": "gzip",
+      "version": "gzip 1.12",
+      "category": "general",
+      "description": "Standard general-purpose compressor",
+      "claim_scope": "local-supported",
+      "scope_note": "Included in the supported local comparison set."
+    }
+  },
+  "results": [
+    {
+      "tool": "gzip",
+      "operation": "compress",
+      "input_size": 341777792,
+      "output_size": 79412626,
+      "elapsed_seconds": 238.90516365799704,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "gzip",
+      "operation": "decompress",
+      "input_size": 79412626,
+      "output_size": 341777792,
+      "elapsed_seconds": 3.558086684002774,
+      "threads": 1,
+      "success": true,
+      "error": null
+    }
+  ],
+  "summary": {
+    "compression_ratio": {
+      "dimension": "Compression Ratio",
+      "status": "unproven",
+      "best_tool": "gzip",
+      "best_tool_name": "gzip",
+      "best_value": 0.23235162687223399,
+      "best_value_display": "0.2324 compressed/original",
+      "conclusion": "fq-compressor was not measured for compression ratio."
+    },
+    "compression_speed": {
+      "dimension": "Compression Speed",
+      "status": "unproven",
+      "best_tool": "gzip",
+      "best_tool_name": "gzip",
+      "best_value": 1.364326736005762,
+      "best_value_display": "1.4 MB/s",
+      "conclusion": "fq-compressor was not measured for compression speed."
+    },
+    "decompression_speed": {
+      "dimension": "Decompression Speed",
+      "status": "unproven",
+      "best_tool": "gzip",
+      "best_tool_name": "gzip",
+      "best_value": 91.60673448847976,
+      "best_value_display": "91.6 MB/s output",
+      "conclusion": "fq-compressor was not measured for decompression speed."
+    },
+    "scope": {
+      "requested_tools": [
+        "gzip"
+      ],
+      "measured_tools": [
+        "gzip"
+      ],
+      "unavailable_tools": [],
+      "deferred_tools": [],
+      "note": "Specialized peers listed as deferred or unavailable are outside the verified comparison scope for this tracked result set."
+    }
+  }
+}

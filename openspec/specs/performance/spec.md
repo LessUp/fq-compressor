@@ -2,8 +2,10 @@
 
 This document defines the performance capabilities of fq-compressor, including parallelism, memory management, and throughput targets.
 
-## Requirements
+## Purpose
 
+Define the performance requirements for fq-compressor, including runtime behavior, resource control, and the reproducibility rules for public benchmark claims.
+## Requirements
 ### Requirement: Multi-thread parallelism
 The system SHALL utilize multi-core CPUs for parallel processing.
 
@@ -67,7 +69,47 @@ The system SHALL adapt block size based on read characteristics.
 - **THEN** block size is 10,000 reads
 - **AND** block bases limit is applied
 
+### Requirement: Public benchmarks are reproducible
+Public benchmarks SHALL be reproducible.
+
+#### Scenario: Benchmark result is published in repository-controlled docs
+- **WHEN** a benchmark result is published in repository-controlled docs
+- **THEN** workload, dataset source, command path, and comparison context are identified
+- **AND** another engineer can reproduce the run without private context
+
+### Requirement: FASTQ-specific comparisons are prioritized
+FASTQ-specific comparisons SHALL be prioritized.
+
+#### Scenario: Benchmark set is updated
+- **WHEN** the benchmark set is updated
+- **THEN** FASTQ-specialized peer tools are included where practical
+- **AND** generic compressors are not the only comparison class
+
 ---
+
+### Requirement: Public benchmark claims require reproducible inputs
+The project SHALL tie public benchmark claims to dataset provenance, benchmark commands, and tracked result artifacts.
+
+#### Scenario: User reviews a published benchmark claim
+- **WHEN** a benchmark claim is published in repository-controlled docs
+- **THEN** the dataset source, benchmark command path, and tracked result artifact are identified
+- **AND** the claim can be re-run without private context
+
+### Requirement: Tool availability is explicit
+The benchmark surface SHALL distinguish requested tools, measured tools, unavailable tools, and deferred specialized-peer comparisons.
+
+#### Scenario: Local benchmark run lacks one or more configured tools
+- **WHEN** a benchmark run cannot execute every requested tool
+- **THEN** the report records which tools were unavailable
+- **AND** the result is not presented as a full-field comparison
+
+### Requirement: Benchmark conclusions are dimension-specific
+The project SHALL state benchmark conclusions separately for compression ratio, compression speed, and decompression speed.
+
+#### Scenario: User asks whether fq-compressor is first-tier
+- **WHEN** the repository summarizes the current benchmark result set
+- **THEN** the answer is scoped to the measured dimensions and workloads
+- **AND** unproven dimensions are called out explicitly
 
 ## Performance Targets
 

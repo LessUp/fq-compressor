@@ -1,0 +1,30 @@
+datasets:
+  err091571-local-supported:
+    name: "ERR091571 local-supported subset"
+    accession: "ERR091571"
+    source: "ENA run accession ERR091571"
+    source_urls:
+      - "https://www.ebi.ac.uk/ena/browser/view/ERR091571"
+      - "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR091/ERR091571/ERR091571_1.fastq.gz"
+      - "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR091/ERR091571/ERR091571_2.fastq.gz"
+    benchmark_input: "benchmark/data/ERR091571/ERR091571_1.2000.fastq"
+    local_paths:
+      - "benchmark/data/ERR091571/ERR091571_1.2000.fastq"
+      - "benchmark/data/ERR091571/ERR091571_1.subset.fastq.gz"
+      - "benchmark/data/ERR091571/ERR091571_2.subset.fastq.gz"
+    workload: "Public Illumina paired-end human WGS run; benchmarked here on a reproducible local subset of read 1."
+    read_layout: "paired-end"
+    benchmark_focus: "Track public-dataset provenance while generating a local-supported comparison artifact without requiring the full 35GB download in every validation loop."
+    claim_scope: "supported-local-toolset"
+    requested_tools:
+      - "fqc"
+      - "gzip"
+      - "xz"
+      - "bzip2"
+      - "spring"
+    preparation:
+      - "./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only"
+    notes:
+      - "The tracked benchmark artifact uses the first 2,000 records streamed from the public ERR091571 read 1 FASTQ so the evidence chain stays public and reproducible while still completing in the local closeout validation loop."
+      - "Read 2 is prepared alongside read 1 to preserve paired-end provenance, but the current tracked local-supported comparison uses the read 1 subset as a single-input workload because generic compressors do not consume paired FASTQ pairs directly."
+      - "A larger 20,000-record streamable subset is also prepared for exploratory benchmarking, but the tracked local-supported artifact is currently pinned to 2,000 records because the current fq-compressor build regresses sharply beyond that size on this workload."

@@ -75,6 +75,22 @@ The system SHALL support pair-aware random access.
 - **THEN** pairs are correctly reconstructed
 - **AND** R1 and R2 are properly matched
 
+### Requirement: Random-access claims match the primary compression path
+Random-access claims SHALL match the primary compression path.
+
+#### Scenario: Project describes random-access support
+- **WHEN** the project describes random-access support
+- **THEN** the description matches the main supported compression path
+- **AND** does not depend on an undocumented alternate path
+
+### Requirement: Original-order restoration semantics are explicit
+Original-order restoration semantics SHALL be explicit.
+
+#### Scenario: User asks for original-order restoration
+- **WHEN** a user asks for original-order restoration
+- **THEN** requirements on reorder metadata are stated explicitly
+- **AND** unsupported combinations are documented rather than implied to work
+
 ---
 
 ## Implementation Notes

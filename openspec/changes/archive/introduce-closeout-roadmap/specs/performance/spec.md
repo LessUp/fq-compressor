@@ -2,7 +2,7 @@
 
 This document defines the performance capabilities for fq-compressor, including reproducibility of public benchmarks and prioritization of FASTQ-specific comparisons.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Public benchmarks are reproducible
 Public benchmarks SHALL be reproducible.

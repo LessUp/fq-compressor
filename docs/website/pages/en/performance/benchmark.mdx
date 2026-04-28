@@ -1,127 +1,54 @@
 ---
 title: Benchmarks
-description: Performance benchmarks and comparisons
+description: Tracked benchmark evidence and scope
 ---
 
 # Performance Benchmarks
 
-## Quick Results
+## Tracked Result Set
 
-### Test Setup
+The repository now treats benchmark pages as summaries of tracked artifacts, not hand-maintained marketing tables.
 
-- **Hardware**: Intel Core i7-9700 @ 3.00GHz (8 cores)
-- **Dataset**: 2.27M Illumina reads (511 MB uncompressed)
-- **Build**: Release mode with LTO
+- Tracked JSON: `benchmark/results/err091571-local-supported.json`
+- Tracked report: `benchmark/results/err091571-local-supported.md`
+- Dataset manifest: `benchmark/datasets.yaml`
 
-### Compiler Comparison
+## Verified Scope
 
-| Compiler | Compression | Decompression | Ratio |
-|----------|-------------|---------------|-------|
-| GCC 15.2 | 11.30 MB/s | 60.10 MB/s | 3.97× |
-| Clang 21 | 11.90 MB/s | 62.30 MB/s | 4.97× |
+- Dataset: ENA `ERR091571`
+- Measured input: first 2,000 records streamed from read 1
+- Measured local tools: `fqc`, `gzip`, `xz`, `bzip2`
+- Deferred specialized peer: `spring`
 
-### Single vs Multi-threaded
+This is a supported-local-toolset result, not a full-field FASTQ-compressor ranking.
 
-| Threads | Compression | Decompression | Scaling |
-|---------|-------------|---------------|---------|
-| 1 | `3.2` MB/s | `15` MB/s | `1.0×` |
-| 4 | `9.8` MB/s | `45` MB/s | `3.0×` |
-| 8 | `11.9` MB/s | `62` MB/s | `3.7×` |
+## Current Conclusion
 
-## Tool Comparison
+For the currently tracked artifact:
 
-| Tool | Ratio | Compress | Decompress | Parallel | Random Access |
-|------|-------|----------|------------|----------|---------------|
-| **fq-compressor** | 3.97× | 11.9 MB/s | 62 MB/s | ✓ | ✓ |
-| Spring | 4.5× | 3 MB/s | 25 MB/s | ✓ | ✗ |
-| fqzcomp5 | 3.5× | 8 MB/s | 35 MB/s | ✗ | ✗ |
-| gzip | 2.1× | 45 MB/s | 180 MB/s | ✗ | ✗ |
-| pigz | 2.1× | 150 MB/s | 180 MB/s | ✓ | ✗ |
-| zstd | 2.5× | 220 MB/s | 500 MB/s | ✗ | ✗ |
+- `fq-compressor` does not lead the measured set on compression ratio
+- `fq-compressor` does not lead the measured set on compression speed
+- `fq-compressor` does not lead the measured set on decompression speed
+- comparison against specialized FASTQ peers remains incomplete because `spring` is still deferred
 
-## Running Benchmarks
+## Why The Artifact Uses 2,000 Records
 
-### Quick Benchmark
+The tracked benchmark must be both public and reproducible.
+
+The repository can stream a larger 20,000-record subset from ENA, but the current `fq-compressor` build regresses sharply on that exploratory size for this workload. The pinned artifact therefore uses a smaller public subset that still completes in the closeout validation loop.
+
+## Reproduce
 
 ```bash
-./scripts/benchmark.sh --quick --input data.fastq
+./scripts/benchmark.sh \
+  --dataset err091571-local-supported \
+  --prepare \
+  --build \
+  --tools fqc,gzip,xz,bzip2,spring \
+  --threads 1 \
+  --runs 1
 ```
 
-### Full Comparison
+## Scope Boundary
 
-```bash
-# Build both compilers
-./scripts/build.sh gcc-release
-./scripts/build.sh clang-release
-
-# Run comparison
-python3 benchmark/compiler_benchmark.py \
-    --input test_data.fastq.gz \
-    --gcc-binary build/gcc-release/src/fqc \
-    --clang-binary build/clang-release/src/fqc \
-    --threads 1 4 8 \
-    --visualize
-```
-
-### Multi-Tool Comparison
-
-```bash
-python3 benchmark/benchmark.py \
-    --input data.fastq \
-    --tools fqc,gzip,pigz,zstd \
-    --threads 1,4,8
-```
-
-## Memory Usage
-
-| Dataset Size | Threads | Peak Memory |
-|--------------|---------|-------------|
-| 100 MB | 1 | 450 MB |
-| 100 MB | 8 | 1.2 GB |
-| 1 GB | 1 | 2.1 GB |
-| 1 GB | 8 | 4.8 GB |
-
-Use `--memory-limit` to constrain RAM usage.
-
-## Interpreting Results
-
-### Compression Ratio
-
-- **3.5-4×**: Typical for genomic data
-- **`>4×`**: High redundancy data
-- **`<3.5×`**: Noisy or diverse data
-
-### Speed
-
-- **Compression**: I/O bound + CPU bound
-- **Decompression**: Primarily I/O bound
-- **Multi-threading**: Diminishing returns after 8 cores
-
-### Trade-offs
-
-```
-Max Compression    Balanced    Max Speed
-     ↓                ↓            ↓
-  Spring      fq-compressor    pigz
-  (4.5×)         (4.0×)      (2.1×)
-```
-
-## Continuous Benchmarking
-
-### CI Integration
-
-```yaml
-- name: Benchmark
-  run: |
-    python3 benchmark/compiler_benchmark.py \
-        --input benchmarks/test_data.fq.gz \
-        --gcc-binary build/gcc-release/src/fqc \
-        --clang-binary build/clang-release/src/fqc \
-        --output-dir benchmark-results/
-
-- name: Upload Results
-  uses: actions/upload-artifact@v4
-  with:
-    name: benchmark-results
-    path: benchmark-results/
-```
+Do not read this page as proof of universal ranking. Unavailable or deferred specialized peers are outside the verified comparison scope until they are actually measured.

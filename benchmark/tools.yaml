@@ -13,6 +13,8 @@ tools:
     extension: ".fqc"
     category: "specialized"
     description: "High-performance FASTQ compressor with ABC algorithm"
+    claim_scope: "local-supported"
+    scope_note: "Primary project binary; included in every local benchmark run."
 
   spring:
     name: "Spring"
@@ -22,6 +24,8 @@ tools:
     extension: ".spring"
     category: "specialized"
     description: "Assembly-based FASTQ compressor"
+    claim_scope: "deferred-specialized-peer"
+    scope_note: "Configured as a target peer but deferred until the local Spring toolchain is integrated and validated."
 
   gzip:
     name: "gzip"
@@ -31,6 +35,8 @@ tools:
     extension: ".gz"
     category: "general"
     description: "Standard general-purpose compressor"
+    claim_scope: "local-supported"
+    scope_note: "Included in the supported local comparison set."
 
   pigz:
     name: "pigz"
@@ -40,6 +46,8 @@ tools:
     extension: ".gz"
     category: "general"
     description: "Parallel gzip implementation"
+    claim_scope: "local-optional"
+    scope_note: "Useful for local comparison when installed, but not required for the tracked local-supported report."
 
   zstd:
     name: "zstd"
@@ -49,6 +57,8 @@ tools:
     extension: ".zst"
     category: "general"
     description: "Fast real-time compression"
+    claim_scope: "local-optional"
+    scope_note: "Useful for local comparison when installed, but not required for the tracked local-supported report."
 
   xz:
     name: "xz"
@@ -58,6 +68,8 @@ tools:
     extension: ".xz"
     category: "general"
     description: "High compression ratio general compressor"
+    claim_scope: "local-supported"
+    scope_note: "Included in the supported local comparison set."
 
   bzip2:
     name: "bzip2"
@@ -67,6 +79,8 @@ tools:
     extension: ".bz2"
     category: "general"
     description: "Block-sorting compression"
+    claim_scope: "local-supported"
+    scope_note: "Included in the supported local comparison set."
 
 # Benchmark settings
 settings:

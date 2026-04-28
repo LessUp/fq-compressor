@@ -2,7 +2,7 @@
 
 This document defines the compatibility capabilities for fq-compressor, including documentation of compatibility boundaries and consistency of compatibility statements across public surfaces.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Compatibility boundaries are documented
 Compatibility boundaries SHALL be documented.

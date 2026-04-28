@@ -2,22 +2,26 @@
 # =============================================================================
 # fq-compressor Benchmark Script
 # =============================================================================
-# Comprehensive performance testing for GCC vs Clang builds
+# Dataset-driven benchmark entrypoint for tracked local evidence
 #
 # Usage:
 #   ./scripts/benchmark.sh [options]
 #
 # Options:
-#   --quick       Run quick benchmark (single iteration)
-#   --full        Run full benchmark (multiple iterations)
-#   --gcc-only    Test GCC build only
-#   --clang-only  Test Clang build only
+#   --dataset ID  Benchmark dataset id from benchmark/datasets.yaml
+#   --input PATH  Override benchmark input path
+#   --tools CSV   Override tool set
+#   --all         Request all configured tools
+#   --quick       Run a single benchmark iteration
+#   --full        Run three benchmark iterations
+#   --prepare     Prepare the dataset subset if needed
+#   --prepare-only Prepare the dataset subset and exit
+#   --build       Build clang-release before benchmarking
 #   --help        Show this help message
 #
 # Output:
-#   - JSON results: docs/benchmark/results-TIMESTAMP.json
-#   - Markdown report: docs/benchmark/report-TIMESTAMP.md
-#   - Visualization: docs/benchmark/charts-TIMESTAMP.html
+#   - JSON results: benchmark/results/<dataset>.json
+#   - Markdown report: benchmark/results/<dataset>.md
 # =============================================================================
 
 set -euo pipefail
@@ -28,25 +32,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BENCHMARK_DIR="${PROJECT_ROOT}/docs/benchmark"
-RESULTS_DIR="${BENCHMARK_DIR}/results"
-DATA_DIR="${PROJECT_ROOT}/fq-data"
+RESULTS_DIR="${PROJECT_ROOT}/benchmark/results"
+DATASETS_FILE="${PROJECT_ROOT}/benchmark/datasets.yaml"
+DEFAULT_DATASET="err091571-local-supported"
+DEFAULT_THREADS=(1 4)
 
-# Test data files
-TEST_FILE_1="${DATA_DIR}/E150035817_L01_1201_1.sub10.fq.gz"
-TEST_FILE_2="${DATA_DIR}/E150035817_L01_1201_2.sub10.fq.gz"
-
-# Benchmark parameters
-ITERATIONS=3
-QUICK_MODE=false
-TEST_GCC=true
-TEST_CLANG=true
-
-# Output files
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-RESULTS_JSON="${RESULTS_DIR}/results-${TIMESTAMP}.json"
-REPORT_MD="${RESULTS_DIR}/report-${TIMESTAMP}.md"
-CHARTS_HTML="${RESULTS_DIR}/charts-${TIMESTAMP}.html"
+DATASET_ID="$DEFAULT_DATASET"
+INPUT_OVERRIDE=""
+TOOLS_OVERRIDE=""
+REQUEST_ALL=false
+RUNS=3
+PREPARE_DATASET=false
+PREPARE_ONLY=false
+BUILD_BINARY=false
+THREADS=("${DEFAULT_THREADS[@]}")
 
 # =============================================================================
 # Helper Functions
@@ -77,66 +76,30 @@ check_dependencies() {
         missing+=("python3")
     fi
 
-    if ! command -v jq &> /dev/null; then
-        missing+=("jq")
-    fi
-
     if [ ${#missing[@]} -gt 0 ]; then
         log_error "Missing dependencies: ${missing[*]}"
-        log_error "Please install: sudo apt-get install ${missing[*]}"
+        exit 1
+    fi
+
+    if ! python3 -c "import yaml" >/dev/null 2>&1; then
+        log_error "PyYAML is required for benchmark tooling"
         exit 1
     fi
 
     log_success "All dependencies found"
 }
 
-check_test_data() {
-    log_info "Checking test data..."
-
-    if [ ! -f "$TEST_FILE_1" ]; then
-        log_error "Test file not found: $TEST_FILE_1"
-        exit 1
-    fi
-
-    if [ ! -f "$TEST_FILE_2" ]; then
-        log_error "Test file not found: $TEST_FILE_2"
-        exit 1
-    fi
-
-    log_success "Test data found"
-}
-
 setup_directories() {
     log_info "Setting up directories..."
-
-    mkdir -p "$BENCHMARK_DIR"
     mkdir -p "$RESULTS_DIR"
-    mkdir -p "${PROJECT_ROOT}/build/benchmark"
 
     log_success "Directories created"
-}
-
-# =============================================================================
-# Build Functions
-# =============================================================================
-
-build_gcc() {
-    log_info "Building with GCC..."
-
-    "${SCRIPT_DIR}/build.sh" gcc-release > /dev/null 2>&1
-
-    if [ ! -f "${PROJECT_ROOT}/build/gcc-release/src/fqc" ]; then
-        log_error "GCC build failed"
-        exit 1
-    fi
-
-    log_success "GCC build complete"
 }
 
 build_clang() {
     log_info "Building with Clang..."
 
-    "${SCRIPT_DIR}/build.sh" clang-release > /dev/null 2>&1
+    "${SCRIPT_DIR}/build.sh" clang-release
 
     if [ ! -f "${PROJECT_ROOT}/build/clang-release/src/fqc" ]; then
         log_error "Clang build failed"
@@ -146,200 +109,80 @@ build_clang() {
     log_success "Clang build complete"
 }
 
-# =============================================================================
-# Benchmark Functions
-# =============================================================================
+prepare_dataset() {
+    local dataset_id="$1"
 
-get_file_size() {
-    stat -c%s "$1" 2>/dev/null || stat -f%z "$1" 2>/dev/null
-}
+    python3 - "$DATASETS_FILE" "$dataset_id" "$PROJECT_ROOT" <<'PY'
+import gzip
+import subprocess
+import sys
+from pathlib import Path
 
-run_compression_test() {
-    local compiler=$1
-    local binary=$2
-    local input_file=$3
-    local output_file=$4
-    local iteration=$5
+import yaml
 
-    log_info "[$compiler] Compression test (iteration $iteration)..."
+datasets_path = Path(sys.argv[1])
+dataset_id = sys.argv[2]
+project_root = Path(sys.argv[3])
 
-    # Decompress input if needed
-    local input_fastq="${input_file%.gz}"
-    if [ ! -f "$input_fastq" ]; then
-        gunzip -c "$input_file" > "$input_fastq"
-    fi
+with open(datasets_path, "r", encoding="utf-8") as handle:
+    config = yaml.safe_load(handle) or {}
 
-    # Run compression
-    local start_time=$(date +%s.%N)
-    "$binary" compress "$input_fastq" -o "$output_file" --threads 1 > /dev/null 2>&1
-    local end_time=$(date +%s.%N)
+dataset = (config.get("datasets") or {}).get(dataset_id)
+if not dataset:
+    raise SystemExit(f"unknown dataset: {dataset_id}")
 
-    local elapsed=$(echo "$end_time - $start_time" | bc)
-    local input_size=$(get_file_size "$input_fastq")
-    local output_size=$(get_file_size "$output_file")
-    local ratio=$(echo "scale=4; $input_size / $output_size" | bc)
-    local throughput=$(echo "scale=2; $input_size / $elapsed / 1024 / 1024" | bc)
+root = project_root / "benchmark/data/ERR091571"
+root.mkdir(parents=True, exist_ok=True)
 
-    # Output JSON
-    cat <<EOF
-{
-  "compiler": "$compiler",
-  "test": "compression",
-  "iteration": $iteration,
-  "input_file": "$(basename "$input_file")",
-  "input_size": $input_size,
-  "output_size": $output_size,
-  "compression_ratio": $ratio,
-  "elapsed_seconds": $elapsed,
-  "throughput_mbps": $throughput
-}
-EOF
-}
+urls = dataset.get("source_urls") or []
+if len(urls) < 3:
+    raise SystemExit("dataset manifest must provide ENA landing page plus read URLs")
 
-run_decompression_test() {
-    local compiler=$1
-    local binary=$2
-    local input_file=$3
-    local output_file=$4
-    local iteration=$5
+record_limit = 20000
+for url in urls[1:3]:
+    name = Path(url).name
+    if not name.endswith(".fastq.gz"):
+        raise SystemExit(f"unexpected FASTQ URL: {url}")
+    dst = root / name.replace(".fastq.gz", ".subset.fastq.gz")
+    if dst.exists():
+        continue
 
-    log_info "[$compiler] Decompression test (iteration $iteration)..."
+    proc = subprocess.Popen(
+        ["curl", "-LfsS", "--retry", "3", url],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if proc.stdout is None:
+        raise SystemExit(f"failed to open stream for {url}")
 
-    # Run decompression
-    local start_time=$(date +%s.%N)
-    "$binary" decompress "$input_file" -o "$output_file" > /dev/null 2>&1
-    local end_time=$(date +%s.%N)
+    with gzip.GzipFile(fileobj=proc.stdout) as fin, gzip.open(dst, "wt", encoding="utf-8") as fout:
+        for _ in range(record_limit * 4):
+            line = fin.readline()
+            if not line:
+                break
+            fout.write(line.decode("utf-8"))
 
-    local elapsed=$(echo "$end_time - $start_time" | bc)
-    local input_size=$(get_file_size "$input_file")
-    local output_size=$(get_file_size "$output_file")
-    local throughput=$(echo "scale=2; $output_size / $elapsed / 1024 / 1024" | bc)
+    if proc.stdout is not None:
+        proc.stdout.close()
+    proc.terminate()
+    _, stderr = proc.communicate(timeout=10)
+    if proc.returncode not in (0, -15):
+        raise SystemExit(f"curl failed for {url}: {stderr.decode('utf-8', errors='ignore').strip()}")
 
-    # Output JSON
-    cat <<EOF
-{
-  "compiler": "$compiler",
-  "test": "decompression",
-  "iteration": $iteration,
-  "input_file": "$(basename "$input_file")",
-  "input_size": $input_size,
-  "output_size": $output_size,
-  "elapsed_seconds": $elapsed,
-  "throughput_mbps": $throughput
-}
-EOF
-}
+read1_subset_gz = root / "ERR091571_1.subset.fastq.gz"
+tracked_fastq = root / "ERR091571_1.2000.fastq"
+if not tracked_fastq.exists():
+    with gzip.open(read1_subset_gz, "rt", encoding="utf-8") as fin, open(
+        tracked_fastq, "w", encoding="utf-8"
+    ) as fout:
+        for _ in range(2000 * 4):
+            line = fin.readline()
+            if not line:
+                break
+            fout.write(line)
 
-run_benchmark_suite() {
-    local compiler=$1
-    local binary=$2
-
-    log_info "Running benchmark suite for $compiler..."
-
-    local results=()
-
-    for i in $(seq 1 $ITERATIONS); do
-        # Test file 1
-        local compressed="${PROJECT_ROOT}/build/benchmark/${compiler}_test1_${i}.fqc"
-        local decompressed="${PROJECT_ROOT}/build/benchmark/${compiler}_test1_${i}.fq"
-
-        local result=$(run_compression_test "$compiler" "$binary" "$TEST_FILE_1" "$compressed" "$i")
-        results+=("$result")
-
-        result=$(run_decompression_test "$compiler" "$binary" "$compressed" "$decompressed" "$i")
-        results+=("$result")
-
-        # Cleanup
-        rm -f "$compressed" "$decompressed"
-    done
-
-    # Output all results as JSON array
-    printf '%s\n' "${results[@]}" | jq -s '.'
-}
-
-# =============================================================================
-# Report Generation
-# =============================================================================
-
-generate_json_report() {
-    log_info "Generating JSON report..."
-
-    local all_results="[]"
-
-    if [ "$TEST_GCC" = true ]; then
-        local gcc_results=$(run_benchmark_suite "gcc" "${PROJECT_ROOT}/build/gcc-release/src/fqc")
-        all_results=$(echo "$all_results" | jq ". + $gcc_results")
-    fi
-
-    if [ "$TEST_CLANG" = true ]; then
-        local clang_results=$(run_benchmark_suite "clang" "${PROJECT_ROOT}/build/clang-release/src/fqc")
-        all_results=$(echo "$all_results" | jq ". + $clang_results")
-    fi
-
-    # Add metadata
-    local report=$(cat <<EOF
-{
-  "metadata": {
-    "timestamp": "$(date -Iseconds)",
-    "hostname": "$(hostname)",
-    "cpu": "$(lscpu 2>/dev/null | grep 'Model name' | cut -d: -f2 | xargs || echo 'unknown')",
-    "cores": $(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1),
-    "iterations": $ITERATIONS,
-    "test_files": [
-      "$(basename "$TEST_FILE_1")",
-      "$(basename "$TEST_FILE_2")"
-    ]
-  },
-  "results": $all_results
-}
-EOF
-)
-
-    echo "$report" | jq '.' > "$RESULTS_JSON"
-    log_success "JSON report saved: $RESULTS_JSON"
-}
-
-generate_markdown_report() {
-    log_info "Generating Markdown report..."
-
-    python3 "${SCRIPT_DIR}/generate_benchmark_report.py" "$RESULTS_JSON" "$REPORT_MD"
-
-    log_success "Markdown report saved: $REPORT_MD"
-}
-
-generate_html_charts() {
-    log_info "Generating HTML charts..."
-
-    python3 "${SCRIPT_DIR}/generate_benchmark_charts.py" "$RESULTS_JSON" "$CHARTS_HTML"
-
-    log_success "HTML charts saved: $CHARTS_HTML"
-}
-
-update_readme() {
-    log_info "Updating README.md..."
-
-    local readme="${PROJECT_ROOT}/README.md"
-    local latest_report=$(basename "$REPORT_MD")
-    local latest_charts=$(basename "$CHARTS_HTML")
-
-    # Check if benchmark section exists
-    if ! grep -q "## Benchmark Results" "$readme"; then
-        cat >> "$readme" <<EOF
-
-## Benchmark Results
-
-Latest benchmark: [${latest_report}](docs/benchmark/results/${latest_report})
-Visualization: [${latest_charts}](docs/benchmark/results/${latest_charts})
-
-See [docs/benchmark/](docs/benchmark/) for historical results.
-EOF
-    else
-        # Update existing section
-        sed -i "/Latest benchmark:/c\Latest benchmark: [${latest_report}](docs/benchmark/results/${latest_report})" "$readme"
-        sed -i "/Visualization:/c\Visualization: [${latest_charts}](docs/benchmark/results/${latest_charts})" "$readme"
-    fi
-
-    log_success "README.md updated"
+print(tracked_fastq)
+PY
 }
 
 # =============================================================================
@@ -350,22 +193,54 @@ main() {
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --dataset)
+                DATASET_ID="$2"
+                shift 2
+                ;;
+            --input)
+                INPUT_OVERRIDE="$2"
+                shift 2
+                ;;
+            --tools)
+                TOOLS_OVERRIDE="$2"
+                shift 2
+                ;;
+            --all)
+                REQUEST_ALL=true
+                shift
+                ;;
             --quick)
-                QUICK_MODE=true
-                ITERATIONS=1
+                RUNS=1
                 shift
                 ;;
             --full)
-                ITERATIONS=5
+                RUNS=3
                 shift
                 ;;
-            --gcc-only)
-                TEST_CLANG=false
+            --prepare)
+                PREPARE_DATASET=true
                 shift
                 ;;
-            --clang-only)
-                TEST_GCC=false
+            --prepare-only)
+                PREPARE_DATASET=true
+                PREPARE_ONLY=true
                 shift
+                ;;
+            --build)
+                BUILD_BINARY=true
+                shift
+                ;;
+            -t|--threads)
+                shift
+                THREADS=()
+                while [[ $# -gt 0 ]] && [[ "$1" =~ ^[0-9]+$ ]]; do
+                    THREADS+=("$1")
+                    shift
+                done
+                ;;
+            -r|--runs)
+                RUNS="$2"
+                shift 2
                 ;;
             --help)
                 show_help
@@ -380,40 +255,55 @@ main() {
     done
 
     log_info "=== fq-compressor Benchmark ==="
-    log_info "Iterations: $ITERATIONS"
-    log_info "Test GCC: $TEST_GCC"
-    log_info "Test Clang: $TEST_CLANG"
+    log_info "Dataset: $DATASET_ID"
+    log_info "Runs: $RUNS"
+    log_info "Threads: ${THREADS[*]}"
     echo
 
-    # Setup
     check_dependencies
-    check_test_data
     setup_directories
 
-    # Build
-    if [ "$TEST_GCC" = true ]; then
-        build_gcc
+    if [ "$PREPARE_DATASET" = true ]; then
+        log_info "Preparing dataset subset..."
+        prepare_dataset "$DATASET_ID" >/dev/null
+        log_success "Dataset prepared"
     fi
 
-    if [ "$TEST_CLANG" = true ]; then
+    if [ "$PREPARE_ONLY" = true ]; then
+        exit 0
+    fi
+
+    if [ "$BUILD_BINARY" = true ]; then
         build_clang
     fi
 
-    # Run benchmarks
-    generate_json_report
+    local json_out="${RESULTS_DIR}/${DATASET_ID}.json"
+    local report_out="${RESULTS_DIR}/${DATASET_ID}.md"
+    local cmd=(python3 "${PROJECT_ROOT}/benchmark/benchmark.py" --dataset "$DATASET_ID" --runs "$RUNS" --json "$json_out" --report "$report_out" --command-path "scripts/benchmark.sh")
 
-    # Generate reports
-    generate_markdown_report
-    generate_html_charts
+    if [ -n "$INPUT_OVERRIDE" ]; then
+        cmd=(python3 "${PROJECT_ROOT}/benchmark/benchmark.py" --input "$INPUT_OVERRIDE" --runs "$RUNS" --json "$json_out" --report "$report_out" --command-path "scripts/benchmark.sh")
+    fi
 
-    # Update documentation
-    update_readme
+    if [ "$REQUEST_ALL" = true ]; then
+        cmd+=(--all)
+    elif [ -n "$TOOLS_OVERRIDE" ]; then
+        cmd+=(--tools "$TOOLS_OVERRIDE")
+    fi
+
+    if [ ${#THREADS[@]} -gt 0 ]; then
+        cmd+=(--threads "${THREADS[@]}")
+    fi
+
+    cmd+=(--invocation "./scripts/benchmark.sh --dataset ${DATASET_ID} --runs ${RUNS} --threads ${THREADS[*]}")
+
+    log_info "Running benchmark runner..."
+    "${cmd[@]}"
 
     echo
     log_success "=== Benchmark Complete ==="
-    log_success "Results: $RESULTS_JSON"
-    log_success "Report: $REPORT_MD"
-    log_success "Charts: $CHARTS_HTML"
+    log_success "Results: $json_out"
+    log_success "Report: $report_out"
 }
 
 main "$@"
