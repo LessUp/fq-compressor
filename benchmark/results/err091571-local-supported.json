@@ -1,0 +1,263 @@
+{
+  "timestamp": "2026-04-28T20:21:29",
+  "input_file": "/home/shane/dev/fq-compressor/benchmark/data/ERR091571/ERR091571_1.2000.fastq",
+  "input_size": 503059,
+  "dataset": {
+    "dataset_id": "err091571-local-supported",
+    "name": "ERR091571 local-supported subset",
+    "accession": "ERR091571",
+    "source": "ENA run accession ERR091571",
+    "source_urls": [
+      "https://www.ebi.ac.uk/ena/browser/view/ERR091571",
+      "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR091/ERR091571/ERR091571_1.fastq.gz",
+      "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR091/ERR091571/ERR091571_2.fastq.gz"
+    ],
+    "benchmark_input": "benchmark/data/ERR091571/ERR091571_1.2000.fastq",
+    "local_paths": [
+      "benchmark/data/ERR091571/ERR091571_1.2000.fastq",
+      "benchmark/data/ERR091571/ERR091571_1.subset.fastq.gz",
+      "benchmark/data/ERR091571/ERR091571_2.subset.fastq.gz"
+    ],
+    "workload": "Public Illumina paired-end human WGS run; benchmarked here on a reproducible local subset of read 1.",
+    "read_layout": "paired-end",
+    "benchmark_focus": "Track public-dataset provenance while generating a local-supported comparison artifact without requiring the full 35GB download in every validation loop.",
+    "claim_scope": "supported-local-toolset",
+    "requested_tools": [
+      "fqc",
+      "gzip",
+      "xz",
+      "bzip2",
+      "spring"
+    ],
+    "preparation": [
+      "./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only"
+    ],
+    "notes": [
+      "The tracked benchmark artifact uses the first 2,000 records streamed from the public ERR091571 read 1 FASTQ so the evidence chain stays public and reproducible while still completing in the local closeout validation loop.",
+      "Read 2 is prepared alongside read 1 to preserve paired-end provenance, but the current tracked local-supported comparison uses the read 1 subset as a single-input workload because generic compressors do not consume paired FASTQ pairs directly.",
+      "A larger 20,000-record streamable subset is also prepared for exploratory benchmarking, but the tracked local-supported artifact is currently pinned to 2,000 records because the current fq-compressor build regresses sharply beyond that size on this workload."
+    ]
+  },
+  "benchmark_command": {
+    "command_path": "scripts/benchmark.sh",
+    "runner": "benchmark/benchmark.py",
+    "working_directory": "/home/shane/dev/fq-compressor",
+    "invocation": "./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only && ./scripts/build.sh clang-release && python3 benchmark/benchmark.py --dataset err091571-local-supported --tools fqc,gzip,xz,bzip2,spring --threads 1 --runs 1 --json benchmark/results/err091571-local-supported.json --report benchmark/results/err091571-local-supported.md"
+  },
+  "requested_tools": [
+    "fqc",
+    "gzip",
+    "xz",
+    "bzip2",
+    "spring"
+  ],
+  "measured_tools": [
+    "fqc",
+    "gzip",
+    "xz",
+    "bzip2"
+  ],
+  "unavailable_tools": [],
+  "deferred_tools": [
+    {
+      "tool": "spring",
+      "name": "Spring",
+      "claim_scope": "deferred-specialized-peer",
+      "description": "Assembly-based FASTQ compressor",
+      "reason": "Configured as a target peer but deferred until the local Spring toolchain is integrated and validated."
+    }
+  ],
+  "system_info": {
+    "cpu_cores": 16,
+    "memory_gb": 47.0,
+    "kernel": "6.6.87.2-microsoft-standard-WSL2"
+  },
+  "tools": {
+    "fqc": {
+      "name": "fq-compressor",
+      "version": "0.2.0",
+      "category": "specialized",
+      "description": "High-performance FASTQ compressor with ABC algorithm",
+      "claim_scope": "local-supported",
+      "scope_note": "Primary project binary; included in every local benchmark run."
+    },
+    "spring": {
+      "name": "Spring",
+      "version": "unknown",
+      "category": "specialized",
+      "description": "Assembly-based FASTQ compressor",
+      "claim_scope": "deferred-specialized-peer",
+      "scope_note": "Configured as a target peer but deferred until the local Spring toolchain is integrated and validated."
+    },
+    "gzip": {
+      "name": "gzip",
+      "version": "gzip 1.12",
+      "category": "general",
+      "description": "Standard general-purpose compressor",
+      "claim_scope": "local-supported",
+      "scope_note": "Included in the supported local comparison set."
+    },
+    "xz": {
+      "name": "xz",
+      "version": "xz (XZ Utils) 5.4.5",
+      "category": "general",
+      "description": "High compression ratio general compressor",
+      "claim_scope": "local-supported",
+      "scope_note": "Included in the supported local comparison set."
+    },
+    "bzip2": {
+      "name": "bzip2",
+      "version": "bzip2, a block-sorting file compressor.  Version 1.0.8, 13-Jul-2019.",
+      "category": "general",
+      "description": "Block-sorting compression",
+      "claim_scope": "local-supported",
+      "scope_note": "Included in the supported local comparison set."
+    }
+  },
+  "results": [
+    {
+      "tool": "fqc",
+      "operation": "compress",
+      "input_size": 503059,
+      "output_size": 150018,
+      "elapsed_seconds": 12.958496267005103,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "fqc",
+      "operation": "decompress",
+      "input_size": 150018,
+      "output_size": 503059,
+      "elapsed_seconds": 0.3318295909994049,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "gzip",
+      "operation": "compress",
+      "input_size": 503059,
+      "output_size": 154557,
+      "elapsed_seconds": 0.2914477890008129,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "gzip",
+      "operation": "decompress",
+      "input_size": 154557,
+      "output_size": 503059,
+      "elapsed_seconds": 0.015909349007415585,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "xz",
+      "operation": "compress",
+      "input_size": 503059,
+      "output_size": 131692,
+      "elapsed_seconds": 0.6069115050049732,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "xz",
+      "operation": "decompress",
+      "input_size": 131692,
+      "output_size": 503059,
+      "elapsed_seconds": 0.018009232997428626,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "bzip2",
+      "operation": "compress",
+      "input_size": 503059,
+      "output_size": 126237,
+      "elapsed_seconds": 0.06803039100486785,
+      "threads": 1,
+      "success": true,
+      "error": null
+    },
+    {
+      "tool": "bzip2",
+      "operation": "decompress",
+      "input_size": 126237,
+      "output_size": 503059,
+      "elapsed_seconds": 0.04679548899002839,
+      "threads": 1,
+      "success": true,
+      "error": null
+    }
+  ],
+  "summary": {
+    "compression_ratio": {
+      "dimension": "Compression Ratio",
+      "status": "not-leading",
+      "best_tool": "bzip2",
+      "best_tool_name": "bzip2",
+      "best_value": 0.25093875668659144,
+      "best_value_display": "0.2509 compressed/original",
+      "conclusion": "fq-compressor is not leading for compression ratio in the measured set; bzip2 is best at 0.2509 compressed/original.",
+      "fqc_value": 0.29821154178734505,
+      "fqc_value_display": "0.2982 compressed/original",
+      "gap_percent": 18.84
+    },
+    "compression_speed": {
+      "dimension": "Compression Speed",
+      "status": "not-leading",
+      "best_tool": "bzip2",
+      "best_tool_name": "bzip2",
+      "best_value": 7.052060716550686,
+      "best_value_display": "7.1 MB/s",
+      "conclusion": "fq-compressor is not leading for compression speed in the measured set; bzip2 is best at 7.1 MB/s.",
+      "fqc_value": 0.03702238578086885,
+      "fqc_value_display": "0.0 MB/s",
+      "gap_percent": 18948.1
+    },
+    "decompression_speed": {
+      "dimension": "Decompression Speed",
+      "status": "not-leading",
+      "best_tool": "gzip",
+      "best_tool_name": "gzip",
+      "best_value": 30.15550464782632,
+      "best_value_display": "30.2 MB/s output",
+      "conclusion": "fq-compressor is not leading for decompression speed in the measured set; gzip is best at 30.2 MB/s output.",
+      "fqc_value": 1.4457856108977096,
+      "fqc_value_display": "1.4 MB/s output",
+      "gap_percent": 1985.75
+    },
+    "scope": {
+      "requested_tools": [
+        "fqc",
+        "gzip",
+        "xz",
+        "bzip2",
+        "spring"
+      ],
+      "measured_tools": [
+        "fqc",
+        "gzip",
+        "xz",
+        "bzip2"
+      ],
+      "unavailable_tools": [],
+      "deferred_tools": [
+        {
+          "tool": "spring",
+          "name": "Spring",
+          "claim_scope": "deferred-specialized-peer",
+          "description": "Assembly-based FASTQ compressor",
+          "reason": "Configured as a target peer but deferred until the local Spring toolchain is integrated and validated."
+        }
+      ],
+      "note": "Specialized peers listed as deferred or unavailable are outside the verified comparison scope for this tracked result set."
+    }
+  }
+}

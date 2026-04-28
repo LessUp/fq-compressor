@@ -105,6 +105,9 @@ docs/benchmark/*.html
 docs/benchmark/benchmark-report.md
 docs/benchmark/results/
 
+# Benchmark datasets (local caches and prepared subsets)
+benchmark/data/
+
 # Python 相关
 __pycache__/
 *.py[cod]

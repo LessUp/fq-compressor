@@ -1,199 +1,86 @@
 ---
 title: 性能基准测试
-description: fq-compressor 综合基准测试指南
+description: fq-compressor 的已跟踪基准证据与适用范围
 version: 0.2.0
-last_updated: 2026-04-22
+last_updated: 2026-04-28
 language: zh
 ---
 
 # 性能基准测试
 
-> 评估 fq-compressor 在您的数据上的性能
+> 仓库中的 benchmark 结论现在只基于已跟踪的结果工件。
 
-## 概述
+## 已跟踪证据
 
-fq-compressor 包含综合基准测试工具，用于评估：
+- JSON 工件：`benchmark/results/err091571-local-supported.json`
+- Markdown 工件：`benchmark/results/err091571-local-supported.md`
+- 数据集清单：`benchmark/datasets.yaml`
+- 运行入口：`scripts/benchmark.sh`
 
-- **压缩比**: 压缩后数据小多少？
-- **速度**: 压缩和解压的吞吐量
-- **内存使用**: 峰值内存消耗
-- **可扩展性**: 线程数增加时的性能变化
+## 当前已验证范围
 
-## 基准测试套件
+当前已跟踪结果集是有意收窄的。
 
-### 快速基准测试
+- 数据集：ENA `ERR091571`
+- 工作负载：公开 Illumina 双端人类 WGS 运行
+- 实测输入：从 read 1 公共 FASTQ 流式截取的前 2,000 条记录，输出到 `benchmark/data/ERR091571/ERR091571_1.2000.fastq`
+- 已测本地工具：`fqc`、`gzip`、`xz`、`bzip2`
+- 已显式延后专用对手：`spring`
 
-```bash
-# 简单单轮基准测试
-./scripts/benchmark.sh --quick --input data.fastq
-```
+这意味着当前仓库只能对这个工作负载切片上的本地支持工具集给出结论。
 
-### 完整基准测试
+## 当前调研结论
 
-```bash
-# 多轮综合基准测试
-./scripts/benchmark.sh --full --input data.fastq
-```
+根据 `benchmark/results/err091571-local-supported.json`：
 
-## 性能指标
+- 压缩比：`fq-compressor` 不是当前已测集合中的最优，`bzip2` 更好
+- 压缩速度：`fq-compressor` 不是当前已测集合中的最优，`bzip2` 更快
+- 解压速度：`fq-compressor` 不是当前已测集合中的最优，`xz` 更快
+- FASTQ 专用同类排名：仍未证实，因为 `spring` 被明确标记为延后而非已测
 
-### 压缩指标
+所以当前能被证据支持的结论不是“`fq-compressor` 已经处于第一梯队”，而是：在当前本地支持且已测量的维度上，它并未领先；而对专用同类工具的比较仍然不完整。
 
-| 指标 | 描述 | 目标 |
-|--------|-------------|--------|
-| **压缩比** | 原始 / 压缩后 | 3.5-5x |
-| **每碱基位数** | 压缩位每核苷酸 | 0.4-0.6 |
-| **速度** | 未压缩数据 MB/s | >10 MB/s |
-| **内存** | 峰值 RAM 使用 | <2 GB (100MB 文件) |
+## 为什么当前跟踪数据集较小
 
-### 解压指标
+benchmark 框架现在通过公共数据清单记录 provenance，并把来源信息写入结果工件。
 
-| 指标 | 描述 | 目标 |
-|--------|-------------|--------|
-| **速度** | 压缩数据 MB/s | >50 MB/s |
-| **内存** | 峰值 RAM 使用 | <500 MB |
+当前正式跟踪工件固定为 2,000 条记录，原因是：
 
-## GCC vs Clang 对比
+- 它直接来自公开 ENA 数据源
+- 它能在 closeout 验证回路内稳定完成
+- 当前 `fq-compressor` 构建在同一工作负载的 20,000-record 探索子集上出现明显性能回归
 
-基准测试框架可以比较编译器版本：
+更大的子集仍适合后续排查，但目前不作为正式跟踪证据。
+
+## 重现方式
 
 ```bash
-# 构建两个版本
-./scripts/build.sh gcc-release
-./scripts/build.sh clang-release
-
-# 运行对比
-python3 benchmark/compiler_benchmark.py \
-    --input test_data.fastq.gz \
-    --gcc-binary build/gcc-release/src/fqc \
-    --clang-binary build/clang-release/src/fqc \
-    --threads 1 4 8 \
-    --runs 3 \
-    --visualize
+./scripts/benchmark.sh \
+  --dataset err091571-local-supported \
+  --prepare \
+  --build \
+  --tools fqc,gzip,xz,bzip2,spring \
+  --threads 1 \
+  --runs 1
 ```
 
-### 预期结果
+这会刷新：
 
-| 编译器 | 压缩 | 解压 | 说明 |
-|----------|-------------|---------------|-------|
-| GCC 15.2 | ~11.3 MB/s | ~60 MB/s | 稳定 |
-| Clang 21 | ~11.9 MB/s | ~62 MB/s | 快 5% |
+- `benchmark/results/err091571-local-supported.json`
+- `benchmark/results/err091571-local-supported.md`
 
-## 多工具对比
+## 范围边界
 
-将 fq-compressor 与其他工具对比：
+不要把当前结果理解成普遍排名。
 
-```bash
-python3 benchmark/benchmark.py \
-    --input data.fastq \
-    --tools fqc,gzip,pigz,zstd \
-    --threads 1,4,8 \
-    --output-dir results/
-```
+- 它只覆盖一个公开工作负载切片
+- 它只覆盖当前本地支持工具集
+- 它明确把延后专用对手排除在“已验证比较范围”之外
 
-### 典型对比
+## 相关说明
 
-| 工具 | 压缩比 | 压缩 | 解压 | 并行 |
-|------|-------|----------|------------|----------|
-| fq-compressor | 3.97x | 11.9 MB/s | 62.3 MB/s | ✓ |
-| gzip | 2.1x | 45 MB/s | 180 MB/s | ✗ |
-| pigz | 2.1x | 150 MB/s | 180 MB/s | ✓ |
-| zstd | 2.5x | 220 MB/s | 500 MB/s | ✗ |
-
-## 结果解读
-
-### 速度与压缩比的权衡
-
-fq-compressor 优先考虑压缩比而非原始速度：
-
-```
-高压缩 ──────────────────► 快速解压
-     │                                    │
-  fq-compressor                    gzip
-  Spring                           pigz
-  fqzcomp5                         zstd
-```
-
-### 内存扩展
-
-内存使用大致随线程数线性扩展：
-
-```
-线程数:  1    2    4    8    16
-内存:   500M 800M 1.2G 1.8G 2.5G (示例)
-```
-
-使用 `--memory-limit` 来限制使用量。
-
-## 持续基准测试
-
-### CI 集成
-
-添加到 GitHub Actions：
-
-```yaml
-- name: Benchmark
-  run: |
-    python3 benchmark/compiler_benchmark.py \
-        --input benchmarks/test_data.fq.gz \
-        --gcc-binary build/gcc-release/src/fqc \
-        --clang-binary build/clang-release/src/fqc \
-        --output-dir benchmark-results/
-    
-- name: Upload Results
-  uses: actions/upload-artifact@v4
-  with:
-    name: benchmark-results
-    path: benchmark-results/
-```
-
-### 性能回归检测
-
-```bash
-# 与基准对比
-python3 benchmark/compare_baseline.py \
-    --baseline results/baseline.json \
-    --current results/current.json \
-    --threshold 5%  # 如果衰退 >5% 则失败
-```
-
-## 基准测试最佳实践
-
-### 数据选择
-
-- 使用来自您领域的代表性数据集
-- 包括小文件 (<100MB) 和大文件 (>1GB)
-- 测试双端和单端数据
-
-### 环境
-
-- 关闭其他 CPU 密集型应用程序
-- 确保足够的 RAM（避免交换）
-- 使用热缓存（计时前运行一次）
-- 多次迭代以提高准确性
-
-### 报告
-
-报告中应包括：
-- 硬件规格（CPU、RAM、存储）
-- 软件版本（操作系统、编译器、fqc）
-- 数据集特征（大小、reads 数、reads 长度）
-- 使用的命令行选项
-
-## 故障排除
-
-### 结果不稳定
-
-- 确保禁用 CPU 频率调节
-- 检查是否发生热节流
-- 使用 `taskset` 固定到特定核心
-
-### 内存不足
-
-```bash
-# 降低并行度或块大小
-fqc compress -i large.fastq -o out.fqc --threads 4 --memory-limit 4096
-```
+- benchmark 框架说明见 `docs/benchmark/README.md`
+- 完整跟踪报告见 `benchmark/results/err091571-local-supported.md`
 
 ---
 

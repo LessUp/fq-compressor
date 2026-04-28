@@ -10,7 +10,7 @@ Release artifacts SHALL be explicit.
 #### Scenario: User views published release
 - **WHEN** a user views a published release
 - **THEN** available artifacts are listed clearly
-- **AND** installation/usage guidance is linked
+- **AND** installation and usage guidance is linked
 
 ### Requirement: Explicit support matrix
 The support matrix SHALL be explicit.

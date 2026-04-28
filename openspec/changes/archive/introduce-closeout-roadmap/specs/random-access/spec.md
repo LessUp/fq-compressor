@@ -2,7 +2,7 @@
 
 This document defines the random access capabilities for fq-compressor, including consistency of random-access claims and explicit semantics for original-order restoration.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Random-access claims match the primary compression path
 Random-access claims SHALL match the primary compression path.
