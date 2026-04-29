@@ -26,14 +26,14 @@ function(fqc_add_test test_name)
     set(oneValueArgs "")
     set(multiValueArgs SOURCES LIBRARIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-    
+
     add_executable(${test_name} ${ARG_SOURCES})
-    
+
     target_include_directories(${test_name}
         PRIVATE
             ${FQC_TEST_INCLUDE_DIRS}
     )
-    
+
     target_link_libraries(${test_name}
         PRIVATE
             fqc_core
@@ -49,7 +49,7 @@ function(fqc_add_test test_name)
                 stdc++
         )
     endif()
-    
+
     # Add RapidCheck for property-based tests
     if(ARG_PROPERTY_BASED AND rapidcheck_FOUND)
         target_link_libraries(${test_name}
@@ -61,15 +61,15 @@ function(fqc_add_test test_name)
                 FQC_HAS_RAPIDCHECK=1
         )
     endif()
-    
+
     # Register with CTest
     add_test(NAME ${test_name} COMMAND ${test_name})
-    
+
     # Set test properties
     set_tests_properties(${test_name} PROPERTIES
         TIMEOUT 300
     )
-    
+
     if(ARG_PROPERTY_BASED)
         set_tests_properties(${test_name} PROPERTIES
             LABELS "property"
@@ -118,6 +118,11 @@ fqc_add_test(compressed_stream_test
     SOURCES io/compressed_stream_test.cpp
 )
 
+# Block compressor regression tests
+fqc_add_test(block_compressor_regression_test
+    SOURCES algo/block_compressor_regression_test.cpp
+)
+
 # Original-order command tests
 fqc_add_test(original_order_command_test
     SOURCES commands/original_order_command_test.cpp
@@ -136,7 +141,7 @@ fqc_add_test(archive_regression_test
 
 if(rapidcheck_FOUND)
     message(STATUS "Property-based testing enabled with RapidCheck")
-    
+
     # FQC Format Property Tests
     # **Property 1: FQC 格式往返一致性**
     # Validates: Requirements 2.1, 5.1, 5.2
@@ -144,7 +149,7 @@ if(rapidcheck_FOUND)
         SOURCES format/fqc_format_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # FASTQ Parser Property Tests
     # **Property 2: FASTQ 解析往返一致性**
     # Validates: Requirements 1.1.1
@@ -152,7 +157,7 @@ if(rapidcheck_FOUND)
         SOURCES io/fastq_parser_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # Two-Phase Compression Property Tests
     # **Property 3: 序列压缩往返一致性**
     # **Property 3.1: Reorder Map 往返一致性**
@@ -161,7 +166,7 @@ if(rapidcheck_FOUND)
         SOURCES algo/two_phase_compression_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # Quality Compressor Property Tests
     # **Property 4: 无损质量压缩往返一致性**
     # Validates: Requirements 3.1
@@ -169,7 +174,7 @@ if(rapidcheck_FOUND)
         SOURCES algo/quality_compressor_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # ID Compressor Property Tests
     # **Property 5: ID 压缩往返一致性**
     # Validates: Requirements 1.1.2
@@ -177,7 +182,7 @@ if(rapidcheck_FOUND)
         SOURCES algo/id_compressor_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # Long Read Property Tests
     # **Property 7: 长读压缩往返一致性**
     # Validates: Requirements 1.1.3
@@ -185,7 +190,7 @@ if(rapidcheck_FOUND)
         SOURCES algo/long_read_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # Paired-End Property Tests
     # **Property 8: PE 压缩往返一致性**
     # Validates: Requirements 1.1.3
@@ -193,7 +198,7 @@ if(rapidcheck_FOUND)
         SOURCES algo/pe_property_test.cpp
         PROPERTY_BASED
     )
-    
+
     # Pipeline Round-Trip Property Tests
     # **Property 6: 完整压缩往返一致性**
     # Validates: Requirements 1.1, 2.1, 2.2, 4.1

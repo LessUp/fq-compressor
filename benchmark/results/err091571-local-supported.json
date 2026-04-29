@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-28T20:21:29",
+  "timestamp": "2026-04-28T23:39:15",
   "input_file": "/home/shane/dev/fq-compressor/benchmark/data/ERR091571/ERR091571_1.2000.fastq",
   "input_size": 503059,
   "dataset": {
@@ -119,8 +119,8 @@
       "tool": "fqc",
       "operation": "compress",
       "input_size": 503059,
-      "output_size": 150018,
-      "elapsed_seconds": 12.958496267005103,
+      "output_size": 150045,
+      "elapsed_seconds": 1.6501299150004343,
       "threads": 1,
       "success": true,
       "error": null
@@ -128,9 +128,9 @@
     {
       "tool": "fqc",
       "operation": "decompress",
-      "input_size": 150018,
+      "input_size": 150045,
       "output_size": 503059,
-      "elapsed_seconds": 0.3318295909994049,
+      "elapsed_seconds": 0.19854263799970795,
       "threads": 1,
       "success": true,
       "error": null
@@ -140,7 +140,7 @@
       "operation": "compress",
       "input_size": 503059,
       "output_size": 154557,
-      "elapsed_seconds": 0.2914477890008129,
+      "elapsed_seconds": 0.27741879300083383,
       "threads": 1,
       "success": true,
       "error": null
@@ -150,7 +150,7 @@
       "operation": "decompress",
       "input_size": 154557,
       "output_size": 503059,
-      "elapsed_seconds": 0.015909349007415585,
+      "elapsed_seconds": 0.008619526999609661,
       "threads": 1,
       "success": true,
       "error": null
@@ -160,7 +160,7 @@
       "operation": "compress",
       "input_size": 503059,
       "output_size": 131692,
-      "elapsed_seconds": 0.6069115050049732,
+      "elapsed_seconds": 0.44488035699941975,
       "threads": 1,
       "success": true,
       "error": null
@@ -170,7 +170,7 @@
       "operation": "decompress",
       "input_size": 131692,
       "output_size": 503059,
-      "elapsed_seconds": 0.018009232997428626,
+      "elapsed_seconds": 0.01604004499859002,
       "threads": 1,
       "success": true,
       "error": null
@@ -180,7 +180,7 @@
       "operation": "compress",
       "input_size": 503059,
       "output_size": 126237,
-      "elapsed_seconds": 0.06803039100486785,
+      "elapsed_seconds": 0.05765913100003672,
       "threads": 1,
       "success": true,
       "error": null
@@ -190,7 +190,7 @@
       "operation": "decompress",
       "input_size": 126237,
       "output_size": 503059,
-      "elapsed_seconds": 0.04679548899002839,
+      "elapsed_seconds": 0.03710558599959768,
       "threads": 1,
       "success": true,
       "error": null
@@ -205,33 +205,33 @@
       "best_value": 0.25093875668659144,
       "best_value_display": "0.2509 compressed/original",
       "conclusion": "fq-compressor is not leading for compression ratio in the measured set; bzip2 is best at 0.2509 compressed/original.",
-      "fqc_value": 0.29821154178734505,
-      "fqc_value_display": "0.2982 compressed/original",
-      "gap_percent": 18.84
+      "fqc_value": 0.2982652134242703,
+      "fqc_value_display": "0.2983 compressed/original",
+      "gap_percent": 18.86
     },
     "compression_speed": {
       "dimension": "Compression Speed",
       "status": "not-leading",
       "best_tool": "bzip2",
       "best_tool_name": "bzip2",
-      "best_value": 7.052060716550686,
-      "best_value_display": "7.1 MB/s",
-      "conclusion": "fq-compressor is not leading for compression speed in the measured set; bzip2 is best at 7.1 MB/s.",
-      "fqc_value": 0.03702238578086885,
-      "fqc_value_display": "0.0 MB/s",
-      "gap_percent": 18948.1
+      "best_value": 8.32052858959505,
+      "best_value_display": "8.3 MB/s",
+      "conclusion": "fq-compressor is not leading for compression speed in the measured set; bzip2 is best at 8.3 MB/s.",
+      "fqc_value": 0.29073737987283593,
+      "fqc_value_display": "0.3 MB/s",
+      "gap_percent": 2761.87
     },
     "decompression_speed": {
       "dimension": "Decompression Speed",
       "status": "not-leading",
       "best_tool": "gzip",
       "best_tool_name": "gzip",
-      "best_value": 30.15550464782632,
-      "best_value_display": "30.2 MB/s output",
-      "conclusion": "fq-compressor is not leading for decompression speed in the measured set; gzip is best at 30.2 MB/s output.",
-      "fqc_value": 1.4457856108977096,
-      "fqc_value_display": "1.4 MB/s output",
-      "gap_percent": 1985.75
+      "best_value": 55.659022584271455,
+      "best_value_display": "55.7 MB/s output",
+      "conclusion": "fq-compressor is not leading for decompression speed in the measured set; gzip is best at 55.7 MB/s output.",
+      "fqc_value": 2.416379941207981,
+      "fqc_value_display": "2.4 MB/s output",
+      "gap_percent": 2203.41
     },
     "scope": {
       "requested_tools": [
