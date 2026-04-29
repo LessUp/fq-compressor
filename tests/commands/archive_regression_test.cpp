@@ -427,4 +427,41 @@ TEST(ArchiveRegressionTest, SingleThreadSplitPeRangePairsWritesBothOutputsAndHon
     EXPECT_EQ(readFastqFile(derivedR2Path), expectedR2);
 }
 
+TEST(ArchiveRegressionTest, VerifyDetectsTamperedBlockPayload) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath = tempFilePath(".fqc");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archiveGuard(archivePath);
+
+    auto records = makeShortReadsNoComments(100);
+    writeFastqFile(inputPath, records);
+    ASSERT_EQ(compressArchive(inputPath, archivePath, 1, true, false, ReadLengthClass::kShort), 0);
+
+    std::ifstream inFile(archivePath, std::ios::binary);
+    ASSERT_TRUE(inFile.is_open());
+    std::vector<char> archiveData((std::istreambuf_iterator<char>(inFile)),
+                                   std::istreambuf_iterator<char>());
+    inFile.close();
+
+    ASSERT_GT(archiveData.size(), 200u);
+    std::size_t tamperOffset = 100;
+    archiveData[tamperOffset] ^= 0xFF;
+
+    std::ofstream outFile(archivePath, std::ios::binary);
+    ASSERT_TRUE(outFile.is_open());
+    outFile.write(archiveData.data(), static_cast<std::streamsize>(archiveData.size()));
+    outFile.close();
+
+    VerifyOptions opts;
+    opts.inputPath = archivePath;
+    opts.verifyBlocks = true;
+    opts.failFast = true;
+    opts.verbose = false;
+
+    VerifyCommand command(std::move(opts));
+    EXPECT_NE(command.execute(), 0);
+}
+
+
 }  // namespace fqc::commands::test
