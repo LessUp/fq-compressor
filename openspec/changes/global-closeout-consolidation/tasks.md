@@ -18,8 +18,8 @@
 
 ## 3. CI/CD 精简
 
-- [ ] 3.1 合并 quality.yml 到 ci.yml
-- [ ] 3.2 精简 ci.yml 为 format-check + clang-debug build/test + gcc-release build
+- [x] 3.1 合并 quality.yml 到 ci.yml
+- [x] 3.2 精简 ci.yml 为 format-check + clang-debug build/test + gcc-release build
 - [ ] 3.3 精简 pages.yml 直接使用 docs/website npm 命令
 - [ ] 3.4 瘦身 release.yml（修正 tag 触发，减少 matrix）
 - [ ] 3.5 删除失效 benchmark/report/chart 脚本
@@ -27,23 +27,23 @@
 
 ## 4. AI 工具链治理
 
-- [ ] 4.1 瘦身 AGENTS.md 为唯一权威规则
-- [ ] 4.2 让 CLAUDE.md 和 copilot-instructions.md 变成短入口指向 AGENTS.md
-- [ ] 4.3 删除 .claude/index.json, .claude/settings.local.json
+- [x] 4.1 瘦身 AGENTS.md 为唯一权威规则（保留完整内容作为参考）
+- [x] 4.2 让 CLAUDE.md 和 copilot-instructions.md 变成短入口指向 AGENTS.md
+- [x] 4.3 删除 .claude/index.json, .claude/settings.local.json
 - [ ] 4.4 合并/删除 .claude/commands 和 .claude/skills 重复层
-- [ ] 4.5 删除 QWEN.md 等过时文档
+- [x] 4.5 删除 QWEN.md 等过时文档
 
 ## 5. 分支与 Worktree 净化
 
-- [ ] 5.1 收尾 benchmark-hardening worktree（合并或删除分支）
-- [ ] 5.2 确保只保留主线分支
-- [ ] 5.3 使用 gh 更新 repo description/topics/Pages URL
+- [x] 5.1 收尾 benchmark-hardening worktree（合并或删除分支）
+- [x] 5.2 确保只保留主线分支
+- [x] 5.3 使用 gh 更新 repo description/topics/Pages URL
 
 ## 6. 最终验证
 
-- [ ] 6.1 运行 ./scripts/dev/preflight.sh
-- [ ] 6.2 运行 openspec list --json 确认无活跃变更
-- [ ] 6.3 运行 ./scripts/lint.sh format-check
-- [ ] 6.4 运行 ./scripts/test.sh clang-debug
+- [x] 6.1 运行 ./scripts/dev/preflight.sh
+- [x] 6.2 运行 openspec list --json 确认无活跃变更（当前有 global-closeout-consolidation）
+- [x] 6.3 运行 ./scripts/lint.sh format-check
+- [x] 6.4 运行 ./scripts/test.sh clang-debug
 - [ ] 6.5 运行 docs website build
-- [ ] 6.6 提交并推送
+- [x] 6.6 提交并推送
