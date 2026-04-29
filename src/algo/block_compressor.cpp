@@ -31,6 +31,8 @@ namespace fqc::algo {
 
 namespace {
 
+constexpr std::size_t kShortReadContigLookahead = 128;
+
 /// @brief DNA base to index lookup table (A=0, C=1, G=2, T=3)
 constexpr std::uint8_t kBaseToIndex[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // 0-15
@@ -675,8 +677,12 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
         alignInfos.push_back({i, 0, false});
         assigned[i] = true;
 
+        // Short-read ABC expects similar reads to stay local after reordering.
+        // Bound the forward scan so unordered blocks do not degenerate into O(n^2).
+        const std::size_t scanEnd = std::min(reads.size(), i + 1 + kShortReadContigLookahead);
+
         // Try to add similar reads to this contig
-        for (std::size_t j = i + 1; j < reads.size(); ++j) {
+        for (std::size_t j = i + 1; j < scanEnd; ++j) {
             if (assigned[j])
                 continue;
 

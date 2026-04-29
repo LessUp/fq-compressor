@@ -28,14 +28,14 @@ namespace fqc::pipeline {
 
 class CompressorNodeImpl {
 public:
-    explicit CompressorNodeImpl(CompressorNodeConfig config) : config_(std::move(config)) {
-        initializeCompressors();
-    }
+    explicit CompressorNodeImpl(CompressorNodeConfig config) : config_(std::move(config)) {}
 
     Result<CompressedBlock> compress(ReadChunk chunk) {
         state_ = NodeState::kRunning;
 
         try {
+            initializeCompressors();
+
             CompressedBlock block;
             block.blockId = chunk.chunkId;
             block.readCount = static_cast<std::uint32_t>(chunk.reads.size());
@@ -171,6 +171,10 @@ public:
 
 private:
     void initializeCompressors() {
+        if (idCompressor_ && qualityCompressor_ && blockCompressor_) {
+            return;
+        }
+
         // Initialize ID compressor
         algo::IDCompressorConfig idConfig;
         idConfig.idMode = config_.idMode;
@@ -192,8 +196,11 @@ private:
         // Initialize block compressor
         algo::BlockCompressorConfig blockConfig;
         blockConfig.readLengthClass = config_.readLengthClass;
-        blockConfig.qualityMode = config_.qualityMode;
-        blockConfig.idMode = config_.idMode;
+        // This helper compressor is only used for the sequence stream.
+        // Skip placeholder quality/ID work because the pipeline compresses
+        // those streams separately with the real data.
+        blockConfig.qualityMode = QualityMode::kDiscard;
+        blockConfig.idMode = IDMode::kDiscard;
         blockConfig.compressionLevel = config_.compressionLevel;
         blockConfig.zstdLevel = config_.zstdLevel;
         blockCompressor_ = std::make_unique<algo::BlockCompressor>(blockConfig);
@@ -252,12 +259,11 @@ private:
         // For short reads, use BlockCompressor (ABC algorithm)
         // For medium/long reads, use Zstd directly
         if (config_.readLengthClass == ReadLengthClass::kShort) {
-            // Use zero-copy ReadRecordView — only seqStream is extracted.
-            // Reuse seq as quality placeholder (same length, no allocation).
+            // Use zero-copy ReadRecordView and leave non-sequence fields empty.
             std::vector<ReadRecordView> views;
             views.reserve(sequences.size());
             for (const auto& seq : sequences) {
-                views.emplace_back(std::string_view{}, seq, seq);
+                views.emplace_back(std::string_view{}, std::string_view{}, seq, std::string_view{});
             }
 
             auto result = blockCompressor_->compress(std::span<const ReadRecordView>(views), 0);

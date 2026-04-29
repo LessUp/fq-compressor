@@ -1,6 +1,6 @@
 # fq-compressor Benchmark Report
 
-**Generated:** 2026-04-28T20:21:29
+**Generated:** 2026-04-28T23:39:15
 
 ## Dataset Provenance
 
@@ -44,16 +44,16 @@
 
 | Tool | Threads | Ratio | Bits/Base | Compress (MB/s) | Decompress (MB/s output) |
 |------|---------|-------|-----------|-----------------|---------------------------|
-| bzip2 | 1 | 0.2509 | 4.02 | 7.1 | 10.3 |
-| fq-compressor | 1 | 0.2982 | 4.77 | 0.037 | 1.4 |
-| gzip | 1 | 0.3072 | 4.92 | 1.6 | 30.2 |
-| xz | 1 | 0.2618 | 4.19 | 0.8 | 26.6 |
+| bzip2 | 1 | 0.2509 | 4.02 | 8.3 | 12.9 |
+| fq-compressor | 1 | 0.2983 | 4.77 | 0.3 | 2.4 |
+| gzip | 1 | 0.3072 | 4.92 | 1.7 | 55.7 |
+| xz | 1 | 0.2618 | 4.19 | 1.1 | 29.9 |
 
 ## Dimension-Specific Conclusions
 
 - fq-compressor is not leading for compression ratio in the measured set; bzip2 is best at 0.2509 compressed/original.
-- fq-compressor is not leading for compression speed in the measured set; bzip2 is best at 7.1 MB/s.
-- fq-compressor is not leading for decompression speed in the measured set; gzip is best at 30.2 MB/s output.
+- fq-compressor is not leading for compression speed in the measured set; bzip2 is best at 8.3 MB/s.
+- fq-compressor is not leading for decompression speed in the measured set; gzip is best at 55.7 MB/s output.
 
 ## Scope Boundary
 

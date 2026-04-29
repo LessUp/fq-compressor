@@ -37,7 +37,7 @@
 
 - 压缩比：在本次已测量集合里，`fq-compressor` 不是最优；`bzip2` 更好
 - 压缩速度：在本次已测量集合里，`fq-compressor` 不是最优；`bzip2` 更快
-- 解压速度：在本次已测量集合里，`fq-compressor` 不是最优；`xz` 更快
+- 解压速度：在本次已测量集合里，`fq-compressor` 不是最优；`gzip` 更快
 - FASTQ 专用同类对比：`Spring` 仍处于延后状态，因此当前仓库还不能回答 `fq-compressor` 相对专用同类工具是否处于第一梯队
 
 这意味着当前仓库可以诚实地说：
@@ -99,7 +99,7 @@ python3 benchmark/benchmark.py \
 
 仓库内基准链路的功能验证另外使用你本机的小样本数据完成：
 
-- `/home/shane/data/test/small/test_bgi_1.fq.gz`
-- `/home/shane/data/test/small/test_bgi_2.fq.gz`
+- `/home/shane/data/test/small/test_1.fq.gz`
+- `/home/shane/data/test/small/test_2.fq.gz`
 
 这些小样本用于验证脚本与工具链工作正常，不作为公开 benchmark 证据工件。
