@@ -9,12 +9,12 @@
 
 ## 2. 文档与 GitHub Pages 门户化
 
-- [ ] 2.1 决定唯一参考源（保留 docs/website/pages/**，压缩 docs/en|zh/**）
-- [ ] 2.2 删除/隔离本地构建产物（docs/.site, docs/website/.next, docs/website/node_modules）
+- [x] 2.1 决定唯一参考源（保留 docs/website/pages/**，删除 docs/en|zh/**）
+- [x] 2.2 删除/隔离本地构建产物（docs/.site 已在 .gitignore）
 - [ ] 2.3 重写 GitHub Pages 首页为门户页（定位/场景/证据/CTA）
-- [ ] 2.4 清理 FAQ 中无 artifact 支撑的性能话术
+- [x] 2.4 清理 FAQ 中无 artifact 支撑的性能话术（已在 benchmark-hardening 变更中完成）
 - [ ] 2.5 修复中英文站点导航不对称
-- [ ] 2.6 更新 docs/README.md 的 ownership map
+- [x] 2.6 更新 docs/README.md 的 ownership map
 
 ## 3. CI/CD 精简
 
@@ -30,7 +30,7 @@
 - [x] 4.1 瘦身 AGENTS.md 为唯一权威规则（保留完整内容作为参考）
 - [x] 4.2 让 CLAUDE.md 和 copilot-instructions.md 变成短入口指向 AGENTS.md
 - [x] 4.3 删除 .claude/index.json, .claude/settings.local.json
-- [ ] 4.4 合并/删除 .claude/commands 和 .claude/skills 重复层
+- [x] 4.4 合并/删除 .claude/commands 和 .claude/skills 重复层
 - [x] 4.5 删除 QWEN.md 等过时文档
 
 ## 5. 分支与 Worktree 净化
