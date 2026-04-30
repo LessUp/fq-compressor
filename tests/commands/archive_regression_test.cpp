@@ -441,7 +441,7 @@ TEST(ArchiveRegressionTest, VerifyDetectsTamperedBlockPayload) {
     std::ifstream inFile(archivePath, std::ios::binary);
     ASSERT_TRUE(inFile.is_open());
     std::vector<char> archiveData((std::istreambuf_iterator<char>(inFile)),
-                                   std::istreambuf_iterator<char>());
+                                  std::istreambuf_iterator<char>());
     inFile.close();
 
     ASSERT_GT(archiveData.size(), 200u);
@@ -462,6 +462,5 @@ TEST(ArchiveRegressionTest, VerifyDetectsTamperedBlockPayload) {
     VerifyCommand command(std::move(opts));
     EXPECT_NE(command.execute(), 0);
 }
-
 
 }  // namespace fqc::commands::test
