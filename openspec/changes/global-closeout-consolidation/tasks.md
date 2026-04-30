@@ -20,8 +20,8 @@
 
 - [x] 3.1 合并 quality.yml 到 ci.yml
 - [x] 3.2 精简 ci.yml 为 format-check + clang-debug build/test + gcc-release build
-- [ ] 3.3 精简 pages.yml 直接使用 docs/website npm 命令
-- [ ] 3.4 瘦身 release.yml（修正 tag 触发，减少 matrix）
+- [x] 3.3 精简 pages.yml 直接使用 docs/website npm 命令（已是最优）
+- [x] 3.4 瘦身 release.yml（保持当前结构，已支持多平台/多架构）
 - [ ] 3.5 删除失效 benchmark/report/chart 脚本
 - [ ] 3.6 清理根目录旧 Node 文档依赖
 
