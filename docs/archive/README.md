@@ -8,8 +8,7 @@ truth for current development, closeout work, or repository governance.
 - `openspec/specs/` — living requirements
 - `openspec/changes/` — active change work
 - `README.md` / `README.zh-CN.md` — repository entry copy
-- `docs/website/` — GitHub Pages source
-- `docs/en/` / `docs/zh/` — maintained reference pages
+- `docs/website/` — GitHub Pages source (bilingual)
 
 ## What belongs here
 
