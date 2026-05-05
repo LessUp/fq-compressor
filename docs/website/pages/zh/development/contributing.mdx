@@ -1,0 +1,230 @@
+---
+title: 参与贡献
+description: 如何为 fq-compressor 做出贡献
+---
+
+# 参与贡献
+
+感谢您对 fq-compressor 的关注！本指南涵盖您需要了解的所有内容。
+
+## 快速开始
+
+```bash
+# Fork 并克隆
+git clone https://github.com/YOUR_USERNAME/fq-compressor.git
+cd fq-compressor
+
+# 设置构建环境
+conan install . --build=missing -of=build/clang-debug
+cmake --preset clang-debug
+
+# 构建并测试
+cmake --build --preset clang-debug -j$(nproc)
+./scripts/test.sh clang-debug
+```
+
+## 开发环境设置
+
+### DevContainer（推荐）
+
+1. 在 VS Code 中打开项目
+2. 运行 `Dev Containers: Reopen in Container`
+3. 所有工具已预装
+
+### 手动设置
+
+| 工具 | 版本 | 用途 |
+|------|---------|------|
+| GCC/Clang | 14+/18+ | 编译器 |
+| CMake | 3.28+ | 构建系统 |
+| Conan | 2.x | 包管理器 |
+| Python | 3.8+ | 基准测试脚本 |
+
+## 代码风格
+
+我们使用自动化格式化：
+
+```bash
+# 格式化代码
+./scripts/lint.sh format
+
+# 运行静态检查
+./scripts/lint.sh lint clang-debug
+
+# 检查所有
+./scripts/lint.sh all clang-debug
+```
+
+**规范：**
+- 4 空格缩进
+- 100 列限制
+- 文件名 snake_case，类型名 PascalCase，函数名 camelCase
+- 重要返回值使用 `[[nodiscard]]`
+- 禁止原始指针所有权
+
+## 提交信息
+
+遵循 [Conventional Commits](https://www.conventionalcommits.org/)：
+
+```
+<类型>(<范围>): <描述>
+
+[正文]
+
+[页脚]
+```
+
+**类型：**
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `docs`: 文档
+- `refactor`: 代码重构
+- `perf`: 性能优化
+- `test`: 测试
+
+**示例：**
+```
+feat(compressor): 添加质量分 binning 选项
+fix(parser): 处理空 FASTQ 文件
+docs(readme): 更新安装说明
+```
+
+## Pull Request 流程
+
+1. **创建分支** 从 `main`
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+2. **进行更改** 并保持提交清晰
+
+3. **确保质量**：
+   ```bash
+   ./scripts/test.sh clang-release
+   ./scripts/lint.sh format-check
+   ./scripts/lint.sh lint clang-debug
+   ```
+
+4. **更新文档**（如需要）
+
+5. **提交 PR** 并附清晰描述
+
+### PR 检查清单
+
+- [ ] 代码编译无警告
+- [ ] 所有测试通过
+- [ ] 新功能有新测试
+- [ ] 文档已更新
+- [ ] clang-format 格式化
+- [ ] 无 clang-tidy 警告
+
+## 测试
+
+### 单元测试
+
+```cpp
+#include <gtest/gtest.h>
+
+TEST(CompressionTest, BasicRoundTrip) {
+    Compressor comp;
+    auto compressed = comp.compress(data);
+    auto restored = comp.decompress(compressed);
+    EXPECT_EQ(data, restored);
+}
+```
+
+### 属性测试
+
+```cpp
+RC_GTEST_PROP(RoundTrip, ()) {
+    auto data = *rc::gen::container<std::vector<uint8_t>>(
+        rc::gen::inRange(0, 255)
+    );
+    auto compressed = compress(data);
+    auto restored = decompress(compressed);
+    RC_ASSERT(restored == data);
+}
+```
+
+### 添加测试
+
+```cmake
+# 在 tests/CMakeLists.txt 中
+fqc_add_test(my_feature_test src/my_feature_test.cpp)
+```
+
+## 性能测试
+
+### 前后基准对比
+
+```bash
+python3 benchmark/compiler_benchmark.py \
+    --input test_data.fq \
+    --gcc-binary build/gcc-release/src/fqc \
+    --visualize
+```
+
+### 内存分析
+
+```bash
+valgrind --tool=massif ./fqc compress -i large.fastq -o out.fqc
+```
+
+### 目标指标
+
+| 指标 | 目标 |
+|------|------|
+| 压缩比 | 保持或提升 |
+| 速度 | 可接受 `<5%` 回归 |
+| 内存 | 保持在预算内 |
+
+## 文档
+
+### 代码文档
+
+```cpp
+/**
+ * 将 FASTQ 文件压缩为 FQC 格式。
+ *
+ * @param input 输入 FASTQ 路径
+ * @param output 输出 FQC 路径
+ * @param options 压缩配置
+ * @return 表示成功或错误的结果
+ */
+Result<void> compressFile(const std::filesystem::path& input,
+                          const std::filesystem::path& output,
+                          const CompressOptions& options);
+```
+
+### 用户文档
+
+更改时更新相关文档：
+- CLI → `docs/website/pages/zh/getting-started/`
+- 算法 → `docs/website/pages/zh/core-concepts/`
+- 格式 → `docs/website/pages/zh/core-concepts/fqc-format`
+
+## 贡献领域
+
+### 适合新手
+
+- 文档改进
+- 测试覆盖补充
+- 错误信息优化
+- 日志清晰化
+
+### 高级
+
+- 算法优化
+- 新压缩模式
+- 平台支持
+- 工具改进
+
+## 获取帮助
+
+- [GitHub Discussions](https://github.com/LessUp/fq-compressor/discussions)
+- 发现 Bug 请开 Issue
+- 问题可标记 `@maintainers`
+
+## 许可证
+
+通过贡献代码，您同意在 MIT 许可下授权您的贡献。

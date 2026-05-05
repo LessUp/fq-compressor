@@ -1,40 +1,40 @@
 ---
 title: fq-compressor
-description: High-performance FASTQ compression with O(1) random access
+description: 高性能 FASTQ 压缩工具，支持 O(1) 随机访问
 ---
 
 import { Callout, Tabs } from 'nextra/components'
 
 # fq-compressor
 
-**High-performance FASTQ compression for the sequencing era**
+**测序时代的高性能 FASTQ 压缩工具**
 
-A C++23 FASTQ compressor with **3.97× compression** and **O(1) random access**. Built for production FASTQ archives.
+C++23 FASTQ 压缩器，实现 **3.97× 压缩比** 和 **O(1) 随机访问**。为生产级 FASTQ 归档而生。
 
-## Key Metrics
+## 核心指标
 
-| Metric | Value |
-|--------|-------|
-| **Compression Ratio** | 3.97× on Illumina data |
-| **Compression Speed** | 11.9 MB/s (multithreaded) |
-| **Decompression Speed** | 62.3 MB/s (multithreaded) |
-| **Random Access** | O(1) without full decompression |
+| 指标 | 数值 |
+|------|------|
+| **压缩比** | Illumina 数据 3.97× |
+| **压缩速度** | 11.9 MB/s（多线程） |
+| **解压速度** | 62.3 MB/s（多线程） |
+| **随机访问** | O(1) 无需完整解压 |
 
-## Why fq-compressor
+## 为什么选择 fq-compressor
 
-1. **Storage reduction with retrieval** — Compress aggressively without sacrificing random access or verification
-2. **Fast to practical use** — Prebuilt binaries, simple CLI, documented defaults
-3. **Modern C++23 stack** — Intel oneTBB, CMake presets, Conan 2, clangd-friendly
-4. **Archive inspection** — Block-based access, metadata queries, checksums
-5. **Transparent input handling** — Works with .gz, .bz2, .xz inputs transparently
-6. **Clean engineering workflow** — OpenSpec-driven repo, enforced quality gates, archive-grade maintenance
+1. **存储压缩 + 快速检索** — 激进压缩不牺牲随机访问或验证能力
+2. **开箱即用** — 预编译二进制、简洁 CLI、文档完善
+3. **现代 C++23 技术栈** — Intel oneTBB、CMake presets、Conan 2、clangd 友好
+4. **归档检查** — 块级访问、元数据查询、校验和
+5. **透明输入处理** — 直接读取 .gz、.bz2、.xz FASTQ 输入
+6. **整洁工程流程** — OpenSpec 驱动、强制质量门、归档级维护
 
-## Quick Start
+## 快速开始
 
-<Tabs items={['Install', 'Compress', 'Decompress', 'Verify']}>
+<Tabs items={['安装', '压缩', '解压', '验证']}>
 <Tabs.Tab>
 ```bash
-# Download prebuilt binary (Linux x86_64, static musl)
+# 下载预编译二进制（Linux x86_64，静态 musl）
 wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
   fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
@@ -46,80 +46,80 @@ fqc --version
 
 <Tabs.Tab>
 ```bash
-# Compress a FASTQ file
+# 压缩 FASTQ 文件
 fqc compress -i reads.fastq -o reads.fqc
 
-# With threads and progress
+# 多线程压缩
 fqc compress -i reads.fastq -o reads.fqc --threads 8
 ```
 </Tabs.Tab>
 
 <Tabs.Tab>
 ```bash
-# Full decompression
+# 完整解压
 fqc decompress -i reads.fqc -o restored.fastq
 
-# Random access (range)
+# 随机访问（范围提取）
 fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 
-# Streaming (no temp files)
+# 流式输出（无临时文件）
 fqc decompress -i reads.fqc --stdout | gzip > output.fq.gz
 ```
 </Tabs.Tab>
 
 <Tabs.Tab>
 ```bash
-# Verify archive integrity
+# 验证归档完整性
 fqc verify reads.fqc
 
-# Show compression details
+# 查看压缩详情
 fqc info reads.fqc
 
-# JSON output for scripting
+# JSON 输出（用于脚本）
 fqc info reads.fqc --json | jq '.ratio'
 ```
 </Tabs.Tab>
 </Tabs>
 
-## Choose Your Entry Path
+## 选择你的入口
 
 **[English Documentation](/fq-compressor/en/)** — Installation guide, CLI reference, architecture, performance benchmarks, FAQ
 
 **[中文文档](/fq-compressor/zh/)** — 安装指南、命令参考、架构说明、性能基准
 
-**[Source Code](https://github.com/LessUp/fq-compressor)** — GitHub repository, OpenSpec workflow, issues
+**[源代码](https://github.com/LessUp/fq-compressor)** — GitHub 仓库、OpenSpec 工作流、问题反馈
 
-**[Releases](https://github.com/LessUp/fq-compressor/releases)** — Download prebuilt binaries
+**[发布版本](https://github.com/LessUp/fq-compressor/releases)** — 下载预编译二进制
 
-## Project Status
+## 项目状态
 
 <Callout type="info">
-**v0.2.0 — Stable & Archive-Ready**
+**v0.2.0 — 稳定 & 可归档**
 
-fq-compressor is in **closeout mode**: stable, production-tested, and maintaining archive-grade repository hygiene. No breaking changes planned. Focus is on finishing, stabilizing, and documentation polish.
+fq-compressor 处于 **收尾模式**：稳定、生产测试、保持归档级仓库卫生。无计划性破坏性变更。重点在于收尾、稳定和文档打磨。
 </Callout>
 
 ---
 
-## Technical Highlights
+## 技术亮点
 
-- **Compression Algorithms**: Assembly-based Compression (ABC) + Statistical Context Mixing (SCM)
-- **Parallelism**: Intel oneTBB pipeline, tunable threads, zero-copy where possible
-- **Format**: Custom FQC binary format with block-based structure for O(1) random access
-- **Quality Modes**: Lossless, lossy, or discard quality scores
-- **Integrity**: xxh64 checksums, built-in verification
-- **Transparency**: Read directly from .gz, .bz2, .xz FASTQ inputs
+- **压缩算法**：基于组装的压缩 (ABC) + 统计上下文混合 (SCM)
+- **并行性**：Intel oneTBB 管道、可调线程、零拷贝优化
+- **格式**：自定义 FQC 二进制格式，块结构支持 O(1) 随机访问
+- **质量模式**：无损、有损、丢弃质量分数
+- **完整性**：xxh64 校验和、内置验证
+- **透明性**：直接读取 .gz、.bz2、.xz FASTQ 输入
 
 ---
 
-## Development
+## 开发
 
-**Build**, **test**, and **lint** use single commands:
+**构建**、**测试**、**检查** 使用单命令：
 
 ```bash
-./scripts/build.sh clang-debug        # Build with Clang
-./scripts/test.sh clang-debug          # Run all tests
-./scripts/lint.sh format-check         # Check formatting
+./scripts/build.sh clang-debug        # Clang 构建
+./scripts/test.sh clang-debug          # 运行所有测试
+./scripts/lint.sh format-check         # 检查格式
 ```
 
-See [Development Guide](/fq-compressor/en/development/contributing) for full details.
+详见 [开发指南](/fq-compressor/zh/development/contributing)。

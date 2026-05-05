@@ -6,7 +6,8 @@ This repository keeps documentation intentionally **lean and focused**.
 
 | Surface | Role |
 | --- | --- |
-| `openspec/` | Living requirements, change intent, closeout planning |
+| `openspec/specs/` | Living requirements and capability specifications |
+| `openspec/changes/` | Active change work and closeout planning |
 | `README.md` / `README.zh-CN.md` | Repository entry summary |
 | `docs/website/` | GitHub Pages source (Next.js + Nextra) |
 | `docs/benchmark/` | Benchmark evidence and methodology |
@@ -15,8 +16,7 @@ This repository keeps documentation intentionally **lean and focused**.
 
 | Surface | Status |
 | --- | --- |
-| `specs/` | Archive-only - historical specs |
-| `docs/archive/` | Archive-only - historical research |
+| `docs/archive/` | Archive-only - historical research, reviews, and specs |
 | `docs/dev/` | Development notes |
 
 ## Documentation policy
