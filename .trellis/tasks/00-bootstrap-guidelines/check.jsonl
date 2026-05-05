@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/cpp/index.md", "reason": "C++ spec index - overview of all guidelines"}
+{"file": ".trellis/spec/cpp/naming-conventions.md", "reason": "Naming conventions for files, types, functions, variables"}
+{"file": ".trellis/spec/cpp/code-style.md", "reason": "Code formatting, includes, section separators"}
+{"file": ".trellis/spec/cpp/error-handling.md", "reason": "Error handling patterns - Result types, exceptions, error codes"}
+{"file": ".trellis/spec/cpp/testing-guidelines.md", "reason": "Testing patterns with GTest and RapidCheck"}
+{"file": ".trellis/spec/cpp/architecture.md", "reason": "Module organization, namespaces, pipeline architecture"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Thinking guides for cross-layer and code reuse considerations"}
