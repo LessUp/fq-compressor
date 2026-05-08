@@ -1,28 +1,204 @@
 ---
-title: Documentation
-description: fq-compressor English documentation hub
+title: fq-compressor - High-Performance FASTQ Compression
+description: High-performance FASTQ compression tool for the sequencing era
 ---
 
-# Documentation
+import { Hero } from '../../components/Hero'
+import { CodeShowcase } from '../../components/CodeShowcase'
+import { FeatureGrid } from '../../components/FeatureCard'
+import { Zap, Database, Target, Cpu, Shield, ArrowRight } from 'lucide-react'
 
-Welcome to the fq-compressor documentation. Below are the main sections.
+export default function HomePage() {
+  const stats = [
+    { value: '3.97×', label: 'Compression on Illumina', color: 'text-blue-600 dark:text-blue-400' },
+    { value: '62 MB/s', label: 'Decompression throughput', color: 'text-purple-600 dark:text-purple-400' },
+    { value: 'O(1)', label: 'Random access complexity', color: 'text-green-600 dark:text-green-400' },
+  ]
 
-## Quick Links
+  const codeTabs = [
+    {
+      label: 'Compress',
+      code: `# Compress FASTQ files
+fqc compress -i reads.fastq -o reads.fqc
 
-| Topic | What's Here |
-|-------|-----------|
-| **[Getting Started](/fq-compressor/en/getting-started/installation)** | Installation, quickstart, CLI basics |
-| **[Architecture](/fq-compressor/en/core-concepts/architecture)** | Design, algorithms, components |
-| **[CLI Reference](/fq-compressor/en/getting-started/cli-usage)** | Commands, options, examples |
-| **[Format Spec](/fq-compressor/en/core-concepts/fqc-format)** | FQC binary format, block structure |
-| **[Performance](/fq-compressor/en/performance/benchmark)** | Benchmarks, throughput, memory |
-| **[FAQ](/fq-compressor/en/reference/faq)** | Common questions, troubleshooting |
-| **[Contributing](/fq-compressor/en/development/contributing)** | Development workflow, OpenSpec, testing |
+# Multi-threaded compression with memory limit
+fqc compress -i huge_reads.fq.gz -o compressed.fqc \\
+  --threads 8 --memory-limit 4096`
+    },
+    {
+      label: 'Decompress',
+      code: `# Full decompression
+fqc decompress -i reads.fqc -o output.fastq
 
-## Start Here
+# Random access: extract reads 1000-2000 only
+fqc decompress -i reads.fqc -o partial.fastq \\
+  --range 1000-2000`
+    },
+    {
+      label: 'Verify',
+      code: `# Verify archive integrity
+fqc verify reads.fqc
 
-- **New to fq-compressor?** Start with [Installation](/fq-compressor/en/getting-started/installation)
-- **Want to understand the design?** See [Architecture](/fq-compressor/en/core-concepts/architecture)
-- **Looking for command details?** Check [CLI Usage](/fq-compressor/en/getting-started/cli-usage)
-- **Evaluating compression?** See [Benchmarks](/fq-compressor/en/performance/benchmark)
-- **Contributing or forking?** Read [Contributing Guide](/fq-compressor/en/development/contributing)
+# Show archive metadata
+fqc info reads.fqc --json`
+    }
+  ]
+
+  const features = [
+    {
+      icon: Zap,
+      iconColor: 'bg-yellow-500',
+      title: 'Lightning Fast',
+      description: 'Intel oneTBB parallel pipeline: 11.9 MB/s compression, 62.3 MB/s decompression',
+      href: '/fq-compressor/en/performance/benchmark'
+    },
+    {
+      icon: Database,
+      iconColor: 'bg-blue-500',
+      title: 'Maximum Compression',
+      description: 'ABC + SCM hybrid algorithms achieve 3.97× on Illumina data, near entropy limit',
+      href: '/fq-compressor/en/core-concepts/architecture'
+    },
+    {
+      icon: Target,
+      iconColor: 'bg-red-500',
+      title: 'Random Access',
+      description: 'Block-indexed design with O(1) random access, extract any range without full decompression',
+      href: '/fq-compressor/en/core-concepts/fqc-format'
+    },
+    {
+      icon: Cpu,
+      iconColor: 'bg-green-500',
+      title: 'Long Read Support',
+      description: 'Auto-detect long reads (PacBio/Nanopore), optimized block strategy and memory management',
+      href: '/fq-compressor/en/getting-started/cli-usage'
+    },
+    {
+      icon: Shield,
+      iconColor: 'bg-purple-500',
+      title: 'Data Integrity',
+      description: 'xxHash64 checksums, tamper detection, comprehensive integrity verification',
+      href: '/fq-compressor/en/core-concepts/architecture'
+    },
+    {
+      icon: ArrowRight,
+      iconColor: 'bg-indigo-500',
+      title: 'Transparent Input',
+      description: 'Native support for .gz/.bz2/.xz inputs, compress directly without preprocessing',
+      href: '/fq-compressor/en/getting-started/quickstart'
+    }
+  ]
+
+  return (
+    <>
+      <Hero
+        title="fq-compressor"
+        subtitle="High-Performance FASTQ Compression for the Sequencing Era"
+        description="Combining Assembly-based Compression (ABC) and Statistical Context Mixing (SCM) with O(1) random access"
+        primaryCta={{ text: 'Get Started', href: '/fq-compressor/en/getting-started/installation' }}
+        secondaryCta={{ text: 'GitHub', href: 'https://github.com/LessUp/fq-compressor' }}
+        stats={stats}
+      />
+
+      <CodeShowcase
+        title="Simple Yet Powerful CLI"
+        tabs={codeTabs}
+      />
+
+      <FeatureGrid
+        title="Why fq-compressor?"
+        features={features}
+      />
+
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Production-Ready Performance
+          </h2>
+          <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-8 rounded-full" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <div className="text-2xl font-bold mb-2 text-blue-600 dark:text-blue-400">
+                Illumina Short Reads
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                3.97× compression<br/>
+                62 MB/s decompression
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <div className="text-2xl font-bold mb-2 text-purple-600 dark:text-purple-400">
+                PacBio/Nanopore
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Adaptive long-read mode<br/>
+                Optimized memory usage
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <div className="text-2xl font-bold mb-2 text-green-600 dark:text-green-400">
+                Paired-End Data
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Auto pairing preservation<br/>
+                Range extraction support
+              </div>
+            </div>
+          </div>
+
+          <a
+            href="/fq-compressor/en/performance/benchmark"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            View Full Benchmarks
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+            Open Source & Production Ready
+          </h2>
+          <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-8 rounded-full" />
+
+          <div className="text-center text-gray-600 dark:text-gray-400 mb-10">
+            <p className="mb-4">
+              fq-compressor is released under the <strong>MIT License</strong> with fully open-source code.
+            </p>
+            <p>
+              Built on C++23 standard, supporting GCC 14+ and Clang 18+, cross-platform compilation.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
+              href="https://github.com/LessUp/fq-compressor"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary"
+            >
+              GitHub Repository
+            </a>
+            <a
+              href="/fq-compressor/en/development/contributing"
+              className="btn-secondary"
+            >
+              Contributing
+            </a>
+            <a
+              href="https://github.com/LessUp/fq-compressor/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-secondary"
+            >
+              Download Latest
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
