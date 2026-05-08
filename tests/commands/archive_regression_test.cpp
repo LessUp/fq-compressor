@@ -170,7 +170,8 @@ int compressArchive(const std::filesystem::path& inputPath,
                     bool enableReordering,
                     bool saveReorderMap,
                     ReadLengthClass lengthClass,
-                    bool autoDetectLongRead = false) {
+                    bool autoDetectLongRead = false,
+                    std::size_t maxBlockBases = 0) {
     CompressOptions opts;
     opts.inputPath = inputPath;
     opts.outputPath = outputPath;
@@ -183,6 +184,7 @@ int compressArchive(const std::filesystem::path& inputPath,
     opts.autoDetectLongRead = autoDetectLongRead;
     opts.longReadMode = lengthClass;
     opts.blockSize = (lengthClass == ReadLengthClass::kLong) ? 2 : 4;
+    opts.maxBlockBases = maxBlockBases;
 
     CompressCommand command(std::move(opts));
     return command.execute();
@@ -380,6 +382,27 @@ TEST(ArchiveRegressionTest, ParallelLongReadRoundTripHandlesNonMonotonicVariable
     ASSERT_EQ(decompressArchive(archivePath, outputPath, 1), 0);
 
     EXPECT_EQ(readFastqFile(outputPath), records);
+}
+
+TEST(ArchiveRegressionTest, ParallelLongReadCompressionHonorsExplicitMaxBlockBases) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath = tempFilePath(".fqc");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archiveGuard(archivePath);
+
+    writeFastqFile(inputPath, makeVariableLongReads());
+
+    ASSERT_EQ(
+        compressArchive(inputPath, archivePath, 4, false, false, ReadLengthClass::kLong, false, 20000),
+        0);
+
+    format::FQCReader reader(archivePath);
+    reader.open();
+
+    ASSERT_EQ(reader.blockCount(), 2u);
+    EXPECT_EQ(reader.getBlockReadRange(0), (std::pair<ReadId, ReadId>{1, 3}));
+    EXPECT_EQ(reader.getBlockReadRange(1), (std::pair<ReadId, ReadId>{3, 4}));
 }
 
 TEST(ArchiveRegressionTest, SingleThreadSplitPeRangePairsWritesBothOutputsAndHonorsRange) {

@@ -116,13 +116,14 @@ std::vector<FastqTuple> makeDeterministicRecords(std::size_t count) {
 }
 
 void compressWithReorder(const std::filesystem::path& inputPath,
-                         const std::filesystem::path& compressedPath) {
+                         const std::filesystem::path& compressedPath,
+                         int threads = 1) {
     CompressOptions opts;
     opts.inputPath = inputPath;
     opts.outputPath = compressedPath;
     opts.forceOverwrite = true;
     opts.showProgress = false;
-    opts.threads = 1;
+    opts.threads = threads;
     opts.streamingMode = false;
     opts.enableReordering = true;
     opts.saveReorderMap = true;
@@ -167,6 +168,35 @@ TEST(OriginalOrderCommandTest, RestoresOriginalOrderForReorderedArchive) {
 
     writeFastqFile(inputPath, records);
     compressWithReorder(inputPath, compressedPath);
+
+    DecompressOptions opts;
+    opts.inputPath = compressedPath;
+    opts.outputPath = outputPath;
+    opts.originalOrder = true;
+    opts.threads = 1;
+    opts.showProgress = false;
+    opts.forceOverwrite = true;
+
+    DecompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+
+    auto decompressed = readFastqFile(outputPath);
+    EXPECT_TRUE(recordsEquivalent(records, decompressed, true));
+}
+
+TEST(OriginalOrderCommandTest, RestoresOriginalOrderForReorderedArchiveFromPipelinePath) {
+    auto records = makeDeterministicRecords(12);
+
+    auto inputPath = tempFilePath(".fastq");
+    auto compressedPath = tempFilePath(".fqc");
+    auto outputPath = tempFilePath(".out.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard compressedGuard(compressedPath);
+    TempFileGuard outputGuard(outputPath);
+
+    writeFastqFile(inputPath, records);
+    compressWithReorder(inputPath, compressedPath, 4);
 
     DecompressOptions opts;
     opts.inputPath = compressedPath;

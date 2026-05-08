@@ -202,7 +202,7 @@ public:
             readerConfig.blockSize = config_.effectiveBlockSize();
             readerConfig.bufferSize = config_.inputBufferSize;
             readerConfig.readLengthClass = config_.readLengthClass;
-            readerConfig.maxBlockBases = kDefaultMaxBlockBasesLong;
+            readerConfig.maxBlockBases = config_.maxBlockBases;
 
             ReaderNode reader(readerConfig);
             auto openResult = reader.open(inputPath);
