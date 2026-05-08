@@ -312,6 +312,9 @@ struct CompressionPipelineConfig {
     /// @brief Block size (reads per block)
     std::size_t blockSize = kDefaultBlockSizeShort;
 
+    /// @brief Maximum block bases for long reads
+    std::size_t maxBlockBases = kDefaultMaxBlockBasesLong;
+
     /// @brief Read length class
     ReadLengthClass readLengthClass = ReadLengthClass::kShort;
 

@@ -632,6 +632,7 @@ void CompressCommand::runCompressionParallel() {
     pipelineConfig.numThreads =
         options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
     pipelineConfig.blockSize = options_.blockSize;
+    pipelineConfig.maxBlockBases = options_.maxBlockBases;
     pipelineConfig.readLengthClass = options_.longReadMode;
     pipelineConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
     pipelineConfig.enableReorder = options_.enableReordering && !options_.streamingMode;
