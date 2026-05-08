@@ -166,6 +166,7 @@ docs/website/.next/
 openspec/explorations/
 
 # Local git worktrees
+.worktrees
 .worktrees/
 
 # Reference projects (source code not tracked, but keep README)
