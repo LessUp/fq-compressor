@@ -9,7 +9,7 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
-#include "fqc/pipeline/pipeline_node.h"
+#include "fqc/pipeline/pipeline_nodes.h"
 
 #include <fmt/format.h>
 
@@ -27,16 +27,6 @@ VoidResult ReaderNodeConfig::validate() const {
     }
     if (bufferSize == 0) {
         return makeVoidError(ErrorCode::kInvalidArgument, "Buffer size must be > 0");
-    }
-    return {};
-}
-
-VoidResult CompressorNodeConfig::validate() const {
-    if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
-        return makeVoidError(ErrorCode::kInvalidArgument,
-                             fmt::format("Compression level must be between {} and {}",
-                                         kMinCompressionLevel,
-                                         kMaxCompressionLevel));
     }
     return {};
 }

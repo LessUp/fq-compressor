@@ -22,6 +22,7 @@ set(FQC_CORE_SOURCES
     format/reorder_map.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
+    io/stream_factory.cpp
     io/paired_end_parser.cpp
     io/async_io.cpp
     algo/global_analyzer.cpp

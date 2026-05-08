@@ -6,10 +6,11 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/writer_node.h"
+
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_writer.h"
 #include "fqc/format/reorder_map.h"
-#include "fqc/pipeline/pipeline_node.h"
 
 #include <chrono>
 #include <cstring>

@@ -113,6 +113,26 @@ fqc_add_test(async_io_test
     SOURCES io/async_io_test.cpp
 )
 
+# Stream factory tests
+fqc_add_test(stream_factory_test
+    SOURCES io/stream_factory_test.cpp
+)
+
+# FASTQ parser tests
+fqc_add_test(fastq_parser_test
+    SOURCES io/fastq_parser_test.cpp
+)
+
+# Chunk marshaling tests
+fqc_add_test(chunk_marshal_test
+    SOURCES pipeline/chunk_marshal_test.cpp
+)
+
+# Pipeline split-header compile test
+fqc_add_test(pipeline_node_headers_test
+    SOURCES pipeline/pipeline_node_headers_test.cpp
+)
+
 # Compressed Stream Tests
 fqc_add_test(compressed_stream_test
     SOURCES io/compressed_stream_test.cpp

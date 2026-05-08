@@ -15,6 +15,7 @@
 #include "fqc/format/reorder_map.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
+#include "fqc/io/stream_factory.h"
 #include "fqc/pipeline/pipeline.h"
 
 #include <chrono>
@@ -25,6 +26,36 @@
 #include <thread>
 
 namespace fqc::commands {
+
+namespace {
+
+struct CompressionProfileDefaults {
+    std::size_t blockSize;
+    bool enableReordering;
+    std::size_t defaultMaxBlockBases;
+    std::string_view description;
+};
+
+[[nodiscard]] constexpr CompressionProfileDefaults profileDefaultsFor(ReadLengthClass lengthClass) {
+    switch (lengthClass) {
+        case ReadLengthClass::kShort:
+            return {100000, true, 0, "SHORT read strategy: ABC + reordering, 100K reads/block"};
+        case ReadLengthClass::kMedium:
+            return {50000,
+                    false,
+                    200 * 1024 * 1024,
+                    "MEDIUM read strategy: Zstd, no reordering, 50K reads/block"};
+        case ReadLengthClass::kLong:
+            return {10000,
+                    false,
+                    50 * 1024 * 1024,
+                    "LONG read strategy: Zstd, no reordering, 10K reads/block"};
+    }
+
+    return {100000, true, 0, "SHORT read strategy: ABC + reordering, 100K reads/block"};
+}
+
+}  // namespace
 
 // =============================================================================
 // Quality Mode Parsing
@@ -59,6 +90,21 @@ IDMode parseIdMode(std::string_view str) {
         return IDMode::kDiscard;
     }
     throw ArgumentError("Invalid ID mode: " + std::string(str));
+}
+
+// =============================================================================
+// CompressOptions::toCompressorConfig
+// =============================================================================
+
+algo::BlockCompressorConfig CompressOptions::toCompressorConfig() const noexcept {
+    algo::BlockCompressorConfig config;
+    config.readLengthClass = longReadMode;
+    config.qualityMode = qualityMode;
+    config.idMode = idMode;
+    config.compressionLevel = static_cast<CompressionLevel>(compressionLevel);
+    config.zstdLevel = 3;
+    config.numThreads = static_cast<std::size_t>(threads);
+    return config;
 }
 
 // =============================================================================
@@ -179,9 +225,9 @@ void CompressCommand::detectReadLengthClass() {
     const std::string_view scanMode = options_.scanAllLengths ? "scan" : "sample";
 
     try {
-        // Open input file
-        auto stream = io::openCompressedFile(options_.inputPath);
-        io::FastqParser parser(std::move(stream));
+        // Open input file with stream factory
+        auto factory = std::make_shared<io::FileStreamFactory>();
+        io::FastqParser parser(options_.inputPath, factory);
         parser.open();
 
         io::ParserStats sampleStats;
@@ -224,45 +270,19 @@ void CompressCommand::detectReadLengthClass() {
 
 void CompressCommand::setupCompressionParams() {
     // Use detected or specified length class
-    ReadLengthClass lengthClass = detectedLengthClass_.value_or(options_.longReadMode);
+    const ReadLengthClass lengthClass = detectedLengthClass_.value_or(options_.longReadMode);
+    const auto defaults = profileDefaultsFor(lengthClass);
 
-    // Adjust parameters based on length class
-    switch (lengthClass) {
-        case ReadLengthClass::kShort:
-            // Short reads: ABC + reordering, 100K block
-            if (!options_.blockSizeExplicit) {
-                options_.blockSize = 100000;
-            }
-            if (options_.maxBlockBases == 0) {
-                options_.maxBlockBases = 0;  // No limit for short reads
-            }
-            FQC_LOG_DEBUG("Using SHORT read strategy: ABC + reordering, 100K reads/block");
-            break;
-
-        case ReadLengthClass::kMedium:
-            // Medium reads: Zstd, no reordering, 50K block
-            if (!options_.blockSizeExplicit) {
-                options_.blockSize = 50000;
-            }
-            options_.enableReordering = false;
-            if (options_.maxBlockBases == 0) {
-                options_.maxBlockBases = 200 * 1024 * 1024;  // 200MB
-            }
-            FQC_LOG_DEBUG("Using MEDIUM read strategy: Zstd, no reordering, 50K reads/block");
-            break;
-
-        case ReadLengthClass::kLong:
-            // Long reads: Zstd, no reordering, 10K block
-            if (!options_.blockSizeExplicit) {
-                options_.blockSize = 10000;
-            }
-            options_.enableReordering = false;
-            if (options_.maxBlockBases == 0) {
-                options_.maxBlockBases = 50 * 1024 * 1024;  // 50MB for ultra-long
-            }
-            FQC_LOG_DEBUG("Using LONG read strategy: Zstd, no reordering, 10K reads/block");
-            break;
+    if (!options_.blockSizeExplicit) {
+        options_.blockSize = defaults.blockSize;
     }
+
+    options_.enableReordering = defaults.enableReordering && options_.enableReordering;
+    if (options_.maxBlockBases == 0) {
+        options_.maxBlockBases = defaults.defaultMaxBlockBases;
+    }
+
+    FQC_LOG_DEBUG("Using {}", defaults.description);
 
     // Store the effective length class
     options_.longReadMode = lengthClass;
@@ -307,14 +327,8 @@ void CompressCommand::runCompression() {
     // =========================================================================
 
     FQC_LOG_DEBUG("Opening input file...");
-    std::unique_ptr<std::istream> inputStream;
-    if (options_.inputPath == "-") {
-        inputStream = io::openInputFile("-");
-    } else {
-        inputStream = io::openCompressedFile(options_.inputPath);
-    }
-
-    io::FastqParser parser(std::move(inputStream));
+    auto factory = std::make_shared<io::FileStreamFactory>();
+    io::FastqParser parser(options_.inputPath, factory);
     parser.open();
 
     // Read all records into memory for global analysis
@@ -624,24 +638,16 @@ void CompressCommand::runCompression() {
 void CompressCommand::runCompressionParallel() {
     FQC_LOG_INFO("Initializing parallel compression pipeline...");
 
-    // =========================================================================
-    // Configure Pipeline
-    // =========================================================================
-
     pipeline::CompressionPipelineConfig pipelineConfig;
     pipelineConfig.numThreads =
-        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
+        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;
     pipelineConfig.blockSize = options_.blockSize;
-    pipelineConfig.readLengthClass = options_.longReadMode;
-    pipelineConfig.compressionLevel = static_cast<CompressionLevel>(options_.compressionLevel);
+    pipelineConfig.maxBlockBases = options_.maxBlockBases;
     pipelineConfig.enableReorder = options_.enableReordering && !options_.streamingMode;
     pipelineConfig.streamingMode = options_.streamingMode;
     pipelineConfig.memoryLimitMB = options_.memoryLimitMb;
+    pipelineConfig.compressorConfig = options_.toCompressorConfig();
 
-    pipelineConfig.qualityMode = options_.qualityMode;
-    pipelineConfig.idMode = options_.idMode;
-
-    // Progress callback
     if (options_.showProgress) {
         pipelineConfig.progressCallback = [](const pipeline::ProgressInfo& info) -> bool {
             double progress = info.ratio() * 100.0;
@@ -652,12 +658,11 @@ void CompressCommand::runCompressionParallel() {
                 info.currentBlock,
                 static_cast<double>(info.bytesProcessed) / (1024.0 * 1024.0) /
                     (info.elapsedMs > 0 ? static_cast<double>(info.elapsedMs) / 1000.0 : 1.0));
-            return true;  // Continue
+            return true;
         };
-        pipelineConfig.progressIntervalMs = 2000;  // Report every 2 seconds
+        pipelineConfig.progressIntervalMs = 2000;
     }
 
-    // Validate configuration
     if (auto result = pipelineConfig.validate(); !result) {
         throw FormatError("Invalid pipeline configuration: " + result.error().message());
     }
@@ -665,25 +670,20 @@ void CompressCommand::runCompressionParallel() {
     FQC_LOG_INFO("Pipeline configured:");
     FQC_LOG_INFO("  Threads: {}", pipelineConfig.effectiveThreads());
     FQC_LOG_INFO("  Block size: {}", pipelineConfig.effectiveBlockSize());
-    FQC_LOG_INFO("  Read length class: {}",
-                 pipelineConfig.readLengthClass == ReadLengthClass::kShort        ? "SHORT"
-                     : pipelineConfig.readLengthClass == ReadLengthClass::kMedium ? "MEDIUM"
-                                                                                  : "LONG");
+    FQC_LOG_INFO(
+        "  Read length class: {}",
+        pipelineConfig.compressorConfig.readLengthClass == ReadLengthClass::kShort        ? "SHORT"
+            : pipelineConfig.compressorConfig.readLengthClass == ReadLengthClass::kMedium ? "MEDIUM"
+                                                                                          : "LONG");
     FQC_LOG_INFO("  Quality mode: {}", qualityModeToString(options_.qualityMode));
     FQC_LOG_INFO("  Reordering: {}", pipelineConfig.enableReorder ? "enabled" : "disabled");
-
-    // =========================================================================
-    // Execute Pipeline
-    // =========================================================================
 
     pipeline::CompressionPipeline pipeline(pipelineConfig);
 
     VoidResult result;
     if (options_.input2Path.empty()) {
-        // Single-end mode
         result = pipeline.run(options_.inputPath, options_.outputPath);
     } else {
-        // Paired-end mode
         result = pipeline.runPaired(options_.inputPath, options_.input2Path, options_.outputPath);
     }
 

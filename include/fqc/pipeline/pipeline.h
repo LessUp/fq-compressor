@@ -20,6 +20,7 @@
 #ifndef FQC_PIPELINE_PIPELINE_H
 #define FQC_PIPELINE_PIPELINE_H
 
+#include "fqc/algo/block_compressor.h"
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
 
@@ -128,6 +129,33 @@ struct ReadChunk {
         return reads.empty();
     }
 };
+
+/// @brief Marshaled views derived from a read chunk for compression stages.
+struct MarshaledReadChunk {
+    /// @brief Per-read views spanning the original chunk storage.
+    std::vector<ReadRecordView> readViews;
+
+    /// @brief Header identifier views.
+    std::vector<std::string_view> ids;
+
+    /// @brief Header comment views.
+    std::vector<std::string_view> comments;
+
+    /// @brief Sequence views.
+    std::vector<std::string_view> sequences;
+
+    /// @brief Quality views.
+    std::vector<std::string_view> qualities;
+
+    /// @brief Variable read lengths, present only when the chunk is non-uniform.
+    std::vector<std::uint32_t> lengths;
+
+    /// @brief Uniform read length, or 0 when lengths vary.
+    std::uint32_t uniformReadLength = 0;
+};
+
+/// @brief Marshal a read chunk into reusable views for compression helpers.
+[[nodiscard]] MarshaledReadChunk marshalReadChunk(const ReadChunk& chunk);
 
 /// @brief A compressed block ready for writing
 struct CompressedBlock {
@@ -312,17 +340,8 @@ struct CompressionPipelineConfig {
     /// @brief Block size (reads per block)
     std::size_t blockSize = kDefaultBlockSizeShort;
 
-    /// @brief Read length class
-    ReadLengthClass readLengthClass = ReadLengthClass::kShort;
-
-    /// @brief Quality compression mode
-    QualityMode qualityMode = QualityMode::kLossless;
-
-    /// @brief ID handling mode
-    IDMode idMode = IDMode::kExact;
-
-    /// @brief Compression level (1-9)
-    CompressionLevel compressionLevel = kDefaultCompressionLevel;
+    /// @brief Maximum block bases for long reads
+    std::size_t maxBlockBases = kDefaultMaxBlockBasesLong;
 
     /// @brief Enable read reordering
     bool enableReorder = true;
@@ -338,6 +357,9 @@ struct CompressionPipelineConfig {
 
     /// @brief Progress callback interval (milliseconds)
     std::uint32_t progressIntervalMs = 500;
+
+    /// @brief Compressor configuration (algorithm-level settings)
+    algo::BlockCompressorConfig compressorConfig;
 
     /// @brief Validate configuration
     [[nodiscard]] VoidResult validate() const;

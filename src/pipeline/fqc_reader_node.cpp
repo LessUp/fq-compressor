@@ -6,9 +6,10 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/fqc_reader_node.h"
+
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_reader.h"
-#include "fqc/pipeline/pipeline_node.h"
 
 #include <fmt/format.h>
 

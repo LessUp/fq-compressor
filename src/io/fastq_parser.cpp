@@ -3,13 +3,13 @@
 // =============================================================================
 // High-performance streaming FASTQ parser implementation.
 //
-// Requirements: 1.1.1
+// Requirements: 1.1.1, Architecture improvement - I/O layer dependency injection
 // =============================================================================
 
 #include "fqc/io/fastq_parser.h"
 
 #include "fqc/common/logger.h"
-#include "fqc/io/compressed_stream.h"
+#include "fqc/io/stream_factory.h"
 
 #include <algorithm>
 #include <cctype>
@@ -22,8 +22,17 @@ namespace fqc::io {
 // FastqParser Implementation
 // =============================================================================
 
-FastqParser::FastqParser(std::filesystem::path filePath, ParserOptions options)
-    : filePath_(std::move(filePath)), options_(std::move(options)), isStdin_(filePath_ == "-") {}
+FastqParser::FastqParser(std::filesystem::path filePath,
+                         std::shared_ptr<StreamFactory> factory,
+                         ParserOptions options)
+    : filePath_(std::move(filePath)),
+      factory_(std::move(factory)),
+      options_(std::move(options)),
+      isStdin_(filePath_ == "-") {
+    if (!factory_) {
+        throw ArgumentError("StreamFactory cannot be null");
+    }
+}
 
 FastqParser::FastqParser(std::unique_ptr<std::istream> stream, ParserOptions options)
     : filePath_("<stream>"),
@@ -47,26 +56,18 @@ void FastqParser::open() {
         return;
     }
 
-    if (isStdin_) {
-        // Use cin for stdin with automatic decompression support
-        stream_ = openInputFile("-");
-        // stdin might be compressed, but we can't know for sure without reading content
-        // For now, assume stdin might be compressed and disable seeking
-        isCompressed_ = true;
-        FQC_LOG_DEBUG("Opening stdin for FASTQ parsing");
-    } else {
-        // Use openInputFile for automatic decompression of gzip, bzip2, xz etc.
-        stream_ = openInputFile(filePath_);
-        if (!stream_ || !*stream_) {
-            throw IOError("Failed to open FASTQ file: " + filePath_.string());
-        }
+    // Use factory to create input stream
+    stream_ = factory_->createInputStream(filePath_);
 
-        // Check if file is compressed based on extension
-        auto format = detectCompressionFormatFromExtension(filePath_);
-        isCompressed_ = (format != CompressionFormat::kNone);
-
-        FQC_LOG_DEBUG("Opened FASTQ file: {} (compressed: {})", filePath_.string(), isCompressed_);
+    if (!stream_ || !*stream_) {
+        throw IOError("Failed to open FASTQ file: " + filePath_.string());
     }
+
+    // Check if file is compressed based on extension
+    auto format = factory_->detectCompression(filePath_);
+    isCompressed_ = (format != CompressionFormat::kNone);
+
+    FQC_LOG_DEBUG("Opened FASTQ file: {} (compressed: {})", filePath_.string(), isCompressed_);
 
     isOpen_ = true;
     eof_ = false;

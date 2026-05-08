@@ -136,18 +136,15 @@ rc::Gen<ReadChunk> readChunk(std::uint32_t chunkId = 0) {
 TEST_F(PipelinePropertyTest, ConfigValidation) {
     CompressionPipelineConfig config;
 
-    // Valid config should pass
     auto result = config.validate();
     EXPECT_TRUE(result.has_value());
 
-    // Invalid block size
-    config.blockSize = 10;  // Too small
+    config.blockSize = 10;
     result = config.validate();
     EXPECT_FALSE(result.has_value());
 
-    // Reset and test compression level
     config.blockSize = kDefaultBlockSizeShort;
-    config.compressionLevel = 0;  // Invalid
+    config.compressorConfig.compressionLevel = 0;
     result = config.validate();
     EXPECT_FALSE(result.has_value());
 }
@@ -201,30 +198,25 @@ TEST_F(PipelinePropertyTest, MemoryEstimation) {
 TEST_F(PipelinePropertyTest, ReaderNodeConfigValidation) {
     ReaderNodeConfig config;
 
-    // Valid config
     auto result = config.validate();
     EXPECT_TRUE(result.has_value());
 
-    // Invalid block size
     config.blockSize = 10;
     result = config.validate();
     EXPECT_FALSE(result.has_value());
 
-    // Invalid buffer size
     config.blockSize = kDefaultBlockSizeShort;
     config.bufferSize = 0;
     result = config.validate();
     EXPECT_FALSE(result.has_value());
 }
 
-TEST_F(PipelinePropertyTest, CompressorNodeConfigValidation) {
-    CompressorNodeConfig config;
+TEST_F(PipelinePropertyTest, BlockCompressorConfigValidation) {
+    algo::BlockCompressorConfig config;
 
-    // Valid config
     auto result = config.validate();
     EXPECT_TRUE(result.has_value());
 
-    // Invalid compression level
     config.compressionLevel = 0;
     result = config.validate();
     EXPECT_FALSE(result.has_value());
@@ -550,8 +542,8 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadStreamingRoundTrip, ()) {
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = true;
     compressConfig.enableReorder = false;
-    compressConfig.readLengthClass = ReadLengthClass::kShort;
-    compressConfig.blockSize = 1000;  // Small blocks for testing
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.blockSize = 1000;
     compressConfig.numThreads = 1;
 
     // Compress
@@ -603,7 +595,7 @@ RC_GTEST_PROP(PipelineRoundTripProperty, ShortReadReorderRoundTrip, ()) {
     compressConfig.streamingMode = false;
     compressConfig.enableReorder = true;
     compressConfig.saveReorderMap = true;
-    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 1000;
     compressConfig.numThreads = 1;
 
@@ -661,8 +653,8 @@ RC_GTEST_PROP(PipelineRoundTripProperty, MediumReadRoundTrip, ()) {
     // Configure compression (Medium read class - no reordering)
     CompressionPipelineConfig compressConfig;
     compressConfig.streamingMode = false;
-    compressConfig.enableReorder = false;  // Disabled for medium reads
-    compressConfig.readLengthClass = ReadLengthClass::kMedium;
+    compressConfig.enableReorder = false;
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kMedium;
     compressConfig.blockSize = 500;
     compressConfig.numThreads = 1;
 
@@ -947,7 +939,7 @@ TEST_F(PipelinePropertyTest, OriginalOrderRoundTripUsesCommandPath) {
     compressConfig.streamingMode = false;
     compressConfig.enableReorder = true;
     compressConfig.saveReorderMap = true;
-    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 4;
     compressConfig.numThreads = 1;
 
@@ -990,7 +982,7 @@ TEST_F(PipelinePropertyTest, OriginalOrderThreadsFallbackMatchesSingleThread) {
     compressConfig.streamingMode = false;
     compressConfig.enableReorder = true;
     compressConfig.saveReorderMap = true;
-    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 4;
     compressConfig.numThreads = 1;
 
@@ -1035,7 +1027,7 @@ TEST_F(PipelinePropertyTest, OriginalOrderRangeSortsSelectedArchiveSubset) {
     compressConfig.streamingMode = false;
     compressConfig.enableReorder = true;
     compressConfig.saveReorderMap = true;
-    compressConfig.readLengthClass = ReadLengthClass::kShort;
+    compressConfig.compressorConfig.readLengthClass = ReadLengthClass::kShort;
     compressConfig.blockSize = 4;
     compressConfig.numThreads = 1;
 
