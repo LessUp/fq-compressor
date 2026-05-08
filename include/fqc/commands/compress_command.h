@@ -14,6 +14,7 @@
 #ifndef FQC_COMMANDS_COMPRESS_COMMAND_H
 #define FQC_COMMANDS_COMPRESS_COMMAND_H
 
+#include "fqc/algo/block_compressor.h"
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
 
@@ -113,6 +114,9 @@ struct CompressOptions {
 
     /// @brief Collect and store statistics.
     bool collectStats = true;
+
+    /// @brief Convert to BlockCompressorConfig.
+    [[nodiscard]] algo::BlockCompressorConfig toCompressorConfig() const noexcept;
 };
 
 // =============================================================================

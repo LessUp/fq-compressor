@@ -8,9 +8,11 @@
 // - Streaming/chunked reading for memory efficiency
 // - Support for standard 4-line FASTQ format
 // - Validation of FASTQ records
+// - Dependency injection via StreamFactory for testability
 //
-// Usage:
-//   FastqParser parser("/path/to/reads.fastq");
+// Usage (Production):
+//   auto factory = std::make_shared<FileStreamFactory>();
+//   FastqParser parser("/path/to/reads.fastq", factory);
 //   parser.open();
 //   while (auto chunk = parser.readChunk(10000)) {
 //       for (const auto& record : *chunk) {
@@ -18,7 +20,14 @@
 //       }
 //   }
 //
-// Requirements: 1.1.1
+// Usage (Testing):
+//   auto factory = std::make_shared<MemoryStreamFactory>();
+//   factory->setFileContent("test.fastq", fastqData);
+//   FastqParser parser("test.fastq", factory);
+//   parser.open();
+//   // ... test parsing logic
+//
+// Requirements: 1.1.1, Architecture improvement - I/O layer dependency injection
 // =============================================================================
 
 #ifndef FQC_IO_FASTQ_PARSER_H
@@ -29,7 +38,6 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -44,45 +52,14 @@ namespace fqc::io {
 // Forward Declarations
 // =============================================================================
 
-class CompressedStream;
+class StreamFactory;
 
 // =============================================================================
 // FASTQ Record
 // =============================================================================
 
-/// @brief Represents a single FASTQ record.
-/// @note Uses string_view for zero-copy parsing when possible.
-struct FastqRecord {
-    /// @brief Read identifier (without '@' prefix).
-    std::string id;
-
-    /// @brief Optional comment after ID (space-separated).
-    std::string comment;
-
-    /// @brief DNA/RNA sequence.
-    std::string sequence;
-
-    /// @brief Quality scores (Phred+33 encoded).
-    std::string quality;
-
-    /// @brief Check if record is valid.
-    [[nodiscard]] bool isValid() const noexcept {
-        return !id.empty() && !sequence.empty() && sequence.size() == quality.size();
-    }
-
-    /// @brief Get the read length.
-    [[nodiscard]] std::size_t length() const noexcept {
-        return sequence.size();
-    }
-
-    /// @brief Clear the record.
-    void clear() noexcept {
-        id.clear();
-        comment.clear();
-        sequence.clear();
-        quality.clear();
-    }
-};
+/// @brief Parser-facing alias for the shared FASTQ read record type.
+using FastqRecord = ReadRecord;
 
 // =============================================================================
 // Parser Statistics
@@ -219,14 +196,20 @@ public:
     // Construction / Destruction
     // =========================================================================
 
-    /// @brief Construct a parser for the specified file.
+    /// @brief Construct a parser for the specified file with a factory.
     /// @param filePath Path to the FASTQ file (or "-" for stdin).
+    /// @param factory Stream factory for creating input streams.
     /// @param options Parser configuration options.
-    explicit FastqParser(std::filesystem::path filePath, ParserOptions options = {});
+    /// @throws ArgumentError if factory is null.
+    explicit FastqParser(std::filesystem::path filePath,
+                         std::shared_ptr<StreamFactory> factory,
+                         ParserOptions options = {});
 
-    /// @brief Construct a parser from an input stream.
-    /// @param stream Input stream to read from.
+    /// @brief Construct a parser from an existing input stream.
+    /// @param stream Input stream to read from (already open).
     /// @param options Parser configuration options.
+    /// @note Stream-constructed parsers are already open.
+    /// @note This constructor is for advanced use cases (e.g., async I/O).
     explicit FastqParser(std::unique_ptr<std::istream> stream, ParserOptions options = {});
 
     /// @brief Destructor.
@@ -373,6 +356,9 @@ private:
 
     /// @brief File path (or "-" for stdin).
     std::filesystem::path filePath_;
+
+    /// @brief Stream factory for creating streams.
+    std::shared_ptr<StreamFactory> factory_;
 
     /// @brief Parser options.
     ParserOptions options_;

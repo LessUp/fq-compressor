@@ -6,11 +6,13 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/reader_node.h"
+
 #include "fqc/common/logger.h"
 #include "fqc/io/async_io.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
-#include "fqc/pipeline/pipeline_node.h"
+#include "fqc/io/stream_factory.h"
 
 #include <algorithm>
 #include <chrono>
@@ -49,10 +51,13 @@ public:
 
             bool useAsync = !isStdin && !isCompressed;
 
+            // Create stream factory for file-based operations
+            auto factory = std::make_shared<io::FileStreamFactory>();
+
             if (useAsync) {
                 // Phase 1: Sample with a temporary seekable parser
                 {
-                    io::FastqParser sampler(path, parserOpts);
+                    io::FastqParser sampler(path, factory, parserOpts);
                     sampler.open();
                     if (sampler.canSeek()) {
                         auto sampleStats = sampler.sampleRecords(1000);
@@ -78,7 +83,7 @@ public:
                 FQC_LOG_DEBUG("ReaderNode opened with async prefetch: path={}", path.string());
             } else {
                 // Fallback: synchronous I/O (stdin or compressed files)
-                parser_ = std::make_unique<io::FastqParser>(path, parserOpts);
+                parser_ = std::make_unique<io::FastqParser>(path, factory, parserOpts);
                 parser_->open();
 
                 if (parser_->canSeek()) {
@@ -131,10 +136,13 @@ public:
             parserOpts.validateSequence = true;
             parserOpts.validateQuality = true;
 
-            parser_ = std::make_unique<io::FastqParser>(path1, parserOpts);
+            // Create stream factory
+            auto factory = std::make_shared<io::FileStreamFactory>();
+
+            parser_ = std::make_unique<io::FastqParser>(path1, factory, parserOpts);
             parser_->open();
 
-            parser2_ = std::make_unique<io::FastqParser>(path2, parserOpts);
+            parser2_ = std::make_unique<io::FastqParser>(path2, factory, parserOpts);
             parser2_->open();
 
             // Sample from first file

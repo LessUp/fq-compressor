@@ -6,8 +6,9 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/fastq_writer_node.h"
+
 #include "fqc/common/logger.h"
-#include "fqc/pipeline/pipeline_node.h"
 
 #include <fstream>
 #include <iostream>

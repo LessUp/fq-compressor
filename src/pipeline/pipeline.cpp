@@ -18,7 +18,12 @@
 // TBB headers for parallel pipeline
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
-#include "fqc/pipeline/pipeline_node.h"
+#include "fqc/pipeline/compressor_node.h"
+#include "fqc/pipeline/decompressor_node.h"
+#include "fqc/pipeline/fastq_writer_node.h"
+#include "fqc/pipeline/fqc_reader_node.h"
+#include "fqc/pipeline/reader_node.h"
+#include "fqc/pipeline/writer_node.h"
 
 #include <tbb/parallel_pipeline.h>
 #include <tbb/task_arena.h>
@@ -63,8 +68,9 @@ std::size_t estimateMemoryUsage(const CompressionPipelineConfig& config,
         phase1Memory = estimatedReads * kPhase1BytesPerRead;
     }
 
-    std::size_t blockSize =
-        config.blockSize > 0 ? config.blockSize : recommendedBlockSize(config.readLengthClass);
+    std::size_t blockSize = config.blockSize > 0
+        ? config.blockSize
+        : recommendedBlockSize(config.compressorConfig.readLengthClass);
     std::size_t phase2Memory = blockSize * kPhase2BytesPerRead * config.maxInFlightBlocks;
 
     // Buffer memory
@@ -82,6 +88,46 @@ bool hasEnoughMemory(const CompressionPipelineConfig& config, std::size_t estima
     std::size_t limitBytes = config.memoryLimitMB * 1024 * 1024;
 
     return estimated <= limitBytes;
+}
+
+MarshaledReadChunk marshalReadChunk(const ReadChunk& chunk) {
+    MarshaledReadChunk marshaled;
+    if (chunk.reads.empty()) {
+        return marshaled;
+    }
+
+    marshaled.readViews.reserve(chunk.reads.size());
+    marshaled.ids.reserve(chunk.reads.size());
+    marshaled.comments.reserve(chunk.reads.size());
+    marshaled.sequences.reserve(chunk.reads.size());
+    marshaled.qualities.reserve(chunk.reads.size());
+
+    const auto firstLength = static_cast<std::uint32_t>(chunk.reads.front().sequence.size());
+    bool uniformLength = true;
+
+    for (const auto& read : chunk.reads) {
+        marshaled.ids.push_back(read.id);
+        marshaled.comments.push_back(read.comment);
+        marshaled.sequences.push_back(read.sequence);
+        marshaled.qualities.push_back(read.quality);
+        marshaled.readViews.emplace_back(read.id, read.comment, read.sequence, read.quality);
+
+        if (read.sequence.size() != firstLength) {
+            uniformLength = false;
+        }
+    }
+
+    if (uniformLength) {
+        marshaled.uniformReadLength = firstLength;
+        return marshaled;
+    }
+
+    marshaled.lengths.reserve(chunk.reads.size());
+    for (const auto& read : chunk.reads) {
+        marshaled.lengths.push_back(static_cast<std::uint32_t>(read.sequence.size()));
+    }
+
+    return marshaled;
 }
 
 void filterChunkToReadRange(ReadChunk& chunk, ReadId rangeStart, ReadId rangeEnd) {
@@ -127,11 +173,8 @@ VoidResult CompressionPipelineConfig::validate() const {
             fmt::format("Block size must be between {} and {}", kMinBlockSize, kMaxBlockSize));
     }
 
-    if (compressionLevel < kMinCompressionLevel || compressionLevel > kMaxCompressionLevel) {
-        return makeVoidError(ErrorCode::kInvalidArgument,
-                             fmt::format("Compression level must be between {} and {}",
-                                         kMinCompressionLevel,
-                                         kMaxCompressionLevel));
+    if (auto result = compressorConfig.validate(); !result) {
+        return result;
     }
 
     if (maxInFlightBlocks == 0) {
@@ -146,7 +189,7 @@ std::size_t CompressionPipelineConfig::effectiveThreads() const noexcept {
 }
 
 std::size_t CompressionPipelineConfig::effectiveBlockSize() const noexcept {
-    return blockSize > 0 ? blockSize : recommendedBlockSize(readLengthClass);
+    return blockSize > 0 ? blockSize : recommendedBlockSize(compressorConfig.readLengthClass);
 }
 
 // =============================================================================
@@ -197,12 +240,11 @@ public:
         stats_.threadsUsed = config_.effectiveThreads();
 
         try {
-            // Initialize pipeline nodes
             ReaderNodeConfig readerConfig;
             readerConfig.blockSize = config_.effectiveBlockSize();
             readerConfig.bufferSize = config_.inputBufferSize;
-            readerConfig.readLengthClass = config_.readLengthClass;
-            readerConfig.maxBlockBases = kDefaultMaxBlockBasesLong;
+            readerConfig.readLengthClass = config_.compressorConfig.readLengthClass;
+            readerConfig.maxBlockBases = config_.maxBlockBases;
 
             ReaderNode reader(readerConfig);
             auto openResult = reader.open(inputPath);
@@ -211,33 +253,27 @@ public:
                 return openResult;
             }
 
-            CompressorNodeConfig compressorConfig;
-            compressorConfig.readLengthClass = config_.readLengthClass;
-            compressorConfig.qualityMode = config_.qualityMode;
-            compressorConfig.idMode = config_.idMode;
-            compressorConfig.compressionLevel = config_.compressionLevel;
-
             WriterNodeConfig writerConfig;
             writerConfig.bufferSize = config_.outputBufferSize;
             writerConfig.atomicWrite = true;
 
             WriterNode writer(writerConfig);
 
-            // Build global header
             format::GlobalHeader globalHeader;
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
             globalHeader.flags = format::buildFlags(
                 false,  // isPaired
                 true,   // preserveOrder
-                config_.qualityMode,
-                config_.idMode,
+                config_.compressorConfig.qualityMode,
+                config_.compressorConfig.idMode,
                 false,  // reorder map is not produced by the current pipeline path
                 PELayout::kInterleaved,
-                config_.readLengthClass,
+                config_.compressorConfig.readLengthClass,
                 config_.streamingMode);
             globalHeader.compressionAlgo = static_cast<std::uint8_t>(
-                config_.readLengthClass == ReadLengthClass::kShort ? CodecFamily::kAbcV1
-                                                                   : CodecFamily::kZstdPlain);
+                config_.compressorConfig.readLengthClass == ReadLengthClass::kShort
+                    ? CodecFamily::kAbcV1
+                    : CodecFamily::kZstdPlain);
             globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
             globalHeader.totalReadCount = reader.estimatedTotalReads();
 
@@ -248,12 +284,9 @@ public:
                 return writerOpenResult;
             }
 
-            // Create one compressor per in-flight slot to prevent data races.
-            // TBB parallel_pipeline can have up to maxInFlightBlocks tokens
-            // in stage 2 simultaneously, so we need at least that many.
             std::vector<std::unique_ptr<CompressorNode>> compressors;
             for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
-                compressors.push_back(std::make_unique<CompressorNode>(compressorConfig));
+                compressors.push_back(std::make_unique<CompressorNode>(config_.compressorConfig));
             }
 
             // Progress tracking
@@ -462,11 +495,10 @@ public:
         stats_.threadsUsed = config_.effectiveThreads();
 
         try {
-            // Initialize reader for paired-end
             ReaderNodeConfig readerConfig;
             readerConfig.blockSize = config_.effectiveBlockSize();
             readerConfig.bufferSize = config_.inputBufferSize;
-            readerConfig.readLengthClass = config_.readLengthClass;
+            readerConfig.readLengthClass = config_.compressorConfig.readLengthClass;
 
             ReaderNode reader(readerConfig);
             auto openResult = reader.openPaired(input1Path, input2Path);
@@ -475,33 +507,27 @@ public:
                 return openResult;
             }
 
-            CompressorNodeConfig compressorConfig;
-            compressorConfig.readLengthClass = config_.readLengthClass;
-            compressorConfig.qualityMode = config_.qualityMode;
-            compressorConfig.idMode = config_.idMode;
-            compressorConfig.compressionLevel = config_.compressionLevel;
-
             WriterNodeConfig writerConfig;
             writerConfig.bufferSize = config_.outputBufferSize;
             writerConfig.atomicWrite = true;
 
             WriterNode writer(writerConfig);
 
-            // Build global header for paired-end
             format::GlobalHeader globalHeader;
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
             globalHeader.flags = format::buildFlags(
                 true,  // isPaired
                 true,  // preserveOrder
-                config_.qualityMode,
-                config_.idMode,
+                config_.compressorConfig.qualityMode,
+                config_.compressorConfig.idMode,
                 false,  // reorder map is not produced by the current pipeline path
                 PELayout::kInterleaved,
-                config_.readLengthClass,
+                config_.compressorConfig.readLengthClass,
                 config_.streamingMode);
             globalHeader.compressionAlgo = static_cast<std::uint8_t>(
-                config_.readLengthClass == ReadLengthClass::kShort ? CodecFamily::kAbcV1
-                                                                   : CodecFamily::kZstdPlain);
+                config_.compressorConfig.readLengthClass == ReadLengthClass::kShort
+                    ? CodecFamily::kAbcV1
+                    : CodecFamily::kZstdPlain);
             globalHeader.checksumType = static_cast<std::uint8_t>(ChecksumType::kXxHash64);
             globalHeader.totalReadCount = reader.estimatedTotalReads();
 
@@ -512,10 +538,9 @@ public:
                 return writerOpenResult;
             }
 
-            // Create one compressor per in-flight slot to prevent data races.
             std::vector<std::unique_ptr<CompressorNode>> compressors;
             for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
-                compressors.push_back(std::make_unique<CompressorNode>(compressorConfig));
+                compressors.push_back(std::make_unique<CompressorNode>(config_.compressorConfig));
             }
 
             // Progress tracking

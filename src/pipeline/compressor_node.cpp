@@ -6,12 +6,13 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/compressor_node.h"
+
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/id_compressor.h"
 #include "fqc/algo/quality_compressor.h"
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
-#include "fqc/pipeline/pipeline_node.h"
 
 #include <algorithm>
 
@@ -28,7 +29,7 @@ namespace fqc::pipeline {
 
 class CompressorNodeImpl {
 public:
-    explicit CompressorNodeImpl(CompressorNodeConfig config) : config_(std::move(config)) {}
+    explicit CompressorNodeImpl(algo::BlockCompressorConfig config) : config_(std::move(config)) {}
 
     Result<CompressedBlock> compress(ReadChunk chunk) {
         state_ = NodeState::kRunning;
@@ -47,44 +48,11 @@ public:
                 return block;
             }
 
-            // Determine uniform read length
-            bool uniformLength = true;
-            std::uint32_t firstLength = static_cast<std::uint32_t>(chunk.reads[0].sequence.size());
-            for (const auto& read : chunk.reads) {
-                if (read.sequence.size() != firstLength) {
-                    uniformLength = false;
-                    break;
-                }
-            }
-            block.uniformReadLength = uniformLength ? firstLength : 0;
-
-            // Prepare data for compression
-            std::vector<std::string_view> ids;
-            std::vector<std::string_view> comments;
-            std::vector<std::string_view> sequences;
-            std::vector<std::string_view> qualities;
-            std::vector<std::uint32_t> lengths;
-
-            ids.reserve(chunk.reads.size());
-            comments.reserve(chunk.reads.size());
-            sequences.reserve(chunk.reads.size());
-            qualities.reserve(chunk.reads.size());
-            if (!uniformLength) {
-                lengths.reserve(chunk.reads.size());
-            }
-
-            for (const auto& read : chunk.reads) {
-                ids.push_back(read.id);
-                comments.push_back(read.comment);
-                sequences.push_back(read.sequence);
-                qualities.push_back(read.quality);
-                if (!uniformLength) {
-                    lengths.push_back(static_cast<std::uint32_t>(read.sequence.size()));
-                }
-            }
+            const auto marshaled = marshalReadChunk(chunk);
+            block.uniformReadLength = marshaled.uniformReadLength;
 
             // Compress ID stream (with comments, BlockCompressor-compatible format)
-            auto idResult = compressIds(ids, comments);
+            auto idResult = compressIds(marshaled.ids, marshaled.comments);
             if (!idResult) {
                 state_ = NodeState::kError;
                 return std::unexpected(idResult.error());
@@ -93,7 +61,7 @@ public:
             block.codecIds = getIdCodec();
 
             // Compress sequence stream
-            auto seqResult = compressSequences(sequences);
+            auto seqResult = compressSequences(marshaled);
             if (!seqResult) {
                 state_ = NodeState::kError;
                 return std::unexpected(seqResult.error());
@@ -102,7 +70,7 @@ public:
             block.codecSeq = getSequenceCodec();
 
             // Compress quality stream
-            auto qualResult = compressQualities(qualities, sequences);
+            auto qualResult = compressQualities(marshaled.qualities, marshaled.sequences);
             if (!qualResult) {
                 state_ = NodeState::kError;
                 return std::unexpected(qualResult.error());
@@ -111,8 +79,8 @@ public:
             block.codecQual = getQualityCodec();
 
             // Compress auxiliary stream (lengths) if variable
-            if (!uniformLength) {
-                auto auxResult = compressLengths(lengths);
+            if (!marshaled.lengths.empty()) {
+                auto auxResult = compressLengths(marshaled.lengths);
                 if (!auxResult) {
                     state_ = NodeState::kError;
                     return std::unexpected(auxResult.error());
@@ -122,7 +90,11 @@ public:
             block.codecAux = format::encodeCodec(CodecFamily::kDeltaVarint, 0);
 
             // Calculate block checksum (over uncompressed logical streams)
-            block.checksum = calculateBlockChecksum(ids, comments, sequences, qualities, lengths);
+            block.checksum = calculateBlockChecksum(marshaled.ids,
+                                                    marshaled.comments,
+                                                    marshaled.sequences,
+                                                    marshaled.qualities,
+                                                    marshaled.lengths);
 
             ++totalBlocksCompressed_;
             state_ = NodeState::kIdle;
@@ -165,7 +137,7 @@ public:
         }
     }
 
-    const CompressorNodeConfig& config() const noexcept {
+    const algo::BlockCompressorConfig& config() const noexcept {
         return config_;
     }
 
@@ -175,7 +147,6 @@ private:
             return;
         }
 
-        // Initialize ID compressor
         algo::IDCompressorConfig idConfig;
         idConfig.idMode = config_.idMode;
         idConfig.compressionLevel = config_.compressionLevel;
@@ -183,22 +154,16 @@ private:
         idConfig.zstdLevel = config_.zstdLevel;
         idCompressor_ = std::make_unique<algo::IDCompressor>(idConfig);
 
-        // Initialize quality compressor
         algo::QualityCompressorConfig qualConfig;
         qualConfig.qualityMode = config_.qualityMode;
-        // Use Order-1 for long reads (lower memory), Order-2 for short reads
         qualConfig.contextOrder = (config_.readLengthClass == ReadLengthClass::kLong)
             ? algo::QualityContextOrder::kOrder1
             : algo::QualityContextOrder::kOrder2;
         qualConfig.usePositionContext = true;
         qualityCompressor_ = std::make_unique<algo::QualityCompressor>(qualConfig);
 
-        // Initialize block compressor
         algo::BlockCompressorConfig blockConfig;
         blockConfig.readLengthClass = config_.readLengthClass;
-        // This helper compressor is only used for the sequence stream.
-        // Skip placeholder quality/ID work because the pipeline compresses
-        // those streams separately with the real data.
         blockConfig.qualityMode = QualityMode::kDiscard;
         blockConfig.idMode = IDMode::kDiscard;
         blockConfig.compressionLevel = config_.compressionLevel;
@@ -254,26 +219,19 @@ private:
         return compressed;
     }
 
-    Result<std::vector<std::uint8_t>> compressSequences(
-        std::span<const std::string_view> sequences) {
+    Result<std::vector<std::uint8_t>> compressSequences(const MarshaledReadChunk& marshaled) {
         // For short reads, use BlockCompressor (ABC algorithm)
         // For medium/long reads, use Zstd directly
         if (config_.readLengthClass == ReadLengthClass::kShort) {
-            // Use zero-copy ReadRecordView and leave non-sequence fields empty.
-            std::vector<ReadRecordView> views;
-            views.reserve(sequences.size());
-            for (const auto& seq : sequences) {
-                views.emplace_back(std::string_view{}, std::string_view{}, seq, std::string_view{});
-            }
-
-            auto result = blockCompressor_->compress(std::span<const ReadRecordView>(views), 0);
+            auto result =
+                blockCompressor_->compress(std::span<const ReadRecordView>(marshaled.readViews), 0);
             if (!result) {
                 return std::unexpected(result.error());
             }
             return std::move(result->seqStream);
         } else {
             // Use Zstd for medium/long reads
-            return compressWithZstd(sequences);
+            return compressWithZstd(marshaled.sequences);
         }
     }
 
@@ -438,7 +396,7 @@ private:
         return format::encodeCodec(CodecFamily::kScmV1, 0);
     }
 
-    CompressorNodeConfig config_;
+    algo::BlockCompressorConfig config_;
     NodeState state_ = NodeState::kIdle;
     std::atomic<std::uint32_t> totalBlocksCompressed_{0};
 
@@ -451,7 +409,7 @@ private:
 // CompressorNode Public Interface
 // =============================================================================
 
-CompressorNode::CompressorNode(CompressorNodeConfig config)
+CompressorNode::CompressorNode(algo::BlockCompressorConfig config)
     : impl_(std::make_unique<CompressorNodeImpl>(std::move(config))) {}
 
 CompressorNode::~CompressorNode() = default;
@@ -475,7 +433,7 @@ void CompressorNode::reset() noexcept {
     impl_->reset();
 }
 
-const CompressorNodeConfig& CompressorNode::config() const noexcept {
+const algo::BlockCompressorConfig& CompressorNode::config() const noexcept {
     return impl_->config();
 }
 

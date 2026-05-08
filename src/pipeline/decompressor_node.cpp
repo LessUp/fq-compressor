@@ -6,9 +6,10 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
+#include "fqc/pipeline/decompressor_node.h"
+
 #include "fqc/algo/block_compressor.h"
 #include "fqc/common/logger.h"
-#include "fqc/pipeline/pipeline_node.h"
 
 #include <fmt/format.h>
 
