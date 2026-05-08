@@ -11,9 +11,9 @@
 
 - [x] 2.1 决定唯一参考源（保留 docs/website/pages/**，删除 docs/en|zh/**）
 - [x] 2.2 删除/隔离本地构建产物（docs/.site 已在 .gitignore）
-- [ ] 2.3 重写 GitHub Pages 首页为门户页（定位/场景/证据/CTA）
+- [x] 2.3 重写 GitHub Pages 首页为门户页（定位/场景/证据/CTA）
 - [x] 2.4 清理 FAQ 中无 artifact 支撑的性能话术（已在 benchmark-hardening 变更中完成）
-- [ ] 2.5 修复中英文站点导航不对称
+- [x] 2.5 修复中英文站点导航不对称
 - [x] 2.6 更新 docs/README.md 的 ownership map
 
 ## 3. CI/CD 精简
@@ -22,8 +22,8 @@
 - [x] 3.2 精简 ci.yml 为 format-check + clang-debug build/test + gcc-release build
 - [x] 3.3 精简 pages.yml 直接使用 docs/website npm 命令（已是最优）
 - [x] 3.4 瘦身 release.yml（保持当前结构，已支持多平台/多架构）
-- [ ] 3.5 删除失效 benchmark/report/chart 脚本
-- [ ] 3.6 清理根目录旧 Node 文档依赖
+- [x] 3.5 删除失效 benchmark/report/chart 脚本
+- [x] 3.6 清理根目录旧 Node 文档依赖
 
 ## 4. AI 工具链治理
 
@@ -45,5 +45,5 @@
 - [x] 6.2 运行 openspec list --json 确认无活跃变更（当前有 global-closeout-consolidation）
 - [x] 6.3 运行 ./scripts/lint.sh format-check
 - [x] 6.4 运行 ./scripts/test.sh clang-debug
-- [ ] 6.5 运行 docs website build
+- [x] 6.5 运行 docs website build
 - [x] 6.6 提交并推送
