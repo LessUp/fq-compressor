@@ -12,98 +12,29 @@ to achieve near-entropy compression ratios while maintaining O(1) random access.
 `fq-compressor` is in **closeout mode**. Prioritize finishing, simplifying, and stabilizing the
 current version over adding new product surface area.
 
-- Treat `openspec/specs/` as the only living requirements source.
 - Treat `docs/archive/` as archived reference only.
 - Prefer deletion/consolidation over preserving duplicate docs and duplicate tooling.
 - Keep GitHub Pages focused on project positioning, onboarding, and proof points rather than being
   a README mirror.
-- Keep CI, hooks, MCP, and tool integrations minimal and high-signal.
+- Keep CI and tool integrations minimal and high-signal.
 
-## Required Development Loop
+## Development Workflow
 
-1. Run `./scripts/dev/preflight.sh` before substantial work.
-2. Check `openspec list --json` and keep **one active change at a time**.
-3. Use `./scripts/dev/create-worktree.sh <change-name>` only when you want extra isolation.
-4. Implement against OpenSpec tasks, not free-form prompts.
-5. Run targeted checks first, then repository gates:
-   - `./scripts/lint.sh format-check`
-   - `./scripts/test.sh clang-debug`
-6. Use `/review` for risky or cross-file diffs when it adds signal.
-7. Push directly once local checks are green; a PR is not required for the default solo workflow.
+Simple, direct workflow optimized for closeout mode:
+
+1. **Understand** - Read relevant code and docs first
+2. **Implement** - Write code directly, following existing patterns
+3. **Verify** - Run `./scripts/test.sh clang-debug` and `./scripts/lint.sh format-check`
+4. **Commit** - Push directly when checks pass; no PR required
+
+For risky or cross-file changes, use `/review` before pushing.
 
 ## AI Tool Roles
 
 | Tool | Best use in this repo |
 |------|------------------------|
-| Claude / Codex / Copilot | Cross-file refactors, workflow/tooling cleanup, OpenSpec artifact authoring |
-| GLM / lower-cost models | Small OpenSpec tasks with explicit acceptance criteria |
-| Review model / subagents | Pre-merge diff review, workflow drift review, doc drift review |
-
-## OpenSpec Workflow
-
-This project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development.
-
-### Starting New Work
-
-```
-/opsx:propose "<feature description>"
-```
-
-This creates a change folder at `openspec/changes/<name>/` with:
-- `proposal.md` - What and why
-- `specs/` - Requirements and scenarios
-- `design.md` - Technical approach
-- `tasks.md` - Implementation checklist
-
-### Implementing
-
-```
-/opsx:apply <change-name>
-```
-
-Works through tasks one by one, marking them complete with `[x]`.
-
-### Completing
-
-```
-/opsx:archive <change-name>
-```
-
-Moves completed change to archive, syncs delta specs into main specs.
-
-### Exploring
-
-```
-/opsx:explore "<topic>"
-```
-
-Research and investigate before committing to a change.
-
-### Branch and Review Discipline
-
-- Direct push is the default solo-maintainer path.
-- Optional local branches or worktrees are fine when they reduce risk, but they are not mandatory.
-- Prefer `/review` before pushing when the diff is risky, architectural, or unusually broad.
-- Use `/research` for bounded investigation before drafting a proposal.
-- Use `/remote` only when the remote task maps cleanly to one OpenSpec change.
-
-### Spec Structure
-
-Living specifications are in `openspec/specs/`:
-
-| Capability | Description |
-|------------|-------------|
-| `compression` | FASTQ compression, algorithms, long-read/PE support |
-| `decompression` | Decompression, range extraction, output options |
-| `random-access` | Block-based O(1) random access |
-| `quality-handling` | Quality score modes (lossless/lossy/discard) |
-| `performance` | Parallelism, memory management |
-| `integrity` | Checksums, verification, recovery |
-| `cli` | Command-line interface |
-| `build-system` | CMake, Conan, CI/CD |
-| `atomic-write` | Safe file writing |
-| `compatibility` | Version compatibility |
-| `file-format` | FQC binary format |
+| Claude / Codex / Copilot | Cross-file refactors, tooling cleanup, documentation |
+| Review model / subagents | Pre-merge diff review, doc drift review |
 
 ---
 
