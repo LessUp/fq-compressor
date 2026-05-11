@@ -6,13 +6,27 @@ const languages = [
   { code: 'zh', label: '中文', title: '简体中文' }
 ]
 
+// Map English section names to Chinese
+const enToZhMap: Record<string, string> = {
+  'introduction': '介绍',
+  'getting-started': '入门指南',
+  'core-concepts': '核心概念',
+  'performance': '性能优化',
+  'development': '开发指南',
+  'reference': '参考文档'
+}
+
+const zhToEnMap: Record<string, string> = Object.fromEntries(
+  Object.entries(enToZhMap).map(([en, zh]) => [zh, en])
+)
+
 export function LanguageToggle() {
   const router = useRouter()
   const currentPath = router.asPath
 
   // Determine current language from path
-  const getCurrentLang = () => {
-    if (currentPath.includes('/zh')) return 'zh'
+  const getCurrentLang = (): string => {
+    if (currentPath.startsWith('/zh') || currentPath === '/zh') return 'zh'
     return 'en'
   }
 
@@ -21,47 +35,42 @@ export function LanguageToggle() {
   const switchLanguage = (targetLang: string) => {
     if (targetLang === currentLang) return
 
-    // Calculate new path
     let newPath = currentPath
 
     if (currentLang === 'en' && targetLang === 'zh') {
       // Switching from English to Chinese
-      // Handle root path and /en paths
-      if (currentPath === '/fq-compressor' || currentPath === '/fq-compressor/') {
-        newPath = '/fq-compressor/zh'
-      } else if (currentPath.startsWith('/fq-compressor/en')) {
-        newPath = currentPath.replace('/fq-compressor/en', '/fq-compressor/zh')
+      if (currentPath === '/' || currentPath === '') {
+        newPath = '/zh'
+      } else if (currentPath.startsWith('/en')) {
+        // Replace /en with /zh
+        newPath = currentPath.replace(/^\/en/, '/zh')
       } else {
-        // Direct English pages (like /fq-compressor/intro)
-        // Try to find Chinese equivalent
-        const pathParts = currentPath.replace('/fq-compressor/', '').split('/')
-        const enPages = ['introduction', 'getting-started', 'core-concepts', 'performance', 'development', 'reference']
-        const zhPages = ['介绍', '入门指南', '核心概念', '性能优化', '开发指南', '参考文档']
-
+        // Direct English pages - map section names
+        const pathParts = currentPath.replace(/^\//, '').split('/')
         const firstPart = pathParts[0]
-        const enIndex = enPages.indexOf(firstPart)
-        if (enIndex !== -1) {
-          pathParts[0] = zhPages[enIndex]
-          newPath = '/fq-compressor/zh/' + pathParts.join('/')
+
+        if (enToZhMap[firstPart]) {
+          pathParts[0] = enToZhMap[firstPart]
+          newPath = '/zh/' + pathParts.join('/')
         } else {
-          newPath = '/fq-compressor/zh'
+          // Fallback to Chinese home
+          newPath = '/zh'
         }
       }
     } else if (currentLang === 'zh' && targetLang === 'en') {
       // Switching from Chinese to English
-      if (currentPath.startsWith('/fq-compressor/zh')) {
-        const zhPages = ['介绍', '入门指南', '核心概念', '性能优化', '开发指南', '参考文档']
-        const enPages = ['introduction', 'getting-started', 'core-concepts', 'performance', 'development', 'reference']
-
-        const pathAfterZh = currentPath.replace('/fq-compressor/zh/', '').split('/')
+      if (currentPath === '/zh' || currentPath === '/zh/') {
+        newPath = '/en'
+      } else {
+        const pathAfterZh = currentPath.replace(/^\/zh\/?/, '').split('/')
         const firstPart = pathAfterZh[0]
-        const zhIndex = zhPages.indexOf(firstPart)
 
-        if (zhIndex !== -1) {
-          pathAfterZh[0] = enPages[zhIndex]
-          newPath = '/fq-compressor/en/' + pathAfterZh.join('/')
+        if (zhToEnMap[firstPart]) {
+          pathAfterZh[0] = zhToEnMap[firstPart]
+          newPath = '/en/' + pathAfterZh.join('/')
         } else {
-          newPath = currentPath.replace('/fq-compressor/zh', '/fq-compressor/en')
+          // Fallback to English home
+          newPath = '/en'
         }
       }
     }
