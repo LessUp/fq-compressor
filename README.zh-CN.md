@@ -144,17 +144,15 @@ fqc info reads.fqc
 
 ## 🛠️ 开发
 
-`fq-compressor` 当前采用 **OpenSpec 驱动**，并处于 **closeout mode**。推荐本地循环：
+`fq-compressor` 当前处于 **closeout mode**。简化的开发流程：
 
 ```bash
-./scripts/dev/preflight.sh
-openspec list --json
 ./scripts/build.sh clang-debug
 ./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
 ```
 
-请将 `openspec/specs/` 视为唯一活规范源；`specs/` 与 `docs/archive/` 仅为历史参考材料。
+详见 AGENTS.md 获取完整项目规则和架构说明。
 
 ---
 

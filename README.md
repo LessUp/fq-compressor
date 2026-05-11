@@ -145,18 +145,15 @@ than this repository entry page.
 
 ## 🛠️ Development
 
-`fq-compressor` is **OpenSpec-driven** and currently in **closeout mode**. The expected local loop is:
+`fq-compressor` is in **closeout mode**. Simple development workflow:
 
 ```bash
-./scripts/dev/preflight.sh
-openspec list --json
 ./scripts/build.sh clang-debug
 ./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
 ```
 
-Use `openspec/specs/` as the living requirements source. Treat `specs/` and `docs/archive/` as
-historical reference only.
+See AGENTS.md for full project rules and architecture.
 
 ---
 
