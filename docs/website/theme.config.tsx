@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router'
+import { LanguageToggle } from './components/LanguageToggle'
 
 const config = {
   logo: (
@@ -106,13 +107,8 @@ const config = {
       </a>
     ),
   },
-  chat: {
-    link: 'https://github.com/LessUp/fq-compressor/discussions',
-    icon: (
-      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2C6.48 2 2 6.03 2 11c0 2.76 1.36 5.22 3.5 6.8V22l4.09-2.24c.93.24 1.92.37 2.91.37 5.52 0 10-4.03 10-9s-4.48-9-10-9zm0 16c-.83 0-1.63-.1-2.4-.29L7.5 18.5v-2.07C6.14 15.64 5 13.46 5 11c0-3.87 3.58-7 8-7s8 3.13 8 7-3.58 7-8 7z"/>
-      </svg>
-    ),
+  navbar: {
+    extraContent: <LanguageToggle />,
   },
   sidebar: {
     defaultMenuCollapseLevel: 1,
