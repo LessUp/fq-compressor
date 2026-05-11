@@ -90,6 +90,9 @@ public:
             block.codecAux = format::encodeCodec(CodecFamily::kDeltaVarint, 0);
 
             // Calculate block checksum (over uncompressed logical streams)
+            // 校验对象：ID || Comments || Seq || Qual || Aux (未压缩的逻辑数据流)
+            // 用于验证解压后数据的完整性，而非压缩数据的完整性
+            // 注意：CompressorNode 的校验和计算方式需要与 BlockCompressorImpl 保持一致
             block.checksum = calculateBlockChecksum(marshaled.ids,
                                                     marshaled.comments,
                                                     marshaled.sequences,
@@ -339,6 +342,16 @@ private:
         return compressed;
     }
 
+    /// @brief 计算块校验和 (xxHash64)
+    ///
+    /// 校验对象：逻辑未压缩数据流，按以下顺序计算：
+    ///   1. ID 流 - 所有 read 的 ID 顺序拼接
+    ///   2. Comment 流 - 所有 read 的注释顺序拼接（非空时）
+    ///   3. Sequence 流 - 所有 read 的序列顺序拼接
+    ///   4. Quality 流 - 所有 read 的质量值顺序拼接
+    ///   5. Auxiliary 流 - 每个 read 的长度信息（逐个 uint32_t 添加，总是计算）
+    ///
+    /// 与 BlockCompressorImpl::computeBlockChecksum 保持一致
     std::uint64_t calculateBlockChecksum(std::span<const std::string_view> ids,
                                          std::span<const std::string_view> comments,
                                          std::span<const std::string_view> sequences,
@@ -359,17 +372,40 @@ private:
 
         XXH64_reset(state, 0);
 
+        // Hash IDs
         for (const auto& id : ids) {
             XXH64_update(state, id.data(), id.size());
         }
+
+        // Hash comments
+        for (const auto& comment : comments) {
+            if (!comment.empty()) {
+                XXH64_update(state, comment.data(), comment.size());
+            }
+        }
+
+        // Hash sequences
         for (const auto& seq : sequences) {
             XXH64_update(state, seq.data(), seq.size());
         }
+
+        // Hash qualities
         for (const auto& qual : qualities) {
             XXH64_update(state, qual.data(), qual.size());
         }
+
+        // Hash lengths (aux) - 与 BlockCompressorImpl 一致，总是计算所有长度
+        // 注意：lengths 可能为空（均匀长度时），此时使用 sequences 的长度
         if (!lengths.empty()) {
-            XXH64_update(state, lengths.data(), lengths.size() * sizeof(std::uint32_t));
+            for (const auto len : lengths) {
+                XXH64_update(state, &len, sizeof(len));
+            }
+        } else {
+            // 均匀长度时，从 sequences 推断每个 read 的长度
+            for (const auto& seq : sequences) {
+                std::uint32_t len = static_cast<std::uint32_t>(seq.size());
+                XXH64_update(state, &len, sizeof(len));
+            }
         }
 
         return XXH64_digest(state);

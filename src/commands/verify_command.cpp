@@ -3,13 +3,20 @@
 // =============================================================================
 // Command handler implementation for verifying archive integrity.
 //
+// Verification levels:
+// 1. Structure check: Magic header, footer, block index integrity
+// 2. Block header check: Each block header is valid and consistent with index
+// 3. Payload check: Each block is decompressed and checksum verified
+//
 // Requirements: 5.1, 5.2, 5.3, 8.5
 // =============================================================================
 
 #include "fqc/commands/verify_command.h"
 
+#include "fqc/algo/block_compressor.h"
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
+#include "fqc/format/fqc_reader.h"
 
 #include <cstring>
 #include <fstream>
@@ -18,6 +25,8 @@
 #include <vector>
 
 #include <xxhash.h>
+
+#include <fmt/format.h>
 
 namespace fqc::commands {
 
@@ -372,136 +381,177 @@ VerificationResult VerifyCommand::verifyBlockIndex() {
 std::vector<VerificationResult> VerifyCommand::verifyBlockChecksums() {
     std::vector<VerificationResult> results;
 
-    std::ifstream file(options_.inputPath, std::ios::binary);
-    if (!file) {
+    try {
+        // 使用 FQCReader 来读取和解压数据
+        format::FQCReader reader(options_.inputPath);
+        reader.open();
+
+        // 读取全局头信息以配置解压器
+        const auto& globalHeader = reader.globalHeader();
+
+        // 配置解压器
+        algo::BlockCompressorConfig config;
+        config.readLengthClass = format::getReadLengthClass(globalHeader.flags);
+        config.qualityMode = format::getQualityMode(globalHeader.flags);
+        config.idMode = format::getIdMode(globalHeader.flags);
+        config.numThreads = 1;  // 单线程验证
+
+        algo::BlockCompressor compressor(config);
+
+        std::uint32_t corruptedBlocks = 0;
+        std::uint32_t checksumMismatches = 0;
+        std::uint64_t totalBlocks = reader.blockCount();
+
+        for (BlockId blockId = 0; blockId < totalBlocks; ++blockId) {
+            VerificationResult blockResult;
+            blockResult.checkName = "Block " + std::to_string(blockId);
+
+            try {
+                // 读取块数据
+                auto blockData = reader.readBlock(blockId);
+                const auto& header = blockData.header;
+
+                // 创建块头用于解压
+                format::BlockHeader decompressHeader;
+                decompressHeader.blockId = header.blockId;
+                decompressHeader.uncompressedCount = header.uncompressedCount;
+                decompressHeader.uniformReadLength = header.uniformReadLength;
+                decompressHeader.codecIds = header.codecIds;
+                decompressHeader.codecSeq = header.codecSeq;
+                decompressHeader.codecQual = header.codecQual;
+                decompressHeader.codecAux = header.codecAux;
+
+                // 解压块数据
+                auto decompressResult = compressor.decompress(decompressHeader,
+                                                              blockData.idsData,
+                                                              blockData.seqData,
+                                                              blockData.qualData,
+                                                              blockData.auxData);
+
+                if (!decompressResult) {
+                    blockResult.passed = false;
+                    blockResult.errorMessage = "解压失败: " + decompressResult.error().message();
+                    ++corruptedBlocks;
+                    results.push_back(blockResult);
+                    if (options_.failFast) {
+                        break;
+                    }
+                    continue;
+                }
+
+                // 计算解压后数据的校验和
+                // 需要将解压后的 reads 转换为字节流来计算校验和
+                std::uint64_t calculatedChecksum =
+                    calculateDecompressedChecksum(decompressResult.value().reads);
+
+                // 验证校验和
+                if (calculatedChecksum != header.blockXxhash64) {
+                    blockResult.passed = false;
+                    blockResult.errorMessage = "校验和不匹配: 期望 0x" +
+                        fmt::format("{:016x}", header.blockXxhash64) + ", 实际 0x" +
+                        fmt::format("{:016x}", calculatedChecksum);
+                    ++checksumMismatches;
+                    results.push_back(blockResult);
+                    if (options_.failFast) {
+                        break;
+                    }
+                    continue;
+                }
+
+                blockResult.passed = true;
+                blockResult.details =
+                    "验证通过 (" + std::to_string(header.uncompressedCount) + " reads)";
+                results.push_back(blockResult);
+
+            } catch (const std::exception& e) {
+                blockResult.passed = false;
+                blockResult.errorMessage = "验证异常: " + std::string(e.what());
+                ++corruptedBlocks;
+                results.push_back(blockResult);
+                if (options_.failFast) {
+                    break;
+                }
+            }
+        }
+
+        // 添加汇总结果
+        VerificationResult summary;
+        summary.checkName = "Block Payload Verification";
+        if (corruptedBlocks == 0 && checksumMismatches == 0) {
+            summary.passed = true;
+            summary.details = fmt::format("{} blocks verified successfully", totalBlocks);
+        } else {
+            summary.passed = false;
+            std::string msg;
+            if (corruptedBlocks > 0) {
+                msg += fmt::format("{} corrupted blocks", corruptedBlocks);
+            }
+            if (checksumMismatches > 0) {
+                if (!msg.empty())
+                    msg += ", ";
+                msg += fmt::format("{} checksum mismatches", checksumMismatches);
+            }
+            summary.errorMessage = msg + fmt::format(" (out of {} total)", totalBlocks);
+        }
+        results.insert(results.begin(), summary);
+
+    } catch (const std::exception& e) {
         VerificationResult err;
-        err.checkName = "Block Checksums";
+        err.checkName = "Block Payload Verification";
         err.passed = false;
-        err.errorMessage = "Failed to open file";
+        err.errorMessage = "验证失败: " + std::string(e.what());
         results.push_back(err);
-        return results;
     }
-
-    // Read footer
-    file.seekg(-static_cast<std::streamoff>(format::kFileFooterSize), std::ios::end);
-
-    format::FileFooter footer;
-    file.read(reinterpret_cast<char*>(&footer), sizeof(footer));
-
-    // Read block index
-    file.seekg(static_cast<std::streamoff>(footer.indexOffset), std::ios::beg);
-    format::BlockIndex indexHeader;
-    file.read(reinterpret_cast<char*>(&indexHeader), sizeof(indexHeader));
-
-    if (!indexHeader.isValid()) {
-        VerificationResult err;
-        err.checkName = "Block Checksums";
-        err.passed = false;
-        err.errorMessage = "Invalid index header";
-        results.push_back(err);
-        return results;
-    }
-
-    // Read all index entries
-    std::vector<format::IndexEntry> entries(indexHeader.numBlocks);
-    for (std::uint64_t i = 0; i < indexHeader.numBlocks; ++i) {
-        file.read(reinterpret_cast<char*>(&entries[i]), sizeof(format::IndexEntry));
-        if (indexHeader.entrySize > format::IndexEntry::kSize) {
-            file.seekg(
-                static_cast<std::streamoff>(indexHeader.entrySize - format::IndexEntry::kSize),
-                std::ios::cur);
-        }
-    }
-
-    // Verify each block's header
-    std::uint32_t corruptedBlocks = 0;
-    for (std::uint64_t i = 0; i < indexHeader.numBlocks; ++i) {
-        const auto& entry = entries[i];
-
-        // Seek to block
-        file.seekg(static_cast<std::streamoff>(entry.offset), std::ios::beg);
-        if (!file) {
-            VerificationResult blockResult;
-            blockResult.checkName = "Block " + std::to_string(i);
-            blockResult.passed = false;
-            blockResult.errorMessage = "Failed to seek to block";
-            results.push_back(blockResult);
-            ++corruptedBlocks;
-            if (options_.failFast)
-                break;
-            continue;
-        }
-
-        // Read block header
-        format::BlockHeader blockHeader;
-        file.read(reinterpret_cast<char*>(&blockHeader), sizeof(blockHeader));
-        if (file.gcount() < static_cast<std::streamsize>(sizeof(blockHeader))) {
-            VerificationResult blockResult;
-            blockResult.checkName = "Block " + std::to_string(i);
-            blockResult.passed = false;
-            blockResult.errorMessage = "Failed to read block header";
-            results.push_back(blockResult);
-            ++corruptedBlocks;
-            if (options_.failFast)
-                break;
-            continue;
-        }
-
-        // Validate block header
-        if (!blockHeader.isValid()) {
-            VerificationResult blockResult;
-            blockResult.checkName = "Block " + std::to_string(i);
-            blockResult.passed = false;
-            blockResult.errorMessage = "Invalid block header";
-            results.push_back(blockResult);
-            ++corruptedBlocks;
-            if (options_.failFast)
-                break;
-            continue;
-        }
-
-        // Verify block ID matches index
-        if (blockHeader.blockId != i) {
-            VerificationResult blockResult;
-            blockResult.checkName = "Block " + std::to_string(i);
-            blockResult.passed = false;
-            blockResult.errorMessage = "Block ID mismatch: expected " + std::to_string(i) +
-                ", got " + std::to_string(blockHeader.blockId);
-            results.push_back(blockResult);
-            ++corruptedBlocks;
-            if (options_.failFast)
-                break;
-            continue;
-        }
-
-        // Verify read count matches index
-        if (blockHeader.uncompressedCount != entry.readCount) {
-            VerificationResult blockResult;
-            blockResult.checkName = "Block " + std::to_string(i);
-            blockResult.passed = false;
-            blockResult.errorMessage = "Read count mismatch";
-            results.push_back(blockResult);
-            ++corruptedBlocks;
-            if (options_.failFast)
-                break;
-            continue;
-        }
-    }
-
-    // Add summary result
-    VerificationResult summary;
-    summary.checkName = "Block Checksums";
-    if (corruptedBlocks == 0) {
-        summary.passed = true;
-        summary.details = std::to_string(indexHeader.numBlocks) + " blocks verified";
-    } else {
-        summary.passed = false;
-        summary.errorMessage = std::to_string(corruptedBlocks) + " of " +
-            std::to_string(indexHeader.numBlocks) + " blocks corrupted";
-    }
-    results.insert(results.begin(), summary);
 
     return results;
+}
+
+std::uint64_t VerifyCommand::calculateDecompressedChecksum(const std::vector<ReadRecord>& reads) {
+    XXH64_state_t* state = XXH64_createState();
+    if (!state) {
+        throw IOError("Failed to create xxHash64 state for block checksum");
+    }
+
+    // 使用 RAII guard 确保状态被释放
+    struct XxHashStateGuard {
+        XXH64_state_t* state;
+        ~XxHashStateGuard() {
+            XXH64_freeState(state);
+        }
+    } guard{state};
+
+    XXH64_reset(state, 0);
+
+    // 按顺序计算：ID || Comments || Seq || Qual || Aux (与 BlockCompressorImpl 一致)
+    // Hash IDs
+    for (const auto& read : reads) {
+        XXH64_update(state, read.id.data(), read.id.size());
+    }
+
+    // Hash comments
+    for (const auto& read : reads) {
+        if (!read.comment.empty()) {
+            XXH64_update(state, read.comment.data(), read.comment.size());
+        }
+    }
+
+    // Hash sequences
+    for (const auto& read : reads) {
+        XXH64_update(state, read.sequence.data(), read.sequence.size());
+    }
+
+    // Hash quality
+    for (const auto& read : reads) {
+        XXH64_update(state, read.quality.data(), read.quality.size());
+    }
+
+    // Hash lengths (aux) - 逐个添加，与 BlockCompressorImpl 一致
+    for (const auto& read : reads) {
+        std::uint32_t len = static_cast<std::uint32_t>(read.sequence.length());
+        XXH64_update(state, &len, sizeof(len));
+    }
+
+    return XXH64_digest(state);
 }
 
 void VerifyCommand::printSummary() const {

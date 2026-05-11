@@ -799,6 +799,7 @@ public:
             // Initialize decompressor
             DecompressorNodeConfig decompressorConfig;
             decompressorConfig.skipCorrupted = config_.skipCorrupted;
+            decompressorConfig.verifyChecksums = config_.verifyChecksums;
             decompressorConfig.placeholderQual = config_.placeholderQual;
 
             DecompressorNode decompressor(decompressorConfig);
@@ -1060,6 +1061,7 @@ public:
             // Initialize decompressor
             DecompressorNodeConfig decompressorConfig;
             decompressorConfig.skipCorrupted = config_.skipCorrupted;
+            decompressorConfig.verifyChecksums = config_.verifyChecksums;
             decompressorConfig.placeholderQual = config_.placeholderQual;
 
             DecompressorNode decompressor(decompressorConfig);

@@ -150,7 +150,24 @@ private:
     [[nodiscard]] VerificationResult verifyBlockIndex();
 
     /// @brief Verify individual block checksums.
+    ///
+    /// 校验内容：
+    /// - 读取并解压每个 block 的 payload 数据
+    /// - 计算解压后数据的 xxHash64 (ID || Seq || Qual || Aux)
+    /// - 与 header 中的 blockXxhash64 比较
+    ///
+    /// 这确保了：
+    /// 1. 压缩数据可以正确解压
+    /// 2. 解压后的数据与原始数据一致
     [[nodiscard]] std::vector<VerificationResult> verifyBlockChecksums();
+
+    /// @brief 计算解压后数据的校验和
+    /// @param reads 解压后的 read 记录
+    /// @return xxHash64 校验和
+    ///
+    /// 计算顺序：ID || Seq || Qual || Aux (逻辑未压缩数据流)
+    [[nodiscard]] static std::uint64_t calculateDecompressedChecksum(
+        const std::vector<ReadRecord>& reads);
 
     /// @brief Print verification summary.
     void printSummary() const;

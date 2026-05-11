@@ -17,6 +17,7 @@ class DecompressorNodeImpl;
 
 struct DecompressorNodeConfig {
     bool skipCorrupted = false;
+    bool verifyChecksums = false;  ///< 是否验证块校验和
     char placeholderQual = kDefaultPlaceholderQual;
     std::string idPrefix;
 

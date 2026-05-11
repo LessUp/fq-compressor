@@ -155,6 +155,13 @@ fqc_add_test(archive_regression_test
     LIBRARIES fqc_cli
 )
 
+# Thread behavior tests
+# Validates that thread count doesn't change CLI semantics
+fqc_add_test(thread_behavior_test
+    SOURCES commands/thread_behavior_test.cpp
+    LIBRARIES fqc_cli
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================

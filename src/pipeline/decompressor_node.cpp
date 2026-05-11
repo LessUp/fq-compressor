@@ -3,6 +3,10 @@
 // =============================================================================
 // Implements the DecompressorNode (parallel processing stage) for decompression.
 //
+// Features:
+// - Block decompression with optional checksum verification
+// - Corrupted block handling (skip or error)
+//
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
@@ -10,6 +14,8 @@
 
 #include "fqc/algo/block_compressor.h"
 #include "fqc/common/logger.h"
+
+#include <xxhash.h>
 
 #include <fmt/format.h>
 
@@ -66,6 +72,29 @@ public:
             // Move decompressed reads into chunk
             chunk.reads = std::move(decompressResult->reads);
 
+            // 验证块校验和（如果启用）
+            if (config_.verifyChecksums) {
+                std::uint64_t calculatedChecksum = calculateDecompressedChecksum(chunk.reads);
+                if (calculatedChecksum != block.checksum) {
+                    if (config_.skipCorrupted) {
+                        FQC_LOG_WARNING("Block {} checksum mismatch: expected {:016x}, got {:016x}",
+                                        block.blockId,
+                                        block.checksum,
+                                        calculatedChecksum);
+                        chunk.reads.clear();  // 返回空 chunk
+                        state_ = NodeState::kIdle;
+                        return chunk;
+                    } else {
+                        throw FQCException(
+                            ErrorCode::kChecksumMismatch,
+                            fmt::format("Block {} checksum mismatch: expected {:016x}, got {:016x}",
+                                        block.blockId,
+                                        block.checksum,
+                                        calculatedChecksum));
+                    }
+                }
+            }
+
             ++totalBlocksDecompressed_;
             state_ = NodeState::kIdle;
             return chunk;
@@ -105,6 +134,59 @@ public:
 
     const DecompressorNodeConfig& config() const noexcept {
         return config_;
+    }
+
+private:
+    /// @brief 计算解压后数据的校验和
+    ///
+    /// 计算顺序：ID || Comments || Seq || Qual || Aux
+    /// 与 BlockCompressorImpl::computeBlockChecksum 保持一致
+    [[nodiscard]] static std::uint64_t calculateDecompressedChecksum(
+        const std::vector<ReadRecord>& reads) {
+        XXH64_state_t* state = XXH64_createState();
+        if (!state) {
+            throw IOError("Failed to create xxHash64 state for block checksum");
+        }
+
+        // 使用 RAII guard 确保状态被释放
+        struct XxHashStateGuard {
+            XXH64_state_t* state;
+            ~XxHashStateGuard() {
+                XXH64_freeState(state);
+            }
+        } guard{state};
+
+        XXH64_reset(state, 0);
+
+        // Hash IDs
+        for (const auto& read : reads) {
+            XXH64_update(state, read.id.data(), read.id.size());
+        }
+
+        // Hash comments
+        for (const auto& read : reads) {
+            if (!read.comment.empty()) {
+                XXH64_update(state, read.comment.data(), read.comment.size());
+            }
+        }
+
+        // Hash sequences
+        for (const auto& read : reads) {
+            XXH64_update(state, read.sequence.data(), read.sequence.size());
+        }
+
+        // Hash quality
+        for (const auto& read : reads) {
+            XXH64_update(state, read.quality.data(), read.quality.size());
+        }
+
+        // Hash lengths (aux) - 逐个添加，与 BlockCompressorImpl 一致
+        for (const auto& read : reads) {
+            std::uint32_t len = static_cast<std::uint32_t>(read.sequence.length());
+            XXH64_update(state, &len, sizeof(len));
+        }
+
+        return XXH64_digest(state);
     }
 
 private:

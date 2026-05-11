@@ -1,11 +1,11 @@
 ## 1. 代码架构收口
 
-- [ ] 1.1 统一块校验语义：明确校验对象是逻辑未压缩数据，更新 BlockCompressor/CompressorNode/FQCReader/VerifyCommand
-- [ ] 1.2 让 verify 命令真正校验 block payload，而不只是 header/index
-- [ ] 1.3 把 verifyChecksums 接入并行解压路径（FQCReaderNode）
-- [x] 1.4 增加 archive 篡改后 verify/decompress 应失败的回归测试
-- [ ] 1.5 明确处理 threads=1 vs threads>1 的行为差异（--header-only, --placeholder-qual, --id-prefix, --reorder, --save-reorder-map）
-- [ ] 1.6 增加"线程数不改变 CLI 语义"的测试矩阵
+- [x] 1.1 统一块校验语义：明确校验对象是逻辑未压缩数据，更新 BlockCompressor/CompressorNode/FQCReader/VerifyCommand
+- [x] 1.2 让 verify 命令真正校验 block payload，而不只是 header/index
+- [x] 1.3 把 verifyChecksums 接入并行解压路径（FQCReaderNode）
+- [x] 1.4 增加 archive 篹改后 verify/decompress 应失败的回归测试
+- [x] 1.5 明确处理 threads=1 vs threads>1 的行为差异（--header-only, --placeholder-qual, --id-prefix, --reorder, --save-reorder-map）
+- [x] 1.6 增加"线程数不改变 CLI 语义"的测试矩阵
 
 ## 2. 文档与 GitHub Pages 门户化
 
