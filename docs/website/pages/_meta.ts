@@ -5,9 +5,11 @@ export default {
     "display": "hidden"
   },
   "en": {
-    "title": "English"
+    "title": "English",
+    "type": "page"
   },
   "zh": {
-    "title": "简体中文"
+    "title": "简体中文",
+    "type": "page"
   }
 }
