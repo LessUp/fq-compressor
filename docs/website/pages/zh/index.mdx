@@ -3,202 +3,94 @@ title: fq-compressor - 高性能 FASTQ 压缩工具
 description: 为测序时代打造的高性能 FASTQ 压缩解决方案
 ---
 
-import { Hero } from '../../components/Hero'
-import { CodeShowcase } from '../../components/CodeShowcase'
-import { FeatureGrid } from '../../components/FeatureCard'
-import { Zap, Database, Target, Cpu, Shield, ArrowRight } from 'lucide-react'
+import { Callout, Tabs } from 'nextra/components'
 
-export default function HomePage() {
-  const stats = [
-    { value: '3.97×', label: 'Illumina 数据压缩比', color: 'text-blue-600 dark:text-blue-400' },
-    { value: '62 MB/s', label: '解压吞吐量', color: 'text-purple-600 dark:text-purple-400' },
-    { value: 'O(1)', label: '随机访问复杂度', color: 'text-green-600 dark:text-green-400' },
-  ]
+# fq-compressor
 
-  const codeTabs = [
-    {
-      label: '压缩',
-      code: `# 快速压缩 FASTQ 文件
+**测序时代的高性能 FASTQ 压缩工具**
+
+C++23 FASTQ 压缩器，实现 **3.97× 压缩比** 和 **O(1) 随机访问**。为生产级 FASTQ 归档而生。
+
+## 核心指标
+
+| 指标 | 数值 |
+|------|------|
+| **压缩比** | Illumina 数据 3.97× |
+| **压缩速度** | 11.9 MB/s（多线程） |
+| **解压速度** | 62.3 MB/s（多线程） |
+| **随机访问** | O(1) 无需完整解压 |
+
+## 快速开始
+
+<Tabs items={['安装', '压缩', '解压', '验证']}>
+<Tabs.Tab>
+```bash
+# 下载预编译二进制（Linux x86_64，静态 musl）
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
+  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
+
+fqc --version
+```
+</Tabs.Tab>
+
+<Tabs.Tab>
+```bash
+# 压缩 FASTQ 文件
 fqc compress -i reads.fastq -o reads.fqc
 
-# 多线程压缩，指定内存限制
-fqc compress -i huge_reads.fq.gz -o compressed.fqc \\
-  --threads 8 --memory-limit 4096`
-    },
-    {
-      label: '解压',
-      code: `# 完整解压
-fqc decompress -i reads.fqc -o output.fastq
+# 多线程压缩
+fqc compress -i reads.fastq -o reads.fqc --threads 8
+```
+</Tabs.Tab>
 
-# 随机访问：仅解压第 1000-2000 条 reads
-fqc decompress -i reads.fqc -o partial.fastq \\
-  --range 1000-2000`
-    },
-    {
-      label: '验证',
-      code: `# 验证压缩文件完整性
+<Tabs.Tab>
+```bash
+# 完整解压
+fqc decompress -i reads.fqc -o restored.fastq
+
+# 随机访问（范围提取）
+fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
+
+# 流式输出（无临时文件）
+fqc decompress -i reads.fqc --stdout | gzip > output.fq.gz
+```
+</Tabs.Tab>
+
+<Tabs.Tab>
+```bash
+# 验证归档完整性
 fqc verify reads.fqc
 
-# 查看压缩文件元信息
-fqc info reads.fqc --json`
-    }
-  ]
+# 查看压缩详情
+fqc info reads.fqc
 
-  const features = [
-    {
-      icon: Zap,
-      iconColor: 'bg-yellow-500',
-      title: '极速压缩',
-      description: 'Intel oneTBB 并行流水线，11.9 MB/s 压缩，62.3 MB/s 解压吞吐量',
-      href: '/fq-compressor/zh/performance/benchmark'
-    },
-    {
-      icon: Database,
-      iconColor: 'bg-blue-500',
-      title: '极致压缩比',
-      description: 'ABC + SCM 混合算法，Illumina 数据达 3.97× 压缩比，接近熵极限',
-      href: '/fq-compressor/zh/core-concepts/architecture'
-    },
-    {
-      icon: Target,
-      iconColor: 'bg-red-500',
-      title: '随机访问',
-      description: '块级索引设计，O(1) 复杂度随机访问，无需完整解压即可提取任意区间',
-      href: '/fq-compressor/zh/core-concepts/fqc-format'
-    },
-    {
-      icon: Cpu,
-      iconColor: 'bg-green-500',
-      title: '长读长支持',
-      description: '自适应检测长读长数据（PacBio/Nanopore），优化块策略和内存管理',
-      href: '/fq-compressor/zh/getting-started/cli-usage'
-    },
-    {
-      icon: Shield,
-      iconColor: 'bg-purple-500',
-      title: '数据完整性',
-      description: 'xxHash64 校验和，篡改检测，完整的数据完整性验证机制',
-      href: '/fq-compressor/zh/core-concepts/architecture'
-    },
-    {
-      icon: ArrowRight,
-      iconColor: 'bg-indigo-500',
-      title: '透明输入',
-      description: '原生支持 .gz/.bz2/.xz 压缩输入，无需预处理直接压缩',
-      href: '/fq-compressor/zh/getting-started/quickstart'
-    }
-  ]
+# JSON 输出（用于脚本）
+fqc info reads.fqc --json | jq '.ratio'
+```
+</Tabs.Tab>
+</Tabs>
 
-  return (
-    <>
-      <Hero
-        title="fq-compressor"
-        subtitle="为测序时代打造的高性能 FASTQ 压缩解决方案"
-        description="融合装配式压缩（ABC）与统计上下文混合（SCM），在极致压缩比下实现 O(1) 随机访问"
-        primaryCta={{ text: '快速开始', href: '/fq-compressor/zh/getting-started/installation' }}
-        secondaryCta={{ text: 'GitHub', href: 'https://github.com/LessUp/fq-compressor' }}
-        stats={stats}
-      />
+## 特性
 
-      <CodeShowcase
-        title="简洁强大的命令行界面"
-        tabs={codeTabs}
-      />
+- **存储压缩 + 快速检索** — 激进压缩不牺牲随机访问或验证能力
+- **开箱即用** — 预编译二进制、简洁 CLI、文档完善
+- **现代 C++23 技术栈** — Intel oneTBB、CMake presets、Conan 2、clangd 友好
+- **归档检查** — 块级访问、元数据查询、校验和
+- **透明输入处理** — 直接读取 .gz、.bz2、.xz FASTQ 输入
+- **长读长支持** — 自适应 PacBio/Nanopore 数据
 
-      <FeatureGrid
-        title="为什么选择 fq-compressor？"
-        features={features}
-      />
+## 技术架构
 
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            适用于真实场景的性能表现
-          </h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-8 rounded-full" />
+- **压缩算法**：基于组装的压缩 (ABC) + 统计上下文混合 (SCM)
+- **并行性**：Intel oneTBB 管道、可调线程、零拷贝优化
+- **格式**：自定义 FQC 二进制格式，块结构支持 O(1) 随机访问
+- **质量模式**：无损、有损、丢弃质量分数
+- **完整性**：xxh64 校验和、内置验证
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <div className="text-2xl font-bold mb-2 text-blue-600 dark:text-blue-400">
-                Illumina 短读长
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                3.97× 压缩比<br/>
-                62 MB/s 解压速度
-              </div>
-            </div>
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <div className="text-2xl font-bold mb-2 text-purple-600 dark:text-purple-400">
-                PacBio/Nanopore
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                自适应长读长模式<br/>
-                优化内存占用
-              </div>
-            </div>
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <div className="text-2xl font-bold mb-2 text-green-600 dark:text-green-400">
-                配对末端数据
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                自动保持配对关系<br/>
-                范围解压支持
-              </div>
-            </div>
-          </div>
+<Callout type="info">
+**v0.2.0 — 稳定 & 可归档**
 
-          <a
-            href="/fq-compressor/zh/performance/benchmark"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            查看完整基准测试
-            <ArrowRight className="w-4 h-4" />
-          </a>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-            开源免费，生产就绪
-          </h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-primary-600 to-purple-600 mx-auto mb-8 rounded-full" />
-
-          <div className="text-center text-gray-600 dark:text-gray-400 mb-10">
-            <p className="mb-4">
-              fq-compressor 采用 <strong>MIT 许可证</strong>，代码完全开源。
-            </p>
-            <p>
-              基于 C++23 标准，支持 GCC 14+ 和 Clang 18+，跨平台编译。
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-4">
-            <a
-              href="https://github.com/LessUp/fq-compressor"
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secondary"
-            >
-              GitHub 仓库
-            </a>
-            <a
-              href="/fq-compressor/zh/development/contributing"
-              className="btn-secondary"
-            >
-              参与贡献
-            </a>
-            <a
-              href="https://github.com/LessUp/fq-compressor/releases/latest"
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secondary"
-            >
-              下载最新版本
-            </a>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
+fq-compressor 处于 **收尾模式**：稳定、生产测试、保持归档级仓库卫生。
+</Callout>
