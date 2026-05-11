@@ -86,8 +86,17 @@ struct CompressedBlockData {
     /// @brief Compressed auxiliary stream (read lengths if variable)
     std::vector<std::uint8_t> auxStream;
 
-    /// @brief xxHash64 of uncompressed logical streams
-    /// Computed over: ID || Seq || Qual || Aux (uncompressed)
+    /// @brief xxHash64 of uncompressed logical streams (用于数据完整性校验)
+    ///
+    /// 校验对象：逻辑未压缩数据流，按以下顺序计算：
+    ///   1. ID 流（所有 read 的 ID 顺序拼接）
+    ///   2. Comment 流（所有 read 的注释顺序拼接，非空时）
+    ///   3. Sequence 流（所有 read 的序列顺序拼接）
+    ///   4. Quality 流（所有 read 的质量值顺序拼接）
+    ///   5. Auxiliary 流（每个 read 的长度信息，逐个 uint32_t 添加）
+    ///
+    /// 注意：此校验和计算的是解压后的原始数据，而非压缩后的数据。
+    /// 这确保了即使压缩数据损坏，也能在解压时检测到数据完整性问题。
     std::uint64_t blockChecksum = 0;
 
     /// @brief Codec used for ID stream

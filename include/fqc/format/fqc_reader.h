@@ -318,9 +318,16 @@ public:
 
     /// @brief Verify a block's checksum.
     /// @param blockId Block ID (0-based).
-    /// @param uncompressedData Uncompressed block data for verification.
+    /// @param idsData Decompressed ID stream data for verification.
+    /// @param seqData Decompressed sequence stream data for verification.
+    /// @param qualData Decompressed quality stream data for verification.
+    /// @param auxData Decompressed auxiliary stream data for verification.
     /// @return true if checksum matches.
-    /// @note Requires uncompressed data because checksum is over uncompressed streams.
+    ///
+    /// 校验说明：
+    /// - 校验对象是解压后的逻辑数据流 (ID || Seq || Qual || Aux)
+    /// - 调用者需传入解压后的数据，而非压缩数据
+    /// - 计算这些数据的 xxHash64 并与 header 中的 blockXxhash64 比较
     [[nodiscard]] bool verifyBlockChecksum(BlockId blockId,
                                            std::span<const std::uint8_t> idsData,
                                            std::span<const std::uint8_t> seqData,

@@ -449,8 +449,13 @@ struct BlockHeader {
     /// @brief Reserved for alignment (must be 0).
     std::uint16_t reserved2 = 0;
 
-    /// @brief xxHash64 of uncompressed logical streams.
-    /// @note Computed over: ID || Seq || Qual || Aux (uncompressed).
+    /// @brief xxHash64 of uncompressed logical streams (数据完整性校验)
+    ///
+    /// 校验对象：逻辑未压缩数据流，按以下顺序计算：
+    ///   ID || Comments || Seq || Qual || Aux
+    ///
+    /// 注意：此校验和计算的是解压后的原始数据，而非压缩后的数据。
+    /// 这确保了即使压缩数据损坏，也能在解压时检测到数据完整性问题。
     std::uint64_t blockXxhash64 = 0;
 
     /// @brief Number of reads in this block.

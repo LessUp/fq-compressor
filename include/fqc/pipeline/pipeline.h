@@ -180,7 +180,10 @@ struct CompressedBlock {
     /// @brief Uniform read length (0 = variable)
     std::uint32_t uniformReadLength = 0;
 
-    /// @brief Block checksum (xxHash64 of uncompressed data)
+    /// @brief Block checksum (xxHash64 of uncompressed logical streams)
+    ///
+    /// 校验对象：逻辑未压缩数据流 (ID || Comments || Seq || Qual || Aux)
+    /// 用于验证解压后数据的完整性。
     std::uint64_t checksum = 0;
 
     /// @brief Codec IDs

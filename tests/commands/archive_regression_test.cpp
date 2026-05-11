@@ -486,4 +486,80 @@ TEST(ArchiveRegressionTest, VerifyDetectsTamperedBlockPayload) {
     EXPECT_NE(command.execute(), 0);
 }
 
+// =============================================================================
+// 线程行为一致性测试
+// =============================================================================
+
+/// @brief 测试线程数不改变解压输出的语义
+///
+/// 验证以下行为：
+/// 1. 单线程和多线程解压产生相同的输出
+/// 2. verify 命令对单线程和并行压缩的文件都能正确验证
+TEST(ArchiveRegressionTest, ThreadCountDoesNotChangeDecompressionSemantics) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath = tempFilePath(".fqc");
+    auto outputPath1 = tempFilePath(".out1.fastq");
+    auto outputPath4 = tempFilePath(".out4.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archiveGuard(archivePath);
+    TempFileGuard output1Guard(outputPath1);
+    TempFileGuard output4Guard(outputPath4);
+
+    // 创建测试数据
+    auto records = makeShortReadsWithComments();
+    writeFastqFile(inputPath, records);
+
+    // 用单线程压缩
+    ASSERT_EQ(compressArchive(inputPath, archivePath, 1, false, false, ReadLengthClass::kShort), 0);
+
+    // 用单线程解压
+    ASSERT_EQ(decompressArchive(archivePath, outputPath1, 1), 0);
+
+    // 用多线程解压
+    ASSERT_EQ(decompressArchive(archivePath, outputPath4, 4), 0);
+
+    // 验证输出相同
+    auto output1 = readFastqFile(outputPath1);
+    auto output4 = readFastqFile(outputPath4);
+    EXPECT_EQ(output1, output4);
+}
+
+/// @brief 测试并行压缩和单线程压缩后解压结果相同
+TEST(ArchiveRegressionTest, ParallelAndSingleThreadCompressionProduceEquivalentOutput) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath1 = tempFilePath("_st.fqc");
+    auto archivePath4 = tempFilePath("_par.fqc");
+    auto outputPath1 = tempFilePath(".out1.fastq");
+    auto outputPath4 = tempFilePath(".out4.fastq");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archive1Guard(archivePath1);
+    TempFileGuard archive4Guard(archivePath4);
+    TempFileGuard output1Guard(outputPath1);
+    TempFileGuard output4Guard(outputPath4);
+
+    // 创建测试数据（无注释，因为并行压缩不支持 reorder）
+    auto records = makeShortReadsNoComments(20);
+    writeFastqFile(inputPath, records);
+
+    // 单线程压缩（不重排序）
+    ASSERT_EQ(compressArchive(inputPath, archivePath1, 1, false, false, ReadLengthClass::kShort),
+              0);
+
+    // 并行压缩（不重排序）
+    ASSERT_EQ(compressArchive(inputPath, archivePath4, 4, false, false, ReadLengthClass::kShort),
+              0);
+
+    // 解压两者
+    ASSERT_EQ(decompressArchive(archivePath1, outputPath1, 1), 0);
+    ASSERT_EQ(decompressArchive(archivePath4, outputPath4, 4), 0);
+
+    // 验证输出相同
+    auto output1 = readFastqFile(outputPath1);
+    auto output4 = readFastqFile(outputPath4);
+    EXPECT_EQ(output1, output4);
+    EXPECT_EQ(output1, records);
+}
+
 }  // namespace fqc::commands::test

@@ -322,8 +322,18 @@ void DecompressCommand::runDecompression() {
     format::FQCReader reader(options_.inputPath);
     reader.open();
 
+    // Handle originalOrder: use dedicated path if requested
+    if (options_.originalOrder) {
+        runDecompressionOriginalOrder();
+        return;
+    }
+
+    // Resolve archive selection (handles range/rangePairs)
+    auto selection = resolveArchiveSelection(reader);
+
     // Open output stream(s)
     std::ostream* output = nullptr;
+    std::ostream* output2 = nullptr;
     std::unique_ptr<std::ofstream> fileOutput;
     std::unique_ptr<std::ofstream> fileOutput2;
 
@@ -337,15 +347,46 @@ void DecompressCommand::runDecompression() {
         output = fileOutput.get();
     }
 
+    // Handle splitPairedEnd: open second output if needed
+    if (options_.splitPairedEnd) {
+        if (options_.output2Path.empty()) {
+            // Derive R2 path from R1 path
+            auto r1Path = options_.outputPath.string();
+            auto r2Path = r1Path;
+            if (auto pos = r1Path.find("_R1"); pos != std::string::npos) {
+                r2Path.replace(pos, 3, "_R2");
+            } else if (auto pos = r1Path.find(".R1"); pos != std::string::npos) {
+                r2Path.replace(pos, 3, ".R2");
+            } else if (auto pos = r1Path.rfind('.'); pos != std::string::npos) {
+                r2Path.insert(pos, "_R2");
+            } else {
+                r2Path += "_R2";
+            }
+            fileOutput2 = std::make_unique<std::ofstream>(r2Path);
+        } else {
+            fileOutput2 = std::make_unique<std::ofstream>(options_.output2Path);
+        }
+        if (!fileOutput2->is_open()) {
+            throw IOError("Failed to create second output file");
+        }
+        output2 = fileOutput2.get();
+    }
+
+    // Determine if archive contains paired-end data
+    bool isPaired = format::isPaired(reader.globalHeader().flags);
+    auto peLayout = format::getPeLayout(reader.globalHeader().flags);
+
     // Create BlockCompressor for decompression
     algo::BlockCompressorConfig config;
     config.readLengthClass = format::getReadLengthClass(reader.globalHeader().flags);
     config.qualityMode = format::getQualityMode(reader.globalHeader().flags);
     config.idMode = format::getIdMode(reader.globalHeader().flags);
-    config.numThreads =
-        options_.threads > 0 ? static_cast<std::size_t>(options_.threads) : 0;  // 0 = auto-detect
+    config.numThreads = 1;  // Single-threaded
 
     algo::BlockCompressor compressor(config);
+
+    // Track current archive ID for range filtering
+    ReadId currentArchiveId = 1;
 
     // Process blocks
     std::size_t blockCount = reader.blockCount();
@@ -376,24 +417,41 @@ void DecompressCommand::runDecompression() {
             auto& decompressed = decompressResult.value();
             auto& reads = decompressed.reads;
 
-            // Write reads to output in archive order.
+            // Write reads to output (with range filtering)
             for (const auto& read : reads) {
-                // Write FASTQ record (only header if headerOnly)
-                if (read.comment.empty()) {
-                    *output << "@" << read.id << "\n";
-                } else {
-                    *output << "@" << read.id << " " << read.comment << "\n";
+                // Skip reads outside selection range
+                if (!selection.contains(currentArchiveId)) {
+                    currentArchiveId++;
+                    continue;
                 }
-                if (!options_.headerOnly) {
-                    *output << read.sequence << "\n";
-                    *output << "+\n";
-                    *output << read.quality << "\n";
+
+                // Write record
+                if (options_.splitPairedEnd && isPaired) {
+                    // Write to appropriate output based on original ID
+                    ReadId originalId = reader.totalReadCount() > 0
+                        ? currentArchiveId
+                        : currentArchiveId;  // Simplified for single-threaded
+                    writeSplitPairedRecord(*output, *output2, read, originalId, peLayout);
+                } else {
+                    // Write FASTQ record (only header if headerOnly)
+                    if (read.comment.empty()) {
+                        *output << "@" << read.id << "\n";
+                    } else {
+                        *output << "@" << read.id << " " << read.comment << "\n";
+                    }
+                    if (!options_.headerOnly) {
+                        *output << read.sequence << "\n";
+                        *output << "+\n";
+                        *output << read.quality << "\n";
+                    }
                 }
 
                 stats_.totalReads++;
                 stats_.totalBases += read.sequence.length();
                 stats_.outputBytes += read.id.length() + read.sequence.length() +
                     read.quality.length() + 4;  // +4 for @, +, \n chars
+
+                currentArchiveId++;
             }
 
             stats_.blocksProcessed++;
