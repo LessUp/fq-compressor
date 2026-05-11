@@ -448,7 +448,8 @@ TEST_F(CompressedStreamTest, InvalidGzipData) {
 
 TEST_F(CompressedStreamTest, RoundTripAllFormats) {
     std::vector<std::pair<std::string, std::string>> formats = {
-        {"gzip", ".gz"}, {"xz", ".xz"},
+        {"gzip", ".gz"},
+        {"xz", ".xz"},
         // bzip2 is optional in CI
     };
 
