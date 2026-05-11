@@ -1,96 +1,47 @@
 ---
-title: fq-compressor - High-Performance FASTQ Compression
-description: High-performance FASTQ compression tool for the sequencing era
+title: fq-compressor
+description: High-performance FASTQ compression
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout } from 'nextra/components'
 
 # fq-compressor
 
-**High-Performance FASTQ Compression for the Sequencing Era**
+High-performance FASTQ compression with 3.97× ratio and O(1) random access.
 
-A C++23 FASTQ compressor achieving **3.97× compression ratio** with **O(1) random access**. Built for production-grade FASTQ archiving.
-
-## Key Metrics
-
-| Metric | Value |
-|--------|-------|
-| **Compression Ratio** | 3.97× on Illumina data |
-| **Compression Speed** | 11.9 MB/s (multi-threaded) |
-| **Decompression Speed** | 62.3 MB/s (multi-threaded) |
-| **Random Access** | O(1) without full decompression |
-
-## Quick Start
-
-<Tabs items={['Install', 'Compress', 'Decompress', 'Verify']}>
-<Tabs.Tab>
 ```bash
-# Download pre-built binary (Linux x86_64, static musl)
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
-  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+# Install
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 
-fqc --version
-```
-</Tabs.Tab>
-
-<Tabs.Tab>
-```bash
-# Compress FASTQ files
+# Compress
 fqc compress -i reads.fastq -o reads.fqc
 
-# Multi-threaded compression
-fqc compress -i reads.fastq -o reads.fqc --threads 8
-```
-</Tabs.Tab>
+# Decompress
+fqc decompress -i reads.fqc -o output.fastq
 
-<Tabs.Tab>
-```bash
-# Full decompression
-fqc decompress -i reads.fqc -o restored.fastq
-
-# Random access (range extraction)
+# Random access
 fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-
-# Stream output (no temp files)
-fqc decompress -i reads.fqc --stdout | gzip > output.fq.gz
 ```
-</Tabs.Tab>
 
-<Tabs.Tab>
-```bash
-# Verify archive integrity
-fqc verify reads.fqc
+## Performance
 
-# View compression details
-fqc info reads.fqc
-
-# JSON output (for scripting)
-fqc info reads.fqc --json | jq '.ratio'
-```
-</Tabs.Tab>
-</Tabs>
+| Metric | Value |
+|--------|-------|
+| Compression ratio | 3.97× (Illumina) |
+| Compression speed | 11.9 MB/s |
+| Decompression speed | 62.3 MB/s |
+| Random access | O(1) |
 
 ## Features
 
-- **Compression + Fast Retrieval** — Aggressive compression without sacrificing random access or verification
-- **Ready to Use** — Pre-built binaries, simple CLI, comprehensive documentation
-- **Modern C++23 Stack** — Intel oneTBB, CMake presets, Conan 2, clangd-friendly
-- **Archive Inspection** — Block-level access, metadata queries, checksums
-- **Transparent Input** — Directly read .gz, .bz2, .xz FASTQ inputs
-- **Long Read Support** — Adaptive handling for PacBio/Nanopore data
-
-## Technical Architecture
-
-- **Compression Algorithms**: Assembly-based Compression (ABC) + Statistical Context Mixing (SCM)
-- **Parallelism**: Intel oneTBB pipeline, tunable threads, zero-copy optimization
-- **Format**: Custom FQC binary format with block structure for O(1) random access
-- **Quality Modes**: Lossless, lossy, discard quality scores
-- **Integrity**: xxh64 checksums, built-in verification
+- **ABC + SCM hybrid compression** — Near entropy limit
+- **O(1) random access** — Block-indexed, no full decompression needed
+- **Transparent input** — Direct .gz/.bz2/.xz support
+- **Long read support** — Adaptive PacBio/Nanopore handling
+- **Data integrity** — xxh64 checksum verification
 
 <Callout type="info">
-**v0.2.0 — Stable & Archivable**
-
-fq-compressor is in **closeout mode**: stable, production-tested, maintaining archive-grade repository hygiene.
+v0.2.0 — Stable, production-ready
 </Callout>
