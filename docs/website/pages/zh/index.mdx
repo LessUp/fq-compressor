@@ -1,96 +1,47 @@
 ---
-title: fq-compressor - 高性能 FASTQ 压缩工具
-description: 为测序时代打造的高性能 FASTQ 压缩解决方案
+title: fq-compressor
+description: 高性能 FASTQ 压缩工具
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout } from 'nextra/components'
 
 # fq-compressor
 
-**测序时代的高性能 FASTQ 压缩工具**
+高性能 FASTQ 压缩工具，实现 3.97× 压缩比和 O(1) 随机访问。
 
-C++23 FASTQ 压缩器，实现 **3.97× 压缩比** 和 **O(1) 随机访问**。为生产级 FASTQ 归档而生。
-
-## 核心指标
-
-| 指标 | 数值 |
-|------|------|
-| **压缩比** | Illumina 数据 3.97× |
-| **压缩速度** | 11.9 MB/s（多线程） |
-| **解压速度** | 62.3 MB/s（多线程） |
-| **随机访问** | O(1) 无需完整解压 |
-
-## 快速开始
-
-<Tabs items={['安装', '压缩', '解压', '验证']}>
-<Tabs.Tab>
 ```bash
-# 下载预编译二进制（Linux x86_64，静态 musl）
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/\
-  fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
+# 安装
+wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
 sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 
-fqc --version
-```
-</Tabs.Tab>
-
-<Tabs.Tab>
-```bash
-# 压缩 FASTQ 文件
+# 压缩
 fqc compress -i reads.fastq -o reads.fqc
 
-# 多线程压缩
-fqc compress -i reads.fastq -o reads.fqc --threads 8
-```
-</Tabs.Tab>
+# 解压
+fqc decompress -i reads.fqc -o output.fastq
 
-<Tabs.Tab>
-```bash
-# 完整解压
-fqc decompress -i reads.fqc -o restored.fastq
-
-# 随机访问（范围提取）
+# 随机访问
 fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-
-# 流式输出（无临时文件）
-fqc decompress -i reads.fqc --stdout | gzip > output.fq.gz
 ```
-</Tabs.Tab>
 
-<Tabs.Tab>
-```bash
-# 验证归档完整性
-fqc verify reads.fqc
+## 性能
 
-# 查看压缩详情
-fqc info reads.fqc
-
-# JSON 输出（用于脚本）
-fqc info reads.fqc --json | jq '.ratio'
-```
-</Tabs.Tab>
-</Tabs>
+| 指标 | 数值 |
+|------|------|
+| 压缩比 | 3.97× (Illumina) |
+| 压缩速度 | 11.9 MB/s |
+| 解压速度 | 62.3 MB/s |
+| 随机访问 | O(1) |
 
 ## 特性
 
-- **存储压缩 + 快速检索** — 激进压缩不牺牲随机访问或验证能力
-- **开箱即用** — 预编译二进制、简洁 CLI、文档完善
-- **现代 C++23 技术栈** — Intel oneTBB、CMake presets、Conan 2、clangd 友好
-- **归档检查** — 块级访问、元数据查询、校验和
-- **透明输入处理** — 直接读取 .gz、.bz2、.xz FASTQ 输入
-- **长读长支持** — 自适应 PacBio/Nanopore 数据
-
-## 技术架构
-
-- **压缩算法**：基于组装的压缩 (ABC) + 统计上下文混合 (SCM)
-- **并行性**：Intel oneTBB 管道、可调线程、零拷贝优化
-- **格式**：自定义 FQC 二进制格式，块结构支持 O(1) 随机访问
-- **质量模式**：无损、有损、丢弃质量分数
-- **完整性**：xxh64 校验和、内置验证
+- **ABC + SCM 混合压缩** — 接近熵极限
+- **O(1) 随机访问** — 块索引设计，无需完整解压
+- **透明输入** — 直接读取 .gz/.bz2/.xz
+- **长读长支持** — 自适应 PacBio/Nanopore
+- **数据完整性** — xxh64 校验和验证
 
 <Callout type="info">
-**v0.2.0 — 稳定 & 可归档**
-
-fq-compressor 处于 **收尾模式**：稳定、生产测试、保持归档级仓库卫生。
+v0.2.0 — 稳定版本，生产就绪
 </Callout>
