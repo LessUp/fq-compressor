@@ -102,8 +102,8 @@ public:
     /// @return Output stream (may be compressing).
     /// @throws IOError if file cannot be created or error is injected.
     [[nodiscard]] virtual auto createOutputStream(
-        const std::filesystem::path& path,
-        CompressionFormat format = CompressionFormat::kNone) -> std::unique_ptr<std::ostream> = 0;
+        const std::filesystem::path& path, CompressionFormat format = CompressionFormat::kNone)
+        -> std::unique_ptr<std::ostream> = 0;
 
     // =========================================================================
     // Compression Detection
@@ -282,8 +282,8 @@ public:
     /// @brief Set content for a file path from binary data.
     /// @param path File path to set content for.
     /// @param data Binary data (will be copied).
-    auto setFileContent(const std::filesystem::path& path,
-                        std::span<const std::uint8_t> data) -> void;
+    auto setFileContent(const std::filesystem::path& path, std::span<const std::uint8_t> data)
+        -> void;
 
     /// @brief Get content written to a file path.
     /// @param path File path to get content from.
