@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Rocket, Github, Sparkles } from 'lucide-react'
 
 interface HeroProps {
@@ -18,6 +18,58 @@ interface HeroProps {
     label: string
     color: string
   }>
+}
+
+// 简单的计数动画组件
+function AnimatedValue({ value, delay = 0 }: { value: string; delay?: number }) {
+  const [displayValue, setDisplayValue] = useState(value)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), delay)
+    return () => clearTimeout(timer)
+  }, [delay])
+
+  useEffect(() => {
+    if (!isVisible) return
+
+    // 解析数值（如 "3.97×" -> 3.97）
+    const match = value.match(/^([\d.]+)(.*)$/)
+    if (!match) {
+      setDisplayValue(value)
+      return
+    }
+
+    const targetNum = parseFloat(match[1])
+    const suffix = match[2]
+    const duration = 1500
+    const startTime = performance.now()
+    let frameId: number
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+
+      // Ease-out-cubic
+      const easeOut = 1 - Math.pow(1 - progress, 3)
+
+      const currentNum = targetNum * easeOut
+
+      // 根据原始数值决定小数位数
+      const decimals = match[1].includes('.') ? match[1].split('.')[1].length : 0
+      setDisplayValue(`${currentNum.toFixed(decimals)}${suffix}`)
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(animate)
+      }
+    }
+
+    frameId = requestAnimationFrame(animate)
+
+    return () => cancelAnimationFrame(frameId)
+  }, [value, isVisible])
+
+  return <>{displayValue}</>
 }
 
 export function Hero({ title, subtitle, description, primaryCta, secondaryCta, stats }: HeroProps) {
@@ -77,7 +129,9 @@ export function Hero({ title, subtitle, description, primaryCta, secondaryCta, s
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto animate-slide-up" style={{ animationDelay: '0.4s' }}>
             {stats.map((stat, index) => (
               <div key={index} className="stat-card">
-                <div className={`text-4xl font-bold mb-2 ${stat.color}`}>{stat.value}</div>
+                <div className={`text-4xl font-bold mb-2 ${stat.color}`}>
+                  <AnimatedValue value={stat.value} delay={400 + index * 100} />
+                </div>
                 <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
               </div>
             ))}
