@@ -59,13 +59,10 @@ const config = {
       <meta property="og:title" content="fq-compressor" />
       <meta property="og:description" content="High-performance FASTQ compression with 3.97x ratio and O(1) random access" />
       <link rel="icon" type="image/svg+xml" href="/fq-compressor/favicon.svg" />
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     </>
   ),
   search: {
-    placeholder: 'Search documentation...',
+    placeholder: 'Search documentation... (⌘K)',
   },
   toc: {
     title: 'On This Page',
