@@ -16,19 +16,382 @@
 #include <fmt/format.h>
 
 // TBB headers for parallel pipeline
+#include "fqc/algo/block_compressor.h"
+#include "fqc/algo/id_compressor.h"
+#include "fqc/algo/quality_compressor.h"
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_format.h"
-#include "fqc/pipeline/compressor_node.h"
 #include "fqc/pipeline/decompressor_node.h"
 #include "fqc/pipeline/fastq_writer_node.h"
 #include "fqc/pipeline/fqc_reader_node.h"
 #include "fqc/pipeline/reader_node.h"
 #include "fqc/pipeline/writer_node.h"
 
+#include <xxhash.h>
+#include <zstd.h>
+
+#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_pipeline.h>
 #include <tbb/task_arena.h>
 
 namespace fqc::pipeline {
+
+// =============================================================================
+// Block Compression State (Thread-Local)
+// =============================================================================
+// Each thread has its own compression state to avoid data races.
+// This replaces the previous CompressorNode class with inline logic.
+
+/// @brief Thread-local state for block compression
+struct BlockCompressionState {
+    algo::BlockCompressorConfig config;
+    std::unique_ptr<algo::IDCompressor> idCompressor;
+    std::unique_ptr<algo::QualityCompressor> qualityCompressor;
+    std::unique_ptr<algo::BlockCompressor> blockCompressor;
+    bool initialized = false;
+
+    /// @brief Initialize compressors lazily on first use
+    void initialize(const algo::BlockCompressorConfig& cfg) {
+        if (initialized) {
+            return;
+        }
+        config = cfg;
+
+        algo::IDCompressorConfig idConfig;
+        idConfig.idMode = config.idMode;
+        idConfig.compressionLevel = config.compressionLevel;
+        idConfig.useZstd = true;
+        idConfig.zstdLevel = config.zstdLevel;
+        idCompressor = std::make_unique<algo::IDCompressor>(idConfig);
+
+        algo::QualityCompressorConfig qualConfig;
+        qualConfig.qualityMode = config.qualityMode;
+        qualConfig.contextOrder = (config.readLengthClass == ReadLengthClass::kLong)
+            ? algo::QualityContextOrder::kOrder1
+            : algo::QualityContextOrder::kOrder2;
+        qualConfig.usePositionContext = true;
+        qualityCompressor = std::make_unique<algo::QualityCompressor>(qualConfig);
+
+        algo::BlockCompressorConfig blockConfig;
+        blockConfig.readLengthClass = config.readLengthClass;
+        blockConfig.qualityMode = QualityMode::kDiscard;
+        blockConfig.idMode = IDMode::kDiscard;
+        blockConfig.compressionLevel = config.compressionLevel;
+        blockConfig.zstdLevel = config.zstdLevel;
+        blockCompressor = std::make_unique<algo::BlockCompressor>(blockConfig);
+
+        initialized = true;
+    }
+
+    /// @brief Compress a read chunk into a compressed block
+    [[nodiscard]] Result<CompressedBlock> compress(ReadChunk chunk) {
+        CompressedBlock block;
+        block.blockId = chunk.chunkId;
+        block.readCount = static_cast<std::uint32_t>(chunk.reads.size());
+        block.startReadId = chunk.startReadId;
+        block.isLast = chunk.isLast;
+
+        if (chunk.reads.empty()) {
+            return block;
+        }
+
+        const auto marshaled = marshalReadChunk(chunk);
+        block.uniformReadLength = marshaled.uniformReadLength;
+
+        // Compress ID stream
+        auto idResult = compressIds(marshaled.ids, marshaled.comments);
+        if (!idResult) {
+            return std::unexpected(idResult.error());
+        }
+        block.idStream = std::move(*idResult);
+        block.codecIds = getIdCodec();
+
+        // Compress sequence stream
+        auto seqResult = compressSequences(marshaled);
+        if (!seqResult) {
+            return std::unexpected(seqResult.error());
+        }
+        block.seqStream = std::move(*seqResult);
+        block.codecSeq = getSequenceCodec();
+
+        // Compress quality stream
+        auto qualResult = compressQualities(marshaled.qualities, marshaled.sequences);
+        if (!qualResult) {
+            return std::unexpected(qualResult.error());
+        }
+        block.qualStream = std::move(qualResult->data);
+        block.codecQual = getQualityCodec();
+
+        // Compress auxiliary stream (lengths) if variable
+        if (!marshaled.lengths.empty()) {
+            auto auxResult = compressLengths(marshaled.lengths);
+            if (!auxResult) {
+                return std::unexpected(auxResult.error());
+            }
+            block.auxStream = std::move(*auxResult);
+        }
+        block.codecAux = format::encodeCodec(CodecFamily::kDeltaVarint, 0);
+
+        // Calculate block checksum
+        block.checksum = calculateBlockChecksum(marshaled.ids,
+                                                marshaled.comments,
+                                                marshaled.sequences,
+                                                marshaled.qualities,
+                                                marshaled.lengths);
+
+        return block;
+    }
+
+    /// @brief Reset state for reuse
+    void reset() {
+        if (idCompressor) {
+            idCompressor->reset();
+        }
+        if (qualityCompressor) {
+            qualityCompressor->reset();
+        }
+        if (blockCompressor) {
+            blockCompressor->reset();
+        }
+    }
+
+private:
+    /// @brief Compress IDs and comments
+    [[nodiscard]] Result<std::vector<std::uint8_t>> compressIds(
+        std::span<const std::string_view> ids, std::span<const std::string_view> comments) {
+        if (config.idMode == IDMode::kDiscard) {
+            return std::vector<std::uint8_t>{};
+        }
+
+        // Build buffer in BlockCompressor-compatible format
+        std::vector<std::uint8_t> buffer;
+        buffer.reserve(ids.size() * 50);
+
+        for (std::size_t i = 0; i < ids.size(); ++i) {
+            std::uint32_t idLen = static_cast<std::uint32_t>(ids[i].length());
+            buffer.insert(buffer.end(),
+                          reinterpret_cast<const std::uint8_t*>(&idLen),
+                          reinterpret_cast<const std::uint8_t*>(&idLen) + sizeof(idLen));
+            buffer.insert(buffer.end(), ids[i].begin(), ids[i].end());
+
+            std::uint32_t commentLen =
+                (i < comments.size()) ? static_cast<std::uint32_t>(comments[i].length()) : 0;
+            buffer.insert(buffer.end(),
+                          reinterpret_cast<const std::uint8_t*>(&commentLen),
+                          reinterpret_cast<const std::uint8_t*>(&commentLen) + sizeof(commentLen));
+            if (commentLen > 0) {
+                buffer.insert(buffer.end(), comments[i].begin(), comments[i].end());
+            }
+        }
+
+        // Compress with Zstd
+        std::size_t compressBound = ZSTD_compressBound(buffer.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        std::size_t compressedSize = ZSTD_compress(compressed.data(),
+                                                   compressed.size(),
+                                                   buffer.data(),
+                                                   buffer.size(),
+                                                   config.zstdLevel > 0 ? config.zstdLevel : 3);
+
+        if (ZSTD_isError(compressedSize)) {
+            return makeError<std::vector<std::uint8_t>>(
+                ErrorCode::kIOError,
+                "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
+    }
+
+    /// @brief Compress sequences using appropriate algorithm
+    [[nodiscard]] Result<std::vector<std::uint8_t>> compressSequences(
+        const MarshaledReadChunk& marshaled) {
+        if (config.readLengthClass == ReadLengthClass::kShort) {
+            // Use BlockCompressor (ABC algorithm) for short reads
+            auto result =
+                blockCompressor->compress(std::span<const ReadRecordView>(marshaled.readViews), 0);
+            if (!result) {
+                return std::unexpected(result.error());
+            }
+            return std::move(result->seqStream);
+        } else {
+            // Use Zstd for medium/long reads
+            return compressWithZstd(marshaled.sequences);
+        }
+    }
+
+    /// @brief Compress quality values
+    [[nodiscard]] Result<algo::CompressedQualityData> compressQualities(
+        std::span<const std::string_view> qualities, std::span<const std::string_view> sequences) {
+        if (config.qualityMode == QualityMode::kDiscard) {
+            algo::CompressedQualityData result;
+            result.numStrings = static_cast<std::uint32_t>(qualities.size());
+            result.qualityMode = QualityMode::kDiscard;
+            return result;
+        }
+        return qualityCompressor->compress(qualities, sequences);
+    }
+
+    /// @brief Compress read lengths using delta + varint encoding
+    [[nodiscard]] Result<std::vector<std::uint8_t>> compressLengths(
+        std::span<const std::uint32_t> lengths) {
+        if (lengths.empty()) {
+            return std::vector<std::uint8_t>{};
+        }
+
+        std::vector<std::uint8_t> encoded;
+        encoded.reserve(lengths.size() * 4);
+
+        std::int32_t prev = 0;
+        for (auto len : lengths) {
+            const std::int32_t current = static_cast<std::int32_t>(len);
+            std::uint64_t zigzag = algo::zigzagEncode(static_cast<std::int64_t>(current - prev));
+            prev = current;
+
+            do {
+                std::uint8_t byte = static_cast<std::uint8_t>(zigzag & 0x7F);
+                zigzag >>= 7;
+                if (zigzag != 0) {
+                    byte |= 0x80;
+                }
+                encoded.push_back(byte);
+            } while (zigzag != 0);
+        }
+
+        const std::size_t compressBound = ZSTD_compressBound(encoded.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        const std::size_t compressedSize =
+            ZSTD_compress(compressed.data(),
+                          compressed.size(),
+                          encoded.data(),
+                          encoded.size(),
+                          config.zstdLevel > 0 ? config.zstdLevel : 3);
+
+        if (ZSTD_isError(compressedSize)) {
+            return makeError<std::vector<std::uint8_t>>(
+                ErrorCode::kIOError,
+                "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
+    }
+
+    /// @brief Compress with Zstd directly
+    [[nodiscard]] Result<std::vector<std::uint8_t>> compressWithZstd(
+        std::span<const std::string_view> sequences) {
+        std::vector<std::uint8_t> buffer;
+
+        std::size_t totalSize = 0;
+        for (const auto& seq : sequences) {
+            totalSize += seq.size() + 4;
+        }
+        buffer.reserve(totalSize);
+
+        for (const auto& seq : sequences) {
+            auto len = static_cast<std::uint32_t>(seq.size());
+            buffer.push_back(static_cast<std::uint8_t>(len & 0xFF));
+            buffer.push_back(static_cast<std::uint8_t>((len >> 8) & 0xFF));
+            buffer.push_back(static_cast<std::uint8_t>((len >> 16) & 0xFF));
+            buffer.push_back(static_cast<std::uint8_t>((len >> 24) & 0xFF));
+            buffer.insert(buffer.end(), seq.begin(), seq.end());
+        }
+
+        if (buffer.empty()) {
+            return buffer;
+        }
+
+        const std::size_t compressBound = ZSTD_compressBound(buffer.size());
+        std::vector<std::uint8_t> compressed(compressBound);
+
+        const std::size_t compressedSize =
+            ZSTD_compress(compressed.data(), compressed.size(), buffer.data(), buffer.size(), 3);
+
+        if (ZSTD_isError(compressedSize)) {
+            return makeError<std::vector<std::uint8_t>>(
+                ErrorCode::kCompressionFailed,
+                "Zstd compression failed: " + std::string(ZSTD_getErrorName(compressedSize)));
+        }
+
+        compressed.resize(compressedSize);
+        return compressed;
+    }
+
+    /// @brief Calculate block checksum (xxHash64)
+    [[nodiscard]] std::uint64_t calculateBlockChecksum(std::span<const std::string_view> ids,
+                                                       std::span<const std::string_view> comments,
+                                                       std::span<const std::string_view> sequences,
+                                                       std::span<const std::string_view> qualities,
+                                                       std::span<const std::uint32_t> lengths) {
+        XXH64_state_t* state = XXH64_createState();
+        if (!state) {
+            throw IOError("Failed to create xxHash64 state for block checksum");
+        }
+
+        struct XxHashStateGuard {
+            XXH64_state_t* state;
+            ~XxHashStateGuard() {
+                XXH64_freeState(state);
+            }
+        } guard{state};
+
+        XXH64_reset(state, 0);
+
+        for (const auto& id : ids) {
+            XXH64_update(state, id.data(), id.size());
+        }
+        for (const auto& comment : comments) {
+            if (!comment.empty()) {
+                XXH64_update(state, comment.data(), comment.size());
+            }
+        }
+        for (const auto& seq : sequences) {
+            XXH64_update(state, seq.data(), seq.size());
+        }
+        for (const auto& qual : qualities) {
+            XXH64_update(state, qual.data(), qual.size());
+        }
+
+        if (!lengths.empty()) {
+            for (const auto len : lengths) {
+                XXH64_update(state, &len, sizeof(len));
+            }
+        } else {
+            for (const auto& seq : sequences) {
+                std::uint32_t len = static_cast<std::uint32_t>(seq.size());
+                XXH64_update(state, &len, sizeof(len));
+            }
+        }
+
+        return XXH64_digest(state);
+    }
+
+    /// @brief Get ID codec identifier
+    [[nodiscard]] std::uint8_t getIdCodec() const noexcept {
+        return format::encodeCodec(CodecFamily::kDeltaZstd, 0);
+    }
+
+    /// @brief Get sequence codec identifier
+    [[nodiscard]] std::uint8_t getSequenceCodec() const noexcept {
+        if (config.readLengthClass == ReadLengthClass::kShort) {
+            return format::encodeCodec(CodecFamily::kAbcV1, 0);
+        }
+        return format::encodeCodec(CodecFamily::kZstdPlain, 0);
+    }
+
+    /// @brief Get quality codec identifier
+    [[nodiscard]] std::uint8_t getQualityCodec() const noexcept {
+        if (config.qualityMode == QualityMode::kDiscard) {
+            return format::encodeCodec(CodecFamily::kRaw, 0);
+        }
+        if (config.readLengthClass == ReadLengthClass::kLong) {
+            return format::encodeCodec(CodecFamily::kScmOrder1, 0);
+        }
+        return format::encodeCodec(CodecFamily::kScmV1, 0);
+    }
+};
 
 // =============================================================================
 // Utility Function Implementations
@@ -284,10 +647,9 @@ public:
                 return writerOpenResult;
             }
 
-            std::vector<std::unique_ptr<CompressorNode>> compressors;
-            for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
-                compressors.push_back(std::make_unique<CompressorNode>(config_.compressorConfig));
-            }
+            // Thread-local compression state (one per TBB worker thread)
+            tbb::enumerable_thread_specific<BlockCompressionState> threadLocalState;
+            const auto& compressorConfig = config_.compressorConfig;
 
             // Progress tracking
             std::atomic<std::uint64_t> readsProcessed{0};
@@ -307,9 +669,6 @@ public:
             std::atomic<bool> writerError{false};
             std::optional<Error> pipelineError;
             std::mutex errorMutex;
-
-            // Thread-local compressor index for load balancing
-            std::atomic<std::size_t> compressorIndex{0};
 
             // Create task arena with configured thread count
             tbb::task_arena arena(static_cast<int>(config_.effectiveThreads()));
@@ -359,10 +718,11 @@ public:
                                 auto& chunk = *chunkOpt;
                                 std::size_t readCount = chunk.reads.size();
 
-                                // Select compressor using round-robin
-                                std::size_t idx = compressorIndex.fetch_add(1) % compressors.size();
+                                // Get thread-local compression state
+                                auto& state = threadLocalState.local();
+                                state.initialize(compressorConfig);
 
-                                auto compressResult = compressors[idx]->compress(std::move(chunk));
+                                auto compressResult = state.compress(std::move(chunk));
                                 if (!compressResult) {
                                     std::lock_guard<std::mutex> lock(errorMutex);
                                     pipelineError = compressResult.error();
@@ -538,10 +898,9 @@ public:
                 return writerOpenResult;
             }
 
-            std::vector<std::unique_ptr<CompressorNode>> compressors;
-            for (std::size_t i = 0; i < config_.maxInFlightBlocks; ++i) {
-                compressors.push_back(std::make_unique<CompressorNode>(config_.compressorConfig));
-            }
+            // Thread-local compression state (one per TBB worker thread)
+            tbb::enumerable_thread_specific<BlockCompressionState> threadLocalState;
+            const auto& compressorConfig = config_.compressorConfig;
 
             // Progress tracking
             std::atomic<std::uint64_t> readsProcessed{0};
@@ -556,7 +915,6 @@ public:
             std::atomic<bool> writerError{false};
             std::optional<Error> pipelineError;
             std::mutex errorMutex;
-            std::atomic<std::size_t> compressorIndex{0};
 
             tbb::task_arena arena(static_cast<int>(config_.effectiveThreads()));
 
@@ -604,9 +962,11 @@ public:
                                 auto& chunk = *chunkOpt;
                                 std::size_t readCount = chunk.reads.size();
 
-                                std::size_t idx = compressorIndex.fetch_add(1) % compressors.size();
+                                // Get thread-local compression state
+                                auto& state = threadLocalState.local();
+                                state.initialize(compressorConfig);
 
-                                auto compressResult = compressors[idx]->compress(std::move(chunk));
+                                auto compressResult = state.compress(std::move(chunk));
                                 if (!compressResult) {
                                     std::lock_guard<std::mutex> lock(errorMutex);
                                     pipelineError = compressResult.error();
