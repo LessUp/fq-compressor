@@ -3,8 +3,9 @@
 // =============================================================================
 // Contains configuration validation and BackpressureController.
 // Individual node implementations are in separate files:
-//   reader_node.cpp, compressor_node.cpp, writer_node.cpp,
+//   reader_node.cpp, writer_node.cpp,
 //   fqc_reader_node.cpp, decompressor_node.cpp, fastq_writer_node.cpp
+// Note: Compression logic is now inline in pipeline.cpp (BlockCompressionState)
 //
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================

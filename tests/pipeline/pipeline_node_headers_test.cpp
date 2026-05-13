@@ -3,7 +3,6 @@
 // =============================================================================
 
 #include "fqc/algo/block_compressor.h"
-#include "fqc/pipeline/compressor_node.h"
 #include "fqc/pipeline/decompressor_node.h"
 #include "fqc/pipeline/fastq_writer_node.h"
 #include "fqc/pipeline/fqc_reader_node.h"
