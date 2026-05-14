@@ -96,9 +96,9 @@ cmake/                 CMake modules
   fqc_sanitizers.cmake Sanitizer support (ASan, TSan, UBSan, MSan)
 
 docs/                  Documentation
-  en/                 English documentation
-  zh/                 Chinese documentation
-  website/            Next.js + Nextra documentation site
+  .vitepress/         VitePress config, theme entry, and site styling
+  en/                 English public documentation
+  zh/                 Chinese public documentation
 
 vendor/                Third-party vendored code
   spring-core/        Spring ABC algorithm (research license)
