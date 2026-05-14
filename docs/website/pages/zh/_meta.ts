@@ -1,8 +1,0 @@
-export default {
-  "index": "介绍",
-  "getting-started": "入门指南",
-  "core-concepts": "核心概念",
-  "performance": "性能优化",
-  "development": "开发指南",
-  "reference": "参考文档"
-}

@@ -123,8 +123,9 @@ docs/.site/
 .honkit/
 .cache/
 
-# Next.js build output
-docs/website/.next/
+# VitePress local artifacts
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 
 # 压缩测试数据
 *.fqc
