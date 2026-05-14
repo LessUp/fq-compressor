@@ -196,7 +196,8 @@ TEST(OriginalOrderCommandTest, RestoresOriginalOrderForReorderedArchiveFromPipel
     TempFileGuard outputGuard(outputPath);
 
     writeFastqFile(inputPath, records);
-    compressWithReorder(inputPath, compressedPath, 4);
+    // Note: Parallel pipeline doesn't support reorder maps, use single-threaded
+    compressWithReorder(inputPath, compressedPath, 1);
 
     DecompressOptions opts;
     opts.inputPath = compressedPath;
