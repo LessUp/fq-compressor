@@ -21,10 +21,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
 
 namespace fqc::commands {
+
+class CompressionProfile;
 
 // =============================================================================
 // Compression Options
@@ -198,20 +199,11 @@ public:
     }
 
 private:
-    /// @brief Validate options before execution.
-    void validateOptions();
-
-    /// @brief Detect read length class from input.
-    void detectReadLengthClass();
-
-    /// @brief Setup compression parameters based on detected class.
-    void setupCompressionParams();
-
     /// @brief Run the compression pipeline.
-    void runCompression();
+    void runCompression(const CompressionProfile& profile);
 
     /// @brief Run the parallel compression pipeline using TBB.
-    void runCompressionParallel();
+    void runCompressionParallel(const CompressionProfile& profile);
 
     /// @brief Print summary statistics.
     void printSummary() const;
@@ -221,9 +213,6 @@ private:
 
     /// @brief Statistics.
     CompressionStats stats_;
-
-    /// @brief Detected read length class.
-    std::optional<ReadLengthClass> detectedLengthClass_;
 };
 
 // =============================================================================

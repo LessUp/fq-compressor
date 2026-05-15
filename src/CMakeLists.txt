@@ -41,6 +41,7 @@ set(FQC_CORE_SOURCES
 
 # Command sources
 set(FQC_COMMAND_SOURCES
+    commands/compression_profile.cpp
     commands/compress_command.cpp
     commands/decompress_command.cpp
     commands/info_command.cpp

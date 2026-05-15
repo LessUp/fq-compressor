@@ -355,6 +355,12 @@ struct CompressionPipelineConfig {
     /// @brief Streaming mode (no global analysis)
     bool streamingMode = false;
 
+    /// @brief Whether the archive should advertise preserved original order
+    bool archivePreservesOrder = true;
+
+    /// @brief Whether the archive should advertise an embedded reorder map
+    bool archiveHasReorderMap = false;
+
     /// @brief Progress callback
     ProgressCallback progressCallback;
 
