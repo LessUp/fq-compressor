@@ -106,6 +106,15 @@ public:
         -> std::unique_ptr<std::ostream> = 0;
 
     // =========================================================================
+    // Path Queries
+    // =========================================================================
+
+    /// @brief Check whether an output path already exists.
+    /// @param path Output path to inspect.
+    /// @return true if writing would overwrite existing content.
+    [[nodiscard]] virtual auto outputExists(const std::filesystem::path& path) const -> bool = 0;
+
+    // =========================================================================
     // Compression Detection
     // =========================================================================
 
@@ -180,6 +189,11 @@ public:
     [[nodiscard]] auto createOutputStream(const std::filesystem::path& path,
                                           CompressionFormat format = CompressionFormat::kNone)
         -> std::unique_ptr<std::ostream> override;
+
+    /// @brief Check whether an output path already exists.
+    /// @param path Output path to inspect.
+    /// @return true if the filesystem path exists.
+    [[nodiscard]] auto outputExists(const std::filesystem::path& path) const -> bool override;
 
     /// @brief Detect compression from file extension.
     /// @param path File path.
@@ -258,6 +272,11 @@ public:
     [[nodiscard]] auto createOutputStream(const std::filesystem::path& path,
                                           CompressionFormat format = CompressionFormat::kNone)
         -> std::unique_ptr<std::ostream> override;
+
+    /// @brief Check whether an output path already exists in memory.
+    /// @param path Output path to inspect.
+    /// @return true if the memory-backed file exists.
+    [[nodiscard]] auto outputExists(const std::filesystem::path& path) const -> bool override;
 
     /// @brief Detect compression from extension.
     /// @param path File path.

@@ -8,7 +8,9 @@
 #include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -45,7 +47,9 @@ struct FastqRecordSpec {
 
 [[nodiscard]] std::filesystem::path tempFilePath(std::string_view suffix) {
     static std::atomic<int> counter{0};
-    return std::filesystem::temp_directory_path() /
+    const auto tempDir = std::filesystem::current_path() / ".test-artifacts";
+    std::filesystem::create_directories(tempDir);
+    return tempDir /
         ("fqc_archive_regression_" + std::to_string(counter++) + "_" +
          std::to_string(std::random_device{}()) + std::string(suffix));
 }
@@ -60,6 +64,18 @@ struct TempFileGuard {
         std::filesystem::remove(path, ec);
         std::filesystem::remove(path.string() + ".tmp", ec);
     }
+};
+
+struct CinRedirectGuard {
+    explicit CinRedirectGuard(std::istream& replacement)
+        : oldBuf_(std::cin.rdbuf(replacement.rdbuf())) {}
+
+    ~CinRedirectGuard() {
+        std::cin.rdbuf(oldBuf_);
+    }
+
+private:
+    std::streambuf* oldBuf_;
 };
 
 void writeFastqFile(const std::filesystem::path& path,
@@ -302,6 +318,66 @@ TEST(ArchiveRegressionTest, ParallelCompressionWritesHonestOrderMetadata) {
     reader.open();
 
     EXPECT_EQ(reader.originalFilename(), inputPath.filename().string());
+    EXPECT_TRUE(format::isPreserveOrder(reader.globalHeader().flags));
+    EXPECT_FALSE(reader.hasReorderMap());
+}
+
+TEST(ArchiveRegressionTest, StdinAutoDetectUsesMediumFallbackInArchiveMetadata) {
+    auto archivePath = tempFilePath(".fqc");
+    TempFileGuard archiveGuard(archivePath);
+
+    std::istringstream input(
+        "@read_1\nACGTACGTACGT\n+\nFFFFFFFFFFFF\n"
+        "@read_2\nTGCATGCATGCA\n+\nHHHHHHHHHHHH\n");
+    CinRedirectGuard cinGuard(input);
+
+    CompressOptions opts;
+    opts.inputPath = "-";
+    opts.outputPath = archivePath;
+    opts.forceOverwrite = true;
+    opts.showProgress = false;
+    opts.threads = 1;
+    opts.autoDetectLongRead = true;
+
+    CompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+
+    format::FQCReader reader(archivePath);
+    reader.open();
+
+    EXPECT_TRUE(format::isStreamingMode(reader.globalHeader().flags));
+    EXPECT_EQ(format::getReadLengthClass(reader.globalHeader().flags), ReadLengthClass::kMedium);
+}
+
+TEST(ArchiveRegressionTest, SingleThreadArchivePreservesOrderWhenMemoryLimitDisablesReordering) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath = tempFilePath(".fqc");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archiveGuard(archivePath);
+
+    writeFastqFile(inputPath, makeShortReadsNoComments(50000));
+
+    CompressOptions opts;
+    opts.inputPath = inputPath;
+    opts.outputPath = archivePath;
+    opts.forceOverwrite = true;
+    opts.showProgress = false;
+    opts.threads = 1;
+    opts.enableReordering = true;
+    opts.saveReorderMap = true;
+    opts.autoDetectLongRead = false;
+    opts.longReadMode = ReadLengthClass::kShort;
+    opts.memoryLimitMb = 1;
+    opts.blockSize = 50000;
+    opts.blockSizeExplicit = true;
+
+    CompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+
+    format::FQCReader reader(archivePath);
+    reader.open();
+
     EXPECT_TRUE(format::isPreserveOrder(reader.globalHeader().flags));
     EXPECT_FALSE(reader.hasReorderMap());
 }

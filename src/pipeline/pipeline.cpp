@@ -624,15 +624,14 @@ public:
 
             format::GlobalHeader globalHeader;
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
-            globalHeader.flags = format::buildFlags(
-                false,  // isPaired
-                true,   // preserveOrder
-                config_.compressorConfig.qualityMode,
-                config_.compressorConfig.idMode,
-                false,  // reorder map is not produced by the current pipeline path
-                PELayout::kInterleaved,
-                config_.compressorConfig.readLengthClass,
-                config_.streamingMode);
+            globalHeader.flags = format::buildFlags(false,  // isPaired
+                                                    config_.archivePreservesOrder,
+                                                    config_.compressorConfig.qualityMode,
+                                                    config_.compressorConfig.idMode,
+                                                    config_.archiveHasReorderMap,
+                                                    PELayout::kInterleaved,
+                                                    config_.compressorConfig.readLengthClass,
+                                                    config_.streamingMode);
             globalHeader.compressionAlgo = static_cast<std::uint8_t>(
                 config_.compressorConfig.readLengthClass == ReadLengthClass::kShort
                     ? CodecFamily::kAbcV1
@@ -875,15 +874,14 @@ public:
 
             format::GlobalHeader globalHeader;
             globalHeader.headerSize = format::GlobalHeader::kMinSize;
-            globalHeader.flags = format::buildFlags(
-                true,  // isPaired
-                true,  // preserveOrder
-                config_.compressorConfig.qualityMode,
-                config_.compressorConfig.idMode,
-                false,  // reorder map is not produced by the current pipeline path
-                PELayout::kInterleaved,
-                config_.compressorConfig.readLengthClass,
-                config_.streamingMode);
+            globalHeader.flags = format::buildFlags(true,  // isPaired
+                                                    config_.archivePreservesOrder,
+                                                    config_.compressorConfig.qualityMode,
+                                                    config_.compressorConfig.idMode,
+                                                    config_.archiveHasReorderMap,
+                                                    PELayout::kInterleaved,
+                                                    config_.compressorConfig.readLengthClass,
+                                                    config_.streamingMode);
             globalHeader.compressionAlgo = static_cast<std::uint8_t>(
                 config_.compressorConfig.readLengthClass == ReadLengthClass::kShort
                     ? CodecFamily::kAbcV1
