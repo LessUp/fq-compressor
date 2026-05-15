@@ -72,6 +72,10 @@ auto FileStreamFactory::createOutputStream(const std::filesystem::path& path,
     return stream;
 }
 
+auto FileStreamFactory::outputExists(const std::filesystem::path& path) const -> bool {
+    return std::filesystem::exists(path);
+}
+
 auto FileStreamFactory::detectCompression(const std::filesystem::path& path) const
     -> CompressionFormat {
     return detectCompressionFormatFromExtension(path);
@@ -125,6 +129,10 @@ auto MemoryStreamFactory::createOutputStream(const std::filesystem::path& path,
     files_[path] = FileEntry{};
 
     return std::make_unique<detail::MemoryOutputStream>(*this, path);
+}
+
+auto MemoryStreamFactory::outputExists(const std::filesystem::path& path) const -> bool {
+    return hasFile(path);
 }
 
 auto MemoryStreamFactory::detectCompression(const std::filesystem::path& path) const
