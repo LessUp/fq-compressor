@@ -33,3 +33,24 @@ This directory contains unit tests and property-based tests.
 # Run via ctest directly
 ctest --test-dir build/clang-debug --output-on-failure
 ```
+
+## Release acceptance
+
+Use the single acceptance runner for the validated release loop:
+
+```bash
+./scripts/acceptance.sh
+```
+
+Release-check command surface (kept in sync with the acceptance runner):
+
+```bash
+./scripts/lint.sh format-check
+./scripts/test.sh clang-debug
+bash tests/e2e/cli_smoke_test.sh
+bash tests/e2e/benchmark_smoke_test.sh
+(cd docs && npm ci && npm run build)
+bash scripts/devcontainer-validate.sh
+```
+
+Benchmark smoke is a local validation path, not a public performance claim.

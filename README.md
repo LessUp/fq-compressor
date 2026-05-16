@@ -153,6 +153,27 @@ than this repository entry page.
 ./scripts/test.sh clang-debug
 ```
 
+### Release checks
+
+Contributors should use the single acceptance runner:
+
+```bash
+./scripts/acceptance.sh
+```
+
+Release-check command surface (kept in sync with the acceptance runner):
+
+```bash
+./scripts/lint.sh format-check
+./scripts/test.sh clang-debug
+bash tests/e2e/cli_smoke_test.sh
+bash tests/e2e/benchmark_smoke_test.sh
+(cd docs && npm ci && npm run build)
+bash scripts/devcontainer-validate.sh
+```
+
+Benchmark smoke is a local validation path, not a public performance claim.
+
 See AGENTS.md for full project rules and architecture.
 
 ---
