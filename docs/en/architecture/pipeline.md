@@ -20,14 +20,14 @@ The compression command wires together five responsibilities:
 
 In practical terms the flow is:
 
-```text
-FASTQ / FASTQ.gz / FASTQ.bz2 / FASTQ.xz
-  -> parser
-  -> global analyzer / reorder planning
-  -> read chunks
-  -> parallel block compression
-  -> FQC writer
-  -> .fqc archive
+```mermaid
+flowchart LR
+    A[FASTQ or compressed FASTQ] --> B[Parser]
+    B --> C[Global analyzer and reorder planning]
+    C --> D[Read chunks]
+    D --> E[Parallel block compression]
+    E --> F[FQC writer]
+    F --> G[.fqc archive]
 ```
 
 The important boundary is the block.
@@ -37,13 +37,13 @@ Analysis may look across the full input, but payload encoding and archive storag
 
 Decompression mirrors the same boundary in reverse:
 
-```text
-.fqc archive
-  -> FQC reader
-  -> block lookup
-  -> parallel stream decode
-  -> optional original-order restoration
-  -> FASTQ writer
+```mermaid
+flowchart LR
+    A[.fqc archive] --> B[FQC reader]
+    B --> C[Block lookup]
+    C --> D[Parallel stream decode]
+    D --> E[Optional original-order restore]
+    E --> F[FASTQ writer]
 ```
 
 The reader side is anchored in `include/fqc/format/fqc_reader.h`, `include/fqc/pipeline/fqc_reader_node.h`, and `include/fqc/pipeline/decompressor_node.h`.
@@ -79,3 +79,8 @@ That separation keeps most operational behavior in reusable library code instead
 - Compression nodes: `include/fqc/pipeline/reader_node.h`, `include/fqc/pipeline/writer_node.h`
 - Decompression nodes: `include/fqc/pipeline/fqc_reader_node.h`, `include/fqc/pipeline/decompressor_node.h`, `include/fqc/pipeline/fastq_writer_node.h`
 - Command wiring: `src/commands/compress_command.cpp`, `src/commands/decompress_command.cpp`
+
+## Continue with
+
+- [FQC format and random access](/en/architecture/format-random-access) to see why block boundaries matter externally
+- [Academy](/en/academy/) if your next question is operational

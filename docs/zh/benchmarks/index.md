@@ -1,7 +1,6 @@
-# 基准测试
+# 证据
 
-基准测试部分的存在目的，是让所有公开性能表述都能回到可复现的证据链。
-它应回答两个问题：仓库里到底测过什么，以及当前证明边界之外还剩下什么。
+这一节的目标，是让所有公开性能表述都回到经过检查的证据边界。重点不是展示最大的数字，而是区分仓库当前真的能证明什么，以及仍属于设计愿景的部分。
 
 ## 从这里开始
 
@@ -9,6 +8,7 @@
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md) 是仓库侧对当前跟踪 benchmark 链路的说明。
 - [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json) 是机器可读的跟踪结果。
 - [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md) 是面向阅读的跟踪报告。
+- [研究中的参考文献](/zh/research/references) 把这些证据放回相邻压缩器和论文语境里。
 
 ## 当前证据
 
@@ -29,4 +29,5 @@
 ## 下一步可阅读
 
 - [白皮书](/zh/whitepaper/)：查看实测结果如何约束公开主张
-- [资源](/zh/resources/)：查看仓库路径与外部链接
+- [研究](/zh/research/)：查看论文、对照项目与演进说明
+- [学院](/zh/academy/)：如果你现在的目标是运行工具，而不是讨论公开定位

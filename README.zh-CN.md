@@ -62,7 +62,7 @@ sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 # 即将推出
 ```
 
-**其他平台：** 参见 [安装指南](https://lessup.github.io/fq-compressor/zh/guides/installation)
+**其他平台：** 参见 [安装指南](https://lessup.github.io/fq-compressor/zh/academy/installation)
 
 ### 从源码构建
 
@@ -135,10 +135,10 @@ fqc info reads.fqc
 | 表面 | 角色 |
 |------|------|
 | [📖 GitHub Pages](https://lessup.github.io/fq-compressor/) | 对外 landing page 与中英文入口 |
-| [English docs](https://lessup.github.io/fq-compressor/en/) | 安装、CLI、架构、性能说明 |
-| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 安装、命令参考、架构说明、性能基准 |
+| [English docs](https://lessup.github.io/fq-compressor/en/) | 白皮书、学院、架构与证据 |
+| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 白皮书、学院、架构说明、证据链 |
 | [📦 发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
-| [🤝 贡献指南](https://lessup.github.io/fq-compressor/zh/guides/contributing) | 面向 closeout 阶段的开发流程 |
+| [🤝 贡献指南](https://lessup.github.io/fq-compressor/zh/academy/contributing) | 面向 closeout 阶段的开发流程 |
 
 ---
 
@@ -165,7 +165,7 @@ fqc info reads.fqc
 - 工作流与工具链精简
 - archive-readiness 打磨
 
-具体流程请参阅 [贡献指南](https://lessup.github.io/fq-compressor/zh/guides/contributing)。
+具体流程请参阅 [贡献指南](https://lessup.github.io/fq-compressor/zh/academy/contributing)。
 
 ---
 

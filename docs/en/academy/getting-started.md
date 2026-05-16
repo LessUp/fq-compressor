@@ -2,7 +2,7 @@
 
 Use this page when you already have `fqc` available and want the shortest path to a verified `.fqc` round trip.
 If you still need the binary, start with [Installation](./installation). For the command surface, continue with
-[CLI usage](./cli-usage). For source and benchmark links, keep [Resources](/en/resources/) nearby.
+[CLI workflows](./cli-workflows). For source and benchmark links, keep [Research](/en/research/) nearby.
 
 ## 1. Confirm the binary
 
@@ -42,7 +42,7 @@ No output from `cmp` means the restored FASTQ matches the input.
 
 ## Continue with
 
-- [CLI usage](./cli-usage) for command patterns and key options
+- [CLI workflows](./cli-workflows) for command patterns and key options
 - [Installation](./installation) for release and source-build entry paths
 - [Contributing](./contributing) for closeout-mode workflow and quality gates
-- [Papers and projects](/en/resources/papers-and-projects) for related work
+- [Comparative study](/en/research/open-source-comparative-study) for related work

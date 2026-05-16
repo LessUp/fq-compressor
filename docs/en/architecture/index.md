@@ -3,6 +3,14 @@
 The architecture section explains how fq-compressor is assembled from parsing, analysis, compression, storage, and access components.
 It focuses on boundaries and data flow so readers can understand the system without reading every source file.
 
+```mermaid
+flowchart LR
+    A[FASTQ parser] --> B[Global analyzer]
+    B --> C[Block compressor]
+    C --> D[FQC writer and index]
+    D --> E[Reader, verify, range decode]
+```
+
 ## Section purpose
 
 - Describe the major subsystems and why they are separated
@@ -20,5 +28,5 @@ It focuses on boundaries and data flow so readers can understand the system with
 - [Pipeline](/en/architecture/pipeline) for compression and decompression flow boundaries
 - [FQC format and random access](/en/architecture/format-random-access) for archive layout and block lookup
 - [I/O and memory](/en/architecture/io-memory) for buffering and memory-budget behavior
-- [Guides](/en/guides/) for operator-facing workflows
-- [Resources](/en/resources/) for source, specs, and supporting material
+- [Academy](/en/academy/) for operator-facing workflows
+- [Research](/en/research/) for source, specs, and supporting material

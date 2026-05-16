@@ -34,5 +34,5 @@ build/clang-debug/src/fqc --version
 ## 继续阅读
 
 - [快速开始](./getting-started)：做一次烟雾级归档往返
-- [CLI 使用](./cli-usage)：查看命令面
+- [CLI 工作流](./cli-workflows)：查看命令面
 - [Releases](https://github.com/LessUp/fq-compressor/releases)：查看发布工件

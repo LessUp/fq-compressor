@@ -3,6 +3,14 @@
 架构部分说明 fq-compressor 如何由解析、分析、压缩、存储和访问模块组合而成。
 重点是边界与数据流，让读者无需通读所有源码也能理解系统结构。
 
+```mermaid
+flowchart LR
+    A[FASTQ parser] --> B[全局分析器]
+    B --> C[block 压缩器]
+    C --> D[FQC writer 与索引]
+    D --> E[Reader、verify、范围解码]
+```
+
 ## 本节目的
 
 - 描述主要子系统及其拆分原因
@@ -20,5 +28,5 @@
 - [流水线](/zh/architecture/pipeline)：查看压缩与解压的数据流边界
 - [FQC 格式与随机访问](/zh/architecture/format-random-access)：查看归档布局与 block 定位
 - [I/O 与内存](/zh/architecture/io-memory)：查看缓冲与内存预算行为
-- [指南](/zh/guides/)：查看面向操作者的流程
-- [资源](/zh/resources/)：查看源码、规格与支撑材料
+- [学院](/zh/academy/)：查看面向操作者的流程
+- [研究](/zh/research/)：查看源码、规格与支撑材料

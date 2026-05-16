@@ -1,7 +1,7 @@
-# Benchmarks
+# Evidence
 
-The benchmarks section exists to keep public performance statements tied to reproducible evidence.
-It should answer two questions: what has actually been measured in this repository, and what remains outside the current proof boundary.
+This section keeps public performance language tied to a checked evidence boundary. The goal is not to show the
+largest number, but to separate what the repository can currently prove from what remains a design ambition.
 
 ## Start here
 
@@ -9,6 +9,7 @@ It should answer two questions: what has actually been measured in this reposito
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md) is the repository-side narrative for the tracked benchmark chain.
 - [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json) is the machine-readable tracked result.
 - [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md) is the human-readable tracked report.
+- [Research references](/en/research/references) place the evidence next to adjacent compressors and papers.
 
 ## Current evidence
 
@@ -29,4 +30,5 @@ Readers should treat this section as an audit trail for what the repository can 
 ## Continue with
 
 - [Whitepaper](/en/whitepaper/) to see how measured results constrain public claims
-- [Resources](/en/resources/) for repository paths and external links
+- [Research](/en/research/) for papers, comparators, and evolution notes
+- [Academy](/en/academy/) if you need to run the tool rather than debate its public positioning

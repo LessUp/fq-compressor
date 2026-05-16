@@ -34,5 +34,5 @@ build/clang-debug/src/fqc --version
 ## Continue with
 
 - [Getting started](./getting-started) for a smoke-scale archive round trip
-- [CLI usage](./cli-usage) for the command surface
+- [CLI workflows](./cli-workflows) for the command surface
 - [Releases](https://github.com/LessUp/fq-compressor/releases) for published artifacts

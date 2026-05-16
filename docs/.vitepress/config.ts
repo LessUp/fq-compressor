@@ -1,28 +1,39 @@
 import { defineConfig } from "vitepress";
+import llmstxt from "vitepress-plugin-llms";
+import { withMermaid } from "vitepress-plugin-mermaid";
+
+const rawBase = process.env.VITEPRESS_BASE;
+const base = rawBase
+    ? rawBase.startsWith("/")
+        ? rawBase.endsWith("/")
+            ? rawBase
+            : `${rawBase}/`
+        : `/${rawBase}/`
+    : "/fq-compressor/";
 
 const englishNav = [
-    { text: "Overview", link: "/en/overview/" },
-    { text: "Whitepaper", link: "/en/whitepaper/" },
-    { text: "Architecture", link: "/en/architecture/" },
-    { text: "Benchmarks", link: "/en/benchmarks/" },
-    { text: "Guides", link: "/en/guides/" },
-    { text: "Resources", link: "/en/resources/" }
+    { text: "Overview", link: "/en/overview/", activeMatch: "/en/overview/" },
+    { text: "Whitepaper", link: "/en/whitepaper/", activeMatch: "/en/whitepaper/" },
+    { text: "Architecture", link: "/en/architecture/", activeMatch: "/en/architecture/" },
+    { text: "Evidence", link: "/en/benchmarks/", activeMatch: "/en/benchmarks/" },
+    { text: "Academy", link: "/en/academy/", activeMatch: "/en/academy/" },
+    { text: "Research", link: "/en/research/", activeMatch: "/en/research/" }
 ];
 
 const chineseNav = [
-    { text: "概览", link: "/zh/overview/" },
-    { text: "白皮书", link: "/zh/whitepaper/" },
-    { text: "架构", link: "/zh/architecture/" },
-    { text: "基准测试", link: "/zh/benchmarks/" },
-    { text: "指南", link: "/zh/guides/" },
-    { text: "资源", link: "/zh/resources/" }
+    { text: "导读", link: "/zh/overview/", activeMatch: "/zh/overview/" },
+    { text: "白皮书", link: "/zh/whitepaper/", activeMatch: "/zh/whitepaper/" },
+    { text: "架构", link: "/zh/architecture/", activeMatch: "/zh/architecture/" },
+    { text: "证据", link: "/zh/benchmarks/", activeMatch: "/zh/benchmarks/" },
+    { text: "学院", link: "/zh/academy/", activeMatch: "/zh/academy/" },
+    { text: "研究", link: "/zh/research/", activeMatch: "/zh/research/" }
 ];
 
 const englishSidebar = {
     "/en/overview/": [
         {
             text: "Overview",
-            items: [{ text: "Purpose and scope", link: "/en/overview/" }]
+            items: [{ text: "Reader briefing", link: "/en/overview/" }]
         }
     ],
     "/en/whitepaper/": [
@@ -56,26 +67,37 @@ const englishSidebar = {
     ],
     "/en/benchmarks/": [
         {
-            text: "Benchmarks",
-            items: [{ text: "Evidence and methodology", link: "/en/benchmarks/" }]
-        }
-    ],
-    "/en/guides/": [
-        {
-            text: "Guides",
+            text: "Evidence",
             items: [
-                { text: "Operator workflows", link: "/en/guides/" },
-                { text: "Installation", link: "/en/guides/installation" },
-                { text: "Getting started", link: "/en/guides/getting-started" },
-                { text: "CLI usage", link: "/en/guides/cli-usage" },
-                { text: "Contributing", link: "/en/guides/contributing" }
+                { text: "Evidence boundary", link: "/en/benchmarks/" },
+                { text: "Methodology", link: "/en/benchmarks/methodology" }
             ]
         }
     ],
-    "/en/resources/": [
+    "/en/academy/": [
         {
-            text: "Resources",
-            items: [{ text: "References and links", link: "/en/resources/" }]
+            text: "Academy",
+            items: [
+                { text: "Operator path", link: "/en/academy/" },
+                { text: "Installation", link: "/en/academy/installation" },
+                { text: "Getting started", link: "/en/academy/getting-started" },
+                { text: "CLI workflows", link: "/en/academy/cli-workflows" },
+                { text: "Contributing", link: "/en/academy/contributing" }
+            ]
+        }
+    ],
+    "/en/research/": [
+        {
+            text: "Research",
+            items: [
+                { text: "Research desk", link: "/en/research/" },
+                { text: "References", link: "/en/research/references" },
+                {
+                    text: "Comparative study",
+                    link: "/en/research/open-source-comparative-study"
+                },
+                { text: "Evolution notes", link: "/en/research/evolution-notes" }
+            ]
         }
     ]
 };
@@ -83,8 +105,8 @@ const englishSidebar = {
 const chineseSidebar = {
     "/zh/overview/": [
         {
-            text: "概览",
-            items: [{ text: "定位与范围", link: "/zh/overview/" }]
+            text: "导读",
+            items: [{ text: "读者导览", link: "/zh/overview/" }]
         }
     ],
     "/zh/whitepaper/": [
@@ -112,76 +134,90 @@ const chineseSidebar = {
     ],
     "/zh/benchmarks/": [
         {
-            text: "基准测试",
-            items: [{ text: "证据与方法", link: "/zh/benchmarks/" }]
-        }
-    ],
-    "/zh/guides/": [
-        {
-            text: "指南",
+            text: "证据",
             items: [
-                { text: "操作流程", link: "/zh/guides/" },
-                { text: "安装", link: "/zh/guides/installation" },
-                { text: "快速开始", link: "/zh/guides/getting-started" },
-                { text: "CLI 使用", link: "/zh/guides/cli-usage" },
-                { text: "贡献", link: "/zh/guides/contributing" }
+                { text: "证据边界", link: "/zh/benchmarks/" },
+                { text: "方法学", link: "/zh/benchmarks/methodology" }
             ]
         }
     ],
-    "/zh/resources/": [
+    "/zh/academy/": [
         {
-            text: "资源",
-            items: [{ text: "参考资料与链接", link: "/zh/resources/" }]
+            text: "学院",
+            items: [
+                { text: "操作者路径", link: "/zh/academy/" },
+                { text: "安装", link: "/zh/academy/installation" },
+                { text: "快速开始", link: "/zh/academy/getting-started" },
+                { text: "CLI 工作流", link: "/zh/academy/cli-workflows" },
+                { text: "贡献", link: "/zh/academy/contributing" }
+            ]
+        }
+    ],
+    "/zh/research/": [
+        {
+            text: "研究",
+            items: [
+                { text: "研究入口", link: "/zh/research/" },
+                { text: "参考文献", link: "/zh/research/references" },
+                { text: "开源项目对照", link: "/zh/research/open-source-comparative-study" },
+                { text: "演进思考", link: "/zh/research/evolution-notes" }
+            ]
         }
     ]
 };
 
-export default defineConfig({
-    title: "fq-compressor",
-    description: "High-performance FASTQ compression documentation",
-    base: "/fq-compressor/",
-    srcExclude: [
-        "README.md",
-        "archive/**",
-        "benchmark/**",
-        "dev/**",
-        "superpowers/**",
-        "website/**",
-        "zh/ai-development-mode.md"
-    ],
-    locales: {
-        en: {
-            label: "English",
-            lang: "en-US",
-            link: "/en/",
-            title: "fq-compressor",
-            description: "High-performance FASTQ compression documentation",
-            themeConfig: {
-                nav: englishNav,
-                sidebar: englishSidebar
+export default withMermaid(
+    defineConfig({
+        title: "fq-compressor",
+        description: "FASTQ compression whitepaper, architecture, and evidence portal",
+        base,
+        srcExclude: [
+            "README.md",
+            "archive/**",
+            "benchmark/**",
+            "dev/**",
+            "superpowers/**",
+            "website/**",
+            "zh/ai-development-mode.md"
+        ],
+        locales: {
+            en: {
+                label: "English",
+                lang: "en-US",
+                link: "/en/",
+                title: "fq-compressor",
+                description: "FASTQ compression whitepaper, architecture, and evidence portal",
+                themeConfig: {
+                    nav: englishNav,
+                    sidebar: englishSidebar
+                }
+            },
+            zh: {
+                label: "简体中文",
+                lang: "zh-CN",
+                link: "/zh/",
+                title: "fq-compressor",
+                description: "fq-compressor FASTQ 压缩白皮书、架构与证据站点",
+                themeConfig: {
+                    nav: chineseNav,
+                    sidebar: chineseSidebar
+                }
             }
         },
-        zh: {
-            label: "简体中文",
-            lang: "zh-CN",
-            link: "/zh/",
-            title: "fq-compressor",
-            description: "fq-compressor 高性能 FASTQ 压缩文档",
-            themeConfig: {
-                nav: chineseNav,
-                sidebar: chineseSidebar
-            }
+        themeConfig: {
+            outline: [2, 3],
+            search: {
+                provider: "local"
+            },
+            socialLinks: [
+                {
+                    icon: "github",
+                    link: "https://github.com/LessUp/fq-compressor"
+                }
+            ]
+        },
+        vite: {
+            plugins: [llmstxt()]
         }
-    },
-    themeConfig: {
-        search: {
-            provider: "local"
-        },
-        socialLinks: [
-            {
-                icon: "github",
-                link: "https://github.com/LessUp/fq-compressor"
-            }
-        ]
-    }
-});
+    })
+);
