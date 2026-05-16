@@ -20,14 +20,14 @@ fq-compressor 围绕“有界 block 流水线”组织：串行输入、并行 b
 
 实际数据流可概括为：
 
-```text
-FASTQ / FASTQ.gz / FASTQ.bz2 / FASTQ.xz
-  -> parser
-  -> 全局分析 / 重排规划
-  -> read chunks
-  -> 并行 block 压缩
-  -> FQC writer
-  -> .fqc archive
+```mermaid
+flowchart LR
+    A[FASTQ 或压缩 FASTQ] --> B[Parser]
+    B --> C[全局分析与重排规划]
+    C --> D[Read chunks]
+    D --> E[并行 block 压缩]
+    E --> F[FQC writer]
+    F --> G[.fqc archive]
 ```
 
 关键边界是 block。
@@ -37,13 +37,13 @@ FASTQ / FASTQ.gz / FASTQ.bz2 / FASTQ.xz
 
 解压按相同边界反向展开：
 
-```text
-.fqc archive
-  -> FQC reader
-  -> block 定位
-  -> 并行逻辑流解码
-  -> 可选的原始顺序恢复
-  -> FASTQ writer
+```mermaid
+flowchart LR
+    A[.fqc archive] --> B[FQC reader]
+    B --> C[block 定位]
+    C --> D[并行逻辑流解码]
+    D --> E[可选的原始顺序恢复]
+    E --> F[FASTQ writer]
 ```
 
 Reader 侧的关键锚点是 `include/fqc/format/fqc_reader.h`、`include/fqc/pipeline/fqc_reader_node.h` 与 `include/fqc/pipeline/decompressor_node.h`。
@@ -79,3 +79,8 @@ CLI 本身保持很薄。
 - 压缩节点：`include/fqc/pipeline/reader_node.h`、`include/fqc/pipeline/writer_node.h`
 - 解压节点：`include/fqc/pipeline/fqc_reader_node.h`、`include/fqc/pipeline/decompressor_node.h`、`include/fqc/pipeline/fastq_writer_node.h`
 - 命令装配：`src/commands/compress_command.cpp`、`src/commands/decompress_command.cpp`
+
+## 下一步可阅读
+
+- [FQC 格式与随机访问](/zh/architecture/format-random-access)：继续看 block 边界为什么在外部可见
+- [学院](/zh/academy/)：如果你接下来要执行命令而不是继续读实现

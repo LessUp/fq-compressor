@@ -62,7 +62,7 @@ sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 # Coming soon
 ```
 
-**Other platforms:** See [Installation Guide](https://lessup.github.io/fq-compressor/en/guides/installation)
+**Other platforms:** See [Installation Guide](https://lessup.github.io/fq-compressor/en/academy/installation)
 
 ### Build from Source
 
@@ -136,10 +136,10 @@ than this repository entry page.
 | Surface | Role |
 |---------|------|
 | [📖 GitHub Pages](https://lessup.github.io/fq-compressor/) | Public landing page and EN/ZH entry paths |
-| [🚀 English docs](https://lessup.github.io/fq-compressor/en/) | Installation, CLI, architecture, performance |
-| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 安装、命令参考、架构说明、性能基准 |
+| [🚀 English docs](https://lessup.github.io/fq-compressor/en/) | Whitepaper, academy, architecture, evidence |
+| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 白皮书、学院、架构说明、证据链 |
 | [📦 Releases](https://github.com/LessUp/fq-compressor/releases) | Prebuilt binaries |
-| [🤝 Contributing Guide](https://lessup.github.io/fq-compressor/en/guides/contributing) | Closeout-oriented development workflow |
+| [🤝 Contributing Guide](https://lessup.github.io/fq-compressor/en/academy/contributing) | Closeout-oriented development workflow |
 
 ---
 
@@ -166,7 +166,7 @@ Focused contributions are welcome, especially for:
 - workflow and tooling simplification
 - archive-readiness polish
 
-See the [Contributing Guide](https://lessup.github.io/fq-compressor/en/guides/contributing) for
+See the [Contributing Guide](https://lessup.github.io/fq-compressor/en/academy/contributing) for
 the repository workflow.
 
 ---

@@ -1,8 +1,8 @@
 # 快速开始
 
 当你已经拿到 `fqc` 并想最快完成一次 `.fqc` 往返校验时，读这一页即可。
-如果你还没有二进制，请先看 [安装](./installation)；如果你需要命令细节，继续看 [CLI 使用](./cli-usage)；
-如果你需要源码和基准出处，结合 [资源](/zh/resources/) 一起看。
+如果你还没有二进制，请先看 [安装](./installation)；如果你需要命令细节，继续看 [CLI 工作流](./cli-workflows)；
+如果你需要源码和基准出处，结合 [研究](/zh/research/) 一起看。
 
 ## 1. 检查二进制
 
@@ -42,7 +42,7 @@ cmp sample.fastq restored.fastq
 
 ## 继续阅读
 
-- [CLI 使用](./cli-usage)：查看命令模式与关键选项
+- [CLI 工作流](./cli-workflows)：查看命令模式与关键选项
 - [安装](./installation)：查看 release 与源码构建入口
 - [贡献](./contributing)：查看 closeout 模式下的仓库流程与质量门槛
-- [论文与项目](/zh/resources/papers-and-projects)：查看相关工作
+- [开源项目对照](/zh/research/open-source-comparative-study)：查看相关工作

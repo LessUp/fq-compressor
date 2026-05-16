@@ -1,24 +1,30 @@
 # Overview
 
-The overview section frames what fq-compressor is, who it serves, and which claims this site can support.
-It is the fastest way to orient a new reader before they dive into implementation detail or evidence.
+Use this page as the reader briefing. It explains what fq-compressor is trying to prove, which audiences the
+documentation serves, and how the rest of the site should be read.
 
-## What belongs here
+## What this portal is for
 
-- Product positioning and the problem fq-compressor addresses
-- Capability summaries that are stable enough for public navigation
-- Pointers to deeper technical, performance, and operational sections
+- Present fq-compressor as a system design for FASTQ compression, not only as a benchmark result.
+- Give interviewers and advanced developers a short route into architecture, evidence, and source anchors.
+- Keep operators and contributors from being forced through the full whitepaper before they can act.
 
-## Read this section when
+## Reading order
 
-- You are evaluating whether fq-compressor matches your FASTQ workflow
-- You need a short explanation of the project before reading the whitepaper
-- You want a map of the bilingual documentation set
+1. Read [Whitepaper](/en/whitepaper/) for the central thesis and major design claims.
+2. Read [Architecture](/en/architecture/) for module boundaries, pipeline flow, and format responsibilities.
+3. Read [Benchmarks](/en/benchmarks/) for the evidence boundary and method.
+4. Read [Academy](/en/academy/) if your question is operational.
+5. Read [Research](/en/research/) if your question is comparative, historical, or bibliographic.
 
-## Continue with
+## Who each lane is for
 
-- [Whitepaper](/en/whitepaper/) for the narrative and claims
-- [Architecture](/en/architecture/) for system structure and data flow
-- [Benchmarks](/en/benchmarks/) for evidence and methodology
-- [Guides](/en/guides/) for practical operator workflows
-- [Resources](/en/resources/) for repository, releases, and references
+- **Interview loop:** Whitepaper, then Benchmarks.
+- **Advanced GitHub readers:** Architecture, then Research.
+- **Operators:** Academy, with Architecture open beside it when an option needs deeper context.
+- **Contributors:** Architecture, Academy, and repository anchors referenced from Research.
+
+## Why this structure exists
+
+This site is meant to make claims auditable. If a statement about fq-compressor cannot be connected to architecture,
+measurement method, or tracked repository artifacts, it should not be treated as part of the durable public story.

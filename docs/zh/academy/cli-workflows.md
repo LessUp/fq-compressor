@@ -1,6 +1,6 @@
-# CLI 使用
+# CLI 工作流
 
-这一页只保留操作层面的命令集合。如果你想理解背后的实现边界，请读 [架构](/zh/architecture/)；如果你想核对仓库出处，请看 [资源](/zh/resources/)。
+这一页只保留操作层面的命令集合。如果你想理解背后的实现边界，请读 [架构](/zh/architecture/)；如果你想核对出处与外部相关工作，请看 [研究](/zh/research/)。
 
 ## 全局选项
 
@@ -95,3 +95,4 @@ fqc decompress -i reads.fqc --range 1001:2000 -o spot-check.fastq
 
 - [快速开始](./getting-started)：完成第一次验证运行
 - [贡献](./contributing)：查看仓库检查与文档更新要求
+- [参考文献](/zh/research/references)：查看相邻论文和压缩器

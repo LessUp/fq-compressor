@@ -10,7 +10,7 @@ cd fq-compressor
 git checkout master
 ```
 
-If you are contributing through a fork or pull request flow, branch from `master`.
+Direct push is the default repository workflow. If you need isolation for larger work, branch from `master` and keep the branch short-lived.
 
 ## Recommended local workflow
 
@@ -54,5 +54,5 @@ For documentation-only work, a successful `cd docs && npm run build` is the rele
 ## Continue with
 
 - [Getting started](./getting-started) for a fresh local setup
-- [CLI usage](./cli-usage) for command examples used in bug reports and reviews
-- [Resources](/en/resources/) for specs, benchmark artifacts, and reference material
+- [CLI workflows](./cli-workflows) for command examples used in bug reports and reviews
+- [Research](/en/research/) for specs, benchmark artifacts, and reference material

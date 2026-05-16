@@ -10,7 +10,7 @@ cd fq-compressor
 git checkout master
 ```
 
-如果你通过 fork 或 Pull Request 流程贡献，也应从 `master` 分出分支。
+仓库默认工作流是直接推送主线。如果改动较大，需要隔离时再从 `master` 拉出一个短生命周期分支即可。
 
 ## 推荐的本地工作流
 
@@ -54,5 +54,5 @@ git --no-pager diff --stat
 ## 继续阅读
 
 - [快速开始](./getting-started)：重新搭起本地环境
-- [CLI 使用](./cli-usage)：查看问题复现和评审常用命令
-- [资源](/zh/resources/)：查看规格、基准产物与参考资料
+- [CLI 工作流](./cli-workflows)：查看问题复现和评审常用命令
+- [研究](/zh/research/)：查看规格、基准产物与参考资料

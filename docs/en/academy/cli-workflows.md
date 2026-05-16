@@ -1,6 +1,6 @@
-# CLI usage
+# CLI workflows
 
-This page keeps the operational command set compact. For implementation context, read [Architecture](/en/architecture/). For exact repository evidence, use [Resources](/en/resources/).
+This page keeps the operational command set compact. For implementation context, read [Architecture](/en/architecture/). For exact repository evidence and related work, use [Research](/en/research/).
 
 ## Global options
 
@@ -95,3 +95,4 @@ fqc decompress -i reads.fqc --range 1001:2000 -o spot-check.fastq
 
 - [Getting started](./getting-started) for a first verified run
 - [Contributing](./contributing) for repo checks and documentation updates
+- [Research references](/en/research/references) for adjacent papers and compressors
