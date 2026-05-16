@@ -190,6 +190,15 @@
     padding: 20px;
 }
 
+.topic-card-grid__card {
+    display: flex;
+    flex-direction: column;
+}
+
+.topic-card-grid__card p {
+    flex: 1;
+}
+
 .metric-strip__value,
 .knowledge-map__index {
     margin: 0 0 12px;

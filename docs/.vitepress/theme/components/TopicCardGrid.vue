@@ -123,7 +123,7 @@ const content = computed(() => copy[props.locale]);
                         <a :href="withBase(card.href)">{{ card.title }}</a>
                     </h3>
                     <p>{{ card.body }}</p>
-                        <ul class="topic-card-grid__tags" :aria-label="content.tagsLabel">
+                    <ul class="topic-card-grid__tags" :aria-label="content.tagsLabel">
                         <li v-for="tag in card.tags" :key="tag">{{ tag }}</li>
                     </ul>
                 </article>
