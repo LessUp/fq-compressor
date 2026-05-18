@@ -1,34 +1,32 @@
-# Evidence
+# Performance
 
-This section keeps public performance language tied to a checked evidence boundary. The goal is not to show the
-largest number, but to separate what the repository can currently prove from what remains a design ambition.
+The performance section is the evidence contract for the portal. Its job is not to make fq-compressor look larger than life. Its job is to separate what the repository can prove from what remains design intent.
 
-## Start here
+<EvidenceGrid locale="en" />
 
-- [Benchmark methodology](/en/benchmarks/methodology) explains the evidence rules, dataset scope, and reproduction commands.
-- [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md) is the repository-side narrative for the tracked benchmark chain.
-- [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json) is the machine-readable tracked result.
-- [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md) is the human-readable tracked report.
-- [Research references](/en/research/references) place the evidence next to adjacent compressors and papers.
+## Current public boundary
 
-## Current evidence
+- The tracked public evidence is currently centered on ENA accession `ERR091571` and a reproducible 2,000-record smoke-scale subset.
+- The site can discuss compression density, compression throughput, decompression throughput, and archive semantics, but not claim an already-proven specialized-peer leadership position.
+- Spring remains deferred in the local evidence chain, so readers should treat the current benchmark story as bounded rather than exhaustive.
 
-The repository currently tracks one public evidence set built from ENA accession `ERR091571` using a reproducible 2,000-record smoke-scale subset.
-Within that documented run, the observed leaders in the measured local-supported toolset were:
+## Claim matrix
 
-- best compression ratio: `bzip2`
-- best compression speed: `bzip2`
-- best decompression speed: `gzip`
-- current `fq-compressor` result: not leading on those three dimensions in the documented smoke-scale run
+| Claim | Public strength | Why |
+| --- | --- | --- |
+| fq-compressor has a documented short-read compression result | Strong | Supported by tracked benchmark artifacts in `benchmark/results/` |
+| fq-compressor is already best-in-class among specialized peers | Not public | Comparative proof is incomplete while Spring stays deferred |
+| O(1) random access is part of the system contract | Strong | Backed by format design, architecture docs, and repository code anchors |
+| Throughput must be read together with archive semantics | Strong | The portal documents write path, read path, and retrieval cost as one story |
 
-## Current boundary
+## Evidence anchors worth keeping open
 
-The current evidence is intentionally narrow.
-It does **not** yet establish a verified specialized-peer ranking because `Spring` is still tracked as deferred rather than measured.
-Readers should treat this section as an audit trail for what the repository can currently prove from that smoke-scale run, not as a blanket best-in-class conclusion.
+- [Methodology](./methodology)
+- [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md)
+- [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json)
+- [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md)
 
 ## Continue with
 
-- [Whitepaper](/en/whitepaper/) to see how measured results constrain public claims
-- [Research](/en/research/) for papers, comparators, and evolution notes
-- [Academy](/en/academy/) if you need to run the tool rather than debate its public positioning
+- [Algorithms](/en/whitepaper/) for the technical thesis behind the metrics
+- [References](/en/research/) for papers, comparators, and project posture

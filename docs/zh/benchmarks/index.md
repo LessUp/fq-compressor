@@ -1,33 +1,32 @@
-# 证据
+# 性能证据
 
-这一节的目标，是让所有公开性能表述都回到经过检查的证据边界。重点不是展示最大的数字，而是区分仓库当前真的能证明什么，以及仍属于设计愿景的部分。
+这一节是整个站点的证据契约。它的职责不是把 fq-compressor 讲得无限强，而是把仓库今天能证明什么和仍属于设计意图的部分清清楚楚分开。
 
-## 从这里开始
+<EvidenceGrid locale="zh" />
 
-- [基准测试方法](/zh/benchmarks/methodology) 说明证据规则、数据集范围与复现命令。
-- [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md) 是仓库侧对当前跟踪 benchmark 链路的说明。
-- [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json) 是机器可读的跟踪结果。
-- [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md) 是面向阅读的跟踪报告。
-- [研究中的参考文献](/zh/research/references) 把这些证据放回相邻压缩器和论文语境里。
+## 当前公开边界
 
-## 当前证据
+- 当前被跟踪的公开证据，主要围绕 ENA accession `ERR091571` 与可复现的 2,000-record smoke-scale 子集。
+- 站点可以讨论压缩密度、压缩吞吐、解压吞吐与归档语义，但不能把自己描述成已经被证明领先所有 FASTQ 专用同类。
+- 由于 Spring 仍处于 deferred 状态，当前 benchmark 叙事应被理解为有边界的，而不是完整结论。
 
-仓库目前跟踪一组公开证据，数据来自 ENA accession `ERR091571`，使用一个可复现的 2,000-record 烟雾规模子集。
-在这次已文档化的运行中，measured local-supported 工具范围内观察到的领先者是：
+## 主张矩阵
 
-- 最优压缩比：`bzip2`
-- 最优压缩速度：`bzip2`
-- 最优解压速度：`gzip`
-- `fq-compressor` 当前结果：在这次文档化的烟雾规模运行中，这三项维度上都不是领先者
+| 主张 | 当前公开强度 | 原因 |
+| --- | --- | --- |
+| fq-compressor 有一组被记录的短读长压缩结果 | 强 | `benchmark/results/` 中有跟踪产物 |
+| fq-compressor 已经是同类最佳 | 不能公开宣称 | Spring 仍未纳入完成的对照证明链 |
+| O(1) 随机访问是系统契约的一部分 | 强 | 有格式设计、架构文档与代码锚点共同支撑 |
+| 吞吐必须和归档语义一起解读 | 强 | 站点把写路径、读路径和检索代价写成同一条故事线 |
 
-## 当前边界
+## 建议同时打开的证据锚点
 
-当前证据被刻意限定在较窄范围内。
-它**还不能**建立已验证的 FASTQ 专用同类排名，因为 `Spring` 仍被标记为 deferred，而不是 measured。
-因此这里应被视为仓库基于该 smoke-scale 运行当前可证明内容的审计线索，而不是无条件的 best-in-class 结论。
+- [方法学](./methodology)
+- [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md)
+- [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json)
+- [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md)
 
-## 下一步可阅读
+## 下一步
 
-- [白皮书](/zh/whitepaper/)：查看实测结果如何约束公开主张
-- [研究](/zh/research/)：查看论文、对照项目与演进说明
-- [学院](/zh/academy/)：如果你现在的目标是运行工具，而不是讨论公开定位
+- [算法白皮书](/zh/whitepaper/)：看这些指标背后的技术命题
+- [参考研究](/zh/research/)：看论文、对照项目与项目姿态

@@ -1,26 +1,34 @@
-# 参考文献
+# 书目与仓库
 
-把这一页当作公开文档集的参考文献表。
+把这一页当作公开文档集的引文索引。
 
-## 论文
+## 编号文献
 
-| 主题 | 参考文献 | 为什么和这里相关 |
-| --- | --- | --- |
-| assembly-based compression | Chandak 等， [SPRING: a next-generation compressor for FASTQ files](https://doi.org/10.1093/bioinformatics/btz074) | 是 ABC 风格 read ordering 与 consensus 推理最接近的论文框架 |
-| 长读长对照 | Sahlin 等， [NanoSpring: reference-free lossless compression of nanopore sequencing reads](https://doi.org/10.1101/2021.06.09.447198) | 有助于解释 fq-compressor 为什么没有按 nanopore-first 假设来组织 |
+1. **[R1]** Chandak 等，[SPRING: a next-generation compressor for FASTQ files](https://doi.org/10.1093/bioinformatics/btz074)。  
+   最接近 assembly-based compression、可逆重排与共识式序列压缩框架的论文来源。
+2. **[R2]** Bonfield，[fqzcomp 仓库](https://github.com/jkbonfield/fqzcomp)。  
+   一个紧凑的质量值压缩参考，用来迫使我们正视流级编码取舍。
+3. **[R3]** Sahlin 等，[NanoSpring: reference-free lossless compression of nanopore sequencing reads](https://doi.org/10.1101/2021.06.09.447198)。  
+   在解释 fq-compressor 没有首先围绕长读长场景优化时非常有用。
 
-## 仓库
+## 对照仓库
 
-| 仓库 | 在阅读路径中的角色 |
-| --- | --- |
-| [shubhamchandak94/Spring](https://github.com/shubhamchandak94/Spring) | assembly-based compression 框架最接近的外部参考 |
-| [jkbonfield/fqzcomp](https://github.com/jkbonfield/fqzcomp) | 紧凑的质量值压缩参考 |
-| [shubhamchandak94/HARC](https://github.com/shubhamchandak94/HARC) | 另一个 FASTQ 专用对照对象 |
-| [qm2/NanoSpring](https://github.com/qm2/NanoSpring) | 长读长方向对照 |
+1. **[C1]** [shubhamchandak94/Spring](https://github.com/shubhamchandak94/Spring)  
+   assembly-based compression 框架最接近的外部仓库参考。
+2. **[C2]** [shubhamchandak94/HARC](https://github.com/shubhamchandak94/HARC)  
+   适合比较 FASTQ 专用压缩器的架构和项目范围。
+3. **[C3]** [jkbonfield/fqzcomp](https://github.com/jkbonfield/fqzcomp)  
+   用来检验 fq-compressor 质量值流拆分是否合理的重要对照。
+4. **[C4]** [qm2/NanoSpring](https://github.com/qm2/NanoSpring)  
+   用来说明长读长方向边界的对照对象。
 
-## 仓库内研究锚点
+## 仓库内证据锚点
 
-- [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)
-- [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)
-- [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)
-- [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)
+1. **[E1]** [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)  
+   性能部分使用的机器可读和叙事型 benchmark 产物。
+2. **[E2]** [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)  
+   带有明确许可边界的 Spring 派生参考代码。
+3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
+   本地对照目标和学习记录。
+4. **[E4]** [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)  
+   当前生效的需求和能力边界。
