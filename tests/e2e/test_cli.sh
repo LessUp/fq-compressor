@@ -13,7 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEST_DIR=$(mktemp -d)
-FQC_BIN="${FQC_BIN:-$PROJECT_ROOT/build/build/Release/bin/fqc}"
+FQC_BIN="${FQC_BIN:-$PROJECT_ROOT/build/clang-debug/src/fqc}"
 
 # Colors
 RED='\033[0;31m'
@@ -39,26 +39,26 @@ log_test() {
 
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $*"
-    ((TESTS_PASSED++))
+    ((++TESTS_PASSED))
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $*"
-    ((TESTS_FAILED++))
+    ((++TESTS_FAILED))
 }
 
 run_test() {
     local name="$1"
     shift
-    ((TESTS_RUN++))
+    ((++TESTS_RUN))
     log_test "$name"
     if "$@"; then
         log_pass "$name"
-        return 0
     else
         log_fail "$name"
-        return 1
     fi
+
+    return 0
 }
 
 # Create test FASTQ files
@@ -66,16 +66,20 @@ create_test_fastq() {
     local file="$1"
     local num_reads="${2:-100}"
     local read_len="${3:-150}"
-    
+
+    local pattern="ACGT"
+    local seq qual
+    printf -v seq '%*s' "$read_len" ''
+    seq="${seq// /$pattern}"
+    seq="${seq:0:$read_len}"
+    printf -v qual '%*s' "$read_len" ''
+    qual="${qual// /I}"
+
     for ((i=1; i<=num_reads; i++)); do
         echo "@read_${i}"
-        # Generate random sequence
-        head -c "$read_len" /dev/urandom | tr -dc 'ACGT' | head -c "$read_len"
-        echo ""
+        echo "$seq"
         echo "+"
-        # Generate random quality (ASCII 33-73)
-        head -c "$read_len" /dev/urandom | tr '\0-\377' 'I' | head -c "$read_len"
-        echo ""
+        echo "$qual"
     done > "$file"
 }
 
@@ -84,23 +88,31 @@ create_paired_fastq() {
     local r2="$2"
     local num_pairs="${3:-50}"
     local read_len="${4:-150}"
-    
+
+    local pattern_r1="ACGT"
+    local pattern_r2="TGCA"
+    local seq_r1 seq_r2 qual
+    printf -v seq_r1 '%*s' "$read_len" ''
+    seq_r1="${seq_r1// /$pattern_r1}"
+    seq_r1="${seq_r1:0:$read_len}"
+    printf -v seq_r2 '%*s' "$read_len" ''
+    seq_r2="${seq_r2// /$pattern_r2}"
+    seq_r2="${seq_r2:0:$read_len}"
+    printf -v qual '%*s' "$read_len" ''
+    qual="${qual// /I}"
+
     for ((i=1; i<=num_pairs; i++)); do
         # R1
         echo "@read_${i}/1" >> "$r1"
-        head -c "$read_len" /dev/urandom | tr -dc 'ACGT' | head -c "$read_len" >> "$r1"
-        echo "" >> "$r1"
+        echo "$seq_r1" >> "$r1"
         echo "+" >> "$r1"
-        head -c "$read_len" /dev/urandom | tr '\0-\377' 'I' | head -c "$read_len" >> "$r1"
-        echo "" >> "$r1"
-        
+        echo "$qual" >> "$r1"
+
         # R2
         echo "@read_${i}/2" >> "$r2"
-        head -c "$read_len" /dev/urandom | tr -dc 'ACGT' | head -c "$read_len" >> "$r2"
-        echo "" >> "$r2"
+        echo "$seq_r2" >> "$r2"
         echo "+" >> "$r2"
-        head -c "$read_len" /dev/urandom | tr '\0-\377' 'I' | head -c "$read_len" >> "$r2"
-        echo "" >> "$r2"
+        echo "$qual" >> "$r2"
     done
 }
 
@@ -147,9 +159,9 @@ test_verify_missing_input() {
 test_basic_compress() {
     local input="$TEST_DIR/basic.fastq"
     local output="$TEST_DIR/basic.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$output" 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$output" 2>/dev/null
     [[ -f "$output" ]]
 }
 
@@ -157,48 +169,49 @@ test_basic_decompress() {
     local input="$TEST_DIR/basic.fastq"
     local compressed="$TEST_DIR/basic.fqc"
     local decompressed="$TEST_DIR/basic_out.fastq"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$compressed" 2>/dev/null
-    "$FQC_BIN" decompress -i "$compressed" -o "$decompressed" 2>/dev/null
+    rm -f "$compressed" "$decompressed"
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$compressed" 2>/dev/null
+    "$FQC_BIN" -q --no-progress decompress -i "$compressed" -o "$decompressed" 2>/dev/null
     [[ -f "$decompressed" ]]
 }
 
 test_verify_valid() {
     local input="$TEST_DIR/verify.fastq"
     local compressed="$TEST_DIR/verify.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$compressed" 2>/dev/null
-    "$FQC_BIN" verify "$compressed" 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$compressed" 2>/dev/null
+    "$FQC_BIN" -q verify "$compressed" 2>/dev/null
 }
 
 test_info_command() {
     local input="$TEST_DIR/info.fastq"
     local compressed="$TEST_DIR/info.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$compressed" 2>/dev/null
-    "$FQC_BIN" info "$compressed" 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$compressed" 2>/dev/null
+    "$FQC_BIN" -q info "$compressed" 2>/dev/null
 }
 
 test_compress_with_threads() {
     local input="$TEST_DIR/threads.fastq"
     local output="$TEST_DIR/threads.fqc"
-    
+
     create_test_fastq "$input" 100 150
-    "$FQC_BIN" compress -i "$input" -o "$output" -t 2 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$output" -t 2 2>/dev/null
     [[ -f "$output" ]]
 }
 
 test_compress_level() {
     local input="$TEST_DIR/level.fastq"
-    
+
     create_test_fastq "$input" 50 100
-    
+
     for level in 1 5 9; do
         local output="$TEST_DIR/level_${level}.fqc"
-        "$FQC_BIN" compress -i "$input" -o "$output" -l "$level" 2>/dev/null
+        "$FQC_BIN" -q --no-progress compress -i "$input" -o "$output" -l "$level" 2>/dev/null
         [[ -f "$output" ]] || return 1
     done
 }
@@ -206,40 +219,41 @@ test_compress_level() {
 test_force_overwrite() {
     local input="$TEST_DIR/force.fastq"
     local output="$TEST_DIR/force.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$output" 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$output" 2>/dev/null
     # Should fail without -f
     ! "$FQC_BIN" compress -i "$input" -o "$output" 2>/dev/null
     # Should succeed with -f
-    "$FQC_BIN" compress -i "$input" -o "$output" -f 2>/dev/null
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$output" -f 2>/dev/null
 }
 
 test_stdout_output() {
     local input="$TEST_DIR/stdout.fastq"
     local compressed="$TEST_DIR/stdout.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$compressed" 2>/dev/null
-    "$FQC_BIN" decompress -i "$compressed" -o - 2>/dev/null | head -1 | grep -q "^@"
+    "$FQC_BIN" -q --no-progress compress -i "$input" -o "$compressed" 2>/dev/null
+    "$FQC_BIN" -q --no-progress decompress -i "$compressed" -o - 2>/dev/null | grep -qm1 "^@read_"
 }
 
 test_quiet_mode() {
     local input="$TEST_DIR/quiet.fastq"
     local output="$TEST_DIR/quiet.fqc"
-    
+
     create_test_fastq "$input" 10 100
     local out=$("$FQC_BIN" compress -i "$input" -o "$output" -q 2>&1)
-    [[ -z "$out" ]] || [[ "$out" == *"error"* ]] && return 1
-    return 0
+    [[ -z "$out" ]]
 }
 
 test_verbose_mode() {
     local input="$TEST_DIR/verbose.fastq"
     local output="$TEST_DIR/verbose.fqc"
-    
+
     create_test_fastq "$input" 10 100
-    "$FQC_BIN" compress -i "$input" -o "$output" -v 2>&1 | grep -q -i "compress\|block\|read" || true
+    local out
+    out=$("$FQC_BIN" compress -i "$input" -o "$output" -v --no-progress 2>&1)
+    [[ -f "$output" ]] && grep -Eqi "compress|block|read|summary" <<<"$out"
 }
 
 # =============================================================================
@@ -258,7 +272,7 @@ main() {
     # Check binary exists
     if [[ ! -x "$FQC_BIN" ]]; then
         echo -e "${RED}Error: fqc binary not found at $FQC_BIN${NC}"
-        echo "Build the project first with: cmake --build build/build/Release"
+        echo "Build the project first with: ./scripts/build.sh clang-debug"
         exit 1
     fi
     

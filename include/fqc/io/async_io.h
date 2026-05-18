@@ -310,7 +310,10 @@ public:
     /// @brief Check if at end of file
     [[nodiscard]] bool eof() const noexcept;
 
-    /// @brief Get total bytes read
+    /// @brief Get total bytes read from the underlying stream
+    ///
+    /// This counter reflects background-prefetched bytes, so it may advance
+    /// before the caller consumes any buffers via read().
     [[nodiscard]] std::uint64_t totalBytesRead() const noexcept;
 
     /// @brief Get file size (0 if unknown, e.g., stdin)

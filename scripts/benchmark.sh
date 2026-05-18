@@ -63,6 +63,34 @@ log_success() {
     echo "[SUCCESS] $*" >&2
 }
 
+resolve_dataset_input() {
+    local dataset_id="$1"
+
+    python3 - "$DATASETS_FILE" "$dataset_id" "$PROJECT_ROOT" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+datasets_path = Path(sys.argv[1])
+dataset_id = sys.argv[2]
+project_root = Path(sys.argv[3])
+
+with open(datasets_path, "r", encoding="utf-8") as handle:
+    config = yaml.safe_load(handle) or {}
+
+dataset = (config.get("datasets") or {}).get(dataset_id)
+if not dataset:
+    raise SystemExit(f"unknown dataset: {dataset_id}")
+
+benchmark_input = dataset.get("benchmark_input")
+if not benchmark_input:
+    raise SystemExit(f"dataset missing benchmark_input: {dataset_id}")
+
+print((project_root / benchmark_input).resolve())
+PY
+}
+
 show_help() {
     sed -n '/^# Usage:/,/^# =/p' "$0" | sed 's/^# //; s/^#//'
 }
@@ -116,6 +144,7 @@ prepare_dataset() {
 import gzip
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -147,6 +176,14 @@ for url in urls[1:3]:
     if dst.exists():
         continue
 
+    with tempfile.NamedTemporaryFile(
+        prefix=f"{dst.stem}.",
+        suffix=".tmp",
+        dir=root,
+        delete=False,
+    ) as temp_handle:
+        temp_path = Path(temp_handle.name)
+
     proc = subprocess.Popen(
         ["curl", "-LfsS", "--retry", "3", url],
         stdout=subprocess.PIPE,
@@ -155,31 +192,52 @@ for url in urls[1:3]:
     if proc.stdout is None:
         raise SystemExit(f"failed to open stream for {url}")
 
-    with gzip.GzipFile(fileobj=proc.stdout) as fin, gzip.open(dst, "wt", encoding="utf-8") as fout:
-        for _ in range(record_limit * 4):
-            line = fin.readline()
-            if not line:
-                break
-            fout.write(line.decode("utf-8"))
+    try:
+        with gzip.GzipFile(fileobj=proc.stdout) as fin, gzip.open(
+            temp_path, "wt", encoding="utf-8"
+        ) as fout:
+            for _ in range(record_limit * 4):
+                line = fin.readline()
+                if not line:
+                    break
+                fout.write(line.decode("utf-8"))
 
-    if proc.stdout is not None:
-        proc.stdout.close()
-    proc.terminate()
-    _, stderr = proc.communicate(timeout=10)
-    if proc.returncode not in (0, -15):
-        raise SystemExit(f"curl failed for {url}: {stderr.decode('utf-8', errors='ignore').strip()}")
+        if proc.stdout is not None:
+            proc.stdout.close()
+        proc.terminate()
+        _, stderr = proc.communicate(timeout=10)
+        if proc.returncode not in (0, -15):
+            raise SystemExit(
+                f"curl failed for {url}: {stderr.decode('utf-8', errors='ignore').strip()}"
+            )
+        temp_path.replace(dst)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
 
 read1_subset_gz = root / "ERR091571_1.subset.fastq.gz"
 tracked_fastq = root / "ERR091571_1.2000.fastq"
 if not tracked_fastq.exists():
-    with gzip.open(read1_subset_gz, "rt", encoding="utf-8") as fin, open(
-        tracked_fastq, "w", encoding="utf-8"
-    ) as fout:
-        for _ in range(2000 * 4):
-            line = fin.readline()
-            if not line:
-                break
-            fout.write(line)
+    with tempfile.NamedTemporaryFile(
+        prefix=f"{tracked_fastq.stem}.",
+        suffix=".tmp",
+        dir=root,
+        delete=False,
+    ) as temp_handle:
+        temp_path = Path(temp_handle.name)
+    try:
+        with gzip.open(read1_subset_gz, "rt", encoding="utf-8") as fin, open(
+            temp_path, "w", encoding="utf-8"
+        ) as fout:
+            for _ in range(2000 * 4):
+                line = fin.readline()
+                if not line:
+                    break
+                fout.write(line)
+        temp_path.replace(tracked_fastq)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
 
 print(tracked_fastq)
 PY
@@ -275,6 +333,23 @@ main() {
 
     if [ "$BUILD_BINARY" = true ]; then
         build_clang
+    fi
+
+    if [ -z "$INPUT_OVERRIDE" ]; then
+        resolved_input="$(resolve_dataset_input "$DATASET_ID")"
+        if [ ! -f "$resolved_input" ]; then
+            log_info "Tracked input missing for ${DATASET_ID}; preparing dataset..."
+            if ! prepare_dataset "$DATASET_ID" >/dev/null; then
+                log_error "Automatic dataset preparation failed for ${DATASET_ID}"
+                log_error "Run: ./scripts/benchmark.sh --dataset ${DATASET_ID} --prepare-only"
+                exit 1
+            fi
+            if [ ! -f "$resolved_input" ]; then
+                log_error "Benchmark input still missing after preparation: $resolved_input"
+                log_error "Run: ./scripts/benchmark.sh --dataset ${DATASET_ID} --prepare-only"
+                exit 1
+            fi
+        fi
     fi
 
     local json_out="${RESULTS_DIR}/${DATASET_ID}.json"

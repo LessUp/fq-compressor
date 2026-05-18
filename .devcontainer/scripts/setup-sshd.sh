@@ -28,6 +28,11 @@ CONF_MAIN="/etc/ssh/sshd_config"
 CONF_D="/etc/ssh/sshd_config.d"
 CONF_SNIPPET="${CONF_D}/fqcompressor-devcontainer.conf"
 
+if [[ ! "${SSHD_PORT}" =~ ^[0-9]+$ ]] || ((SSHD_PORT < 1 || SSHD_PORT > 65535)); then
+    log_warn "无效 SSH 端口: ${SSHD_PORT}"
+    exit 1
+fi
+
 log_info "配置 SSHD (端口: ${SSHD_PORT})..."
 
 # 创建运行目录和生成主机密钥

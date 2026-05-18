@@ -177,7 +177,14 @@ void CompressCommand::runCompression(const CompressionProfile& profile) {
     // Update basic stats
     stats_.totalReads = readRecords.size();
     stats_.totalBases = totalBases;
-    stats_.inputBytes = totalBases;  // Approximate - actual byte count would be larger
+    if (options_.inputPath == "-") {
+        stats_.inputBytes = totalBases;
+    } else {
+        stats_.inputBytes = std::filesystem::file_size(options_.inputPath);
+        if (!options_.input2Path.empty() && options_.input2Path != "-") {
+            stats_.inputBytes += std::filesystem::file_size(options_.input2Path);
+        }
+    }
 
     FQC_LOG_INFO("Loaded {} reads ({} bases)", readRecords.size(), totalBases);
 
@@ -498,7 +505,7 @@ void CompressCommand::runCompressionParallel(const CompressionProfile& profile) 
 
     const auto& pipelineStats = pipeline.stats();
     stats_.totalReads = pipelineStats.totalReads;
-    stats_.totalBases = pipelineStats.inputBytes;  // Approximate
+    stats_.totalBases = pipelineStats.totalBases;
     stats_.inputBytes = pipelineStats.inputBytes;
     stats_.outputBytes = pipelineStats.outputBytes;
     stats_.blocksWritten = pipelineStats.totalBlocks;
