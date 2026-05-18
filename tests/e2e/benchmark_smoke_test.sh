@@ -6,14 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RESULT_JSON="${PROJECT_ROOT}/benchmark/results/err091571-local-supported.json"
 RESULT_MD="${PROJECT_ROOT}/benchmark/results/err091571-local-supported.md"
-TRACKED_INPUT="${PROJECT_ROOT}/benchmark/data/ERR091571/ERR091571_1.2000.fastq"
-READ1_SUBSET="${PROJECT_ROOT}/benchmark/data/ERR091571/ERR091571_1.subset.fastq.gz"
-READ2_SUBSET="${PROJECT_ROOT}/benchmark/data/ERR091571/ERR091571_2.subset.fastq.gz"
 TMP_DIR="$(mktemp -d)"
 FQC_SMOKE_BINARY="${FQC_SMOKE_BINARY:-${PROJECT_ROOT}/build/clang-debug/src/fqc}"
-HAD_TRACKED_INPUT=0
-HAD_READ1_SUBSET=0
-HAD_READ2_SUBSET=0
 
 cleanup() {
     for artifact in "${RESULT_JSON}" "${RESULT_MD}"; do
@@ -24,29 +18,8 @@ cleanup() {
             rm -f "${artifact}"
         fi
     done
-
-    if [[ "${HAD_TRACKED_INPUT}" -eq 0 ]]; then
-        rm -f "${TRACKED_INPUT}"
-    fi
-    if [[ "${HAD_READ1_SUBSET}" -eq 0 ]]; then
-        rm -f "${READ1_SUBSET}"
-    fi
-    if [[ "${HAD_READ2_SUBSET}" -eq 0 ]]; then
-        rm -f "${READ2_SUBSET}"
-    fi
-
     rm -rf "${TMP_DIR}"
 }
-trap cleanup EXIT
-
-if [[ ! -x "${FQC_SMOKE_BINARY}" ]]; then
-    echo "Missing fqc binary: ${FQC_SMOKE_BINARY}" >&2
-    exit 1
-fi
-
-[[ -f "${TRACKED_INPUT}" ]] && HAD_TRACKED_INPUT=1
-[[ -f "${READ1_SUBSET}" ]] && HAD_READ1_SUBSET=1
-[[ -f "${READ2_SUBSET}" ]] && HAD_READ2_SUBSET=1
 
 for artifact in "${RESULT_JSON}" "${RESULT_MD}"; do
     if [[ -f "${artifact}" ]]; then
@@ -54,10 +27,32 @@ for artifact in "${RESULT_JSON}" "${RESULT_MD}"; do
     fi
 done
 
+trap cleanup EXIT
+
+if [[ ! -x "${FQC_SMOKE_BINARY}" ]]; then
+    echo "Missing fqc binary: ${FQC_SMOKE_BINARY}" >&2
+    exit 1
+fi
+
+cat > "${TMP_DIR}/smoke.fastq" <<'EOF'
+@read_1
+ACGTACGT
++
+FFFFFFFF
+@read_2
+TGCATGCA
++
+HHHHHHHH
+@read_3
+GGGGAAAA
++
+IIIIIIII
+EOF
+
 export FQC_BENCHMARK_BINARY="${FQC_SMOKE_BINARY}"
 
 "${PROJECT_ROOT}/scripts/benchmark.sh" \
-    --dataset err091571-local-supported \
+    --input "${TMP_DIR}/smoke.fastq" \
     --quick \
     --tools fqc,gzip,xz,bzip2 \
     --threads 1
