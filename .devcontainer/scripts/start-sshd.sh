@@ -27,8 +27,12 @@ SETUP_SENTINEL="/tmp/.sshd-setup-done"
 # 仅在首次或脚本更新后重新配置
 if [ -x "$SETUP_SCRIPT" ]; then
     if [ ! -f "$SETUP_SENTINEL" ] || [ "$SETUP_SCRIPT" -nt "$SETUP_SENTINEL" ]; then
-        bash "$SETUP_SCRIPT" || true
-        touch "$SETUP_SENTINEL"
+        if bash "$SETUP_SCRIPT"; then
+            touch "$SETUP_SENTINEL"
+        else
+            log_warn "SSHD 配置失败，保留未完成状态以便下次重试"
+            rm -f "$SETUP_SENTINEL"
+        fi
     fi
 fi
 

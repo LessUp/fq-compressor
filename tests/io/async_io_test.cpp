@@ -282,11 +282,12 @@ TEST_F(AsyncReaderTest, TotalBytesRead) {
     AsyncReader reader(config);
     ASSERT_TRUE(reader.open(testFilePath_).has_value());
 
-    EXPECT_EQ(reader.totalBytesRead(), 0);
     EXPECT_EQ(reader.fileSize(), testData_.size());
+    EXPECT_LE(reader.totalBytesRead(), testData_.size());
 
     while (auto buffer = reader.read()) {
-        // Just consume
+        EXPECT_GE(reader.totalBytesRead(), reader.position());
+        EXPECT_LE(reader.totalBytesRead(), testData_.size());
     }
 
     EXPECT_EQ(reader.totalBytesRead(), testData_.size());

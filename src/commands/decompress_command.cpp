@@ -799,7 +799,7 @@ void DecompressCommand::runDecompressionParallel() {
 
     const auto& pipelineStats = pipeline.stats();
     stats_.totalReads = pipelineStats.totalReads;
-    stats_.totalBases = pipelineStats.inputBytes;  // Approximate
+    stats_.totalBases = pipelineStats.totalBases;
     stats_.blocksProcessed = pipelineStats.totalBlocks;
     stats_.inputBytes = pipelineStats.inputBytes;
     stats_.outputBytes = pipelineStats.outputBytes;

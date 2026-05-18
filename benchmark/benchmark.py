@@ -136,6 +136,13 @@ class BenchmarkRunner:
         self._load_datasets()
 
     def _find_fqc_binary(self) -> str:
+        explicit = os.environ.get("FQC_BENCHMARK_BINARY")
+        if explicit:
+            candidate = Path(explicit).expanduser()
+            if candidate.exists() and os.access(candidate, os.X_OK):
+                return str(candidate.resolve())
+            raise FileNotFoundError(f"FQC_BENCHMARK_BINARY is not executable: {candidate}")
+
         candidates = [
             self.project_root / "build/clang-release/src/fqc",
             self.project_root / "build/gcc-release/src/fqc",

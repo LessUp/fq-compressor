@@ -652,6 +652,7 @@ public:
 
             // Progress tracking
             std::atomic<std::uint64_t> readsProcessed{0};
+            std::atomic<std::uint64_t> basesProcessed{0};
             std::atomic<std::uint32_t> blocksProcessed{0};
             auto lastProgressTime = std::chrono::steady_clock::now();
 
@@ -716,6 +717,10 @@ public:
 
                                 auto& chunk = *chunkOpt;
                                 std::size_t readCount = chunk.reads.size();
+                                std::uint64_t baseCount = 0;
+                                for (const auto& read : chunk.reads) {
+                                    baseCount += read.sequence.size();
+                                }
 
                                 // Get thread-local compression state
                                 auto& state = threadLocalState.local();
@@ -731,6 +736,7 @@ public:
 
                                 // Update progress atomically
                                 readsProcessed.fetch_add(readCount);
+                                basesProcessed.fetch_add(baseCount);
 
                                 return std::move(*compressResult);
                             }) &
@@ -804,8 +810,10 @@ public:
 
             // Update statistics
             stats_.totalReads = readsProcessed.load();
+            stats_.totalBases = basesProcessed.load();
             stats_.totalBlocks = blocksProcessed.load();
-            stats_.inputBytes = reader.totalBytesRead();
+            stats_.inputBytes =
+                inputPath == "-" ? reader.totalBytesRead() : std::filesystem::file_size(inputPath);
             stats_.outputBytes = writer.totalBytesWritten();
 
         } catch (const FQCException& e) {
@@ -902,6 +910,7 @@ public:
 
             // Progress tracking
             std::atomic<std::uint64_t> readsProcessed{0};
+            std::atomic<std::uint64_t> basesProcessed{0};
             std::atomic<std::uint32_t> blocksProcessed{0};
             auto lastProgressTime = std::chrono::steady_clock::now();
 
@@ -959,6 +968,10 @@ public:
 
                                 auto& chunk = *chunkOpt;
                                 std::size_t readCount = chunk.reads.size();
+                                std::uint64_t baseCount = 0;
+                                for (const auto& read : chunk.reads) {
+                                    baseCount += read.sequence.size();
+                                }
 
                                 // Get thread-local compression state
                                 auto& state = threadLocalState.local();
@@ -973,6 +986,7 @@ public:
                                 }
 
                                 readsProcessed.fetch_add(readCount);
+                                basesProcessed.fetch_add(baseCount);
 
                                 return std::move(*compressResult);
                             }) &
@@ -1046,8 +1060,14 @@ public:
 
             // Update statistics
             stats_.totalReads = readsProcessed.load();
+            stats_.totalBases = basesProcessed.load();
             stats_.totalBlocks = blocksProcessed.load();
-            stats_.inputBytes = reader.totalBytesRead();
+            if (input1Path == "-" || input2Path == "-") {
+                stats_.inputBytes = reader.totalBytesRead();
+            } else {
+                stats_.inputBytes =
+                    std::filesystem::file_size(input1Path) + std::filesystem::file_size(input2Path);
+            }
             stats_.outputBytes = writer.totalBytesWritten();
 
         } catch (const FQCException& e) {
@@ -1194,6 +1214,7 @@ public:
             // =================================================================
 
             std::atomic<std::uint64_t> readsProcessed{0};
+            std::atomic<std::uint64_t> basesProcessed{0};
             std::atomic<std::uint32_t> blocksProcessed{0};
             std::atomic<bool> readerError{false};
             std::atomic<bool> writerError{false};
@@ -1289,6 +1310,10 @@ public:
                                 }
 
                                 std::size_t readCount = chunkOpt->reads.size();
+                                std::uint64_t baseCount = 0;
+                                for (const auto& read : chunkOpt->reads) {
+                                    baseCount += read.sequence.size();
+                                }
 
                                 auto writeResult = writer.writeChunk(std::move(*chunkOpt));
                                 if (!writeResult) {
@@ -1300,6 +1325,7 @@ public:
 
                                 // Update statistics atomically
                                 readsProcessed.fetch_add(readCount);
+                                basesProcessed.fetch_add(baseCount);
                                 blocksProcessed.fetch_add(1);
 
                                 // Report progress
@@ -1338,7 +1364,9 @@ public:
 
             // Update final statistics
             stats_.totalReads = readsProcessed.load();
+            stats_.totalBases = basesProcessed.load();
             stats_.totalBlocks = blocksProcessed.load();
+            stats_.inputBytes = std::filesystem::file_size(inputPath);
 
             // Flush output
             if (!cancelled_.load()) {
@@ -1464,13 +1492,20 @@ public:
                     continue;
                 }
 
+                const auto readCount = decompressResult->reads.size();
+                std::uint64_t baseCount = 0;
+                for (const auto& read : decompressResult->reads) {
+                    baseCount += read.sequence.size();
+                }
+
                 auto writeResult = writer.writeChunk(std::move(*decompressResult));
                 if (!writeResult) {
                     running_.store(false);
                     return writeResult;
                 }
 
-                stats_.totalReads += decompressResult->reads.size();
+                stats_.totalReads += readCount;
+                stats_.totalBases += baseCount;
                 ++stats_.totalBlocks;
             }
 
@@ -1482,6 +1517,7 @@ public:
                 }
             }
 
+            stats_.inputBytes = std::filesystem::file_size(inputPath);
             stats_.outputBytes = writer.totalBytesWritten();
 
         } catch (const FQCException& e) {

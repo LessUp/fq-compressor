@@ -349,6 +349,31 @@ TEST(ArchiveRegressionTest, StdinAutoDetectUsesMediumFallbackInArchiveMetadata) 
     EXPECT_EQ(format::getReadLengthClass(reader.globalHeader().flags), ReadLengthClass::kMedium);
 }
 
+TEST(ArchiveRegressionTest, ParallelStdinCompressionTracksInputBytesWithoutFilesystemSize) {
+    auto archivePath = tempFilePath(".fqc");
+    TempFileGuard archiveGuard(archivePath);
+
+    const std::string inputData =
+        "@read_1\nACGTACGTACGT\n+\nFFFFFFFFFFFF\n"
+        "@read_2\nTGCATGCATGCA\n+\nHHHHHHHHHHHH\n";
+    std::istringstream input(inputData);
+    CinRedirectGuard cinGuard(input);
+
+    CompressOptions opts;
+    opts.inputPath = "-";
+    opts.outputPath = archivePath;
+    opts.forceOverwrite = true;
+    opts.showProgress = false;
+    opts.threads = 4;
+    opts.autoDetectLongRead = true;
+
+    CompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+    EXPECT_GT(command.stats().inputBytes, 0u);
+    EXPECT_EQ(command.stats().totalReads, 2u);
+    EXPECT_EQ(command.stats().totalBases, 24u);
+}
+
 TEST(ArchiveRegressionTest, SingleThreadArchivePreservesOrderWhenMemoryLimitDisablesReordering) {
     auto inputPath = tempFilePath(".fastq");
     auto archivePath = tempFilePath(".fqc");
@@ -515,6 +540,9 @@ TEST(ArchiveRegressionTest, SingleThreadSplitPeRangePairsWritesBothOutputsAndHon
 
     DecompressCommand command(std::move(opts));
     ASSERT_EQ(command.execute(), 0);
+    EXPECT_EQ(command.stats().totalReads, 4u);
+    EXPECT_EQ(command.stats().totalBases, 320u);
+    EXPECT_EQ(command.stats().blocksProcessed, 1u);
 
     ASSERT_TRUE(std::filesystem::exists(derivedR1Path));
     ASSERT_TRUE(std::filesystem::exists(derivedR2Path));

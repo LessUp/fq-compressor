@@ -228,6 +228,9 @@ struct PipelineStats {
     /// @brief Total reads processed
     std::uint64_t totalReads = 0;
 
+    /// @brief Total bases processed
+    std::uint64_t totalBases = 0;
+
     /// @brief Total blocks produced
     std::uint32_t totalBlocks = 0;
 
@@ -255,8 +258,12 @@ struct PipelineStats {
 
     /// @brief Get bits per base (for sequence compression)
     [[nodiscard]] double bitsPerBase() const noexcept {
-        if (inputBytes == 0)
+        if (totalBases > 0) {
+            return (static_cast<double>(outputBytes) * 8.0) / static_cast<double>(totalBases);
+        }
+        if (inputBytes == 0) {
             return 0.0;
+        }
         // Approximate: assume ~50% of input is sequence
         return (static_cast<double>(outputBytes) * 8.0) / (static_cast<double>(inputBytes) * 0.5);
     }
