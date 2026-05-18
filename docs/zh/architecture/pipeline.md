@@ -20,15 +20,38 @@ fq-compressor 围绕“有界 block 流水线”组织：串行输入、并行 b
 
 实际数据流可概括为：
 
-```mermaid
-flowchart LR
-    A[FASTQ 或压缩 FASTQ] --> B[Parser]
-    B --> C[全局分析与重排规划]
-    C --> D[Read chunks]
-    D --> E[并行 block 压缩]
-    E --> F[FQC writer]
-    F --> G[.fqc archive]
-```
+<div class="wp-flow">
+  <article class="wp-flow__step">
+    <p class="wp-kicker">01</p>
+    <h3>FASTQ 输入</h3>
+    <p>FASTQ 或压缩 FASTQ 流从 parser 栈进入系统。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">02</p>
+    <h3>Parser</h3>
+    <p>record framing 与流归一化把原始输入转成可进入归档的记录。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">03</p>
+    <h3>全局分析</h3>
+    <p>在 block 工作开始前，先确定统计、重排意图与内存纪律。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">04</p>
+    <h3>Read chunks</h3>
+    <p>chunk 整理阶段把解析结果转成稳定的 archive-order 工作单元。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">05</p>
+    <h3>并行 block 压缩</h3>
+    <p>序列、ID 与质量值逻辑流在 block 边界内独立编码。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">06</p>
+    <h3>FQC 归档</h3>
+    <p>writer 输出 blocks、校验和、元数据以及后续检索要用的索引结构。</p>
+  </article>
+</div>
 
 关键边界是 block。
 分析阶段可能观察全量输入，但 payload 编码与归档存储始终保持在 block 级别，这样既能利用多核并行，也不会失去后续直接按 block 定位的能力。
@@ -37,14 +60,38 @@ flowchart LR
 
 解压按相同边界反向展开：
 
-```mermaid
-flowchart LR
-    A[.fqc archive] --> B[FQC reader]
-    B --> C[block 定位]
-    C --> D[并行逻辑流解码]
-    D --> E[可选的原始顺序恢复]
-    E --> F[FASTQ writer]
-```
+<div class="wp-flow">
+  <article class="wp-flow__step">
+    <p class="wp-kicker">01</p>
+    <h3>.fqc archive</h3>
+    <p>读取入口从归档头、索引表和 block 边界开始。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">02</p>
+    <h3>FQC reader</h3>
+    <p>先装入头信息和 block 元数据，再决定完整恢复还是定向提取。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">03</p>
+    <h3>block 定位</h3>
+    <p>索引驱动的定位阶段决定本次必须解码哪些 block。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">04</p>
+    <h3>并行逻辑流解码</h3>
+    <p>payload 逻辑流在同一套 block 级契约下独立解压。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">05</p>
+    <h3>可选顺序恢复</h3>
+    <p>只有在命令显式要求时，才执行原始顺序恢复。</p>
+  </article>
+  <article class="wp-flow__step">
+    <p class="wp-kicker">06</p>
+    <h3>FASTQ writer</h3>
+    <p>解码后的记录以请求的输出模式离开归档。</p>
+  </article>
+</div>
 
 Reader 侧的关键锚点是 `include/fqc/format/fqc_reader.h`、`include/fqc/pipeline/fqc_reader_node.h` 与 `include/fqc/pipeline/decompressor_node.h`。
 `src/commands/decompress_command.cpp` 负责决定本次运行是完整恢复还是定向提取。

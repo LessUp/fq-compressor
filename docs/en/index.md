@@ -3,44 +3,73 @@ layout: home
 
 hero:
   name: fq-compressor
-  text: FASTQ Compression Whitepaper
-  tagline: Inspect the algorithmic thesis, system boundaries, evidence chain, and random-access archive design in one bilingual technical portal.
+  text: Systems Whitepaper for FASTQ Compression
+  tagline: Audit the algorithmic thesis, archive contract, performance boundary, and reference shelf behind fq-compressor in one bilingual portal.
   actions:
     - theme: brand
-      text: Read the whitepaper
+      text: Read algorithms
       link: ./whitepaper/
     - theme: alt
-      text: Inspect architecture
+      text: Inspect system design
       link: ./architecture/
     - theme: alt
-      text: Review evidence
+      text: Review performance
       link: ./benchmarks/
     - theme: alt
-      text: Operator academy
-      link: ./academy/
+      text: Open references
+      link: ./research/
 ---
+
+<div class="wp-section">
+  <div class="wp-abstract">
+    <p class="wp-kicker">Abstract</p>
+    <h2>Compression ratio matters here because it is tied to retrieval semantics, evidence provenance, and code boundaries.</h2>
+    <p class="wp-lead">fq-compressor is documented as a coupled system. Read ordering, block-local transforms, FQC indexing, benchmark methodology, and operational workflows are treated as one public contract.</p>
+  </div>
+
+  <div class="wp-grid wp-grid--two">
+    <article class="wp-card">
+      <p class="wp-kicker">What you can audit here</p>
+      <ul class="wp-list">
+        <li>Algorithm framing for ABC, SCM, reversible reordering, and consensus-plus-delta encoding</li>
+        <li>System design for block-local compression, archive materialization, and O(1) random access</li>
+        <li>Performance language bounded by tracked benchmark artifacts and explicit methodology</li>
+      </ul>
+    </article>
+    <article class="wp-card">
+      <p class="wp-kicker">Primary repository anchors</p>
+      <ul class="wp-list">
+        <li><a href="./architecture/">Architecture</a> maps public concepts to <code>include/fqc/</code>, <code>src/</code>, and format responsibilities</li>
+        <li><a href="./benchmarks/">Performance</a> keeps benchmark claims tied to repository artifacts and proof limits</li>
+        <li><a href="./research/">References</a> connects the site to papers, comparator repositories, and OpenSpec</li>
+      </ul>
+    </article>
+  </div>
+</div>
 
 <EvidenceGrid locale="en" />
 
 <ArchitectureAtlas locale="en" />
 
-## What the site argues
-
-fq-compressor is documented here as a technical argument, not a marketing page. A useful FASTQ compressor is not
-defined by a single ratio chart. It is defined by how well compression density, throughput, random-access semantics,
-format design, and repository-verifiable evidence fit together.
-
-```mermaid
-flowchart LR
-    A[FASTQ input] --> B[Parser and compressed stream I/O]
-    B --> C[Global analyzer and reorder planning]
-    C --> D[Block compression and stream transforms]
-    D --> E[FQC writer and index]
-    E --> F[Verify, info, range decode, restore]
-```
-
-The reading order is deliberate: first understand the thesis, then the boundaries that make the thesis implementable,
-then the evidence that constrains what may be claimed publicly.
+<div class="wp-section">
+  <div class="wp-grid wp-grid--three">
+    <article class="wp-card">
+      <p class="wp-kicker">Algorithms</p>
+      <h3>ABC plus SCM, framed as a system thesis</h3>
+      <p>The whitepaper lane explains why fq-compressor splits read ordering, consensus-style sequence reduction, and quality modeling into distinct but cooperating stages.</p>
+    </article>
+    <article class="wp-card">
+      <p class="wp-kicker">Evidence</p>
+      <h3>Performance claims stay narrower than aspiration</h3>
+      <p>The benchmark lane is intentionally conservative. It shows what the repository can prove today, not every future claim the project may eventually support.</p>
+    </article>
+    <article class="wp-card">
+      <p class="wp-kicker">References</p>
+      <h3>The portal cites literature and comparators explicitly</h3>
+      <p>The reference shelf ties fq-compressor back to SPRING [R1], fqzcomp [R2], HARC [C2], NanoSpring [R3], and repository-local evidence anchors.</p>
+    </article>
+  </div>
+</div>
 
 <ReadingTracks locale="en" />
 
