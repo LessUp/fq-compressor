@@ -1,5 +1,11 @@
 ---
 layout: home
+titleTemplate: fq-compressor - FASTQ Compression
+
+head:
+  - - meta
+    - name: description
+      content: FASTQ compression whitepaper, architecture, and evidence portal
 
 hero:
   name: fq-compressor

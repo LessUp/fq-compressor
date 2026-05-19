@@ -1,14 +1,13 @@
 import { defineConfig } from "vitepress";
 import llmstxt from "vitepress-plugin-llms";
 
-const rawBase = process.env.VITEPRESS_BASE;
-const base = rawBase
-    ? rawBase.startsWith("/")
-        ? rawBase.endsWith("/")
-            ? rawBase
-            : `${rawBase}/`
-        : `/${rawBase}/`
-    : "/fq-compressor/";
+function normalizeBase(path: string | undefined, fallback: string): string {
+    if (!path) return fallback;
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    return normalized.endsWith("/") ? normalized : `${normalized}/`;
+}
+
+const base = normalizeBase(process.env.VITEPRESS_BASE, "/fq-compressor/");
 
 const englishNav = [
     { text: "Briefing", link: "/en/overview/", activeMatch: "/en/overview/" },
