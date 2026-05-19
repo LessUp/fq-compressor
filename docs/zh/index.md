@@ -1,5 +1,11 @@
 ---
 layout: home
+titleTemplate: fq-compressor - FASTQ 压缩
+
+head:
+  - - meta
+    - name: description
+      content: fq-compressor FASTQ 压缩白皮书、架构与证据站点
 
 hero:
   name: fq-compressor

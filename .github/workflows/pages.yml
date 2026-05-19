@@ -42,6 +42,11 @@ jobs:
         working-directory: docs
         run: npm run build
 
+      - name: Report build failure
+        if: failure()
+        run: |
+          echo "::error::Documentation build failed. Check the workflow logs for details."
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -11,6 +11,10 @@ const props = withDefaults(
     }
 );
 
+if (import.meta.env.DEV && props.locale && !["en", "zh"].includes(props.locale)) {
+    console.warn(`[ReadingTracks] Invalid locale: ${props.locale}, expected 'en' or 'zh'`);
+}
+
 const copy = {
     en: {
         kicker: "Reading tracks",
@@ -113,16 +117,16 @@ const content = computed(() => copy[props.locale]);
             <p class="wp-kicker">{{ content.kicker }}</p>
             <h2>{{ content.title }}</h2>
         </header>
-        <ol class="reading-tracks">
-            <li v-for="track in content.tracks" :key="track.id" class="reading-tracks__item">
-                <div class="reading-tracks__meta">
-                    <span class="reading-tracks__index">{{ track.id }}</span>
+        <ol class="wp-reading-tracks">
+            <li v-for="track in content.tracks" :key="track.id" class="wp-reading-tracks__item">
+                <div class="wp-reading-tracks__meta">
+                    <span class="wp-reading-tracks__index">{{ track.id }}</span>
                     <p>{{ track.audience }}</p>
                 </div>
-                <div class="reading-tracks__body">
+                <div class="wp-reading-tracks__body">
                     <h3>{{ track.title }}</h3>
                     <p>{{ track.body }}</p>
-                    <dl class="reading-tracks__route">
+                    <dl class="wp-reading-tracks__route">
                         <div>
                             <dt>{{ content.entryLabel }}</dt>
                             <dd>{{ track.entry }}</dd>

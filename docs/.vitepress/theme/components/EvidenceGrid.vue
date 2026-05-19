@@ -11,6 +11,10 @@ const props = withDefaults(
     }
 );
 
+if (import.meta.env.DEV && props.locale && !["en", "zh"].includes(props.locale)) {
+    console.warn(`[EvidenceGrid] Invalid locale: ${props.locale}, expected 'en' or 'zh'`);
+}
+
 const copy = {
     en: {
         kicker: "Performance ledger",
@@ -111,8 +115,8 @@ const content = computed(() => copy[props.locale]);
 
 <template>
     <section class="wp-section wp-section--wide">
-        <div class="evidence-grid">
-            <header class="wp-section__intro evidence-grid__intro">
+        <div class="wp-evidence-grid">
+            <header class="wp-section__intro wp-evidence-grid__intro">
                 <p class="wp-kicker">{{ content.kicker }}</p>
                 <h2>{{ content.title }}</h2>
                 <p>{{ content.summary }}</p>
@@ -121,15 +125,15 @@ const content = computed(() => copy[props.locale]);
             <article
                 v-for="card in content.cards"
                 :key="card.title"
-                class="evidence-grid__card"
+                class="wp-evidence-grid__card"
             >
-                <div class="evidence-grid__header">
-                    <span class="evidence-grid__serial">{{ card.serial }}</span>
-                    <p class="evidence-grid__value">{{ card.value }}</p>
+                <div class="wp-evidence-grid__header">
+                    <span class="wp-evidence-grid__serial">{{ card.serial }}</span>
+                    <p class="wp-evidence-grid__value">{{ card.value }}</p>
                 </div>
                 <h3>{{ card.title }}</h3>
                 <p>{{ card.body }}</p>
-                <ul class="evidence-grid__facts">
+                <ul class="wp-evidence-grid__facts">
                     <li v-for="fact in card.facts" :key="fact">{{ fact }}</li>
                 </ul>
                 <a :href="withBase(card.href)">{{ card.link }}</a>

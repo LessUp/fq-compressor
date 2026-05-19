@@ -1,22 +1,39 @@
 :root {
+    --vp-c-brand-1: #4a6cf7;
     --vp-c-brand-1: oklch(0.56 0.17 257);
+    --vp-c-brand-2: #5b7cf7;
     --vp-c-brand-2: oklch(0.63 0.13 246);
+    --vp-c-brand-3: #7b9cf7;
     --vp-c-brand-3: oklch(0.71 0.09 236);
+    --vp-c-bg: #f8f9fc;
     --vp-c-bg: oklch(0.984 0.005 250);
+    --vp-c-bg-alt: #f4f5f9;
     --vp-c-bg-alt: oklch(0.967 0.008 250);
+    --vp-c-bg-soft: #eff1f6;
     --vp-c-bg-soft: oklch(0.952 0.011 248);
+    --vp-c-bg-elv: #fafbfd;
     --vp-c-bg-elv: oklch(0.992 0.003 245);
+    --vp-c-text-1: #2a2d35;
     --vp-c-text-1: oklch(0.22 0.02 255);
+    --vp-c-text-2: #5a5d66;
     --vp-c-text-2: oklch(0.42 0.016 255);
+    --vp-c-text-3: #8a8d95;
     --vp-c-text-3: oklch(0.58 0.012 255);
+    --vp-c-border: #d8dae0;
     --vp-c-border: oklch(0.85 0.01 250);
+    --vp-c-divider: #dde0e6;
     --vp-c-divider: oklch(0.87 0.008 250);
+    --vp-c-gutter: #e1e4ea;
     --vp-c-gutter: oklch(0.89 0.008 250);
+    --portal-paper-1: #fafbfd;
     --portal-paper-1: oklch(0.993 0.002 245);
     --portal-paper-2: color-mix(in oklab, var(--vp-c-bg-elv) 92%, var(--vp-c-brand-1) 8%);
     --portal-paper-3: color-mix(in oklab, var(--vp-c-bg-soft) 88%, var(--vp-c-brand-1) 12%);
+    --portal-ink-1: #2a2d35;
     --portal-ink-1: oklch(0.2 0.02 257);
+    --portal-ink-2: #525561;
     --portal-ink-2: oklch(0.38 0.018 255);
+    --portal-ink-3: #7a7d8a;
     --portal-ink-3: oklch(0.56 0.014 255);
     --portal-line-1: color-mix(in oklab, var(--vp-c-border) 76%, var(--vp-c-brand-1) 24%);
     --portal-line-strong: color-mix(in oklab, var(--vp-c-border) 58%, var(--vp-c-brand-1) 42%);
@@ -26,9 +43,13 @@
     --portal-surface-muted: color-mix(in oklab, var(--vp-c-bg-soft) 92%, var(--vp-c-brand-1) 8%);
     --portal-shadow-1: 0 22px 60px color-mix(in oklab, var(--vp-c-brand-1) 9%, transparent);
     --portal-shadow-2: 0 14px 34px color-mix(in oklab, var(--vp-c-text-1) 8%, transparent);
+    --portal-code: #3a3d4a;
     --portal-code: oklch(0.33 0.04 257);
+    --portal-signal-1: #7b9cf7;
     --portal-signal-1: oklch(0.71 0.15 258);
+    --portal-signal-2: #9bbcf7;
     --portal-signal-2: oklch(0.8 0.1 219);
+    --portal-signal-3: #7bcfcf;
     --portal-signal-3: oklch(0.69 0.13 189);
     --portal-diagram-fill: color-mix(in oklab, var(--portal-paper-2) 88%, var(--vp-c-brand-1) 12%);
     --portal-diagram-fill-strong: color-mix(in oklab, var(--portal-paper-3) 80%, var(--vp-c-brand-1) 20%);
@@ -37,24 +58,40 @@
 }
 
 .dark {
+    --vp-c-brand-1: #6b9cf7;
     --vp-c-brand-1: oklch(0.73 0.12 259);
+    --vp-c-brand-2: #7bace7;
     --vp-c-brand-2: oklch(0.79 0.09 242);
+    --vp-c-brand-3: #8bbcd7;
     --vp-c-brand-3: oklch(0.85 0.06 228);
+    --vp-c-bg: #26282f;
     --vp-c-bg: oklch(0.15 0.012 255);
+    --vp-c-bg-alt: #2a2d35;
     --vp-c-bg-alt: oklch(0.17 0.014 255);
+    --vp-c-bg-soft: #32353f;
     --vp-c-bg-soft: oklch(0.21 0.016 255);
+    --vp-c-bg-elv: #2e313a;
     --vp-c-bg-elv: oklch(0.19 0.016 255);
+    --vp-c-text-1: #eeeef2;
     --vp-c-text-1: oklch(0.94 0.012 255);
+    --vp-c-text-2: #c8cad2;
     --vp-c-text-2: oklch(0.79 0.014 255);
+    --vp-c-text-3: #9a9da6;
     --vp-c-text-3: oklch(0.64 0.013 255);
+    --vp-c-border: #525561;
     --vp-c-border: oklch(0.33 0.014 255);
+    --vp-c-divider: #484b56;
     --vp-c-divider: oklch(0.29 0.015 255);
+    --vp-c-gutter: #3e414c;
     --vp-c-gutter: oklch(0.25 0.015 255);
     --portal-paper-1: color-mix(in oklab, var(--vp-c-bg-elv) 90%, var(--vp-c-brand-1) 10%);
     --portal-paper-2: color-mix(in oklab, var(--vp-c-bg-soft) 86%, var(--vp-c-brand-1) 14%);
     --portal-paper-3: color-mix(in oklab, var(--vp-c-bg-soft) 76%, var(--vp-c-brand-1) 24%);
+    --portal-ink-1: #eeeef2;
     --portal-ink-1: oklch(0.94 0.012 255);
+    --portal-ink-2: #c4c6ce;
     --portal-ink-2: oklch(0.78 0.014 255);
+    --portal-ink-3: #9a9da6;
     --portal-ink-3: oklch(0.62 0.013 255);
     --portal-line-1: color-mix(in oklab, var(--vp-c-border) 82%, var(--vp-c-brand-1) 18%);
     --portal-line-strong: color-mix(in oklab, var(--vp-c-border) 56%, var(--vp-c-brand-1) 44%);
@@ -64,9 +101,13 @@
     --portal-surface-muted: color-mix(in oklab, var(--vp-c-bg-soft) 88%, var(--vp-c-brand-1) 12%);
     --portal-shadow-1: 0 28px 80px color-mix(in oklab, var(--vp-c-brand-1) 10%, transparent);
     --portal-shadow-2: 0 16px 42px color-mix(in oklab, rgb(0 0 0) 35%, transparent);
+    --portal-code: #d8daef;
     --portal-code: oklch(0.87 0.04 250);
+    --portal-signal-1: #7b9cf7;
     --portal-signal-1: oklch(0.77 0.12 256);
+    --portal-signal-2: #9bace7;
     --portal-signal-2: oklch(0.8 0.08 212);
+    --portal-signal-3: #9bcfca;
     --portal-signal-3: oklch(0.79 0.08 187);
     --portal-diagram-fill: color-mix(in oklab, var(--portal-paper-2) 92%, var(--vp-c-brand-1) 8%);
     --portal-diagram-fill-strong: color-mix(in oklab, var(--portal-paper-3) 82%, var(--vp-c-brand-1) 18%);
@@ -394,15 +435,15 @@ body {
     align-items: start;
 }
 
-.evidence-grid {
+.wp-evidence-grid {
     display: grid;
     gap: 18px;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: start;
 }
 
-.evidence-grid__intro,
-.evidence-grid__card {
+.wp-evidence-grid__intro,
+.wp-evidence-grid__card {
     min-height: 100%;
     padding: clamp(1.2rem, 2vw, 1.8rem);
     border: 1px solid var(--portal-line-1);
@@ -410,7 +451,7 @@ body {
     box-shadow: var(--portal-shadow-1);
 }
 
-.evidence-grid__intro {
+.wp-evidence-grid__intro {
     grid-column: 1 / -1;
     align-items: end;
     background:
@@ -418,30 +459,30 @@ body {
         var(--portal-surface);
 }
 
-.evidence-grid__intro h2 {
+.wp-evidence-grid__intro h2 {
     max-width: 15ch;
 }
 
-.evidence-grid__card {
+.wp-evidence-grid__card {
     display: grid;
     gap: 12px;
     align-content: start;
 }
 
-.evidence-grid__header {
+.wp-evidence-grid__header {
     display: flex;
     gap: 12px;
     justify-content: space-between;
     align-items: end;
 }
 
-.evidence-grid__serial {
+.wp-evidence-grid__serial {
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 0.88rem;
 }
 
-.evidence-grid__value {
+.wp-evidence-grid__value {
     margin: 0;
     color: var(--portal-ink-1);
     font-family: var(--vp-font-family-mono);
@@ -450,18 +491,18 @@ body {
     letter-spacing: -0.05em;
 }
 
-.evidence-grid__card h3 {
+.wp-evidence-grid__card h3 {
     margin: 0;
     font-size: 1.04rem;
     line-height: 1.35;
 }
 
-.evidence-grid__card p {
+.wp-evidence-grid__card p {
     margin: 0;
     color: var(--portal-ink-2);
 }
 
-.evidence-grid__facts {
+.wp-evidence-grid__facts {
     display: grid;
     gap: 0.6rem;
     margin: 0;
@@ -469,14 +510,14 @@ body {
     list-style: none;
 }
 
-.evidence-grid__facts li {
+.wp-evidence-grid__facts li {
     position: relative;
     padding-left: 0.95rem;
     color: var(--portal-ink-3);
     font-size: 0.95rem;
 }
 
-.evidence-grid__facts li::before {
+.wp-evidence-grid__facts li::before {
     content: "";
     position: absolute;
     top: 0.62rem;
@@ -486,14 +527,14 @@ body {
     background: linear-gradient(135deg, var(--vp-c-brand-1), var(--portal-signal-2));
 }
 
-.atlas-flow {
+.wp-atlas-flow {
     position: relative;
     display: grid;
     gap: 14px;
     grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.atlas-flow::before {
+.wp-atlas-flow::before {
     content: "";
     position: absolute;
     inset: 50% 4% auto;
@@ -502,17 +543,17 @@ body {
     transform: translateY(-50%);
 }
 
-.atlas-flow__node,
-.atlas-notes__item,
-.citation-cluster__column,
-.reading-tracks__item {
+.wp-atlas-flow__node,
+.wp-atlas-notes__item,
+.wp-citation-cluster__column,
+.wp-reading-tracks__item {
     position: relative;
     border: 1px solid var(--portal-line-1);
     background: var(--portal-surface);
     box-shadow: var(--portal-shadow-2);
 }
 
-.atlas-flow__node {
+.wp-atlas-flow__node {
     z-index: 1;
     display: grid;
     gap: 10px;
@@ -523,31 +564,31 @@ body {
         var(--portal-surface);
 }
 
-.atlas-flow__eyebrow {
+.wp-atlas-flow__eyebrow {
     margin: 0;
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 0.86rem;
 }
 
-.atlas-flow__node h3,
-.atlas-notes__item h3,
-.reading-tracks__body h3,
-.citation-cluster__column h3 {
+.wp-atlas-flow__node h3,
+.wp-atlas-notes__item h3,
+.wp-reading-tracks__body h3,
+.wp-citation-cluster__column h3 {
     margin: 0;
     font-size: 1.02rem;
     line-height: 1.35;
 }
 
-.atlas-flow__node p,
-.atlas-notes__item p,
-.reading-tracks__body p,
-.citation-cluster__column p {
+.wp-atlas-flow__node p,
+.wp-atlas-notes__item p,
+.wp-reading-tracks__body p,
+.wp-citation-cluster__column p {
     margin: 0;
     color: var(--portal-ink-2);
 }
 
-.atlas-flow__anchor {
+.wp-atlas-flow__anchor {
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 0.85rem;
@@ -558,18 +599,18 @@ body {
     max-width: 14ch;
 }
 
-.atlas-notes {
+.wp-atlas-notes {
     display: grid;
     gap: 16px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 20px;
 }
 
-.atlas-notes__item {
+.wp-atlas-notes__item {
     padding: 18px;
 }
 
-.reading-tracks {
+.wp-reading-tracks {
     display: grid;
     gap: 14px;
     margin: 0;
@@ -577,7 +618,7 @@ body {
     list-style: none;
 }
 
-.reading-tracks__item {
+.wp-reading-tracks__item {
     display: grid;
     gap: 20px 24px;
     grid-template-columns: minmax(8rem, 0.24fr) minmax(0, 1fr) auto;
@@ -585,31 +626,31 @@ body {
     align-items: start;
 }
 
-.reading-tracks__meta p {
+.wp-reading-tracks__meta p {
     margin: 6px 0 0;
     color: var(--portal-ink-3);
     font-size: 0.92rem;
 }
 
-.reading-tracks__index {
+.wp-reading-tracks__index {
     display: inline-block;
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 1.08rem;
 }
 
-.reading-tracks__route {
+.wp-reading-tracks__route {
     display: grid;
     gap: 10px;
     margin: 14px 0 0;
 }
 
-.reading-tracks__route div {
+.wp-reading-tracks__route div {
     display: grid;
     gap: 2px;
 }
 
-.reading-tracks__route dt {
+.wp-reading-tracks__route dt {
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 0.82rem;
@@ -617,24 +658,24 @@ body {
     text-transform: uppercase;
 }
 
-.reading-tracks__route dd {
+.wp-reading-tracks__route dd {
     margin: 0;
     color: var(--portal-ink-2);
 }
 
-.citation-cluster {
+.wp-citation-cluster {
     display: grid;
     gap: 16px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.citation-cluster__column {
+.wp-citation-cluster__column {
     display: grid;
     gap: 14px;
     padding: 18px 20px;
 }
 
-.citation-cluster__column ul {
+.wp-citation-cluster__column ul {
     display: grid;
     gap: 12px;
     margin: 0;
@@ -642,18 +683,18 @@ body {
     list-style: none;
 }
 
-.citation-cluster__column li {
+.wp-citation-cluster__column li {
     display: grid;
     gap: 12px;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
 }
 
-.citation-cluster__column strong {
+.wp-citation-cluster__column strong {
     color: var(--portal-ink-1);
 }
 
-.citation-cluster__code {
+.wp-citation-cluster__code {
     color: var(--portal-code);
     font-family: var(--vp-font-family-mono);
     font-size: 0.9rem;
@@ -679,18 +720,18 @@ body {
 }
 
 @media (max-width: 1180px) {
-    .evidence-grid,
-    .atlas-notes,
-    .citation-cluster,
+    .wp-evidence-grid,
+    .wp-atlas-notes,
+    .wp-citation-cluster,
     .wp-grid--three {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .atlas-flow {
+    .wp-atlas-flow {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .atlas-flow::before {
+    .wp-atlas-flow::before {
         display: none;
     }
 }
@@ -698,11 +739,11 @@ body {
 @media (max-width: 960px) {
     .wp-section__split,
     .wp-grid--two,
-    .reading-tracks__item {
+    .wp-reading-tracks__item {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .reading-tracks__item {
+    .wp-reading-tracks__item {
         gap: 12px;
     }
 
@@ -720,10 +761,10 @@ body {
         padding-right: 16px;
     }
 
-    .evidence-grid,
-    .atlas-flow,
-    .atlas-notes,
-    .citation-cluster,
+    .wp-evidence-grid,
+    .wp-atlas-flow,
+    .wp-atlas-notes,
+    .wp-citation-cluster,
     .wp-grid--three,
     .wp-flow {
         grid-template-columns: minmax(0, 1fr);
@@ -734,7 +775,7 @@ body {
     .VPHero .tagline,
     .wp-abstract h2,
     .wp-section__intro h2,
-    .evidence-grid__intro h2 {
+    .wp-evidence-grid__intro h2 {
         max-width: none;
     }
 

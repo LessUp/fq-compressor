@@ -11,6 +11,10 @@ const props = withDefaults(
     }
 );
 
+if (import.meta.env.DEV && props.locale && !["en", "zh"].includes(props.locale)) {
+    console.warn(`[CitationCluster] Invalid locale: ${props.locale}, expected 'en' or 'zh'`);
+}
+
 const copy = {
     en: {
         kicker: "Citation apparatus",
@@ -164,12 +168,12 @@ const content = computed(() => copy[props.locale]);
             <h2>{{ content.title }}</h2>
         </header>
 
-        <div class="citation-cluster">
-            <article v-for="column in content.columns" :key="column.title" class="citation-cluster__column">
+        <div class="wp-citation-cluster">
+            <article v-for="column in content.columns" :key="column.title" class="wp-citation-cluster__column">
                 <h3>{{ column.title }}</h3>
                 <ul>
                     <li v-for="item in column.items" :key="item.code">
-                        <span class="citation-cluster__code">{{ item.code }}</span>
+                        <span class="wp-citation-cluster__code">{{ item.code }}</span>
                         <div>
                             <strong>{{ item.label }}</strong>
                             <p>{{ item.note }}</p>

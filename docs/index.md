@@ -3,7 +3,9 @@ import { withBase } from 'vitepress'
 import { onMounted } from 'vue'
 
 onMounted(() => {
-  const target = navigator.language?.toLowerCase().startsWith('zh') ? 'zh/' : 'en/'
+  const lang = navigator.language?.toLowerCase() || ''
+  const isZh = lang.startsWith('zh') || lang === 'zh-hans' || lang === 'zh-hant'
+  const target = isZh ? 'zh/' : 'en/'
   window.location.replace(`${import.meta.env.BASE_URL}${target}`)
 })
 </script>

@@ -11,6 +11,10 @@ const props = withDefaults(
     }
 );
 
+if (import.meta.env.DEV && props.locale && !["en", "zh"].includes(props.locale)) {
+    console.warn(`[ArchitectureAtlas] Invalid locale: ${props.locale}, expected 'en' or 'zh'`);
+}
+
 const copy = {
     en: {
         kicker: "System blueprint",
@@ -135,18 +139,18 @@ const content = computed(() => copy[props.locale]);
                 <a class="wp-link" :href="withBase(content.architectureHref)">{{ content.architectureLink }}</a>
             </header>
 
-            <div class="atlas-flow" aria-label="Architecture atlas">
-                <div v-for="stage in content.stages" :key="stage.label" class="atlas-flow__node">
-                    <p class="atlas-flow__eyebrow">{{ stage.serial }}</p>
+            <div class="wp-atlas-flow" aria-label="Architecture atlas">
+                <div v-for="stage in content.stages" :key="stage.label" class="wp-atlas-flow__node">
+                    <p class="wp-atlas-flow__eyebrow">{{ stage.serial }}</p>
                     <h3>{{ stage.label }}</h3>
                     <p>{{ stage.detail }}</p>
-                    <p class="atlas-flow__anchor">{{ stage.anchor }}</p>
+                    <p class="wp-atlas-flow__anchor">{{ stage.anchor }}</p>
                 </div>
             </div>
         </div>
 
-        <div class="atlas-notes">
-            <article v-for="item in content.legend" :key="item.title" class="atlas-notes__item">
+        <div class="wp-atlas-notes">
+            <article v-for="item in content.legend" :key="item.title" class="wp-atlas-notes__item">
                 <h3>{{ item.title }}</h3>
                 <p>{{ item.body }}</p>
             </article>
