@@ -2,8 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST_DIR="${PROJECT_ROOT}/.benchmark_v2_smoke_test.$$"
-mkdir -p "${TEST_DIR}"
+TEST_DIR="$(mktemp -d)"
 trap 'rm -rf "${TEST_DIR}"' EXIT
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/workloads.txt"
