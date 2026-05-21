@@ -101,8 +101,43 @@ assert_manifest_error \
     "workloads.yaml workload 'broken-paired' with layout 'paired' must define exactly 2 inputs"
 
 assert_manifest_error \
+    duplicate_workload_id \
+    load_workloads \
+    $'workloads:\n  - workload_id: repeated\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]\n  - workload_id: repeated\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml has duplicate workload_id 'repeated'"
+
+assert_manifest_error \
+    non_positive_read_limit \
+    load_workloads \
+    $'workloads:\n  - workload_id: zero-limit\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 0\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'zero-limit' read_limit must be positive"
+
+assert_manifest_error \
+    unknown_comparable_tool \
+    load_workloads \
+    $'workloads:\n  - workload_id: unknown-tool\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc, nope]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'unknown-tool' references unknown comparable_tools ID 'nope'"
+
+assert_manifest_error \
+    paired_workload_unsupported_tool \
+    load_workloads \
+    $'workloads:\n  - workload_id: paired-gzip\n    layout: paired\n    inputs: ["small/test_1.fq.gz", "small/test_2.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc, gzip]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'paired-gzip' references tool 'gzip' that does not support paired workloads"
+
+assert_manifest_error \
     missing_tool_id \
     load_tools \
     "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
     $'tools:\n  - category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}' \
     "tools.yaml entry #1 missing required key 'tool_id'"
+
+assert_manifest_error \
+    duplicate_tool_id \
+    load_tools \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
+    $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}' \
+    "tools.yaml has duplicate tool_id 'gzip'"
