@@ -2,9 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST_DIR="${PROJECT_ROOT}/tests/e2e/.benchmark_v2_smoke_test"
-rm -rf "${TEST_DIR}"
-mkdir -p "${TEST_DIR}"
+TEST_DIR="$(mktemp -d)"
 trap 'rm -rf "${TEST_DIR}"' EXIT
 
 assert_sorted_equals() {
