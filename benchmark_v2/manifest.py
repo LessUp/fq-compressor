@@ -102,6 +102,10 @@ def load_workloads() -> tuple[WorkloadSpec, ...]:
                 f"{path.name} workload '{workload_id}' with layout '{layout}' "
                 f"must define exactly {expected_inputs} inputs"
             )
+        if layout == "paired" and inputs[0] == inputs[1]:
+            raise ValueError(
+                f"{path.name} workload '{workload_id}' must define two distinct inputs"
+            )
         if read_limit <= 0:
             raise ValueError(f"{path.name} workload '{workload_id}' read_limit must be positive")
         if not comparable_tools:

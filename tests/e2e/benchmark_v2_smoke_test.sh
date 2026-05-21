@@ -54,6 +54,35 @@ else:
 PY
 }
 
+assert_python_validation_error() {
+    local expected_fragment="$1"
+    local python_snippet="$2"
+
+    EXPECTED_FRAGMENT="${expected_fragment}" \
+        PYTHON_SNIPPET="${python_snippet}" \
+        PROJECT_ROOT="${PROJECT_ROOT}" \
+        python3 <<'PY'
+import os
+import sys
+
+sys.path.insert(0, os.environ["PROJECT_ROOT"])
+
+expected_fragment = os.environ["EXPECTED_FRAGMENT"]
+python_snippet = os.environ["PYTHON_SNIPPET"]
+
+try:
+    exec(python_snippet, {"__name__": "__main__"})
+except ValueError as exc:
+    message = str(exc)
+    if expected_fragment not in message:
+        raise AssertionError(
+            f"expected {expected_fragment!r} in ValueError message {message!r}"
+        ) from exc
+else:
+    raise AssertionError("expected ValueError")
+PY
+}
+
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/workloads.txt"
 cat <<'EOF' > "${TEST_DIR}/expected_workloads.txt"
 small20k-single
@@ -99,6 +128,13 @@ assert_manifest_error \
     $'workloads:\n  - workload_id: broken-paired\n    layout: paired\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
     "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
     "workloads.yaml workload 'broken-paired' with layout 'paired' must define exactly 2 inputs"
+
+assert_manifest_error \
+    paired_workload_duplicate_inputs \
+    load_workloads \
+    $'workloads:\n  - workload_id: repeated-paired-input\n    layout: paired\n    inputs: ["small/test_1.fq.gz", "small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'repeated-paired-input' must define two distinct inputs"
 
 assert_manifest_error \
     duplicate_workload_id \
@@ -155,3 +191,11 @@ assert_manifest_error \
     "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
     $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}' \
     "tools.yaml has duplicate tool_id 'gzip'"
+
+assert_python_validation_error \
+    "operation must be one of" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="invalid",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "suite layout" \
+    $'from benchmark_v2.models import BenchmarkResult, BenchmarkSuite\n\nBenchmarkSuite(\n    workload_id="small20k-single",\n    layout="single",\n    results=(\n        BenchmarkResult(\n            tool_id="fqc",\n            layout="paired",\n            operation="compress",\n            threads=1,\n            input_bytes=1,\n            output_bytes=1,\n            elapsed_seconds=0.1,\n            success=True,\n        ),\n    ),\n)'
