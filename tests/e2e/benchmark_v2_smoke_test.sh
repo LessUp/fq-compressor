@@ -205,6 +205,27 @@ assert_command_failure_contains_no_traceback \
     --data-root "${BENCHMARK_V2_DATA_ROOT}" \
     --output-dir "${TEST_DIR}/unknown-workload"
 
+mkdir -p "${TEST_DIR}/missing-input-data/small"
+assert_command_failure_contains_no_traceback \
+    "error: [Errno 2] No such file or directory" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    prepare \
+    --workload small20k-single \
+    --data-root "${TEST_DIR}/missing-input-data" \
+    --output-dir "${TEST_DIR}/missing-input-output"
+
+mkdir -p "${TEST_DIR}/bad-gzip-data/small"
+cat <<'EOF' > "${TEST_DIR}/bad-gzip-data/small/test_1.fq.gz"
+not a gzip file
+EOF
+assert_command_failure_contains_no_traceback \
+    "error: Not a gzipped file" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    prepare \
+    --workload small20k-single \
+    --data-root "${TEST_DIR}/bad-gzip-data" \
+    --output-dir "${TEST_DIR}/bad-gzip-output"
+
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
     --workload small20k-paired \
     --data-root "${BENCHMARK_V2_DATA_ROOT}" \

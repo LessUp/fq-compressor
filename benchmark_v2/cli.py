@@ -59,7 +59,7 @@ def main() -> None:
                 data_root=Path(args.data_root),
                 output_dir=Path(args.output_dir),
             )
-        except ValueError as exc:
+        except (OSError, ValueError) as exc:
             parser.error(str(exc))
         for output in outputs:
             print(output)
