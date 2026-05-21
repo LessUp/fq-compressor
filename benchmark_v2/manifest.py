@@ -104,7 +104,19 @@ def load_workloads() -> tuple[WorkloadSpec, ...]:
             )
         if read_limit <= 0:
             raise ValueError(f"{path.name} workload '{workload_id}' read_limit must be positive")
+        if not comparable_tools:
+            raise ValueError(
+                f"{path.name} workload '{workload_id}' must define at least one "
+                "comparable_tools entry"
+            )
+        seen_comparable_tools: set[str] = set()
         for tool_id in comparable_tools:
+            if tool_id in seen_comparable_tools:
+                raise ValueError(
+                    f"{path.name} workload '{workload_id}' has duplicate comparable_tools ID "
+                    f"'{tool_id}'"
+                )
+            seen_comparable_tools.add(tool_id)
             tool = tools_by_id.get(tool_id)
             if tool is None:
                 raise ValueError(

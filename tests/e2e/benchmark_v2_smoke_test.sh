@@ -115,6 +115,20 @@ assert_manifest_error \
     "workloads.yaml workload 'zero-limit' read_limit must be positive"
 
 assert_manifest_error \
+    empty_comparable_tools \
+    load_workloads \
+    $'workloads:\n  - workload_id: no-tools\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: []' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'no-tools' must define at least one comparable_tools entry"
+
+assert_manifest_error \
+    duplicate_comparable_tools \
+    load_workloads \
+    $'workloads:\n  - workload_id: dupe-tools\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc, gzip, fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'dupe-tools' has duplicate comparable_tools ID 'fqc'"
+
+assert_manifest_error \
     unknown_comparable_tool \
     load_workloads \
     $'workloads:\n  - workload_id: unknown-tool\n    layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc, nope]' \
