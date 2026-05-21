@@ -231,8 +231,28 @@ assert_python_validation_error \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=(),\n)'
 
 assert_python_validation_error \
+    "tier must be a non-empty string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "inputs member #2 must be a string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-paired",\n    layout="paired",\n    inputs=("small/test_1.fq.gz", None),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "comparable_tools member #2 must be a string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc", None),\n)'
+
+assert_python_validation_error \
+    "comparable_tools must not contain duplicates" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc", "gzip", "fqc"),\n)'
+
+assert_python_validation_error \
     "tool_id must be a non-empty string" \
     $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="",\n    category="baseline",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
+
+assert_python_validation_error \
+    "category must be a non-empty string" \
+    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="gzip",\n    category="",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
 
 assert_python_validation_error \
     "compress_template must be a non-empty string" \
@@ -273,3 +293,7 @@ assert_python_validation_error \
 assert_python_validation_error \
     "workload_id must be a non-empty string" \
     $'from benchmark_v2.models import BenchmarkSuite\n\nBenchmarkSuite(\n    workload_id="",\n    layout="single",\n    results=(),\n)'
+
+assert_python_validation_error \
+    "results item #1 must be a BenchmarkResult" \
+    $'from benchmark_v2.models import BenchmarkSuite\n\nBenchmarkSuite(\n    workload_id="small20k-single",\n    layout="single",\n    results=(None,),\n)'

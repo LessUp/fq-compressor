@@ -21,6 +21,12 @@ def _validate_non_empty_string(value: object, *, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a non-empty string")
 
 
+def _validate_string_members(values: tuple[object, ...], *, field_name: str) -> None:
+    for index, value in enumerate(values, start=1):
+        if not isinstance(value, str):
+            raise ValueError(f"{field_name} member #{index} must be a string")
+
+
 @dataclass(frozen=True)
 class WorkloadSpec:
     workload_id: str
@@ -33,6 +39,7 @@ class WorkloadSpec:
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
+        _validate_string_members(self.inputs, field_name="inputs")
         if self.layout == "single":
             if len(self.inputs) != 1:
                 raise ValueError("single workloads must define exactly 1 input")
@@ -40,8 +47,12 @@ class WorkloadSpec:
             raise ValueError("paired workloads must define exactly 2 distinct inputs")
         if self.read_limit <= 0:
             raise ValueError("read_limit must be positive")
+        _validate_non_empty_string(self.tier, field_name="tier")
+        _validate_string_members(self.comparable_tools, field_name="comparable_tools")
         if not self.comparable_tools:
             raise ValueError("comparable_tools must contain at least one tool ID")
+        if len(set(self.comparable_tools)) != len(self.comparable_tools):
+            raise ValueError("comparable_tools must not contain duplicates")
 
 
 @dataclass(frozen=True)
@@ -54,6 +65,7 @@ class ToolSpec:
 
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.tool_id, field_name="tool_id")
+        _validate_non_empty_string(self.category, field_name="category")
         _validate_non_empty_string(self.compress_template, field_name="compress_template")
         _validate_non_empty_string(self.decompress_template, field_name="decompress_template")
 
@@ -99,6 +111,8 @@ class BenchmarkSuite:
         _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
         for index, result in enumerate(self.results, start=1):
+            if not isinstance(result, BenchmarkResult):
+                raise ValueError(f"results item #{index} must be a BenchmarkResult")
             if result.layout != self.layout:
                 raise ValueError(
                     f"suite layout {self.layout!r} does not match result #{index} "
