@@ -34,7 +34,17 @@ def subset_fastq(src_gz: Path, dst_fastq: Path, read_limit: int) -> Path:
 
 def prepare_workload(spec: WorkloadSpec, data_root: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    resolved = [data_root / relative for relative in spec.inputs]
+    data_root_resolved = data_root.resolve()
+    resolved: list[Path] = []
+    for relative in spec.inputs:
+        candidate = (data_root / relative).resolve()
+        try:
+            candidate.relative_to(data_root_resolved)
+        except ValueError as exc:
+            raise ValueError(
+                f"input path {relative!r} escapes data_root {data_root_resolved}"
+            ) from exc
+        resolved.append(candidate)
     outputs = [output_dir / f"{spec.workload_id}_R1.fastq"]
     if spec.layout == "paired":
         outputs.append(output_dir / f"{spec.workload_id}_R2.fastq")

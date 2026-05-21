@@ -35,6 +35,12 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
+    if args.command is not None:
+        if args.list_workloads:
+            parser.error("cannot combine --list-workloads with subcommands")
+        if args.list_tools:
+            parser.error("cannot combine --list-tools with subcommands")
+
     if args.list_workloads:
         for workload in load_workloads():
             print(workload.workload_id)

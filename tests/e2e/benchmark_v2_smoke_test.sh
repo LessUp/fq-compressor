@@ -14,6 +14,19 @@ assert_sorted_equals() {
     diff -u "${expected_path}.sorted" "${actual_path}.sorted"
 }
 
+assert_command_failure_contains() {
+    local expected_fragment="$1"
+    shift
+    local stderr_path="${TEST_DIR}/command-stderr.txt"
+
+    if "$@" > /dev/null 2> "${stderr_path}"; then
+        echo "expected command to fail: $*" >&2
+        return 1
+    fi
+
+    grep -F -- "${expected_fragment}" "${stderr_path}" > /dev/null
+}
+
 assert_manifest_error() {
     local case_name="$1"
     local loader_name="$2"
@@ -120,6 +133,24 @@ EOF
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-tools > "${TEST_DIR}/actual-tools.txt"
 assert_sorted_equals "${TEST_DIR}/actual-tools.txt" "${TEST_DIR}/expected-tools.txt"
 
+assert_command_failure_contains \
+    "cannot combine --list-workloads with subcommands" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    --list-workloads \
+    prepare \
+    --workload small20k-single \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --output-dir "${TEST_DIR}/mixed-list-workloads"
+
+assert_command_failure_contains \
+    "cannot combine --list-tools with subcommands" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    --list-tools \
+    prepare \
+    --workload small20k-single \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --output-dir "${TEST_DIR}/mixed-list-tools"
+
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
     --workload small20k-paired \
     --data-root "${BENCHMARK_V2_DATA_ROOT}" \
@@ -189,6 +220,37 @@ prepare_workload(
     ),
     data_root=Path("${TEST_DIR}/mid-record-data"),
     output_dir=Path("${TEST_DIR}/mid-record-output"),
+    )
+PY
+)"
+
+mkdir -p "${TEST_DIR}/escaped-data/small" "${TEST_DIR}/outside"
+cat <<'EOF' > "${TEST_DIR}/outside/escaped.fastq"
+@read1
+TGCA
++
+####
+EOF
+gzip -c "${TEST_DIR}/outside/escaped.fastq" > "${TEST_DIR}/outside/escaped.fq.gz"
+
+assert_python_validation_error \
+    "escapes data_root" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="escaped-input",
+        layout="single",
+        inputs=("../outside/escaped.fq.gz",),
+        read_limit=1,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/escaped-data"),
+    output_dir=Path("${TEST_DIR}/escaped-output"),
 )
 PY
 )"
