@@ -4,6 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_DIR="$(mktemp -d)"
 trap 'rm -rf "${TEST_DIR}"' EXIT
+BENCHMARK_V2_DATA_ROOT="${BENCHMARK_V2_DATA_ROOT:-/home/shane/data/test}"
 
 assert_sorted_equals() {
     local actual_path="$1"
@@ -121,11 +122,121 @@ assert_sorted_equals "${TEST_DIR}/actual-tools.txt" "${TEST_DIR}/expected-tools.
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
     --workload small20k-paired \
-    --data-root /home/shane/data/test \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
     --output-dir "${TEST_DIR}/prepared"
 
 test -f "${TEST_DIR}/prepared/small20k-paired_R1.fastq"
 test -f "${TEST_DIR}/prepared/small20k-paired_R2.fastq"
+
+mkdir -p "${TEST_DIR}/short-data/small"
+cat <<'EOF' > "${TEST_DIR}/short-data/small/too-short.fastq"
+@read1
+ACGT
++
+!!!!
+EOF
+gzip -c "${TEST_DIR}/short-data/small/too-short.fastq" > "${TEST_DIR}/short-data/small/too-short.fq.gz"
+
+assert_python_validation_error \
+    "contains only 1 complete reads, fewer than requested 2" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="too-short",
+        layout="single",
+        inputs=("small/too-short.fq.gz",),
+        read_limit=2,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/short-data"),
+    output_dir=Path("${TEST_DIR}/short-output"),
+)
+PY
+)"
+
+mkdir -p "${TEST_DIR}/mid-record-data/small"
+cat <<'EOF' > "${TEST_DIR}/mid-record-data/small/mid-record.fastq"
+@read1
+TGCA
++
+####
+@read2
+CCCC
++
+EOF
+gzip -c "${TEST_DIR}/mid-record-data/small/mid-record.fastq" > "${TEST_DIR}/mid-record-data/small/mid-record.fq.gz"
+
+assert_python_validation_error \
+    "ends mid-record after 1 complete reads" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="mid-record",
+        layout="single",
+        inputs=("small/mid-record.fq.gz",),
+        read_limit=2,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/mid-record-data"),
+    output_dir=Path("${TEST_DIR}/mid-record-output"),
+)
+PY
+)"
+
+mkdir -p "${TEST_DIR}/paired-data/small"
+cat <<'EOF' > "${TEST_DIR}/paired-data/small/mate1.fastq"
+@read1
+AAAA
++
+!!!!
+@read2
+CCCC
++
+####
+EOF
+cat <<'EOF' > "${TEST_DIR}/paired-data/small/mate2.fastq"
+@read1
+GGGG
++
+!!!!
+EOF
+gzip -c "${TEST_DIR}/paired-data/small/mate1.fastq" > "${TEST_DIR}/paired-data/small/mate1.fq.gz"
+gzip -c "${TEST_DIR}/paired-data/small/mate2.fastq" > "${TEST_DIR}/paired-data/small/mate2.fq.gz"
+
+assert_python_validation_error \
+    "contains only 1 complete reads, fewer than requested 2" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="paired-cleanup",
+        layout="paired",
+        inputs=("small/mate1.fq.gz", "small/mate2.fq.gz"),
+        read_limit=2,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/paired-data"),
+    output_dir=Path("${TEST_DIR}/paired-output"),
+)
+PY
+)"
+
+test ! -e "${TEST_DIR}/paired-output/paired-cleanup_R1.fastq"
+test ! -e "${TEST_DIR}/paired-output/paired-cleanup_R2.fastq"
 
 assert_manifest_error \
     top_level_list \
