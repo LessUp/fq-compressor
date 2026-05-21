@@ -265,6 +265,42 @@ prepare_workload(
 PY
 )"
 
+mkdir -p "${TEST_DIR}/non-ascii-data/small"
+python3 <<PY
+import gzip
+from pathlib import Path
+
+output_path = Path("${TEST_DIR}") / "non-ascii-data" / "small" / "non-ascii.fq.gz"
+output_path.parent.mkdir(parents=True, exist_ok=True)
+
+with gzip.open(output_path, "wb") as fout:
+    fout.write(b"@read1\nACGT\xff\n+\nIIII\n")
+PY
+
+assert_python_validation_error \
+    "codec can't decode byte" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="non-ascii",
+        layout="single",
+        inputs=("small/non-ascii.fq.gz",),
+        read_limit=1,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/non-ascii-data"),
+    output_dir=Path("${TEST_DIR}/non-ascii-output"),
+)
+PY
+)"
+
+test ! -e "${TEST_DIR}/non-ascii-output/non-ascii_R1.fastq"
+
 mkdir -p "${TEST_DIR}/mid-record-data/small"
 cat <<'EOF' > "${TEST_DIR}/mid-record-data/small/mid-record.fastq"
 @read1

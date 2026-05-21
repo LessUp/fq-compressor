@@ -9,7 +9,7 @@ from benchmark_v2.models import WorkloadSpec
 def subset_fastq(src_gz: Path, dst_fastq: Path, read_limit: int) -> Path:
     records_written = 0
     with (
-        gzip.open(src_gz, "rt", encoding="ascii", errors="ignore") as fin,
+        gzip.open(src_gz, "rt", encoding="ascii") as fin,
         dst_fastq.open("w", encoding="ascii") as fout,
     ):
         while records_written < read_limit:
