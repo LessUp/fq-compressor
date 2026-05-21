@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
+from string import Formatter
 from typing import Literal
 
 Layout = Literal["single", "paired"]
@@ -50,6 +52,36 @@ def _validate_bool(value: object, *, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a boolean")
 
 
+def _template_placeholders(template: str) -> set[str]:
+    placeholders: set[str] = set()
+    for _, field_name, _, _ in Formatter().parse(template):
+        if field_name is None:
+            continue
+        root_name = field_name.split(".", 1)[0].split("[", 1)[0]
+        if root_name:
+            placeholders.add(root_name)
+    return placeholders
+
+
+def _validate_template_placeholders(
+    template: str,
+    *,
+    field_name: str,
+    required_placeholders: tuple[str, ...],
+) -> None:
+    placeholders = _template_placeholders(template)
+    missing = [name for name in required_placeholders if name not in placeholders]
+    if missing:
+        required = ", ".join(required_placeholders)
+        raise ValueError(f"{field_name} requires required placeholders: {required}")
+
+    allowed_placeholders = set(required_placeholders)
+    unknown = sorted(placeholders - allowed_placeholders)
+    if unknown:
+        unknown_placeholders = ", ".join(unknown)
+        raise ValueError(f"{field_name} has unknown placeholders: {unknown_placeholders}")
+
+
 @dataclass(frozen=True)
 class WorkloadSpec:
     workload_id: str
@@ -94,7 +126,17 @@ class ToolSpec:
         _validate_non_empty_string(self.category, field_name="category")
         _validate_bool(self.supports_paired, field_name="supports_paired")
         _validate_non_empty_string(self.compress_template, field_name="compress_template")
+        _validate_template_placeholders(
+            self.compress_template,
+            field_name="compress_template",
+            required_placeholders=("input", "output"),
+        )
         _validate_non_empty_string(self.decompress_template, field_name="decompress_template")
+        _validate_template_placeholders(
+            self.decompress_template,
+            field_name="decompress_template",
+            required_placeholders=("output", "decompressed"),
+        )
 
 
 @dataclass(frozen=True)
@@ -119,9 +161,12 @@ class BenchmarkResult:
         _validate_positive_int(self.threads, field_name="threads")
         _validate_non_negative_int(self.input_bytes, field_name="input_bytes")
         _validate_non_negative_int(self.output_bytes, field_name="output_bytes")
-        if not isinstance(self.elapsed_seconds, (int, float)) or isinstance(
-            self.elapsed_seconds, bool
-        ) or self.elapsed_seconds < 0:
+        if (
+            not isinstance(self.elapsed_seconds, (int, float))
+            or isinstance(self.elapsed_seconds, bool)
+            or not isfinite(self.elapsed_seconds)
+            or self.elapsed_seconds < 0
+        ):
             raise ValueError("elapsed_seconds must be non-negative")
         _validate_bool(self.success, field_name="success")
         if self.success and self.elapsed_seconds <= 0:
@@ -139,6 +184,8 @@ class BenchmarkSuite:
         _validate_layout(self.layout, field_name="layout")
         results = _coerce_tuple(self.results, field_name="results")
         object.__setattr__(self, "results", results)
+        if not results:
+            raise ValueError("results must contain at least one BenchmarkResult")
         for index, result in enumerate(results, start=1):
             if not isinstance(result, BenchmarkResult):
                 raise ValueError(f"results item #{index} must be a BenchmarkResult")
