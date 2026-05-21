@@ -88,8 +88,6 @@ def prepare_workload(spec: WorkloadSpec, data_root: Path, output_dir: Path) -> l
         ) as temp_file:
             temporary_outputs.append(Path(temp_file.name))
     try:
-        for temp_output in temporary_outputs:
-            temp_output.unlink(missing_ok=True)
         for src, temp_output in zip(resolved, temporary_outputs):
             subset_fastq(src, temp_output, spec.read_limit)
         for temp_output, output in zip(temporary_outputs, outputs):
