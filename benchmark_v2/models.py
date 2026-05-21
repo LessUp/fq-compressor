@@ -33,6 +33,11 @@ class WorkloadSpec:
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
+        if self.layout == "single":
+            if len(self.inputs) != 1:
+                raise ValueError("single workloads must define exactly 1 input")
+        elif len(self.inputs) != 2 or self.inputs[0] == self.inputs[1]:
+            raise ValueError("paired workloads must define exactly 2 distinct inputs")
         if self.read_limit <= 0:
             raise ValueError("read_limit must be positive")
         if not self.comparable_tools:
@@ -65,6 +70,7 @@ class BenchmarkResult:
     success: bool
 
     def __post_init__(self) -> None:
+        _validate_non_empty_string(self.tool_id, field_name="tool_id")
         _validate_layout(self.layout, field_name="layout")
         if self.operation not in _VALID_OPERATIONS:
             valid_operations = ", ".join(_VALID_OPERATIONS)
@@ -77,6 +83,8 @@ class BenchmarkResult:
             raise ValueError("input_bytes must be non-negative")
         if self.output_bytes < 0:
             raise ValueError("output_bytes must be non-negative")
+        if self.elapsed_seconds < 0:
+            raise ValueError("elapsed_seconds must be non-negative")
         if self.success and self.elapsed_seconds <= 0:
             raise ValueError("elapsed_seconds must be positive for successful benchmark results")
 

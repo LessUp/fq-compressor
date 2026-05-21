@@ -219,6 +219,14 @@ assert_python_validation_error \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=0,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
 
 assert_python_validation_error \
+    "single workloads must define exactly 1 input" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz", "small/test_2.fq.gz"),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "paired workloads must define exactly 2 distinct inputs" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-paired",\n    layout="paired",\n    inputs=("small/test_1.fq.gz", "small/test_1.fq.gz"),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
     "comparable_tools must contain at least one tool ID" \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=(),\n)'
 
@@ -239,6 +247,10 @@ assert_python_validation_error \
     $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=0,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
 
 assert_python_validation_error \
+    "tool_id must be a non-empty string" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
     "input_bytes must be non-negative" \
     $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=-1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
 
@@ -249,6 +261,10 @@ assert_python_validation_error \
 assert_python_validation_error \
     "elapsed_seconds must be positive for successful benchmark results" \
     $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.0,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "elapsed_seconds must be non-negative" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=-0.1,\n    success=False,\n)'
 
 assert_python_validation_error \
     "suite layout" \
