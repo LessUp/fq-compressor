@@ -52,12 +52,15 @@ def main() -> None:
         return
 
     if args.command == "prepare":
-        workload = _get_workload(args.workload)
-        outputs = prepare_workload(
-            workload,
-            data_root=Path(args.data_root),
-            output_dir=Path(args.output_dir),
-        )
+        try:
+            workload = _get_workload(args.workload)
+            outputs = prepare_workload(
+                workload,
+                data_root=Path(args.data_root),
+                output_dir=Path(args.output_dir),
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
         for output in outputs:
             print(output)
         return

@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_DIR="$(mktemp -d)"
 trap 'rm -rf "${TEST_DIR}"' EXIT
-BENCHMARK_V2_DATA_ROOT="${BENCHMARK_V2_DATA_ROOT:-/home/shane/data/test}"
+BENCHMARK_V2_DATA_ROOT="${TEST_DIR}/fixture-data"
 
 assert_sorted_equals() {
     local actual_path="$1"
@@ -25,6 +25,24 @@ assert_command_failure_contains() {
     fi
 
     grep -F -- "${expected_fragment}" "${stderr_path}" > /dev/null
+}
+
+assert_command_failure_contains_no_traceback() {
+    local expected_fragment="$1"
+    shift
+    local stderr_path="${TEST_DIR}/command-stderr.txt"
+
+    if "$@" > /dev/null 2> "${stderr_path}"; then
+        echo "expected command to fail: $*" >&2
+        return 1
+    fi
+
+    grep -F -- "${expected_fragment}" "${stderr_path}" > /dev/null
+    if grep -F -- "Traceback (most recent call last):" "${stderr_path}" > /dev/null; then
+        echo "expected normal CLI error without traceback: $*" >&2
+        cat "${stderr_path}" >&2
+        return 1
+    fi
 }
 
 assert_manifest_error() {
@@ -113,6 +131,34 @@ exec(python_snippet, {"__name__": "__main__"})
 PY
 }
 
+create_gzip_fastq() {
+    local output_path="$1"
+    local read_count="$2"
+    local sequence="$3"
+    mkdir -p "$(dirname "${output_path}")"
+
+    OUTPUT_PATH="${output_path}" \
+        READ_COUNT="${read_count}" \
+        SEQUENCE="${sequence}" \
+        python3 <<'PY'
+import gzip
+import os
+from pathlib import Path
+
+output_path = Path(os.environ["OUTPUT_PATH"])
+read_count = int(os.environ["READ_COUNT"])
+sequence = os.environ["SEQUENCE"]
+quality = "I" * len(sequence)
+
+with gzip.open(output_path, "wt", encoding="ascii") as fout:
+    for index in range(1, read_count + 1):
+        fout.write(f"@read{index}\n{sequence}\n+\n{quality}\n")
+PY
+}
+
+create_gzip_fastq "${BENCHMARK_V2_DATA_ROOT}/small/test_1.fq.gz" 20000 "ACGT"
+create_gzip_fastq "${BENCHMARK_V2_DATA_ROOT}/small/test_2.fq.gz" 20000 "TGCA"
+
 cat <<'EOF' > "${TEST_DIR}/expected-workloads.txt"
 big100k-paired
 big100k-single
@@ -150,6 +196,14 @@ assert_command_failure_contains \
     --workload small20k-single \
     --data-root "${BENCHMARK_V2_DATA_ROOT}" \
     --output-dir "${TEST_DIR}/mixed-list-tools"
+
+assert_command_failure_contains_no_traceback \
+    "error: unknown workload: missing-workload" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    prepare \
+    --workload missing-workload \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --output-dir "${TEST_DIR}/unknown-workload"
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
     --workload small20k-paired \
@@ -299,6 +353,30 @@ PY
 
 test ! -e "${TEST_DIR}/paired-output/paired-cleanup_R1.fastq"
 test ! -e "${TEST_DIR}/paired-output/paired-cleanup_R2.fastq"
+
+assert_python_validation_error \
+    "escapes output_dir" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="../escaped/pwned",
+        layout="single",
+        inputs=("small/test_1.fq.gz",),
+        read_limit=1,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${BENCHMARK_V2_DATA_ROOT}"),
+    output_dir=Path("${TEST_DIR}/safe-output"),
+)
+PY
+)"
+
+test ! -e "${TEST_DIR}/escaped/pwned_R1.fastq"
 
 assert_manifest_error \
     top_level_list \

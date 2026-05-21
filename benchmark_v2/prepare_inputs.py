@@ -32,6 +32,18 @@ def subset_fastq(src_gz: Path, dst_fastq: Path, read_limit: int) -> Path:
     return dst_fastq
 
 
+def _resolve_output_path(output_dir: Path, filename: str) -> Path:
+    output_dir_resolved = output_dir.resolve()
+    candidate = (output_dir_resolved / filename).resolve()
+    try:
+        relative_candidate = candidate.relative_to(output_dir_resolved)
+    except ValueError as exc:
+        raise ValueError(
+            f"output path {filename!r} escapes output_dir {output_dir_resolved}"
+        ) from exc
+    return output_dir_resolved / relative_candidate
+
+
 def prepare_workload(spec: WorkloadSpec, data_root: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     data_root_resolved = data_root.resolve()
@@ -45,10 +57,10 @@ def prepare_workload(spec: WorkloadSpec, data_root: Path, output_dir: Path) -> l
                 f"input path {relative!r} escapes data_root {data_root_resolved}"
             ) from exc
         resolved.append(candidate)
-    outputs = [output_dir / f"{spec.workload_id}_R1.fastq"]
+    outputs = [_resolve_output_path(output_dir, f"{spec.workload_id}_R1.fastq")]
     if spec.layout == "paired":
-        outputs.append(output_dir / f"{spec.workload_id}_R2.fastq")
-    temporary_outputs = [output_dir / f".{output.name}.tmp" for output in outputs]
+        outputs.append(_resolve_output_path(output_dir, f"{spec.workload_id}_R2.fastq"))
+    temporary_outputs = [_resolve_output_path(output_dir, f".{output.name}.tmp") for output in outputs]
     try:
         for temp_output in temporary_outputs:
             temp_output.unlink(missing_ok=True)
