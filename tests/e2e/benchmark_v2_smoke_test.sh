@@ -301,6 +301,37 @@ PY
 
 test ! -e "${TEST_DIR}/non-ascii-output/non-ascii_R1.fastq"
 
+mkdir -p "${TEST_DIR}/malformed-structure-data/small"
+cat <<'EOF' > "${TEST_DIR}/malformed-structure-data/small/malformed.fastq"
+read1
+ACGT
++
+IIII
+EOF
+gzip -c "${TEST_DIR}/malformed-structure-data/small/malformed.fastq" > "${TEST_DIR}/malformed-structure-data/small/malformed.fq.gz"
+
+assert_python_validation_error \
+    "malformed FASTQ record #1" \
+    "$(cat <<PY
+from pathlib import Path
+from benchmark_v2.models import WorkloadSpec
+from benchmark_v2.prepare_inputs import prepare_workload
+
+prepare_workload(
+    WorkloadSpec(
+        workload_id="malformed-structure",
+        layout="single",
+        inputs=("small/malformed.fq.gz",),
+        read_limit=1,
+        tier="dev",
+        comparable_tools=("fqc",),
+    ),
+    data_root=Path("${TEST_DIR}/malformed-structure-data"),
+    output_dir=Path("${TEST_DIR}/malformed-structure-output"),
+)
+PY
+)"
+
 mkdir -p "${TEST_DIR}/mid-record-data/small"
 cat <<'EOF' > "${TEST_DIR}/mid-record-data/small/mid-record.fastq"
 @read1
