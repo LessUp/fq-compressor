@@ -83,6 +83,22 @@ else:
 PY
 }
 
+assert_python_tuple_normalized() {
+    local python_snippet="$1"
+
+    PYTHON_SNIPPET="${python_snippet}" \
+        PROJECT_ROOT="${PROJECT_ROOT}" \
+        python3 <<'PY'
+import os
+import sys
+
+sys.path.insert(0, os.environ["PROJECT_ROOT"])
+
+python_snippet = os.environ["PYTHON_SNIPPET"]
+exec(python_snippet, {"__name__": "__main__"})
+PY
+}
+
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/workloads.txt"
 cat <<'EOF' > "${TEST_DIR}/expected_workloads.txt"
 small20k-single
@@ -210,6 +226,8 @@ assert_python_validation_error \
     "workload_id must be a non-empty string" \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
 
+assert_python_tuple_normalized $'from benchmark_v2.models import BenchmarkResult, BenchmarkSuite, WorkloadSpec\n\nworkload = WorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=["small/test_1.fq.gz"],\n    read_limit=1,\n    tier="dev",\n    comparable_tools=["fqc"],\n)\nassert isinstance(workload.inputs, tuple)\nassert isinstance(workload.comparable_tools, tuple)\n\nsuite = BenchmarkSuite(\n    workload_id="small20k-single",\n    layout="single",\n    results=[\n        BenchmarkResult(\n            tool_id="fqc",\n            layout="single",\n            operation="compress",\n            threads=1,\n            input_bytes=1,\n            output_bytes=1,\n            elapsed_seconds=0.1,\n            success=True,\n        ),\n    ],\n)\nassert isinstance(suite.results, tuple)\n'
+
 assert_python_validation_error \
     "layout must be one of" \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="triplet",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
@@ -235,11 +253,11 @@ assert_python_validation_error \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="",\n    comparable_tools=("fqc",),\n)'
 
 assert_python_validation_error \
-    "inputs member #2 must be a string" \
+    "inputs member #2 must be a non-empty string" \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-paired",\n    layout="paired",\n    inputs=("small/test_1.fq.gz", None),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
 
 assert_python_validation_error \
-    "comparable_tools member #2 must be a string" \
+    "comparable_tools member #2 must be a non-empty string" \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc", None),\n)'
 
 assert_python_validation_error \
@@ -247,8 +265,24 @@ assert_python_validation_error \
     $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc", "gzip", "fqc"),\n)'
 
 assert_python_validation_error \
+    "inputs member #2 must be a non-empty string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-paired",\n    layout="paired",\n    inputs=("small/test_1.fq.gz", ""),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "comparable_tools member #2 must be a non-empty string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc", ""),\n)'
+
+assert_python_validation_error \
+    "read_limit must be positive" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=True,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
     "tool_id must be a non-empty string" \
     $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="",\n    category="baseline",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
+
+assert_python_validation_error \
+    "supports_paired must be a boolean" \
+    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="gzip",\n    category="baseline",\n    supports_paired=1,\n    compress_template="gzip -c {input} > {output}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
 
 assert_python_validation_error \
     "category must be a non-empty string" \
@@ -265,6 +299,18 @@ assert_python_validation_error \
 assert_python_validation_error \
     "threads must be positive" \
     $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=0,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "threads must be positive" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=True,\n    input_bytes=False,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success="yes",\n)'
+
+assert_python_validation_error \
+    "input_bytes must be non-negative" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=False,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "success must be a boolean" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success="yes",\n)'
 
 assert_python_validation_error \
     "tool_id must be a non-empty string" \

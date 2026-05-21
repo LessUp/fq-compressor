@@ -21,10 +21,33 @@ def _validate_non_empty_string(value: object, *, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a non-empty string")
 
 
+def _coerce_tuple(values: object, *, field_name: str) -> tuple[object, ...]:
+    if isinstance(values, tuple):
+        return values
+    if isinstance(values, list):
+        return tuple(values)
+    raise ValueError(f"{field_name} must be a tuple or list")
+
+
 def _validate_string_members(values: tuple[object, ...], *, field_name: str) -> None:
     for index, value in enumerate(values, start=1):
-        if not isinstance(value, str):
-            raise ValueError(f"{field_name} member #{index} must be a string")
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{field_name} member #{index} must be a non-empty string")
+
+
+def _validate_positive_int(value: object, *, field_name: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{field_name} must be positive")
+
+
+def _validate_non_negative_int(value: object, *, field_name: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"{field_name} must be non-negative")
+
+
+def _validate_bool(value: object, *, field_name: str) -> None:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a boolean")
 
 
 @dataclass(frozen=True)
@@ -39,19 +62,22 @@ class WorkloadSpec:
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
-        _validate_string_members(self.inputs, field_name="inputs")
+        inputs = _coerce_tuple(self.inputs, field_name="inputs")
+        object.__setattr__(self, "inputs", inputs)
+        _validate_string_members(inputs, field_name="inputs")
         if self.layout == "single":
-            if len(self.inputs) != 1:
+            if len(inputs) != 1:
                 raise ValueError("single workloads must define exactly 1 input")
-        elif len(self.inputs) != 2 or self.inputs[0] == self.inputs[1]:
+        elif len(inputs) != 2 or inputs[0] == inputs[1]:
             raise ValueError("paired workloads must define exactly 2 distinct inputs")
-        if self.read_limit <= 0:
-            raise ValueError("read_limit must be positive")
+        _validate_positive_int(self.read_limit, field_name="read_limit")
         _validate_non_empty_string(self.tier, field_name="tier")
-        _validate_string_members(self.comparable_tools, field_name="comparable_tools")
-        if not self.comparable_tools:
+        comparable_tools = _coerce_tuple(self.comparable_tools, field_name="comparable_tools")
+        object.__setattr__(self, "comparable_tools", comparable_tools)
+        _validate_string_members(comparable_tools, field_name="comparable_tools")
+        if not comparable_tools:
             raise ValueError("comparable_tools must contain at least one tool ID")
-        if len(set(self.comparable_tools)) != len(self.comparable_tools):
+        if len(set(comparable_tools)) != len(comparable_tools):
             raise ValueError("comparable_tools must not contain duplicates")
 
 
@@ -66,6 +92,7 @@ class ToolSpec:
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.tool_id, field_name="tool_id")
         _validate_non_empty_string(self.category, field_name="category")
+        _validate_bool(self.supports_paired, field_name="supports_paired")
         _validate_non_empty_string(self.compress_template, field_name="compress_template")
         _validate_non_empty_string(self.decompress_template, field_name="decompress_template")
 
@@ -89,14 +116,14 @@ class BenchmarkResult:
             raise ValueError(
                 f"operation must be one of: {valid_operations}; got {self.operation!r}"
             )
-        if self.threads <= 0:
-            raise ValueError("threads must be positive")
-        if self.input_bytes < 0:
-            raise ValueError("input_bytes must be non-negative")
-        if self.output_bytes < 0:
-            raise ValueError("output_bytes must be non-negative")
-        if self.elapsed_seconds < 0:
+        _validate_positive_int(self.threads, field_name="threads")
+        _validate_non_negative_int(self.input_bytes, field_name="input_bytes")
+        _validate_non_negative_int(self.output_bytes, field_name="output_bytes")
+        if not isinstance(self.elapsed_seconds, (int, float)) or isinstance(
+            self.elapsed_seconds, bool
+        ) or self.elapsed_seconds < 0:
             raise ValueError("elapsed_seconds must be non-negative")
+        _validate_bool(self.success, field_name="success")
         if self.success and self.elapsed_seconds <= 0:
             raise ValueError("elapsed_seconds must be positive for successful benchmark results")
 
@@ -110,7 +137,9 @@ class BenchmarkSuite:
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
-        for index, result in enumerate(self.results, start=1):
+        results = _coerce_tuple(self.results, field_name="results")
+        object.__setattr__(self, "results", results)
+        for index, result in enumerate(results, start=1):
             if not isinstance(result, BenchmarkResult):
                 raise ValueError(f"results item #{index} must be a BenchmarkResult")
             if result.layout != self.layout:
