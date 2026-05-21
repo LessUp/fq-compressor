@@ -16,6 +16,11 @@ def _validate_layout(value: str, *, field_name: str) -> None:
         raise ValueError(f"{field_name} must be one of: {valid_layouts}; got {value!r}")
 
 
+def _validate_non_empty_string(value: object, *, field_name: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{field_name} must be a non-empty string")
+
+
 @dataclass(frozen=True)
 class WorkloadSpec:
     workload_id: str
@@ -25,6 +30,14 @@ class WorkloadSpec:
     tier: str
     comparable_tools: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        _validate_non_empty_string(self.workload_id, field_name="workload_id")
+        _validate_layout(self.layout, field_name="layout")
+        if self.read_limit <= 0:
+            raise ValueError("read_limit must be positive")
+        if not self.comparable_tools:
+            raise ValueError("comparable_tools must contain at least one tool ID")
+
 
 @dataclass(frozen=True)
 class ToolSpec:
@@ -33,6 +46,11 @@ class ToolSpec:
     supports_paired: bool
     compress_template: str
     decompress_template: str
+
+    def __post_init__(self) -> None:
+        _validate_non_empty_string(self.tool_id, field_name="tool_id")
+        _validate_non_empty_string(self.compress_template, field_name="compress_template")
+        _validate_non_empty_string(self.decompress_template, field_name="decompress_template")
 
 
 @dataclass(frozen=True)
@@ -53,6 +71,14 @@ class BenchmarkResult:
             raise ValueError(
                 f"operation must be one of: {valid_operations}; got {self.operation!r}"
             )
+        if self.threads <= 0:
+            raise ValueError("threads must be positive")
+        if self.input_bytes < 0:
+            raise ValueError("input_bytes must be non-negative")
+        if self.output_bytes < 0:
+            raise ValueError("output_bytes must be non-negative")
+        if self.success and self.elapsed_seconds <= 0:
+            raise ValueError("elapsed_seconds must be positive for successful benchmark results")
 
 
 @dataclass(frozen=True)
@@ -62,6 +88,7 @@ class BenchmarkSuite:
     results: tuple[BenchmarkResult, ...]
 
     def __post_init__(self) -> None:
+        _validate_non_empty_string(self.workload_id, field_name="workload_id")
         _validate_layout(self.layout, field_name="layout")
         for index, result in enumerate(self.results, start=1):
             if result.layout != self.layout:

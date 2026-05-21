@@ -192,10 +192,68 @@ assert_manifest_error \
     $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}' \
     "tools.yaml has duplicate tool_id 'gzip'"
 
+assert_manifest_error \
+    missing_compress_placeholder \
+    load_tools \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
+    $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input}\n    decompress_template: gzip -dc {input} > {output}' \
+    "tools.yaml tool 'gzip' compress_template missing required placeholders: output"
+
+assert_manifest_error \
+    unknown_decompress_placeholder \
+    load_tools \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
+    $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output} {mystery}' \
+    "tools.yaml tool 'gzip' decompress_template has unknown placeholders: mystery"
+
+assert_python_validation_error \
+    "workload_id must be a non-empty string" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "layout must be one of" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="triplet",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "read_limit must be positive" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=0,\n    tier="dev",\n    comparable_tools=("fqc",),\n)'
+
+assert_python_validation_error \
+    "comparable_tools must contain at least one tool ID" \
+    $'from benchmark_v2.models import WorkloadSpec\n\nWorkloadSpec(\n    workload_id="small20k-single",\n    layout="single",\n    inputs=("small/test_1.fq.gz",),\n    read_limit=1,\n    tier="dev",\n    comparable_tools=(),\n)'
+
+assert_python_validation_error \
+    "tool_id must be a non-empty string" \
+    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="",\n    category="baseline",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
+
+assert_python_validation_error \
+    "compress_template must be a non-empty string" \
+    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="gzip",\n    category="baseline",\n    supports_paired=False,\n    compress_template="",\n    decompress_template="gzip -dc {input} > {output}",\n)'
+
 assert_python_validation_error \
     "operation must be one of" \
     $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="invalid",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
 
 assert_python_validation_error \
+    "threads must be positive" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=0,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "input_bytes must be non-negative" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=-1,\n    output_bytes=1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "output_bytes must be non-negative" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=-1,\n    elapsed_seconds=0.1,\n    success=True,\n)'
+
+assert_python_validation_error \
+    "elapsed_seconds must be positive for successful benchmark results" \
+    $'from benchmark_v2.models import BenchmarkResult\n\nBenchmarkResult(\n    tool_id="fqc",\n    layout="single",\n    operation="compress",\n    threads=1,\n    input_bytes=1,\n    output_bytes=1,\n    elapsed_seconds=0.0,\n    success=True,\n)'
+
+assert_python_validation_error \
     "suite layout" \
     $'from benchmark_v2.models import BenchmarkResult, BenchmarkSuite\n\nBenchmarkSuite(\n    workload_id="small20k-single",\n    layout="single",\n    results=(\n        BenchmarkResult(\n            tool_id="fqc",\n            layout="paired",\n            operation="compress",\n            threads=1,\n            input_bytes=1,\n            output_bytes=1,\n            elapsed_seconds=0.1,\n            success=True,\n        ),\n    ),\n)'
+
+assert_python_validation_error \
+    "workload_id must be a non-empty string" \
+    $'from benchmark_v2.models import BenchmarkSuite\n\nBenchmarkSuite(\n    workload_id="",\n    layout="single",\n    results=(),\n)'

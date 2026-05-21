@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from string import Formatter
 from typing import Any
 
 import yaml
@@ -8,6 +9,7 @@ import yaml
 from benchmark_v2.models import ToolSpec, WorkloadSpec
 
 _MANIFEST_DIR = Path(__file__).resolve().parent / "manifests"
+_TEMPLATE_PLACEHOLDERS = frozenset({"input", "output"})
 
 
 def _load_yaml(name: str) -> tuple[Path, dict[str, Any]]:
@@ -77,6 +79,38 @@ def _require_string_list(
     if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
         raise ValueError(f"{path.name} {kind} entry #{index} key '{key}' must be a list of strings")
     return tuple(value)
+
+
+def _validate_template_placeholders(
+    template: str, *, path: Path, tool_id: str, field_name: str
+) -> None:
+    formatter = Formatter()
+    placeholders: set[str] = set()
+    try:
+        for _, field_name_part, _, _ in formatter.parse(template):
+            if field_name_part is None:
+                continue
+            placeholders.add(field_name_part)
+    except ValueError as exc:
+        raise ValueError(
+            f"{path.name} tool '{tool_id}' {field_name} has invalid placeholder syntax: {exc}"
+        ) from exc
+
+    missing_placeholders = sorted(_TEMPLATE_PLACEHOLDERS - placeholders)
+    if missing_placeholders:
+        missing_text = ", ".join(missing_placeholders)
+        raise ValueError(
+            f"{path.name} tool '{tool_id}' {field_name} missing required placeholders: "
+            f"{missing_text}"
+        )
+
+    unknown_placeholders = sorted(placeholders - _TEMPLATE_PLACEHOLDERS)
+    if unknown_placeholders:
+        unknown_text = ", ".join(unknown_placeholders)
+        raise ValueError(
+            f"{path.name} tool '{tool_id}' {field_name} has unknown placeholders: "
+            f"{unknown_text}"
+        )
 
 
 def load_workloads() -> tuple[WorkloadSpec, ...]:
@@ -153,15 +187,21 @@ def load_tools() -> tuple[ToolSpec, ...]:
     for index, entry in enumerate(entries, start=1):
         tool_id = _require_string(entry, "tool_id", path, index, "tool")
         _raise_on_duplicate_id(path, "tool", tool_id, seen_tool_ids)
+        compress_template = _require_string(entry, "compress_template", path, index, "tool")
+        decompress_template = _require_string(entry, "decompress_template", path, index, "tool")
+        _validate_template_placeholders(
+            compress_template, path=path, tool_id=tool_id, field_name="compress_template"
+        )
+        _validate_template_placeholders(
+            decompress_template, path=path, tool_id=tool_id, field_name="decompress_template"
+        )
         tools.append(
             ToolSpec(
                 tool_id=tool_id,
                 category=_require_string(entry, "category", path, index, "tool"),
                 supports_paired=_require_bool(entry, "supports_paired", path, index, "tool"),
-                compress_template=_require_string(entry, "compress_template", path, index, "tool"),
-                decompress_template=_require_string(
-                    entry, "decompress_template", path, index, "tool"
-                ),
+                compress_template=compress_template,
+                decompress_template=decompress_template,
             )
         )
     return tuple(tools)
