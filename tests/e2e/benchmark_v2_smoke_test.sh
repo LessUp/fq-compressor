@@ -2,7 +2,9 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST_DIR="$(mktemp -d)"
+TEST_DIR="${PROJECT_ROOT}/tests/e2e/.benchmark_v2_smoke_test"
+rm -rf "${TEST_DIR}"
+mkdir -p "${TEST_DIR}"
 trap 'rm -rf "${TEST_DIR}"' EXIT
 
 assert_sorted_equals() {
@@ -118,6 +120,14 @@ EOF
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-tools > "${TEST_DIR}/actual-tools.txt"
 assert_sorted_equals "${TEST_DIR}/actual-tools.txt" "${TEST_DIR}/expected-tools.txt"
+
+python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
+    --workload small20k-paired \
+    --data-root /home/shane/data/test \
+    --output-dir "${TEST_DIR}/prepared"
+
+test -f "${TEST_DIR}/prepared/small20k-paired_R1.fastq"
+test -f "${TEST_DIR}/prepared/small20k-paired_R2.fastq"
 
 assert_manifest_error \
     top_level_list \
