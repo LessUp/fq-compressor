@@ -99,7 +99,26 @@ exec(python_snippet, {"__name__": "__main__"})
 PY
 }
 
-if false; then
+cat <<'EOF' > "${TEST_DIR}/expected-workloads.txt"
+big100k-paired
+big100k-single
+small20k-paired
+small20k-single
+EOF
+
+python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/actual-workloads.txt"
+assert_sorted_equals "${TEST_DIR}/actual-workloads.txt" "${TEST_DIR}/expected-workloads.txt"
+
+cat <<'EOF' > "${TEST_DIR}/expected-tools.txt"
+bzip2
+fqc
+gzip
+xz
+EOF
+
+python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-tools > "${TEST_DIR}/actual-tools.txt"
+assert_sorted_equals "${TEST_DIR}/actual-tools.txt" "${TEST_DIR}/expected-tools.txt"
+
 assert_manifest_error \
     top_level_list \
     load_workloads \
@@ -204,7 +223,6 @@ assert_manifest_error \
     "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
     $'tools:\n  - tool_id: gzip\n    category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output} {mystery}' \
     "tools.yaml tool 'gzip' decompress_template has unknown placeholders: mystery"
-fi
 
 assert_python_validation_error \
     "workload_id must be a non-empty string" \
@@ -286,7 +304,7 @@ assert_python_validation_error \
 
 assert_python_validation_error \
     "unknown placeholders" \
-    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="gzip",\n    category="baseline",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output} {mystery}",\n    decompress_template="gzip -dc {output} > {decompressed}",\n)'
+    $'from benchmark_v2.models import ToolSpec\n\nToolSpec(\n    tool_id="gzip",\n    category="baseline",\n    supports_paired=False,\n    compress_template="gzip -c {input} > {output} {mystery}",\n    decompress_template="gzip -dc {input} > {output}",\n)'
 
 assert_python_validation_error \
     "operation must be one of" \

@@ -10,6 +10,8 @@ Operation = Literal["compress", "decompress"]
 
 _VALID_LAYOUTS = ("single", "paired")
 _VALID_OPERATIONS = ("compress", "decompress")
+_COMPRESS_TEMPLATE_PLACEHOLDERS = ("input", "output")
+_DECOMPRESS_TEMPLATE_PLACEHOLDERS = ("input", "output")
 
 
 def _validate_layout(value: str, *, field_name: str) -> None:
@@ -129,13 +131,13 @@ class ToolSpec:
         _validate_template_placeholders(
             self.compress_template,
             field_name="compress_template",
-            required_placeholders=("input", "output"),
+            required_placeholders=_COMPRESS_TEMPLATE_PLACEHOLDERS,
         )
         _validate_non_empty_string(self.decompress_template, field_name="decompress_template")
         _validate_template_placeholders(
             self.decompress_template,
             field_name="decompress_template",
-            required_placeholders=("output", "decompressed"),
+            required_placeholders=_DECOMPRESS_TEMPLATE_PLACEHOLDERS,
         )
 
 

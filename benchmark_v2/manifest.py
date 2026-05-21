@@ -6,12 +6,14 @@ from typing import Any
 
 import yaml
 
-from benchmark_v2.models import ToolSpec, WorkloadSpec
+from benchmark_v2.models import (
+    ToolSpec,
+    WorkloadSpec,
+    _COMPRESS_TEMPLATE_PLACEHOLDERS,
+    _DECOMPRESS_TEMPLATE_PLACEHOLDERS,
+)
 
 _MANIFEST_DIR = Path(__file__).resolve().parent / "manifests"
-_TEMPLATE_PLACEHOLDERS = frozenset({"input", "output"})
-
-
 def _load_yaml(name: str) -> tuple[Path, dict[str, Any]]:
     path = _MANIFEST_DIR / name
     try:
@@ -82,7 +84,12 @@ def _require_string_list(
 
 
 def _validate_template_placeholders(
-    template: str, *, path: Path, tool_id: str, field_name: str
+    template: str,
+    *,
+    path: Path,
+    tool_id: str,
+    field_name: str,
+    required_placeholders: tuple[str, ...],
 ) -> None:
     formatter = Formatter()
     placeholders: set[str] = set()
@@ -90,13 +97,16 @@ def _validate_template_placeholders(
         for _, field_name_part, _, _ in formatter.parse(template):
             if field_name_part is None:
                 continue
-            placeholders.add(field_name_part)
+            root_name = field_name_part.split(".", 1)[0].split("[", 1)[0]
+            if root_name:
+                placeholders.add(root_name)
     except ValueError as exc:
         raise ValueError(
             f"{path.name} tool '{tool_id}' {field_name} has invalid placeholder syntax: {exc}"
         ) from exc
 
-    missing_placeholders = sorted(_TEMPLATE_PLACEHOLDERS - placeholders)
+    required_placeholder_set = set(required_placeholders)
+    missing_placeholders = sorted(required_placeholder_set - placeholders)
     if missing_placeholders:
         missing_text = ", ".join(missing_placeholders)
         raise ValueError(
@@ -104,7 +114,7 @@ def _validate_template_placeholders(
             f"{missing_text}"
         )
 
-    unknown_placeholders = sorted(placeholders - _TEMPLATE_PLACEHOLDERS)
+    unknown_placeholders = sorted(placeholders - required_placeholder_set)
     if unknown_placeholders:
         unknown_text = ", ".join(unknown_placeholders)
         raise ValueError(
@@ -190,10 +200,18 @@ def load_tools() -> tuple[ToolSpec, ...]:
         compress_template = _require_string(entry, "compress_template", path, index, "tool")
         decompress_template = _require_string(entry, "decompress_template", path, index, "tool")
         _validate_template_placeholders(
-            compress_template, path=path, tool_id=tool_id, field_name="compress_template"
+            compress_template,
+            path=path,
+            tool_id=tool_id,
+            field_name="compress_template",
+            required_placeholders=_COMPRESS_TEMPLATE_PLACEHOLDERS,
         )
         _validate_template_placeholders(
-            decompress_template, path=path, tool_id=tool_id, field_name="decompress_template"
+            decompress_template,
+            path=path,
+            tool_id=tool_id,
+            field_name="decompress_template",
+            required_placeholders=_DECOMPRESS_TEMPLATE_PLACEHOLDERS,
         )
         tools.append(
             ToolSpec(
