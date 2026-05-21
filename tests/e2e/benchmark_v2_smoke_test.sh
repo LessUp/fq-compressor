@@ -2,17 +2,108 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST_DIR="$(mktemp -d)"
+TEST_DIR="${PROJECT_ROOT}/.benchmark_v2_smoke_test.$$"
 trap 'rm -rf "${TEST_DIR}"' EXIT
+mkdir -p "${TEST_DIR}"
+
+assert_sorted_equals() {
+    local actual_path="$1"
+    local expected_path="$2"
+    sort "${actual_path}" > "${actual_path}.sorted"
+    sort "${expected_path}" > "${expected_path}.sorted"
+    diff -u "${expected_path}.sorted" "${actual_path}.sorted"
+}
+
+assert_manifest_error() {
+    local case_name="$1"
+    local loader_name="$2"
+    local workloads_content="$3"
+    local tools_content="$4"
+    local expected_fragment="$5"
+    local case_dir="${TEST_DIR}/${case_name}"
+    mkdir -p "${case_dir}"
+    printf '%s\n' "${workloads_content}" > "${case_dir}/workloads.yaml"
+    printf '%s\n' "${tools_content}" > "${case_dir}/tools.yaml"
+
+    MANIFEST_DIR="${case_dir}" \
+        LOADER_NAME="${loader_name}" \
+        EXPECTED_FRAGMENT="${expected_fragment}" \
+        PROJECT_ROOT="${PROJECT_ROOT}" \
+        python3 <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["PROJECT_ROOT"])
+
+from benchmark_v2 import manifest
+
+manifest._MANIFEST_DIR = Path(os.environ["MANIFEST_DIR"])
+loader = getattr(manifest, os.environ["LOADER_NAME"])
+expected_fragment = os.environ["EXPECTED_FRAGMENT"]
+
+try:
+    loader()
+except ValueError as exc:
+    message = str(exc)
+    if expected_fragment not in message:
+        raise AssertionError(
+            f"expected {expected_fragment!r} in ValueError message {message!r}"
+        ) from exc
+else:
+    raise AssertionError("expected ValueError")
+PY
+}
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/workloads.txt"
-grep -q '^small20k-single$' "${TEST_DIR}/workloads.txt"
-grep -q '^small20k-paired$' "${TEST_DIR}/workloads.txt"
-grep -q '^big100k-single$' "${TEST_DIR}/workloads.txt"
-grep -q '^big100k-paired$' "${TEST_DIR}/workloads.txt"
+cat <<'EOF' > "${TEST_DIR}/expected_workloads.txt"
+small20k-single
+small20k-paired
+big100k-single
+big100k-paired
+EOF
+assert_sorted_equals "${TEST_DIR}/workloads.txt" "${TEST_DIR}/expected_workloads.txt"
 
 python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-tools > "${TEST_DIR}/tools.txt"
-grep -q '^fqc$' "${TEST_DIR}/tools.txt"
-grep -q '^gzip$' "${TEST_DIR}/tools.txt"
-grep -q '^xz$' "${TEST_DIR}/tools.txt"
-grep -q '^bzip2$' "${TEST_DIR}/tools.txt"
+cat <<'EOF' > "${TEST_DIR}/expected_tools.txt"
+fqc
+gzip
+xz
+bzip2
+EOF
+assert_sorted_equals "${TEST_DIR}/tools.txt" "${TEST_DIR}/expected_tools.txt"
+
+assert_manifest_error \
+    top_level_list \
+    load_workloads \
+    $'- just\n- a\n- list' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml must contain a top-level mapping"
+
+assert_manifest_error \
+    missing_workload_id \
+    load_workloads \
+    $'workloads:\n  - layout: single\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml entry #1 missing required key 'workload_id'"
+
+assert_manifest_error \
+    invalid_workload_layout \
+    load_workloads \
+    $'workloads:\n  - workload_id: broken-layout\n    layout: triplet\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'broken-layout' has invalid layout 'triplet'"
+
+assert_manifest_error \
+    paired_workload_wrong_inputs \
+    load_workloads \
+    $'workloads:\n  - workload_id: broken-paired\n    layout: paired\n    inputs: ["small/test_1.fq.gz"]\n    read_limit: 20000\n    tier: dev\n    comparable_tools: [fqc]' \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/tools.yaml")" \
+    "workloads.yaml workload 'broken-paired' with layout 'paired' must define exactly 2 inputs"
+
+assert_manifest_error \
+    missing_tool_id \
+    load_tools \
+    "$(cat "${PROJECT_ROOT}/benchmark_v2/manifests/workloads.yaml")" \
+    $'tools:\n  - category: baseline\n    supports_paired: false\n    compress_template: gzip -c {input} > {output}\n    decompress_template: gzip -dc {input} > {output}' \
+    "tools.yaml entry #1 missing required key 'tool_id'"
