@@ -12,8 +12,9 @@ from benchmark_v2.manifest import load_tools, load_workloads
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--list-workloads", action="store_true")
-    parser.add_argument("--list-tools", action="store_true")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--list-workloads", action="store_true")
+    group.add_argument("--list-tools", action="store_true")
     args = parser.parse_args()
 
     if args.list_workloads:
@@ -21,12 +22,8 @@ def main() -> None:
             print(workload.workload_id)
         return
 
-    if args.list_tools:
-        for tool in load_tools():
-            print(tool.tool_id)
-        return
-
-    parser.error("choose --list-workloads or --list-tools")
+    for tool in load_tools():
+        print(tool.tool_id)
 
 
 if __name__ == "__main__":
