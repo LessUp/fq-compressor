@@ -28,6 +28,25 @@
 
 namespace fqc::commands {
 
+namespace {
+
+[[nodiscard]] auto estimateFastqInputBytes(const std::vector<ReadRecord>& reads) -> std::uint64_t {
+    std::uint64_t bytes = 0;
+    for (const auto& read : reads) {
+        bytes += 1 + static_cast<std::uint64_t>(read.id.size());
+        if (!read.comment.empty()) {
+            bytes += 1 + static_cast<std::uint64_t>(read.comment.size());
+        }
+        bytes += 1;
+        bytes += static_cast<std::uint64_t>(read.sequence.size()) + 1;
+        bytes += 2;
+        bytes += static_cast<std::uint64_t>(read.quality.size()) + 1;
+    }
+    return bytes;
+}
+
+}  // namespace
+
 // =============================================================================
 // Quality Mode Parsing
 // =============================================================================
@@ -93,6 +112,13 @@ int CompressCommand::execute() {
     auto startTime = std::chrono::steady_clock::now();
 
     try {
+        if (options_.inputBytesHint == 0 && options_.inputPath != "-") {
+            options_.inputBytesHint = std::filesystem::file_size(options_.inputPath);
+            if (!options_.input2Path.empty() && options_.input2Path != "-") {
+                options_.inputBytesHint += std::filesystem::file_size(options_.input2Path);
+            }
+        }
+
         auto profileResult = buildCompressionProfile(options_);
         if (!profileResult) {
             profileResult.error().throwException();
@@ -177,14 +203,7 @@ void CompressCommand::runCompression(const CompressionProfile& profile) {
     // Update basic stats
     stats_.totalReads = readRecords.size();
     stats_.totalBases = totalBases;
-    if (options_.inputPath == "-") {
-        stats_.inputBytes = totalBases;
-    } else {
-        stats_.inputBytes = std::filesystem::file_size(options_.inputPath);
-        if (!options_.input2Path.empty() && options_.input2Path != "-") {
-            stats_.inputBytes += std::filesystem::file_size(options_.input2Path);
-        }
-    }
+    stats_.inputBytes = estimateFastqInputBytes(readRecords);
 
     FQC_LOG_INFO("Loaded {} reads ({} bases)", readRecords.size(), totalBases);
 

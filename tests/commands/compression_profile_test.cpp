@@ -183,4 +183,29 @@ TEST(CompressionProfileTest, PreservesExplicitLengthClassForStdinWhenAutoDetectD
     EXPECT_EQ(profile.readLengthClass(), ReadLengthClass::kLong);
 }
 
+TEST(CompressionProfileTest, LargeSingleEndShortReadsPreferPipelineAndDisableReordering) {
+    auto factory = std::make_shared<io::MemoryStreamFactory>();
+    factory->setFileContent("reads.fastq", "@r1\nACGT\n+\nFFFF\n");
+
+    CompressOptions options;
+    options.inputPath = "reads.fastq";
+    options.outputPath = "out.fqc";
+    options.threads = 1;
+    options.enableReordering = true;
+    options.saveReorderMap = true;
+    options.autoDetectLongRead = false;
+    options.longReadMode = ReadLengthClass::kShort;
+    options.inputBytesHint = 128ULL * 1024ULL * 1024ULL;
+
+    auto profileResult = buildCompressionProfile(options, factory);
+
+    ASSERT_TRUE(profileResult.has_value());
+    const auto& profile = profileResult.value();
+    EXPECT_EQ(profile.executionMode(), CompressionExecutionMode::kPipeline);
+    EXPECT_FALSE(profile.enableReordering());
+    EXPECT_FALSE(profile.saveReorderMap());
+    EXPECT_TRUE(profile.archivePreservesOrder());
+    EXPECT_FALSE(profile.archiveHasReorderMap());
+}
+
 }  // namespace fqc::commands::test

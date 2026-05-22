@@ -166,7 +166,7 @@ small20k-paired
 small20k-single
 EOF
 
-python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-workloads > "${TEST_DIR}/actual-workloads.txt"
+bash "${PROJECT_ROOT}/scripts/benchmark_v2.sh" --list-workloads > "${TEST_DIR}/actual-workloads.txt"
 assert_sorted_equals "${TEST_DIR}/actual-workloads.txt" "${TEST_DIR}/expected-workloads.txt"
 
 cat <<'EOF' > "${TEST_DIR}/expected-tools.txt"
@@ -176,7 +176,7 @@ gzip
 xz
 EOF
 
-python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" --list-tools > "${TEST_DIR}/actual-tools.txt"
+bash "${PROJECT_ROOT}/scripts/benchmark_v2.sh" --list-tools > "${TEST_DIR}/actual-tools.txt"
 assert_sorted_equals "${TEST_DIR}/actual-tools.txt" "${TEST_DIR}/expected-tools.txt"
 
 assert_command_failure_contains \
@@ -233,6 +233,221 @@ python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" prepare \
 
 test -f "${TEST_DIR}/prepared/small20k-paired_R1.fastq"
 test -f "${TEST_DIR}/prepared/small20k-paired_R2.fastq"
+
+python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" run \
+    --workload small20k-single \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --tools fqc,gzip \
+    --threads 1 4 \
+    --runs 1 \
+    --json "${TEST_DIR}/single.json" \
+    --report "${TEST_DIR}/single.md"
+
+PROJECT_ROOT="${PROJECT_ROOT}" TEST_DIR="${TEST_DIR}" python3 <<'PY'
+import json
+import os
+from pathlib import Path
+
+report = json.loads((Path(os.environ["TEST_DIR"]) / "single.json").read_text(encoding="utf-8"))
+suite = report["suite"]
+results = suite["results"]
+tool_ids = {result["tool_id"] for result in results}
+if suite["layout"] != "single":
+    raise AssertionError(f"expected single layout, got {suite['layout']!r}")
+if tool_ids != {"fqc", "gzip"}:
+    raise AssertionError(f"expected fqc and gzip results, got {tool_ids!r}")
+if not all(result["success"] for result in results):
+    raise AssertionError("expected all single-end results to succeed")
+gzip_threads = {result["threads"] for result in results if result["tool_id"] == "gzip"}
+if gzip_threads != {1}:
+    raise AssertionError(f"gzip should only report effective thread 1, got {gzip_threads!r}")
+peer_standing = report["peer_standing"]
+for metric in ("compression_ratio", "compression_mib_per_s", "decompression_mib_per_s"):
+    if "position_band" not in peer_standing[metric]:
+        raise AssertionError(f"missing position_band for {metric}")
+PY
+
+grep -q '^## Peer Standing$' "${TEST_DIR}/single.md"
+grep -q 'fq-compressor stands in the' "${TEST_DIR}/single.md"
+
+python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" run \
+    --workload small20k-paired \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --tools fqc,gzip \
+    --threads 1 \
+    --runs 1 \
+    --json "${TEST_DIR}/paired.json"
+
+grep -q '"tool_id": "fqc"' "${TEST_DIR}/paired.json"
+grep -q '"success": true' "${TEST_DIR}/paired.json"
+if grep -q '"tool_id": "gzip"' "${TEST_DIR}/paired.json"; then
+    echo "paired run should gate gzip results" >&2
+    exit 1
+fi
+
+assert_command_failure_contains_no_traceback \
+    "error: threads must be positive" \
+    python3 "${PROJECT_ROOT}/benchmark_v2/cli.py" \
+    run \
+    --workload small20k-single \
+    --data-root "${BENCHMARK_V2_DATA_ROOT}" \
+    --tools fqc \
+    --threads 0 \
+    --runs 1
+
+PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'
+import contextlib
+import io
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["PROJECT_ROOT"])
+
+from benchmark_v2.models import BenchmarkResult, BenchmarkSuite
+import benchmark_v2.cli as cli
+
+cli._get_workload = lambda _workload_id: object()
+cli._get_tools = lambda tool_ids: list(tool_ids)
+cli.run_matrix = lambda **kwargs: BenchmarkSuite(
+    workload_id="small20k-single",
+    layout="single",
+    results=(
+        BenchmarkResult(
+            tool_id="fqc",
+            layout="single",
+            operation="compress",
+            threads=1,
+            input_bytes=1,
+            output_bytes=1,
+            elapsed_seconds=0.1,
+            success=False,
+        ),
+    ),
+)
+
+sys.argv = [
+    "benchmark_v2/cli.py",
+    "run",
+    "--workload",
+    "small20k-single",
+    "--data-root",
+    str(Path(os.environ["PROJECT_ROOT"])),
+    "--tools",
+    "fqc",
+    "--threads",
+    "1",
+    "--runs",
+    "1",
+]
+
+try:
+    with contextlib.redirect_stdout(io.StringIO()):
+        cli.main()
+except SystemExit as exc:
+    if exc.code == 0:
+        raise AssertionError("expected non-zero exit when suite contains failed results")
+else:
+    raise AssertionError("expected SystemExit when suite contains failed results")
+PY
+
+PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.environ["PROJECT_ROOT"])
+
+from benchmark_v2.models import ToolSpec
+from benchmark_v2.models import BenchmarkResult, BenchmarkSuite
+from benchmark_v2.report import build_report
+from benchmark_v2.tool_adapters import create_adapter
+
+adapter = create_adapter(
+    ToolSpec(
+        tool_id="gzip",
+        category="baseline",
+        supports_paired=False,
+        compress_template="gzip -c {input} > {output}",
+        decompress_template="gzip -dc {input} > {output}",
+    )
+)
+command = adapter.compress_command([Path("input.fastq")], Path("output.gz"), 1)
+if command[:2] != ["bash", "-c"]:
+    raise AssertionError(f"expected ['bash', '-c', ...], got {command!r}")
+
+report = build_report(
+    BenchmarkSuite(
+        workload_id="synthetic",
+        layout="single",
+        results=(
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="single",
+                operation="compress",
+                threads=4,
+                input_bytes=100,
+                output_bytes=20,
+                elapsed_seconds=1.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="single",
+                operation="decompress",
+                threads=4,
+                input_bytes=20,
+                output_bytes=100,
+                elapsed_seconds=1.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="single",
+                operation="compress",
+                threads=1,
+                input_bytes=100,
+                output_bytes=25,
+                elapsed_seconds=4.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="single",
+                operation="decompress",
+                threads=1,
+                input_bytes=25,
+                output_bytes=100,
+                elapsed_seconds=3.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="gzip",
+                layout="single",
+                operation="compress",
+                threads=1,
+                input_bytes=100,
+                output_bytes=30,
+                elapsed_seconds=2.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="gzip",
+                layout="single",
+                operation="decompress",
+                threads=1,
+                input_bytes=30,
+                output_bytes=100,
+                elapsed_seconds=2.0,
+                success=True,
+            ),
+        ),
+    )
+)
+fqc_metrics = next(item for item in report["tool_metrics"] if item["tool_id"] == "fqc")
+if round(float(fqc_metrics["compression_ratio"]), 2) != 5.0:
+    raise AssertionError(f"expected best ratio 5.0x, got {fqc_metrics['compression_ratio']!r}")
+PY
 
 mkdir -p "${TEST_DIR}/short-data/small"
 cat <<'EOF' > "${TEST_DIR}/short-data/small/too-short.fastq"

@@ -374,6 +374,31 @@ TEST(ArchiveRegressionTest, ParallelStdinCompressionTracksInputBytesWithoutFiles
     EXPECT_EQ(command.stats().totalBases, 24u);
 }
 
+TEST(ArchiveRegressionTest, SingleThreadStdinCompressionTracksEffectiveFastqBytes) {
+    auto archivePath = tempFilePath(".fqc");
+    TempFileGuard archiveGuard(archivePath);
+
+    const std::string inputData =
+        "@read_1\nACGTACGTACGT\n+\nFFFFFFFFFFFF\n"
+        "@read_2\nTGCATGCATGCA\n+\nHHHHHHHHHHHH\n";
+    std::istringstream input(inputData);
+    CinRedirectGuard cinGuard(input);
+
+    CompressOptions opts;
+    opts.inputPath = "-";
+    opts.outputPath = archivePath;
+    opts.forceOverwrite = true;
+    opts.showProgress = false;
+    opts.threads = 1;
+    opts.autoDetectLongRead = true;
+
+    CompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+    EXPECT_EQ(command.stats().inputBytes, static_cast<std::uint64_t>(inputData.size()));
+    EXPECT_EQ(command.stats().totalReads, 2u);
+    EXPECT_EQ(command.stats().totalBases, 24u);
+}
+
 TEST(ArchiveRegressionTest, SingleThreadArchivePreservesOrderWhenMemoryLimitDisablesReordering) {
     auto inputPath = tempFilePath(".fastq");
     auto archivePath = tempFilePath(".fqc");

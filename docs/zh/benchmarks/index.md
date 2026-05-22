@@ -9,6 +9,8 @@
 - 当前被跟踪的公开证据，主要围绕 ENA accession `ERR091571` 与可复现的 2,000-record smoke-scale 子集。
 - 站点可以讨论压缩密度、压缩吞吐、解压吞吐与归档语义，但不能把自己描述成已经被证明领先所有 FASTQ 专用同类。
 - 由于 Spring 仍处于 deferred 状态，当前 benchmark 叙事应被理解为有边界的，而不是完整结论。
+- 新的本地 benchmark 证据应通过 `./scripts/benchmark_v2.sh` 生成，它会同时产出机器可读 JSON 与 Markdown 结论。
+- 当前压缩比和吞吐的区间位置，应以上述生成报告为准，而不是继续引用仓库里的写死文案。
 
 ## 主张矩阵
 
@@ -22,6 +24,7 @@
 ## 建议同时打开的证据锚点
 
 - [方法学](./methodology)
+- `./scripts/benchmark_v2.sh run --json <path> --report <path>`
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md)
 - [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json)
 - [`benchmark/results/err091571-local-supported.md`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.md)
