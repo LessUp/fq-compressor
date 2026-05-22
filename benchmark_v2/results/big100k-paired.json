@@ -52,8 +52,11 @@
     {
       "tool_id": "fqc",
       "compression_ratio": 4.676352769123164,
+      "compression_ratio_threads": 1,
       "compression_mib_per_s": 0.19168386082989286,
-      "decompression_mib_per_s": 2.1082124021669584
+      "compression_mib_per_s_threads": 4,
+      "decompression_mib_per_s": 2.1082124021669584,
+      "decompression_mib_per_s_threads": 1
     }
   ],
   "peer_standing": {

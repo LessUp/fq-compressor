@@ -112,26 +112,38 @@
     {
       "tool_id": "fqc",
       "compression_ratio": 4.043203620265805,
+      "compression_ratio_threads": 4,
       "compression_mib_per_s": 0.09932999894190485,
-      "decompression_mib_per_s": 1.5560925669304686
+      "compression_mib_per_s_threads": 4,
+      "decompression_mib_per_s": 1.5560925669304686,
+      "decompression_mib_per_s_threads": 4
     },
     {
       "tool_id": "gzip",
       "compression_ratio": 3.2499317914934283,
+      "compression_ratio_threads": 1,
       "compression_mib_per_s": 3.483293460465191,
-      "decompression_mib_per_s": 67.86072514074404
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 67.86072514074404,
+      "decompression_mib_per_s_threads": 1
     },
     {
       "tool_id": "xz",
       "compression_ratio": 4.048848150900476,
+      "compression_ratio_threads": 1,
       "compression_mib_per_s": 0.2260021568885016,
-      "decompression_mib_per_s": 23.55208196689502
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 23.55208196689502,
+      "decompression_mib_per_s_threads": 1
     },
     {
       "tool_id": "bzip2",
       "compression_ratio": 3.9805862533336542,
+      "compression_ratio_threads": 1,
       "compression_mib_per_s": 6.417200078788748,
-      "decompression_mib_per_s": 3.19691235059996
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 3.19691235059996,
+      "decompression_mib_per_s_threads": 1
     }
   ],
   "peer_standing": {

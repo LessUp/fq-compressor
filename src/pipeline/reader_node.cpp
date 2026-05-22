@@ -23,6 +23,22 @@
 
 namespace fqc::pipeline {
 
+namespace {
+
+[[nodiscard]] auto estimateFastqBytes(const ReadRecord& read) -> std::uint64_t {
+    std::uint64_t bytes = 1 + static_cast<std::uint64_t>(read.id.size());
+    if (!read.comment.empty()) {
+        bytes += 1 + static_cast<std::uint64_t>(read.comment.size());
+    }
+    bytes += 1;
+    bytes += static_cast<std::uint64_t>(read.sequence.size()) + 1;
+    bytes += 2;
+    bytes += static_cast<std::uint64_t>(read.quality.size()) + 1;
+    return bytes;
+}
+
+}  // namespace
+
 // =============================================================================
 // ReaderNodeImpl
 // =============================================================================
@@ -271,7 +287,7 @@ public:
 
             // Update bytes read estimate
             for (const auto& read : chunk.reads) {
-                totalBytesRead_ += read.id.size() + read.sequence.size() + read.quality.size() + 10;
+                totalBytesRead_ += estimateFastqBytes(read);
             }
 
             FQC_LOG_DEBUG("ReaderNode read chunk: id={}, reads={}, total_reads={}, isLast={}",

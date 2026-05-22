@@ -399,6 +399,39 @@ TEST(ArchiveRegressionTest, SingleThreadStdinCompressionTracksEffectiveFastqByte
     EXPECT_EQ(command.stats().totalBases, 24u);
 }
 
+TEST(ArchiveRegressionTest, ForcedPipelineCompressedInputTracksEffectiveFastqBytes) {
+    auto plainInputPath = tempFilePath(".fastq");
+    auto compressedInputPath = tempFilePath(".fastq.gz");
+    auto archivePath = tempFilePath(".fqc");
+
+    TempFileGuard plainGuard(plainInputPath);
+    TempFileGuard compressedGuard(compressedInputPath);
+    TempFileGuard archiveGuard(archivePath);
+
+    writeFastqFile(plainInputPath, makeShortReadsWithComments());
+    const auto expectedInputBytes = std::filesystem::file_size(plainInputPath);
+
+    const std::string gzipCommand =
+        "gzip -c " + plainInputPath.string() + " > " + compressedInputPath.string();
+    ASSERT_EQ(std::system(gzipCommand.c_str()), 0);
+
+    CompressOptions opts;
+    opts.inputPath = compressedInputPath;
+    opts.outputPath = archivePath;
+    opts.forceOverwrite = true;
+    opts.showProgress = false;
+    opts.threads = 1;
+    opts.enableReordering = true;
+    opts.saveReorderMap = true;
+    opts.autoDetectLongRead = false;
+    opts.longReadMode = ReadLengthClass::kShort;
+    opts.inputBytesHint = 128ULL * 1024ULL * 1024ULL;
+
+    CompressCommand command(std::move(opts));
+    ASSERT_EQ(command.execute(), 0);
+    EXPECT_EQ(command.stats().inputBytes, expectedInputBytes);
+}
+
 TEST(ArchiveRegressionTest, SingleThreadArchivePreservesOrderWhenMemoryLimitDisablesReordering) {
     auto inputPath = tempFilePath(".fastq");
     auto archivePath = tempFilePath(".fqc");

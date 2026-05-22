@@ -389,7 +389,7 @@ sys.path.insert(0, os.environ["PROJECT_ROOT"])
 
 from benchmark_v2.models import ToolSpec
 from benchmark_v2.models import BenchmarkResult, BenchmarkSuite
-from benchmark_v2.report import build_report
+from benchmark_v2.report import build_report, render_report_markdown
 from benchmark_v2.tool_adapters import create_adapter
 
 adapter = create_adapter(
@@ -437,7 +437,7 @@ report = build_report(
                 threads=1,
                 input_bytes=100,
                 output_bytes=25,
-                elapsed_seconds=4.0,
+                elapsed_seconds=0.25,
                 success=True,
             ),
             BenchmarkResult(
@@ -447,7 +447,7 @@ report = build_report(
                 threads=1,
                 input_bytes=25,
                 output_bytes=100,
-                elapsed_seconds=3.0,
+                elapsed_seconds=0.5,
                 success=True,
             ),
             BenchmarkResult(
@@ -478,6 +478,14 @@ if round(float(fqc_metrics["compression_ratio"]), 2) != 5.0:
     raise AssertionError(f"expected best ratio 5.0x, got {fqc_metrics['compression_ratio']!r}")
 if report["peer_standing"]["compression_ratio"]["position_band"] != "leader":
     raise AssertionError(report["peer_standing"]["compression_ratio"])
+if fqc_metrics["compression_ratio_threads"] != 4:
+    raise AssertionError(fqc_metrics)
+if fqc_metrics["compression_mib_per_s_threads"] != 1:
+    raise AssertionError(fqc_metrics)
+if fqc_metrics["decompression_mib_per_s_threads"] != 1:
+    raise AssertionError(fqc_metrics)
+if "(T4)" not in render_report_markdown(report) or "(T1)" not in render_report_markdown(report):
+    raise AssertionError(render_report_markdown(report))
 
 standalone_report = build_report(
     BenchmarkSuite(

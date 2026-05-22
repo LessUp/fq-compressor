@@ -104,9 +104,12 @@ def render_report_markdown(report: dict[str, object]) -> str:
         tool_rows.append(
             "| "
             f"{metrics['tool_id']} | "
-            f"{float(metrics['compression_ratio']):.2f}x | "
-            f"{float(metrics['compression_mib_per_s']):.2f} | "
-            f"{float(metrics['decompression_mib_per_s']):.2f} |"
+            f"{float(metrics['compression_ratio']):.2f}x "
+            f"(T{int(metrics['compression_ratio_threads'])}) | "
+            f"{float(metrics['compression_mib_per_s']):.2f} "
+            f"(T{int(metrics['compression_mib_per_s_threads'])}) | "
+            f"{float(metrics['decompression_mib_per_s']):.2f} "
+            f"(T{int(metrics['decompression_mib_per_s_threads'])}) |"
         )
 
     peer_lines = []
@@ -157,16 +160,18 @@ def _build_tool_metrics(suite: BenchmarkSuite) -> list[dict[str, float | str]]:
         decompress_results = operations.get("decompress", [])
         if not compress_results or not decompress_results:
             continue
+        best_ratio = _best_result(compress_results, _compression_ratio)
+        best_compress = _best_result(compress_results, _compress_speed_mib_per_s)
+        best_decompress = _best_result(decompress_results, _decompress_speed_mib_per_s)
         metrics_by_tool.append(
             {
                 "tool_id": tool_id,
-                "compression_ratio": max(_compression_ratio(result) for result in compress_results),
-                "compression_mib_per_s": max(
-                    _compress_speed_mib_per_s(result) for result in compress_results
-                ),
-                "decompression_mib_per_s": max(
-                    _decompress_speed_mib_per_s(result) for result in decompress_results
-                ),
+                "compression_ratio": _compression_ratio(best_ratio),
+                "compression_ratio_threads": best_ratio.threads,
+                "compression_mib_per_s": _compress_speed_mib_per_s(best_compress),
+                "compression_mib_per_s_threads": best_compress.threads,
+                "decompression_mib_per_s": _decompress_speed_mib_per_s(best_decompress),
+                "decompression_mib_per_s_threads": best_decompress.threads,
             }
         )
 
@@ -213,3 +218,7 @@ def _compress_speed_mib_per_s(result: BenchmarkResult) -> float:
 
 def _decompress_speed_mib_per_s(result: BenchmarkResult) -> float:
     return result.output_bytes / result.elapsed_seconds / _BYTES_PER_MIB
+
+
+def _best_result(results: list[BenchmarkResult], metric_fn) -> BenchmarkResult:
+    return max(results, key=metric_fn)

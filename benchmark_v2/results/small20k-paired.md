@@ -4,7 +4,7 @@
 
 | Tool | Ratio | Compress MiB/s | Decompress MiB/s |
 | --- | ---: | ---: | ---: |
-| fqc | 3.94x | 0.10 | 1.81 |
+| fqc | 3.94x (T1) | 0.10 (T1) | 1.81 (T1) |
 
 ## Peer Standing
 

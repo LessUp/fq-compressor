@@ -812,8 +812,7 @@ public:
             stats_.totalReads = readsProcessed.load();
             stats_.totalBases = basesProcessed.load();
             stats_.totalBlocks = blocksProcessed.load();
-            stats_.inputBytes =
-                inputPath == "-" ? reader.totalBytesRead() : std::filesystem::file_size(inputPath);
+            stats_.inputBytes = reader.totalBytesRead();
             stats_.outputBytes = writer.totalBytesWritten();
 
         } catch (const FQCException& e) {
@@ -1062,12 +1061,7 @@ public:
             stats_.totalReads = readsProcessed.load();
             stats_.totalBases = basesProcessed.load();
             stats_.totalBlocks = blocksProcessed.load();
-            if (input1Path == "-" || input2Path == "-") {
-                stats_.inputBytes = reader.totalBytesRead();
-            } else {
-                stats_.inputBytes =
-                    std::filesystem::file_size(input1Path) + std::filesystem::file_size(input2Path);
-            }
+            stats_.inputBytes = reader.totalBytesRead();
             stats_.outputBytes = writer.totalBytesWritten();
 
         } catch (const FQCException& e) {
