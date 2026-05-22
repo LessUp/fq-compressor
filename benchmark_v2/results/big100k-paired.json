@@ -1,0 +1,95 @@
+{
+  "workload_id": "big100k-paired",
+  "layout": "paired",
+  "focus_tool_id": "fqc",
+  "suite": {
+    "workload_id": "big100k-paired",
+    "layout": "paired",
+    "results": [
+      {
+        "tool_id": "fqc",
+        "layout": "paired",
+        "operation": "compress",
+        "threads": 1,
+        "input_bytes": 67955580,
+        "output_bytes": 14531748,
+        "elapsed_seconds": 652.3053614910023,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "paired",
+        "operation": "decompress",
+        "threads": 1,
+        "input_bytes": 14531748,
+        "output_bytes": 67955580,
+        "elapsed_seconds": 30.740494286001194,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "paired",
+        "operation": "compress",
+        "threads": 4,
+        "input_bytes": 67955580,
+        "output_bytes": 14531748,
+        "elapsed_seconds": 338.09571145899827,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "paired",
+        "operation": "decompress",
+        "threads": 4,
+        "input_bytes": 14531748,
+        "output_bytes": 67955580,
+        "elapsed_seconds": 30.763287312998727,
+        "success": true
+      }
+    ]
+  },
+  "tool_metrics": [
+    {
+      "tool_id": "fqc",
+      "compression_ratio": 4.676352769123164,
+      "compression_ratio_threads": 1,
+      "compression_mib_per_s": 0.19168386082989286,
+      "compression_mib_per_s_threads": 4,
+      "decompression_mib_per_s": 2.1082124021669584,
+      "decompression_mib_per_s_threads": 1
+    }
+  ],
+  "peer_standing": {
+    "compression_ratio": {
+      "tool_id": "fqc",
+      "metric": "compression_ratio",
+      "rank": 1,
+      "total": 1,
+      "position_band": "standalone",
+      "best_tool_id": "fqc",
+      "metric_value": 4.676352769123164,
+      "best_metric_value": 4.676352769123164
+    },
+    "compression_mib_per_s": {
+      "tool_id": "fqc",
+      "metric": "compression_mib_per_s",
+      "rank": 1,
+      "total": 1,
+      "position_band": "standalone",
+      "best_tool_id": "fqc",
+      "metric_value": 0.19168386082989286,
+      "best_metric_value": 0.19168386082989286
+    },
+    "decompression_mib_per_s": {
+      "tool_id": "fqc",
+      "metric": "decompression_mib_per_s",
+      "rank": 1,
+      "total": 1,
+      "position_band": "standalone",
+      "best_tool_id": "fqc",
+      "metric_value": 2.1082124021669584,
+      "best_metric_value": 2.1082124021669584
+    }
+  },
+  "conclusion": "fq-compressor is the only measured tool for workload `big100k-paired`, so this report is standalone evidence rather than a peer-ranking claim."
+}

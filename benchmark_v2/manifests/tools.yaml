@@ -1,0 +1,21 @@
+tools:
+  - tool_id: fqc
+    category: reference
+    supports_paired: true
+    compress_template: fqc compress -i {input} -o {output}
+    decompress_template: fqc decompress -i {input} -o {output}
+  - tool_id: gzip
+    category: baseline
+    supports_paired: false
+    compress_template: gzip -c {input} > {output}
+    decompress_template: gzip -dc {input} > {output}
+  - tool_id: xz
+    category: baseline
+    supports_paired: false
+    compress_template: xz -c {input} > {output}
+    decompress_template: xz -dc {input} > {output}
+  - tool_id: bzip2
+    category: baseline
+    supports_paired: false
+    compress_template: bzip2 -c {input} > {output}
+    decompress_template: bzip2 -dc {input} > {output}

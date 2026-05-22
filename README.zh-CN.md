@@ -38,8 +38,8 @@
 **fq-compressor** 是一款高性能的 FASTQ 压缩工具，利用**基于组装的压缩（ABC）**和**统计上下文混合（SCM）**技术，在保持对压缩数据 **O(1) 随机访问** 的同时，实现接近熵极限的压缩比。
 
 **核心亮点：**
-- 🧬 **3.97× 压缩比**（Illumina 数据）
-- ⚡ **11.9 MB/s** 压缩，**62.3 MB/s** 解压（多线程）
+- 🧪 通过 `./scripts/benchmark_v2.sh` 生成 **证据优先** 的 benchmark JSON 与 Markdown 结论
+- 📊 自动产出压缩比、压缩速度、解压速度的 **性能站位**
 - 🎯 **随机访问**，无需完整解压
 - 🚀 **Intel oneTBB** 并行流水线
 - 📦 **透明支持** .gz、.bz2、.xz 输入
@@ -121,8 +121,9 @@ fqc info reads.fqc
 
 ## 📊 核心证明点
 
-- **3.97× 压缩比**，同时保留 **O(1) 随机访问**
-- **11.9 MB/s 压缩**、**62.3 MB/s 解压**（多线程）
+- **压缩密度应以生成的 benchmark 报告为准**，而 **O(1) 随机访问** 仍是系统契约的一部分
+- 最新 benchmark 证据由 `./scripts/benchmark_v2.sh` 生成，产出 JSON 与 Markdown 报告
+- 当前性能区间应以生成的报告为准，而不是继续依赖 README 中写死的常数
 - 通过 `fqc info` 和 `fqc verify` 提供**归档检查与完整性验证**
 - **透明支持** `.gz`、`.bz2`、`.xz` FASTQ 输入
 
@@ -150,6 +151,20 @@ fqc info reads.fqc
 ./scripts/build.sh clang-debug
 ./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
+bash tests/e2e/benchmark_v2_smoke_test.sh
+```
+
+生成可复现 benchmark 证据：
+
+```bash
+./scripts/benchmark_v2.sh run \
+  --workload small20k-single \
+  --data-root /home/shane/data/test \
+  --tools fqc,gzip,xz,bzip2 \
+  --threads 1 \
+  --runs 1 \
+  --json build/benchmark_v2/small20k-single.json \
+  --report build/benchmark_v2/small20k-single.md
 ```
 
 详见 AGENTS.md 获取完整项目规则和架构说明。

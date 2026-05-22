@@ -135,8 +135,19 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
     options.longReadMode = lengthClass;
 }
 
-[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options)
+[[nodiscard]] auto shouldForcePipelineForScale(const CompressOptions& options,
+                                               ReadLengthClass lengthClass) -> bool {
+    return options.inputBytesHint >= 64ULL * 1024ULL * 1024ULL && !options.blockSizeExplicit &&
+        !options.streamingMode && !options.paired && !options.interleaved &&
+        options.input2Path.empty() && lengthClass == ReadLengthClass::kShort;
+}
+
+[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options, bool forcePipelineForScale)
     -> CompressionExecutionMode {
+    if (forcePipelineForScale) {
+        return CompressionExecutionMode::kPipeline;
+    }
+
     const bool requiresPipelinePath =
         options.paired || options.interleaved || !options.input2Path.empty();
     if (requiresPipelinePath) {
@@ -279,7 +290,13 @@ auto buildCompressionProfile(CompressOptions options,
         const auto lengthClass = resolveReadLengthClass(options, streamFactory);
         applyResolvedDefaults(options, lengthClass);
 
-        const auto executionMode = resolveExecutionMode(options);
+        const bool forcePipelineForScale = shouldForcePipelineForScale(options, lengthClass);
+        if (forcePipelineForScale) {
+            options.enableReordering = false;
+            options.saveReorderMap = false;
+        }
+
+        const auto executionMode = resolveExecutionMode(options, forcePipelineForScale);
         const auto archiveFacts = resolveArchiveFacts(options, executionMode);
         const auto analyzerConfig = makeAnalyzerConfig(options, lengthClass, executionMode);
         const auto blockConfig = makeBlockConfig(options);

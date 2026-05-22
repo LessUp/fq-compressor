@@ -116,6 +116,9 @@ struct CompressOptions {
     /// @brief Collect and store statistics.
     bool collectStats = true;
 
+    /// @brief Estimated FASTQ input size in bytes for profile selection.
+    std::uint64_t inputBytesHint = 0;
+
     /// @brief Convert to BlockCompressorConfig.
     [[nodiscard]] algo::BlockCompressorConfig toCompressorConfig() const noexcept;
 };

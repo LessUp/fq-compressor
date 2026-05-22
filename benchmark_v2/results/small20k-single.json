@@ -1,0 +1,182 @@
+{
+  "workload_id": "small20k-single",
+  "layout": "single",
+  "focus_tool_id": "fqc",
+  "suite": {
+    "workload_id": "small20k-single",
+    "layout": "single",
+    "results": [
+      {
+        "tool_id": "fqc",
+        "layout": "single",
+        "operation": "compress",
+        "threads": 1,
+        "input_bytes": 6777788,
+        "output_bytes": 1745852,
+        "elapsed_seconds": 69.49508728700312,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "single",
+        "operation": "decompress",
+        "threads": 1,
+        "input_bytes": 1745852,
+        "output_bytes": 6777788,
+        "elapsed_seconds": 4.20935739500419,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "single",
+        "operation": "compress",
+        "threads": 4,
+        "input_bytes": 6777788,
+        "output_bytes": 1676341,
+        "elapsed_seconds": 65.07401999900321,
+        "success": true
+      },
+      {
+        "tool_id": "fqc",
+        "layout": "single",
+        "operation": "decompress",
+        "threads": 4,
+        "input_bytes": 1676341,
+        "output_bytes": 6777788,
+        "elapsed_seconds": 4.1538674979965435,
+        "success": true
+      },
+      {
+        "tool_id": "gzip",
+        "layout": "single",
+        "operation": "compress",
+        "threads": 1,
+        "input_bytes": 6777788,
+        "output_bytes": 2085517,
+        "elapsed_seconds": 1.8556582759993034,
+        "success": true
+      },
+      {
+        "tool_id": "gzip",
+        "layout": "single",
+        "operation": "decompress",
+        "threads": 1,
+        "input_bytes": 2085517,
+        "output_bytes": 6777788,
+        "elapsed_seconds": 0.09525100600149017,
+        "success": true
+      },
+      {
+        "tool_id": "xz",
+        "layout": "single",
+        "operation": "compress",
+        "threads": 1,
+        "input_bytes": 6777788,
+        "output_bytes": 1674004,
+        "elapsed_seconds": 28.6006223420045,
+        "success": true
+      },
+      {
+        "tool_id": "xz",
+        "layout": "single",
+        "operation": "decompress",
+        "threads": 1,
+        "input_bytes": 1674004,
+        "output_bytes": 6777788,
+        "elapsed_seconds": 0.2744471740006702,
+        "success": true
+      },
+      {
+        "tool_id": "bzip2",
+        "layout": "single",
+        "operation": "compress",
+        "threads": 1,
+        "input_bytes": 6777788,
+        "output_bytes": 1702711,
+        "elapsed_seconds": 1.007262086000992,
+        "success": true
+      },
+      {
+        "tool_id": "bzip2",
+        "layout": "single",
+        "operation": "decompress",
+        "threads": 1,
+        "input_bytes": 1702711,
+        "output_bytes": 6777788,
+        "elapsed_seconds": 2.0218891320037073,
+        "success": true
+      }
+    ]
+  },
+  "tool_metrics": [
+    {
+      "tool_id": "fqc",
+      "compression_ratio": 4.043203620265805,
+      "compression_ratio_threads": 4,
+      "compression_mib_per_s": 0.09932999894190485,
+      "compression_mib_per_s_threads": 4,
+      "decompression_mib_per_s": 1.5560925669304686,
+      "decompression_mib_per_s_threads": 4
+    },
+    {
+      "tool_id": "gzip",
+      "compression_ratio": 3.2499317914934283,
+      "compression_ratio_threads": 1,
+      "compression_mib_per_s": 3.483293460465191,
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 67.86072514074404,
+      "decompression_mib_per_s_threads": 1
+    },
+    {
+      "tool_id": "xz",
+      "compression_ratio": 4.048848150900476,
+      "compression_ratio_threads": 1,
+      "compression_mib_per_s": 0.2260021568885016,
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 23.55208196689502,
+      "decompression_mib_per_s_threads": 1
+    },
+    {
+      "tool_id": "bzip2",
+      "compression_ratio": 3.9805862533336542,
+      "compression_ratio_threads": 1,
+      "compression_mib_per_s": 6.417200078788748,
+      "compression_mib_per_s_threads": 1,
+      "decompression_mib_per_s": 3.19691235059996,
+      "decompression_mib_per_s_threads": 1
+    }
+  ],
+  "peer_standing": {
+    "compression_ratio": {
+      "tool_id": "fqc",
+      "metric": "compression_ratio",
+      "rank": 2,
+      "total": 4,
+      "position_band": "competitive",
+      "best_tool_id": "xz",
+      "metric_value": 4.043203620265805,
+      "best_metric_value": 4.048848150900476
+    },
+    "compression_mib_per_s": {
+      "tool_id": "fqc",
+      "metric": "compression_mib_per_s",
+      "rank": 4,
+      "total": 4,
+      "position_band": "lagging",
+      "best_tool_id": "bzip2",
+      "metric_value": 0.09932999894190485,
+      "best_metric_value": 6.417200078788748
+    },
+    "decompression_mib_per_s": {
+      "tool_id": "fqc",
+      "metric": "decompression_mib_per_s",
+      "rank": 4,
+      "total": 4,
+      "position_band": "lagging",
+      "best_tool_id": "gzip",
+      "metric_value": 1.5560925669304686,
+      "best_metric_value": 67.86072514074404
+    }
+  },
+  "conclusion": "fq-compressor stands in the competitive compression-ratio tier, lagging compression-speed tier, and lagging decompression-speed tier for workload `small20k-single`."
+}
