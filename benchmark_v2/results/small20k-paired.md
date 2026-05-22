@@ -8,10 +8,10 @@
 
 ## Peer Standing
 
-- Compression ratio: `leader` (rank 1/1, best `fqc`)
-- Compression speed: `leader` (rank 1/1, best `fqc`)
-- Decompression speed: `leader` (rank 1/1, best `fqc`)
+- Compression ratio: `standalone` (rank 1/1, best `fqc`)
+- Compression speed: `standalone` (rank 1/1, best `fqc`)
+- Decompression speed: `standalone` (rank 1/1, best `fqc`)
 
 ## Conclusion
 
-fq-compressor stands in the leader compression-ratio tier, leader compression-speed tier, and leader decompression-speed tier for workload `small20k-paired`.
+fq-compressor is the only measured tool for workload `small20k-paired`, so this report is standalone evidence rather than a peer-ranking claim.

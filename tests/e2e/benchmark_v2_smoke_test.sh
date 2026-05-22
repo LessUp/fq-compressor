@@ -353,6 +353,35 @@ PY
 
 PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'
 import os
+import tempfile
+import time
+from pathlib import Path
+
+import benchmark_v2.tool_adapters as tool_adapters
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    fake_root = Path(temp_dir)
+    release = fake_root / "build/clang-release/src/fqc"
+    debug = fake_root / "build/clang-debug/src/fqc"
+    release.parent.mkdir(parents=True, exist_ok=True)
+    debug.parent.mkdir(parents=True, exist_ok=True)
+    release.write_text("#!/bin/sh\n", encoding="utf-8")
+    debug.write_text("#!/bin/sh\n", encoding="utf-8")
+    now = time.time()
+    os.utime(release, (now - 60, now - 60))
+    os.utime(debug, (now, now))
+    original_root = tool_adapters._PROJECT_ROOT
+    try:
+        tool_adapters._PROJECT_ROOT = fake_root
+        resolved = tool_adapters._resolve_fqc_binary()
+    finally:
+        tool_adapters._PROJECT_ROOT = original_root
+    if resolved != debug:
+        raise AssertionError(f"expected newest debug binary, got {resolved!r}")
+PY
+
+PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'
+import os
 import sys
 from pathlib import Path
 
@@ -447,6 +476,86 @@ report = build_report(
 fqc_metrics = next(item for item in report["tool_metrics"] if item["tool_id"] == "fqc")
 if round(float(fqc_metrics["compression_ratio"]), 2) != 5.0:
     raise AssertionError(f"expected best ratio 5.0x, got {fqc_metrics['compression_ratio']!r}")
+if report["peer_standing"]["compression_ratio"]["position_band"] != "leader":
+    raise AssertionError(report["peer_standing"]["compression_ratio"])
+
+standalone_report = build_report(
+    BenchmarkSuite(
+        workload_id="paired-only",
+        layout="paired",
+        results=(
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="paired",
+                operation="compress",
+                threads=1,
+                input_bytes=100,
+                output_bytes=20,
+                elapsed_seconds=1.0,
+                success=True,
+            ),
+            BenchmarkResult(
+                tool_id="fqc",
+                layout="paired",
+                operation="decompress",
+                threads=1,
+                input_bytes=20,
+                output_bytes=100,
+                elapsed_seconds=1.0,
+                success=True,
+            ),
+        ),
+    )
+)
+if standalone_report["peer_standing"]["compression_ratio"]["position_band"] != "standalone":
+    raise AssertionError(standalone_report["peer_standing"]["compression_ratio"])
+if "only measured tool" not in standalone_report["conclusion"]:
+    raise AssertionError(standalone_report["conclusion"])
+
+try:
+    build_report(
+        BenchmarkSuite(
+            workload_id="incomplete",
+            layout="single",
+            results=(
+                BenchmarkResult(
+                    tool_id="fqc",
+                    layout="single",
+                    operation="compress",
+                    threads=1,
+                    input_bytes=100,
+                    output_bytes=20,
+                    elapsed_seconds=1.0,
+                    success=True,
+                ),
+                BenchmarkResult(
+                    tool_id="fqc",
+                    layout="single",
+                    operation="decompress",
+                    threads=1,
+                    input_bytes=20,
+                    output_bytes=100,
+                    elapsed_seconds=1.0,
+                    success=True,
+                ),
+                BenchmarkResult(
+                    tool_id="gzip",
+                    layout="single",
+                    operation="compress",
+                    threads=1,
+                    input_bytes=100,
+                    output_bytes=30,
+                    elapsed_seconds=2.0,
+                    success=False,
+                ),
+            ),
+        )
+    )
+except ValueError as exc:
+    if "incomplete benchmark suite" not in str(exc):
+        raise
+else:
+    raise AssertionError("expected build_report to reject incomplete comparison suites")
 PY
 
 mkdir -p "${TEST_DIR}/short-data/small"

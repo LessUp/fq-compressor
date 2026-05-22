@@ -62,7 +62,7 @@
       "metric": "compression_ratio",
       "rank": 1,
       "total": 1,
-      "position_band": "leader",
+      "position_band": "standalone",
       "best_tool_id": "fqc",
       "metric_value": 3.940327002723085,
       "best_metric_value": 3.940327002723085
@@ -72,7 +72,7 @@
       "metric": "compression_mib_per_s",
       "rank": 1,
       "total": 1,
-      "position_band": "leader",
+      "position_band": "standalone",
       "best_tool_id": "fqc",
       "metric_value": 0.09901911985254798,
       "best_metric_value": 0.09901911985254798
@@ -82,11 +82,11 @@
       "metric": "decompression_mib_per_s",
       "rank": 1,
       "total": 1,
-      "position_band": "leader",
+      "position_band": "standalone",
       "best_tool_id": "fqc",
       "metric_value": 1.806759974498538,
       "best_metric_value": 1.806759974498538
     }
   },
-  "conclusion": "fq-compressor stands in the leader compression-ratio tier, leader compression-speed tier, and leader decompression-speed tier for workload `small20k-paired`."
+  "conclusion": "fq-compressor is the only measured tool for workload `small20k-paired`, so this report is standalone evidence rather than a peer-ranking claim."
 }

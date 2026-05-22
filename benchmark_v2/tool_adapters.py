@@ -130,9 +130,9 @@ def _resolve_fqc_binary() -> Path:
         _PROJECT_ROOT / "build/clang-release/src/fqc",
         _PROJECT_ROOT / "build/clang-debug/src/fqc",
     )
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
+    existing = [candidate for candidate in candidates if candidate.exists()]
+    if existing:
+        return max(existing, key=lambda candidate: candidate.stat().st_mtime)
     raise ValueError("fqc binary not found under build/clang-release/src/fqc or build/clang-debug/src/fqc")
 
 

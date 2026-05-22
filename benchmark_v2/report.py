@@ -16,6 +16,8 @@ def classify_position(rank: int, total: int) -> str:
         raise ValueError("total must be positive")
     if rank <= 0 or rank > total:
         raise ValueError(f"rank must be between 1 and {total}; got {rank}")
+    if total == 1:
+        return "standalone"
     if rank == 1:
         return "leader"
     if rank <= max(2, math.ceil(total / 3)):
@@ -69,11 +71,7 @@ def build_report(suite: BenchmarkSuite, *, focus_tool_id: str = _FOCUS_TOOL_ID) 
     }
 
     conclusion = (
-        "fq-compressor stands in the "
-        f"{peer_standing['compression_ratio']['position_band']} compression-ratio tier, "
-        f"{peer_standing['compression_mib_per_s']['position_band']} compression-speed tier, "
-        f"and {peer_standing['decompression_mib_per_s']['position_band']} decompression-speed tier "
-        f"for workload `{suite.workload_id}`."
+        _build_conclusion(suite.workload_id, peer_standing)
     )
 
     return {
@@ -146,6 +144,7 @@ def render_report_markdown(report: dict[str, object]) -> str:
 
 def _build_tool_metrics(suite: BenchmarkSuite) -> list[dict[str, float | str]]:
     grouped: dict[str, dict[str, list[BenchmarkResult]]] = {}
+    observed_tool_ids = {result.tool_id for result in suite.results}
     for result in suite.results:
         if not result.success:
             continue
@@ -173,7 +172,33 @@ def _build_tool_metrics(suite: BenchmarkSuite) -> list[dict[str, float | str]]:
 
     if not metrics_by_tool:
         raise ValueError(f"workload '{suite.workload_id}' does not contain any complete successful tool runs")
+    complete_tool_ids = {metric["tool_id"] for metric in metrics_by_tool}
+    if complete_tool_ids != observed_tool_ids:
+        raise ValueError(
+            f"workload '{suite.workload_id}' has an incomplete benchmark suite; "
+            "cannot build peer-standing conclusions"
+        )
     return metrics_by_tool
+
+
+def _build_conclusion(workload_id: str, peer_standing: dict[str, dict[str, object]]) -> str:
+    ratio_band = str(peer_standing["compression_ratio"]["position_band"])
+    compress_band = str(peer_standing["compression_mib_per_s"]["position_band"])
+    decompress_band = str(peer_standing["decompression_mib_per_s"]["position_band"])
+
+    if ratio_band == compress_band == decompress_band == "standalone":
+        return (
+            "fq-compressor is the only measured tool for workload "
+            f"`{workload_id}`, so this report is standalone evidence rather than a peer-ranking claim."
+        )
+
+    return (
+        "fq-compressor stands in the "
+        f"{ratio_band} compression-ratio tier, "
+        f"{compress_band} compression-speed tier, "
+        f"and {decompress_band} decompression-speed tier "
+        f"for workload `{workload_id}`."
+    )
 
 
 def _compression_ratio(result: BenchmarkResult) -> float:
