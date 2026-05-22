@@ -169,7 +169,7 @@ body {
 }
 
 .VPHero .heading {
-    max-width: 17ch;
+    max-width: clamp(16rem, 44vw, 31rem);
 }
 
 .VPHero .name {
@@ -186,9 +186,9 @@ body {
     margin-top: 0.4rem;
     color: color-mix(in oklab, var(--portal-ink-1) 88%, var(--vp-c-brand-1));
     font-size: clamp(1.5rem, 3vw, 2.45rem);
-    line-height: 1;
+    line-height: 1.1;
     letter-spacing: -0.04em;
-    text-wrap: balance;
+    text-wrap: pretty;
 }
 
 .VPHero .tagline {
@@ -531,6 +531,7 @@ body {
     position: relative;
     display: grid;
     gap: 14px;
+    min-width: 0;
     grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
@@ -557,11 +558,32 @@ body {
     z-index: 1;
     display: grid;
     gap: 10px;
+    min-width: 0;
     min-height: 11rem;
     padding: 20px 18px 18px;
     background:
         linear-gradient(180deg, color-mix(in oklab, var(--portal-signal-1) 12%, transparent), transparent 50%),
         var(--portal-surface);
+}
+
+@media (min-width: 961px) {
+    .VPDoc.has-sidebar .wp-section__split,
+    .VPDoc.has-aside .wp-section__split,
+    .VPDoc.has-sidebar.has-aside .wp-section__split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .VPDoc.has-sidebar .wp-atlas-flow,
+    .VPDoc.has-aside .wp-atlas-flow,
+    .VPDoc.has-sidebar.has-aside .wp-atlas-flow {
+        grid-template-columns: repeat(3, minmax(10rem, 1fr));
+    }
+
+    .VPDoc.has-sidebar .wp-atlas-flow::before,
+    .VPDoc.has-aside .wp-atlas-flow::before,
+    .VPDoc.has-sidebar.has-aside .wp-atlas-flow::before {
+        display: none;
+    }
 }
 
 .wp-atlas-flow__eyebrow {
@@ -593,6 +615,8 @@ body {
     font-family: var(--vp-font-family-mono);
     font-size: 0.85rem;
     line-height: 1.6;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .wp-section--atlas .wp-section__intro h2 {
