@@ -152,7 +152,8 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
     options.scanAllLengths = request.scanAllLengths;
     options.maxBlockBases = request.maxBlockBases;
     options.paired = request.paired;
-    options.interleaved = request.input.kind == CompressionInputKind::kInterleavedFile;
+    options.interleaved = request.input.kind == CompressionInputKind::kInterleavedFile ||
+        (request.input.kind == CompressionInputKind::kStdin && request.paired);
     options.peLayout = request.input.archiveLayout;
     options.blockSize = request.blockSize;
     options.blockSizeExplicit = request.blockSizeExplicit;

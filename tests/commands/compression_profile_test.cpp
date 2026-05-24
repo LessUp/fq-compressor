@@ -236,4 +236,29 @@ TEST(CompressionProfileTest, BuildsEffectivePlanFromNormalizedRequest) {
     EXPECT_FALSE(plan.profile.archiveHasReorderMap());
 }
 
+TEST(CompressionProfileTest, PreservesInterleavedStdinPairednessInPlanRequest) {
+    auto factory = std::make_shared<io::MemoryStreamFactory>();
+
+    CompressionRequest request;
+    request.mode = CompressionMode::kStreaming;
+    request.input.kind = CompressionInputKind::kStdin;
+    request.input.primaryPath = "-";
+    request.input.archiveLayout = PELayout::kInterleaved;
+    request.outputPath = "out.fqc";
+    request.paired = true;
+    request.enableReordering = false;
+    request.saveReorderMap = false;
+    request.requestedLengthClass = ReadLengthClass::kShort;
+    request.autoDetectLongRead = false;
+    request.threads = 1;
+
+    auto planResult = buildCompressionProfilePlan(request, factory);
+
+    ASSERT_TRUE(planResult.has_value());
+    const auto& plan = planResult.value();
+    EXPECT_EQ(plan.request.mode, CompressionMode::kStreaming);
+    EXPECT_EQ(plan.request.input.kind, CompressionInputKind::kStdin);
+    EXPECT_TRUE(plan.request.paired);
+}
+
 }  // namespace fqc::commands::test
