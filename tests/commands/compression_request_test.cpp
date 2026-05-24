@@ -94,6 +94,20 @@ TEST(CompressionRequestTest, NormalizesStdinInterleavedIntoPairedRequest) {
     EXPECT_EQ(request.input.kind, CompressionInputKind::kStdin);
 }
 
+TEST(CompressionRequestTest, DoesNotNormalizePlainStdinIntoPairedRequest) {
+    CompressOptions options;
+    options.inputPath = "-";
+    options.outputPath = "single.fqc";
+    options.streamingMode = true;
+    options.paired = true;
+
+    const auto request = toCompressionRequest(options);
+
+    EXPECT_EQ(request.mode, CompressionMode::kStreaming);
+    EXPECT_EQ(request.input.kind, CompressionInputKind::kStdin);
+    EXPECT_FALSE(request.paired);
+}
+
 TEST(CompressionRequestTest, DisablesReorderMapWhenReorderingIsDisabled) {
     CompressOptions options;
     options.inputPath = "reads.fastq";

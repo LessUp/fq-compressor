@@ -125,7 +125,7 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
         request.input.kind == CompressionInputKind::kInterleavedFile) {
         request.paired = true;
     } else if (request.input.kind == CompressionInputKind::kStdin) {
-        request.paired = options.paired || options.interleaved;
+        request.paired = options.interleaved;
     } else {
         request.paired = false;
     }
