@@ -161,6 +161,12 @@ fqc_add_test(compression_profile_test
     LIBRARIES fqc_cli
 )
 
+# Compression request tests
+fqc_add_test(compression_request_test
+    SOURCES commands/compression_request_test.cpp
+    LIBRARIES fqc_cli
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================

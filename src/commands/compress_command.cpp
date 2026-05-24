@@ -82,6 +82,49 @@ IDMode parseIdMode(std::string_view str) {
     throw ArgumentError("Invalid ID mode: " + std::string(str));
 }
 
+CompressionRequest toCompressionRequest(const CompressOptions& options) {
+    CompressionRequest request;
+
+    request.input.primaryPath = options.inputPath;
+    request.input.secondaryPath = options.input2Path;
+    request.input.archiveLayout = options.peLayout;
+    request.outputPath = options.outputPath;
+    request.compressionLevel = options.compressionLevel;
+    request.threads = options.threads;
+    request.memoryLimitMb = options.memoryLimitMb;
+    request.enableReordering = options.enableReordering;
+    request.saveReorderMap = options.saveReorderMap;
+    request.forceOverwrite = options.forceOverwrite;
+    request.showProgress = options.showProgress;
+    request.qualityMode = options.qualityMode;
+    request.idMode = options.idMode;
+    request.requestedLengthClass = options.longReadMode;
+    request.autoDetectLongRead = options.autoDetectLongRead;
+    request.scanAllLengths = options.scanAllLengths;
+    request.blockSize = options.blockSize;
+    request.blockSizeExplicit = options.blockSizeExplicit;
+    request.maxBlockBases = options.maxBlockBases;
+    request.checksumType = options.checksumType;
+    request.inputBytesHint = options.inputBytesHint;
+
+    if (options.inputPath == "-") {
+        request.mode = CompressionMode::kStreaming;
+        request.input.kind = CompressionInputKind::kStdin;
+    } else if (!options.input2Path.empty()) {
+        request.input.kind = CompressionInputKind::kPairedFiles;
+    } else if (options.interleaved) {
+        request.input.kind = CompressionInputKind::kInterleavedFile;
+    } else {
+        request.input.kind = CompressionInputKind::kSingleFile;
+    }
+
+    if (options.streamingMode) {
+        request.mode = CompressionMode::kStreaming;
+    }
+
+    return request;
+}
+
 // =============================================================================
 // CompressOptions::toCompressorConfig
 // =============================================================================

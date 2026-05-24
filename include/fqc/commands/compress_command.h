@@ -15,6 +15,7 @@
 #define FQC_COMMANDS_COMPRESS_COMMAND_H
 
 #include "fqc/algo/block_compressor.h"
+#include "fqc/commands/compression_request.h"
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
 
