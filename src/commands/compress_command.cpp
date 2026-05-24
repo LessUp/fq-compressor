@@ -10,6 +10,7 @@
 
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/global_analyzer.h"
+#include "fqc/commands/compression_engine.h"
 #include "fqc/commands/compression_profile.h"
 #include "fqc/common/logger.h"
 #include "fqc/format/fqc_writer.h"
@@ -170,31 +171,22 @@ CompressCommand::CompressCommand(CompressCommand&&) noexcept = default;
 CompressCommand& CompressCommand::operator=(CompressCommand&&) noexcept = default;
 
 int CompressCommand::execute() {
-    auto startTime = std::chrono::steady_clock::now();
-
     try {
-        if (options_.inputBytesHint == 0 && options_.inputPath != "-") {
-            options_.inputBytesHint = std::filesystem::file_size(options_.inputPath);
-            if (!options_.input2Path.empty() && options_.input2Path != "-") {
-                options_.inputBytesHint += std::filesystem::file_size(options_.input2Path);
-            }
+        CompressionEngine engine;
+        auto planResult = engine.plan(toCompressionRequest(options_));
+        if (!planResult) {
+            planResult.error().throwException();
         }
 
-        auto profileResult = buildCompressionProfile(options_);
-        if (!profileResult) {
-            profileResult.error().throwException();
+        auto plan = std::move(planResult.value());
+        options_ = plan.effectiveOptions;
+
+        auto statsResult = engine.execute(plan);
+        if (!statsResult) {
+            statsResult.error().throwException();
         }
+        stats_ = std::move(statsResult.value());
 
-        auto profile = std::move(profileResult.value());
-        options_ = profile.effectiveOptions();
-
-        runCompression(profile);
-
-        // Calculate elapsed time
-        auto endTime = std::chrono::steady_clock::now();
-        stats_.elapsedSeconds = std::chrono::duration<double>(endTime - startTime).count();
-
-        // Print summary
         if (options_.showProgress) {
             printSummary();
         }

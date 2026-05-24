@@ -1,4 +1,5 @@
 #include "fqc/commands/compress_command.h"
+#include "fqc/commands/compression_engine.h"
 #include "fqc/commands/decompress_command.h"
 #include "fqc/commands/verify_command.h"
 #include "fqc/common/logger.h"
@@ -318,6 +319,39 @@ TEST(ArchiveRegressionTest, ParallelCompressionWritesHonestOrderMetadata) {
     reader.open();
 
     EXPECT_EQ(reader.originalFilename(), inputPath.filename().string());
+    EXPECT_TRUE(format::isPreserveOrder(reader.globalHeader().flags));
+    EXPECT_FALSE(reader.hasReorderMap());
+}
+
+TEST(ArchiveRegressionTest, DirectEngineExecutionPreservesParallelOrderMetadata) {
+    auto inputPath = tempFilePath(".fastq");
+    auto archivePath = tempFilePath(".fqc");
+
+    TempFileGuard inputGuard(inputPath);
+    TempFileGuard archiveGuard(archivePath);
+
+    writeFastqFile(inputPath, makeShortReadsNoComments(12));
+
+    CompressionRequest request;
+    request.input.kind = CompressionInputKind::kSingleFile;
+    request.input.primaryPath = inputPath;
+    request.outputPath = archivePath;
+    request.forceOverwrite = true;
+    request.showProgress = false;
+    request.threads = 4;
+    request.enableReordering = true;
+    request.saveReorderMap = true;
+    request.autoDetectLongRead = false;
+    request.requestedLengthClass = ReadLengthClass::kShort;
+
+    CompressionEngine engine;
+    auto statsResult = engine.execute(request);
+    ASSERT_TRUE(statsResult.has_value());
+    EXPECT_EQ(statsResult->totalReads, 12u);
+
+    format::FQCReader reader(archivePath);
+    reader.open();
+
     EXPECT_TRUE(format::isPreserveOrder(reader.globalHeader().flags));
     EXPECT_FALSE(reader.hasReorderMap());
 }

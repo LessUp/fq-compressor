@@ -208,4 +208,32 @@ TEST(CompressionProfileTest, LargeSingleEndShortReadsPreferPipelineAndDisableReo
     EXPECT_FALSE(profile.archiveHasReorderMap());
 }
 
+TEST(CompressionProfileTest, BuildsEffectivePlanFromNormalizedRequest) {
+    auto factory = std::make_shared<io::MemoryStreamFactory>();
+    factory->setFileContent("reads.fastq",
+                            "@r1\nACGT\n+\nFFFF\n"
+                            "@r2\nTGCA\n+\nHHHH\n");
+
+    CompressionRequest request;
+    request.input.kind = CompressionInputKind::kSingleFile;
+    request.input.primaryPath = "reads.fastq";
+    request.outputPath = "out.fqc";
+    request.enableReordering = true;
+    request.saveReorderMap = true;
+    request.threads = 4;
+    request.autoDetectLongRead = true;
+    request.requestedLengthClass = ReadLengthClass::kLong;
+
+    auto planResult = buildCompressionProfilePlan(request, factory);
+
+    ASSERT_TRUE(planResult.has_value());
+    const auto& plan = planResult.value();
+    EXPECT_EQ(plan.request.mode, CompressionMode::kPipeline);
+    EXPECT_EQ(plan.request.input.kind, CompressionInputKind::kSingleFile);
+    EXPECT_EQ(plan.profile.readLengthClass(), ReadLengthClass::kShort);
+    EXPECT_EQ(plan.profile.executionMode(), CompressionExecutionMode::kPipeline);
+    EXPECT_TRUE(plan.profile.archivePreservesOrder());
+    EXPECT_FALSE(plan.profile.archiveHasReorderMap());
+}
+
 }  // namespace fqc::commands::test

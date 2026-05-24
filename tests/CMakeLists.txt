@@ -167,6 +167,12 @@ fqc_add_test(compression_request_test
     LIBRARIES fqc_cli
 )
 
+# Compression engine tests
+fqc_add_test(compression_engine_test
+    SOURCES commands/compression_engine_test.cpp
+    LIBRARIES fqc_cli
+)
+
 # =============================================================================
 # Property-Based Tests (RapidCheck)
 # =============================================================================

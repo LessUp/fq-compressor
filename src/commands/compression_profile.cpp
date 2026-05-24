@@ -135,6 +135,44 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
     options.longReadMode = lengthClass;
 }
 
+[[nodiscard]] auto toCompressOptions(const CompressionRequest& request) -> CompressOptions {
+    CompressOptions options;
+    options.inputPath = request.input.primaryPath;
+    options.input2Path = request.input.secondaryPath;
+    options.outputPath = request.outputPath;
+    options.compressionLevel = request.compressionLevel;
+    options.threads = request.threads;
+    options.memoryLimitMb = request.memoryLimitMb;
+    options.enableReordering = request.enableReordering;
+    options.streamingMode = request.mode == CompressionMode::kStreaming;
+    options.qualityMode = request.qualityMode;
+    options.idMode = request.idMode;
+    options.longReadMode = request.requestedLengthClass;
+    options.autoDetectLongRead = request.autoDetectLongRead;
+    options.scanAllLengths = request.scanAllLengths;
+    options.maxBlockBases = request.maxBlockBases;
+    options.paired = request.paired;
+    options.interleaved = request.input.kind == CompressionInputKind::kInterleavedFile;
+    options.peLayout = request.input.archiveLayout;
+    options.blockSize = request.blockSize;
+    options.blockSizeExplicit = request.blockSizeExplicit;
+    options.saveReorderMap = request.saveReorderMap;
+    options.checksumType = request.checksumType;
+    options.forceOverwrite = request.forceOverwrite;
+    options.showProgress = request.showProgress;
+    options.inputBytesHint = request.inputBytesHint;
+    return options;
+}
+
+[[nodiscard]] auto finalizePlannedRequest(const CompressionProfile& profile) -> CompressionRequest {
+    auto request = toCompressionRequest(profile.effectiveOptions());
+    if (profile.executionMode() == CompressionExecutionMode::kPipeline &&
+        request.mode != CompressionMode::kStreaming) {
+        request.mode = CompressionMode::kPipeline;
+    }
+    return request;
+}
+
 [[nodiscard]] auto shouldForcePipelineForScale(const CompressOptions& options,
                                                ReadLengthClass lengthClass) -> bool {
     return options.inputBytesHint >= 64ULL * 1024ULL * 1024ULL && !options.blockSizeExplicit &&
@@ -328,6 +366,26 @@ auto buildCompressionProfile(CompressOptions options,
     } catch (const FQCException& ex) {
         return makeError<CompressionProfile>(ex);
     }
+}
+
+auto buildCompressionProfilePlan(const CompressionRequest& request,
+                                 std::shared_ptr<io::StreamFactory> streamFactory)
+    -> Result<CompressionProfilePlan> {
+    auto profileResult =
+        buildCompressionProfile(toCompressOptions(request), std::move(streamFactory));
+    if (!profileResult) {
+        return makeError<CompressionProfilePlan>(profileResult.error());
+    }
+
+    auto profile = std::move(profileResult.value());
+    auto effectiveOptions = profile.effectiveOptions();
+    auto effectiveRequest = finalizePlannedRequest(profile);
+
+    return CompressionProfilePlan{
+        std::move(effectiveRequest),
+        std::move(effectiveOptions),
+        std::move(profile),
+    };
 }
 
 }  // namespace fqc::commands
