@@ -47,7 +47,7 @@ hero:
       <ul class="wp-list">
         <li><a href="./architecture/">系统设计</a>把公开概念对应到 <code>include/fqc/</code>、<code>src/</code> 与格式职责</li>
         <li><a href="./benchmarks/">性能证据</a>把 benchmark 表述钉回仓库产物和证明边界</li>
-        <li><a href="./research/">参考研究</a>把站点接到论文、对照仓库与 OpenSpec</li>
+        <li><a href="./research/">参考研究</a>把站点接到论文、对照仓库与归档研究笔记</li>
       </ul>
     </article>
   </div>

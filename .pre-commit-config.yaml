@@ -28,7 +28,7 @@ repos:
     hooks:
       - id: repo-preflight
         name: repo-preflight
-        description: Check local repo state and active OpenSpec changes before push
+        description: Check local repo state before push
         entry: ./scripts/dev/preflight.sh --strict
         language: script
         pass_filenames: false

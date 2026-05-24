@@ -19,4 +19,4 @@
 
 ## 为什么参考书架重要
 
-只要 fq-compressor 愿意承认自己的谱系，它就会更强。SPRING [R1]、fqzcomp [R2]、HARC [C2]、NanoSpring [R3] 不是点缀，它们定义了 fq-compressor 正在加入的讨论，也让项目更容易解释自己刻意保持在哪些边界之内。历史性的 OpenSpec 资料若仍有保留，也只放在 `docs/archive/` 中作为参考，不是当前工作流来源。
+只要 fq-compressor 愿意承认自己的谱系，它就会更强。SPRING [R1]、fqzcomp [R2]、HARC [C2]、NanoSpring [R3] 不是点缀，它们定义了 fq-compressor 正在加入的讨论，也让项目更容易解释自己刻意保持在哪些边界之内。历史性的 OpenSpec 资料若仍有保留，也只放在 `docs/archive/` 中作为归档上下文。

@@ -17,7 +17,7 @@ This repository keeps documentation intentionally **lean and focused**.
 | --- | --- |
 | `docs/archive/` | Archive-only - historical research, reviews, and specs |
 | `docs/dev/` | Development notes |
-| `openspec/` | Historical OpenSpec material kept only if referenced by archived docs |
+| `openspec/` | Historical OpenSpec material kept only as archive-era reference |
 
 ## Documentation policy
 

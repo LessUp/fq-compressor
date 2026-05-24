@@ -72,8 +72,8 @@ const copy = {
                     },
                     {
                         code: "[E2]",
-                        label: "openspec/specs/",
-                        note: "Live requirements and capability boundaries."
+                        label: "docs/archive/",
+                        note: "Historical research and governance material kept for reference only."
                     },
                     {
                         code: "[E3]",
@@ -142,8 +142,8 @@ const copy = {
                     },
                     {
                         code: "[E2]",
-                        label: "openspec/specs/",
-                        note: "当前有效的需求与能力边界。"
+                        label: "docs/archive/",
+                        note: "仅保留历史研究与治理材料，供参考使用。"
                     },
                     {
                         code: "[E3]",

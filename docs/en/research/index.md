@@ -19,4 +19,4 @@ This section is the portal's reference shelf. Use it when your question is not "
 
 ## Why the reference shelf matters
 
-fq-compressor is stronger when it acknowledges lineage. SPRING [R1], fqzcomp [R2], HARC [C2], and NanoSpring [R3] are not decoration. They define the conversation the project is entering, and they make it easier to explain where fq-compressor is deliberately narrower or different. Historical OpenSpec material may still appear in `docs/archive/`, but it is not the active workflow source.
+fq-compressor is stronger when it acknowledges lineage. SPRING [R1], fqzcomp [R2], HARC [C2], and NanoSpring [R3] are not decoration. They define the conversation the project is entering, and they make it easier to explain where fq-compressor is deliberately narrower or different. Historical OpenSpec material may still appear in `docs/archive/`, where it remains archival context only.
