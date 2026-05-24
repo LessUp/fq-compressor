@@ -3,6 +3,7 @@
 > **See AGENTS.md for full project rules, build commands, and architecture.**
 
 This repository is in **closeout mode**. Optimize for finishing, simplifying, and documenting.
+Current work should follow the repository docs and scripts directly; OpenSpec is archival only.
 
 ## Quick Reference
 

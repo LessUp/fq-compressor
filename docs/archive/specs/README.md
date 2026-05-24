@@ -4,11 +4,11 @@ This directory is **archive-only**. Do not use it as the source of truth for act
 
 ## Active sources of truth
 
-- **Living specifications:** `openspec/specs/`
-- **Active change work:** `openspec/changes/`
-- **Project context:** `openspec/config.yaml`
+- **Repository workflow:** `AGENTS.md` / `CLAUDE.md`
+- **Public docs:** `docs/`
+- **Current tasks:** the issue or task description driving the change
 
-If you are planning or implementing current work, stop reading here and switch to `openspec/`.
+If you are planning or implementing current work, stop reading here and use the repository docs instead.
 
 ## Archived documents kept for reference
 
@@ -38,10 +38,5 @@ If you are planning or implementing current work, stop reading here and switch t
 
 ## Workflow note
 
-Use OpenSpec for all new work:
-
-- `/opsx:propose "<idea>"`
-- `/opsx:apply <change>`
-- `/opsx:archive <change>`
-
-See [AGENTS.md](../AGENTS.md) for repository workflow details.
+This material is retained for historical comparison only. Follow [AGENTS.md](../AGENTS.md) and
+[CLAUDE.md](../CLAUDE.md) for current repository workflow details.

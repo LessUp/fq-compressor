@@ -10,6 +10,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Removed stale OpenSpec workflow guidance from repository docs and archive surfaces.
+- Consolidated changelog expectations around a single English `CHANGELOG.md` and deleted the
+  Chinese duplicate.
+- Began the compression-engine refactor by tightening the documentation boundary around current
+  workflow sources.
 - Restored the default repository health baseline so `format-check` and the `clang-debug` unit test
   suite pass again.
 - Added closeout-oriented repository workflow assets: `CLAUDE.md`, Copilot instructions, preflight

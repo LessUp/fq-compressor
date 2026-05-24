@@ -6,8 +6,7 @@ This repository keeps documentation intentionally **lean and focused**.
 
 | Surface | Role |
 | --- | --- |
-| `openspec/specs/` | Living requirements and capability specifications |
-| `openspec/changes/` | Active change work and closeout planning |
+| `AGENTS.md` / `CLAUDE.md` | Repository workflow and closeout guidance |
 | `README.md` / `README.zh-CN.md` | Repository entry summary |
 | `docs/` | GitHub Pages source (VitePress public docs package) |
 | `docs/benchmark/` | Benchmark evidence and methodology |
@@ -18,10 +17,11 @@ This repository keeps documentation intentionally **lean and focused**.
 | --- | --- |
 | `docs/archive/` | Archive-only - historical research, reviews, and specs |
 | `docs/dev/` | Development notes |
+| `openspec/` | Historical OpenSpec material kept only if referenced by archived docs |
 
 ## Documentation policy
 
-- **Single source of truth**: `docs/` is the only public documentation source
+- **Single source of truth**: repository docs plus code are the active source of truth
 - **Public docs stack**: VitePress sources live directly under `docs/`
 - **Bilingual**: Public docs support both English (`/en/`) and Chinese (`/zh/`) routes
 - **No duplication**: Remove stale duplicates instead of keeping them "just in case"

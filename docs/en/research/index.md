@@ -15,8 +15,8 @@ This section is the portal's reference shelf. Use it when your question is not "
 - [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)
 - [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)
 - [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)
-- [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)
+- [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)
 
 ## Why the reference shelf matters
 
-fq-compressor is stronger when it acknowledges lineage. SPRING [R1], fqzcomp [R2], HARC [C2], and NanoSpring [R3] are not decoration. They define the conversation the project is entering, and they make it easier to explain where fq-compressor is deliberately narrower or different.
+fq-compressor is stronger when it acknowledges lineage. SPRING [R1], fqzcomp [R2], HARC [C2], and NanoSpring [R3] are not decoration. They define the conversation the project is entering, and they make it easier to explain where fq-compressor is deliberately narrower or different. Historical OpenSpec material may still appear in `docs/archive/`, but it is not the active workflow source.

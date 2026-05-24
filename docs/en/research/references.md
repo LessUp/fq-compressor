@@ -30,5 +30,5 @@ Use this page as the citation key for the public documentation set.
    Extracted Spring-derived reference code with an explicit license boundary.
 3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
    Repository-local comparison targets and study notes.
-4. **[E4]** [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)  
-   Live requirements and capability boundaries for the project.
+4. **[E4]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
+   Historical research and spec material retained for reference only.
