@@ -130,7 +130,9 @@ fqc_add_test(chunk_marshal_test
 
 # Pipeline split-header compile test
 fqc_add_test(pipeline_node_headers_test
-    SOURCES pipeline/pipeline_node_headers_test.cpp
+    SOURCES
+        pipeline/pipeline_node_headers_test.cpp
+        pipeline/pipeline_nodes_header_test.cpp
 )
 
 # Compressed Stream Tests
