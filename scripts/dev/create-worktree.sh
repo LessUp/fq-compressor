@@ -20,7 +20,7 @@ if [[ -z "$base_branch" ]]; then
     base_branch=${base_branch:-master}
 fi
 
-branch_name="opsx/${change_name}"
+branch_name="fqc/${change_name}"
 worktree_path="$(dirname "$repo_root")/fqc-${change_name}"
 
 if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
@@ -50,6 +50,6 @@ Created worktree:
 Recommended next steps:
   cd $worktree_path
   ./scripts/dev/preflight.sh
-  # OpenSpec status tracking has been retired; follow the closeout workflow in AGENTS.md.
+  # Follow the closeout workflow in AGENTS.md for branch naming and local coordination.
   # Or skip this helper entirely and keep working in your current checkout if that is faster.
 EOF
