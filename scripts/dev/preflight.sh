@@ -17,7 +17,7 @@ Usage: ./scripts/dev/preflight.sh [--strict]
 Checks:
   - current branch
   - working tree cleanliness
-  - active OpenSpec changes
+  - repository status
 
 --strict  Exit non-zero on actionable warnings.
 EOF
@@ -38,7 +38,6 @@ require_cmd() {
 }
 
 require_cmd git
-require_cmd openspec
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
@@ -51,17 +50,10 @@ if [[ -n "$dirty_status" ]]; then
     warnings+=("working tree has uncommitted changes")
 fi
 
-active_changes=$(openspec list --json 2>/dev/null || echo '{"changes":[]}')
-active_change_count=$(printf '%s' "$active_changes" | jq 'if type == "object" then (.changes // [] | length) else length end' 2>/dev/null || echo 0)
-if [[ "$active_change_count" != "0" && "$active_change_count" != "1" ]]; then
-    warnings+=("more than one OpenSpec change is active")
-fi
-
 echo "== fq-compressor preflight =="
 echo "repo:            $repo_root"
 echo "current branch:  $current_branch"
 echo "dirty tree:      $([[ -n "$dirty_status" ]] && echo yes || echo no)"
-echo "active changes:  $active_change_count"
 
 if [[ -n "$dirty_status" ]]; then
     echo

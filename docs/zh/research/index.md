@@ -15,7 +15,7 @@
 - [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)
 - [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)
 - [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)
-- [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)
+- 归档项目笔记
 
 ## 为什么参考书架重要
 

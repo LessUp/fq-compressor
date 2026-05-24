@@ -1,8 +1,8 @@
 # fq-compressor 项目全面诊断报告
 
 > **Archive-only historical document.** This report reflects repository state from 2026-01-29 and
-> is kept only as retrospective input. Do not treat it as current project truth; use `openspec/`
-> and maintained docs for active work.
+> is kept only as retrospective input. Do not treat it as current project truth; use it only for
+> historical context alongside maintained docs.
 
 > 诊断时间: 2026-01-29
 > 代码版本: master (commit 3cf4a6d)
@@ -13,8 +13,8 @@
 ## 0. 2026-04-27 真实数据复核增补
 
 > **This addendum supersedes several 2026-01-29 conclusions.** The original diagnosis below remains
-> archived as historical context only. Current closeout work must use this addendum, maintained
-> `openspec/`, and current repository checks as the source of truth.
+> archived as historical context only. Current closeout work must use this addendum and current
+> repository checks as the source of truth.
 
 ### 0.1 当前复核边界
 

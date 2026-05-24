@@ -30,5 +30,5 @@
    带有明确许可边界的 Spring 派生参考代码。
 3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
    本地对照目标和学习记录。
-4. **[E4]** [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)  
-   当前生效的需求和能力边界。
+4. **[E4]** 归档项目笔记
+   历史需求和能力边界。

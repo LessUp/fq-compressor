@@ -15,7 +15,7 @@ This section is the portal's reference shelf. Use it when your question is not "
 - [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)
 - [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)
 - [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)
-- [`openspec/specs/`](https://github.com/LessUp/fq-compressor/tree/master/openspec/specs)
+- Archived project notes
 
 ## Why the reference shelf matters
 

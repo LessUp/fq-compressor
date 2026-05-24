@@ -6,8 +6,8 @@ This repository keeps documentation intentionally **lean and focused**.
 
 | Surface | Role |
 | --- | --- |
-| `openspec/specs/` | Living requirements and capability specifications |
-| `openspec/changes/` | Active change work and closeout planning |
+| Archived spec snapshots | Historical requirements and capability notes |
+| Archived change records | Historical closeout notes |
 | `README.md` / `README.zh-CN.md` | Repository entry summary |
 | `docs/` | GitHub Pages source (VitePress public docs package) |
 | `docs/benchmark/` | Benchmark evidence and methodology |
