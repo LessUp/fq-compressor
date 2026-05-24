@@ -34,16 +34,20 @@ TEST(CompressionRequestTest, NormalizesPairedFilesWithoutPretendingSingleEnd) {
     options.inputPath = "r1.fastq";
     options.input2Path = "r2.fastq";
     options.outputPath = "paired.fqc";
-    options.paired = true;
+    options.enableReordering = false;
+    options.saveReorderMap = true;
     options.peLayout = PELayout::kConsecutive;
 
     const auto request = toCompressionRequest(options);
 
     EXPECT_EQ(request.mode, CompressionMode::kArchive);
     EXPECT_EQ(request.input.kind, CompressionInputKind::kPairedFiles);
+    EXPECT_TRUE(request.paired);
     EXPECT_EQ(request.input.primaryPath, std::filesystem::path("r1.fastq"));
     EXPECT_EQ(request.input.secondaryPath, std::filesystem::path("r2.fastq"));
     EXPECT_EQ(request.input.archiveLayout, PELayout::kConsecutive);
+    EXPECT_FALSE(request.enableReordering);
+    EXPECT_FALSE(request.saveReorderMap);
 }
 
 TEST(CompressionRequestTest, NormalizesInterleavedSingleFileInput) {
@@ -83,6 +87,19 @@ TEST(CompressionRequestTest, PreservesExplicitPairedIntent) {
 
     EXPECT_TRUE(request.paired);
     EXPECT_EQ(request.input.kind, CompressionInputKind::kSingleFile);
+}
+
+TEST(CompressionRequestTest, DisablesReorderMapWhenReorderingIsDisabled) {
+    CompressOptions options;
+    options.inputPath = "reads.fastq";
+    options.outputPath = "reads.fqc";
+    options.enableReordering = false;
+    options.saveReorderMap = true;
+
+    const auto request = toCompressionRequest(options);
+
+    EXPECT_FALSE(request.enableReordering);
+    EXPECT_FALSE(request.saveReorderMap);
 }
 
 TEST(CompressionRequestTest, PreservesCommandLayerOptionsInNormalizedRequest) {

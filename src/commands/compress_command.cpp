@@ -121,9 +121,17 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
         request.input.kind = CompressionInputKind::kSingleFile;
     }
 
+    if (request.input.kind == CompressionInputKind::kPairedFiles) {
+        request.paired = true;
+    }
+
     if (streamingInput) {
         request.mode = CompressionMode::kStreaming;
         request.enableReordering = false;
+        request.saveReorderMap = false;
+    }
+
+    if (!request.enableReordering) {
         request.saveReorderMap = false;
     }
 
