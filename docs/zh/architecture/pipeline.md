@@ -95,6 +95,8 @@ fq-compressor 围绕“有界 block 流水线”组织：串行输入、并行 b
 
 Reader 侧的关键锚点是 `include/fqc/format/fqc_reader.h`、`include/fqc/pipeline/fqc_reader_node.h` 与 `include/fqc/pipeline/decompressor_node.h`。
 `src/commands/decompress_command.cpp` 负责决定本次运行是完整恢复还是定向提取。
+`include/fqc/pipeline/pipeline_node.h` 与 `include/fqc/pipeline/pipeline_nodes.h` 继续保留为
+实现导向的兼容性 include；新的集成代码应优先使用 `include/fqc/pipeline/pipeline.h`。
 
 ## 为什么这样拆分
 
@@ -125,6 +127,7 @@ CLI 本身保持很薄。
 - 流水线类型与协调：`include/fqc/pipeline/pipeline.h`、`src/pipeline/pipeline.cpp`
 - 压缩节点：`include/fqc/pipeline/reader_node.h`、`include/fqc/pipeline/writer_node.h`
 - 解压节点：`include/fqc/pipeline/fqc_reader_node.h`、`include/fqc/pipeline/decompressor_node.h`、`include/fqc/pipeline/fastq_writer_node.h`
+- 兼容性 include（非首选集成入口）：`include/fqc/pipeline/pipeline_node.h`、`include/fqc/pipeline/pipeline_nodes.h`
 - 命令装配：`src/commands/compress_command.cpp`、`src/commands/decompress_command.cpp`
 
 ## 下一步可阅读

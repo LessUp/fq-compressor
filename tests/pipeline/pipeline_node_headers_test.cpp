@@ -2,28 +2,29 @@
 // fq-compressor - Pipeline Node Header Tests
 // =============================================================================
 
-#include "fqc/algo/block_compressor.h"
-#include "fqc/pipeline/decompressor_node.h"
-#include "fqc/pipeline/fastq_writer_node.h"
-#include "fqc/pipeline/fqc_reader_node.h"
+#include "fqc/pipeline/pipeline.h"
+#include "fqc/pipeline/pipeline_node.h"
 #include "fqc/pipeline/pipeline_nodes.h"
-#include "fqc/pipeline/reader_node.h"
-#include "fqc/pipeline/writer_node.h"
 
 #include <gtest/gtest.h>
 
 namespace fqc::pipeline::test {
 
-TEST(PipelineNodeHeadersTest, SplitHeadersProvideNodeTypes) {
+TEST(PipelineNodeHeadersTest, CompatibilityHeadersCompileWithPipelineSurface) {
+#ifndef FQC_PIPELINE_NODE_IS_LEGACY_COMPAT_HEADER
+    GTEST_FAIL() << "pipeline_node.h should advertise legacy compatibility status";
+#endif
+#ifndef FQC_PIPELINE_NODES_IS_LEGACY_COMPAT_HEADER
+    GTEST_FAIL() << "pipeline_nodes.h should advertise legacy compatibility status";
+#endif
+
     ReaderNodeConfig readerConfig;
-    algo::BlockCompressorConfig compressorConfig;
     WriterNodeConfig writerConfig;
     FQCReaderNodeConfig readerNodeConfig;
     DecompressorNodeConfig decompressorConfig;
     FASTQWriterNodeConfig fastqWriterConfig;
 
     EXPECT_EQ(readerConfig.readLengthClass, ReadLengthClass::kShort);
-    EXPECT_EQ(compressorConfig.idMode, IDMode::kExact);
     EXPECT_TRUE(writerConfig.atomicWrite);
     EXPECT_TRUE(readerNodeConfig.verifyChecksums);
     EXPECT_FALSE(decompressorConfig.skipCorrupted);

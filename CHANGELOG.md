@@ -13,6 +13,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Removed stale OpenSpec workflow guidance from repository docs and archive surfaces.
 - Consolidated changelog expectations around a single English `CHANGELOG.md` and deleted the
   Chinese duplicate.
+- Demoted `pipeline_node.h` and `pipeline_nodes.h` to documented legacy compatibility includes;
+  `pipeline.h` remains the preferred integration surface.
 
 ## [0.1.0] - 2026-04-16
 
