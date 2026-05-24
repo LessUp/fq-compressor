@@ -38,5 +38,5 @@ If you are planning or implementing current work, stop reading here and use the 
 
 ## Workflow note
 
-This material is retained for historical comparison only. Follow [AGENTS.md](../AGENTS.md) and
-[CLAUDE.md](../CLAUDE.md) for current repository workflow details.
+This material is retained for historical comparison only. Follow [AGENTS.md](../../../AGENTS.md)
+and [CLAUDE.md](../../../CLAUDE.md) for current repository workflow details.
