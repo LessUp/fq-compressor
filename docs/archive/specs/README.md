@@ -16,8 +16,8 @@ If you are planning or implementing current work, stop reading here and use the 
 
 | Document | Status |
 |----------|--------|
-| [requirements.md](product/requirements.md) | Archived - migrated to OpenSpec |
-| [tasks.md](product/tasks.md) | Archived - superseded by OpenSpec change tasks |
+| [requirements.md](product/requirements.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
+| [tasks.md](product/tasks.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
 
 ### Technical design (`specs/rfc/`)
 
@@ -33,8 +33,8 @@ If you are planning or implementing current work, stop reading here and use the 
 
 | Document | Status |
 |----------|--------|
-| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - scenarios migrated into OpenSpec |
-| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - scenarios migrated into OpenSpec |
+| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
+| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
 
 ## Workflow note
 
