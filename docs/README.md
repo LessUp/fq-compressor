@@ -11,13 +11,13 @@ This repository keeps documentation intentionally **lean and focused**.
 | `docs/` | GitHub Pages source (VitePress public docs package) |
 | `docs/benchmark/` | Benchmark evidence and methodology |
 
-## Archived surfaces
+## Supporting surfaces
 
 | Surface | Status |
 | --- | --- |
-| `docs/archive/` | Archive-only - historical research, reviews, and specs |
-| `docs/dev/` | Development notes |
-| `openspec/` | Historical OpenSpec material kept only as archive-era reference |
+| `docs/archive/` | Archive-only - historical research, reviews, and retired specs |
+| `docs/dev/` | Development notes and helper scripts |
+| `docs/superpowers/` | In-repo planning and specs support material |
 
 ## Documentation policy
 

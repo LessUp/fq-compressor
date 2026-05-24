@@ -50,6 +50,6 @@ Created worktree:
 Recommended next steps:
   cd $worktree_path
   ./scripts/dev/preflight.sh
-  openspec status --change "$change_name"
+  # OpenSpec status tracking has been retired; follow the closeout workflow in AGENTS.md.
   # Or skip this helper entirely and keep working in your current checkout if that is faster.
 EOF
