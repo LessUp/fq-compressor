@@ -18,6 +18,7 @@ This repository keeps documentation intentionally **lean and focused**.
 | --- | --- |
 | `docs/archive/` | Archive-only - historical research, reviews, and specs |
 | `docs/dev/` | Development notes |
+| `docs/superpowers/` | Internal/historical agent-workflow material; not project truth |
 
 ## Documentation policy
 

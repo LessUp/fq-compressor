@@ -156,4 +156,4 @@ openspec/              # OpenSpec：需求与规格管理
 - [AGENTS.md](AGENTS.md) - 完整项目规则和架构
 - [CLAUDE.md](../CLAUDE.md) - AI 入口文档
 - [GitHub: OpenSpec](https://github.com/Fission-AI/OpenSpec) - 规格驱动开发工具
-- [GitHub: Trellis](https://github.com/your-org/trellis) - 工作流系统（已归档）
+- Trellis - 工作流系统（已归档，链接已移除）
