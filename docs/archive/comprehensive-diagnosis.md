@@ -13,8 +13,7 @@
 ## 0. 2026-04-27 真实数据复核增补
 
 > **This addendum supersedes several 2026-01-29 conclusions.** The original diagnosis below remains
-> archived as historical context only. Current closeout work must use this addendum, maintained
-> current repository checks as the source of truth.
+> archived as historical context only, and this document is not authoritative for current work.
 
 ### 0.1 当前复核边界
 

@@ -156,4 +156,4 @@ specs/                 # 历史规格资料
 - [AGENTS.md](../../AGENTS.md) - 完整项目规则和架构
 - [CLAUDE.md](../../CLAUDE.md) - AI 入口文档
 - [GitHub: OpenSpec](https://github.com/Fission-AI/OpenSpec) - 历史参考工具
-- [GitHub: Trellis](https://github.com/your-org/trellis) - 工作流系统（已归档）
+- [GitHub: Trellis] - 工作流系统（已归档）
