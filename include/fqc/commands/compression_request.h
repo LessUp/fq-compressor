@@ -40,6 +40,7 @@ struct CompressionInput {
 struct CompressionRequest {
     CompressionMode mode = CompressionMode::kArchive;
     CompressionInput input;
+    bool paired = false;
     std::filesystem::path outputPath;
     int compressionLevel = 6;
     int threads = 0;

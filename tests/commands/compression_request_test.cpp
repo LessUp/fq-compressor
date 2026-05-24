@@ -26,6 +26,7 @@ TEST(CompressionRequestTest, NormalizesStreamingStdinIntoSingleRequest) {
     EXPECT_EQ(request.input.kind, CompressionInputKind::kStdin);
     EXPECT_EQ(request.outputPath, std::filesystem::path("out.fqc"));
     EXPECT_FALSE(request.enableReordering);
+    EXPECT_FALSE(request.saveReorderMap);
 }
 
 TEST(CompressionRequestTest, NormalizesPairedFilesWithoutPretendingSingleEnd) {
@@ -70,6 +71,18 @@ TEST(CompressionRequestTest, NormalizesPlainSingleFileInput) {
     EXPECT_EQ(request.input.kind, CompressionInputKind::kSingleFile);
     EXPECT_EQ(request.input.primaryPath, std::filesystem::path("reads.fastq"));
     EXPECT_TRUE(request.input.secondaryPath.empty());
+}
+
+TEST(CompressionRequestTest, PreservesExplicitPairedIntent) {
+    CompressOptions options;
+    options.inputPath = "reads.fastq";
+    options.outputPath = "paired.fqc";
+    options.paired = true;
+
+    const auto request = toCompressionRequest(options);
+
+    EXPECT_TRUE(request.paired);
+    EXPECT_EQ(request.input.kind, CompressionInputKind::kSingleFile);
 }
 
 TEST(CompressionRequestTest, PreservesCommandLayerOptionsInNormalizedRequest) {

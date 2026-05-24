@@ -88,6 +88,7 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
     request.input.primaryPath = options.inputPath;
     request.input.secondaryPath = options.input2Path;
     request.input.archiveLayout = options.peLayout;
+    request.paired = options.paired;
     request.outputPath = options.outputPath;
     request.compressionLevel = options.compressionLevel;
     request.threads = options.threads;
@@ -107,6 +108,8 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
     request.checksumType = options.checksumType;
     request.inputBytesHint = options.inputBytesHint;
 
+    const bool streamingInput = options.streamingMode || options.inputPath == "-";
+
     if (options.inputPath == "-") {
         request.mode = CompressionMode::kStreaming;
         request.input.kind = CompressionInputKind::kStdin;
@@ -118,8 +121,10 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
         request.input.kind = CompressionInputKind::kSingleFile;
     }
 
-    if (options.streamingMode) {
+    if (streamingInput) {
         request.mode = CompressionMode::kStreaming;
+        request.enableReordering = false;
+        request.saveReorderMap = false;
     }
 
     return request;
