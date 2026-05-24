@@ -60,6 +60,7 @@ TEST(CompressionRequestTest, NormalizesInterleavedSingleFileInput) {
 
     EXPECT_EQ(request.mode, CompressionMode::kArchive);
     EXPECT_EQ(request.input.kind, CompressionInputKind::kInterleavedFile);
+    EXPECT_TRUE(request.paired);
     EXPECT_EQ(request.input.primaryPath, std::filesystem::path("interleaved.fastq"));
     EXPECT_TRUE(request.input.secondaryPath.empty());
 }

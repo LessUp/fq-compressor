@@ -121,7 +121,8 @@ CompressionRequest toCompressionRequest(const CompressOptions& options) {
         request.input.kind = CompressionInputKind::kSingleFile;
     }
 
-    if (request.input.kind == CompressionInputKind::kPairedFiles) {
+    if (request.input.kind == CompressionInputKind::kPairedFiles ||
+        request.input.kind == CompressionInputKind::kInterleavedFile) {
         request.paired = true;
     }
 
