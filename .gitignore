@@ -173,3 +173,6 @@ openspec/explorations/
 # Reference projects (source code not tracked, but keep README)
 ref-projects/*
 !ref-projects/README.md
+
+# Superpowers 规划文档（本地开发规划，不提交）
+docs/superpowers/plans/

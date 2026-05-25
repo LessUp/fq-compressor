@@ -17,7 +17,6 @@ Usage: ./scripts/dev/preflight.sh [--strict]
 Checks:
   - current branch
   - working tree cleanliness
-  - repository status
 
 --strict  Exit non-zero on actionable warnings.
 EOF

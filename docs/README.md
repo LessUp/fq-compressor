@@ -6,23 +6,22 @@ This repository keeps documentation intentionally **lean and focused**.
 
 | Surface | Role |
 | --- | --- |
-| Archived spec snapshots | Historical requirements and capability notes |
-| Archived change records | Historical closeout notes |
+| `AGENTS.md` / `CLAUDE.md` | Repository workflow and closeout guidance |
 | `README.md` / `README.zh-CN.md` | Repository entry summary |
 | `docs/` | GitHub Pages source (VitePress public docs package) |
 | `docs/benchmark/` | Benchmark evidence and methodology |
 
-## Archived surfaces
+## Supporting surfaces
 
 | Surface | Status |
 | --- | --- |
-| `docs/archive/` | Archive-only - historical research, reviews, and specs |
-| `docs/dev/` | Development notes |
-| `docs/superpowers/` | Internal/historical agent-workflow material; not project truth |
+| `docs/archive/` | Archive-only - historical research, reviews, and retired specs |
+| `docs/dev/` | Development notes and helper scripts |
+| `docs/superpowers/` | In-repo planning and specs support material |
 
 ## Documentation policy
 
-- **Single source of truth**: `docs/` is the only public documentation source
+- **Single source of truth**: repository docs plus code are the active source of truth
 - **Public docs stack**: VitePress sources live directly under `docs/`
 - **Bilingual**: Public docs support both English (`/en/`) and Chinese (`/zh/`) routes
 - **No duplication**: Remove stale duplicates instead of keeping them "just in case"

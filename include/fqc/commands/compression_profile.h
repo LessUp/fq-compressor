@@ -9,6 +9,8 @@
 
 #include "fqc/algo/block_compressor.h"
 #include "fqc/algo/global_analyzer.h"
+#include "fqc/commands/compress_command.h"
+#include "fqc/commands/compression_request.h"
 #include "fqc/common/error.h"
 #include "fqc/io/stream_factory.h"
 #include "fqc/pipeline/pipeline.h"
@@ -55,10 +57,21 @@ private:
         -> Result<CompressionProfile>;
 };
 
+struct CompressionProfilePlan {
+    CompressionRequest request;
+    CompressOptions effectiveOptions;
+    CompressionProfile profile;
+};
+
 [[nodiscard]] auto buildCompressionProfile(
     CompressOptions options,
     std::shared_ptr<io::StreamFactory> streamFactory = std::make_shared<io::FileStreamFactory>())
     -> Result<CompressionProfile>;
+
+[[nodiscard]] auto buildCompressionProfilePlan(
+    const CompressionRequest& request,
+    std::shared_ptr<io::StreamFactory> streamFactory = std::make_shared<io::FileStreamFactory>())
+    -> Result<CompressionProfilePlan>;
 
 }  // namespace fqc::commands
 

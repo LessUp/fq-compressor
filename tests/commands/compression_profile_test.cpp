@@ -208,4 +208,57 @@ TEST(CompressionProfileTest, LargeSingleEndShortReadsPreferPipelineAndDisableReo
     EXPECT_FALSE(profile.archiveHasReorderMap());
 }
 
+TEST(CompressionProfileTest, BuildsEffectivePlanFromNormalizedRequest) {
+    auto factory = std::make_shared<io::MemoryStreamFactory>();
+    factory->setFileContent("reads.fastq",
+                            "@r1\nACGT\n+\nFFFF\n"
+                            "@r2\nTGCA\n+\nHHHH\n");
+
+    CompressionRequest request;
+    request.input.kind = CompressionInputKind::kSingleFile;
+    request.input.primaryPath = "reads.fastq";
+    request.outputPath = "out.fqc";
+    request.enableReordering = true;
+    request.saveReorderMap = true;
+    request.threads = 4;
+    request.autoDetectLongRead = true;
+    request.requestedLengthClass = ReadLengthClass::kLong;
+
+    auto planResult = buildCompressionProfilePlan(request, factory);
+
+    ASSERT_TRUE(planResult.has_value());
+    const auto& plan = planResult.value();
+    EXPECT_EQ(plan.request.mode, CompressionMode::kPipeline);
+    EXPECT_EQ(plan.request.input.kind, CompressionInputKind::kSingleFile);
+    EXPECT_EQ(plan.profile.readLengthClass(), ReadLengthClass::kShort);
+    EXPECT_EQ(plan.profile.executionMode(), CompressionExecutionMode::kPipeline);
+    EXPECT_TRUE(plan.profile.archivePreservesOrder());
+    EXPECT_FALSE(plan.profile.archiveHasReorderMap());
+}
+
+TEST(CompressionProfileTest, PreservesInterleavedStdinPairednessInPlanRequest) {
+    auto factory = std::make_shared<io::MemoryStreamFactory>();
+
+    CompressionRequest request;
+    request.mode = CompressionMode::kStreaming;
+    request.input.kind = CompressionInputKind::kStdin;
+    request.input.primaryPath = "-";
+    request.input.archiveLayout = PELayout::kInterleaved;
+    request.outputPath = "out.fqc";
+    request.paired = true;
+    request.enableReordering = false;
+    request.saveReorderMap = false;
+    request.requestedLengthClass = ReadLengthClass::kShort;
+    request.autoDetectLongRead = false;
+    request.threads = 1;
+
+    auto planResult = buildCompressionProfilePlan(request, factory);
+
+    ASSERT_TRUE(planResult.has_value());
+    const auto& plan = planResult.value();
+    EXPECT_EQ(plan.request.mode, CompressionMode::kStreaming);
+    EXPECT_EQ(plan.request.input.kind, CompressionInputKind::kStdin);
+    EXPECT_TRUE(plan.request.paired);
+}
+
 }  // namespace fqc::commands::test

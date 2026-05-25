@@ -30,5 +30,5 @@
    带有明确许可边界的 Spring 派生参考代码。
 3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
    本地对照目标和学习记录。
-4. **[E4]** 归档项目笔记
-   历史需求和能力边界。
+4. **[E4]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
+   仅保留历史研究和规格材料，供参考使用。

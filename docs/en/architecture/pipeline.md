@@ -95,6 +95,9 @@ Decompression mirrors the same boundary in reverse:
 
 The reader side is anchored in `include/fqc/format/fqc_reader.h`, `include/fqc/pipeline/fqc_reader_node.h`, and `include/fqc/pipeline/decompressor_node.h`.
 `src/commands/decompress_command.cpp` decides whether the run is a full restore or a targeted extraction.
+`include/fqc/pipeline/pipeline_node.h` and `include/fqc/pipeline/pipeline_nodes.h` remain as
+implementation-oriented compatibility includes; new integration code should prefer
+`include/fqc/pipeline/pipeline.h`.
 
 ## Why the pipeline is split this way
 
@@ -125,6 +128,7 @@ That separation keeps most operational behavior in reusable library code instead
 - Pipeline types and coordination: `include/fqc/pipeline/pipeline.h`, `src/pipeline/pipeline.cpp`
 - Compression nodes: `include/fqc/pipeline/reader_node.h`, `include/fqc/pipeline/writer_node.h`
 - Decompression nodes: `include/fqc/pipeline/fqc_reader_node.h`, `include/fqc/pipeline/decompressor_node.h`, `include/fqc/pipeline/fastq_writer_node.h`
+- Legacy compatibility includes (not primary integration points): `include/fqc/pipeline/pipeline_node.h`, `include/fqc/pipeline/pipeline_nodes.h`
 - Command wiring: `src/commands/compress_command.cpp`, `src/commands/decompress_command.cpp`
 
 ## Continue with

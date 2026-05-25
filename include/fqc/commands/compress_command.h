@@ -15,6 +15,7 @@
 #define FQC_COMMANDS_COMPRESS_COMMAND_H
 
 #include "fqc/algo/block_compressor.h"
+#include "fqc/commands/compression_request.h"
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
 
@@ -24,8 +25,6 @@
 #include <string>
 
 namespace fqc::commands {
-
-class CompressionProfile;
 
 // =============================================================================
 // Compression Options
@@ -202,12 +201,6 @@ public:
     }
 
 private:
-    /// @brief Run the compression pipeline.
-    void runCompression(const CompressionProfile& profile);
-
-    /// @brief Run the parallel compression pipeline using TBB.
-    void runCompressionParallel(const CompressionProfile& profile);
-
     /// @brief Print summary statistics.
     void printSummary() const;
 

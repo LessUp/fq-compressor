@@ -13,6 +13,7 @@ to achieve near-entropy compression ratios while maintaining O(1) random access.
 current version over adding new product surface area.
 
 - Treat `docs/archive/` as archived reference only.
+- Do not treat OpenSpec as the current requirements or workflow source.
 - Prefer deletion/consolidation over preserving duplicate docs and duplicate tooling.
 - Keep GitHub Pages focused on project positioning, onboarding, and proof points rather than being
   a README mirror.

@@ -203,6 +203,6 @@ bash tests/e2e/benchmark_v2_smoke_test.sh
 <p align="center">
   <a href="https://github.com/LessUp/fq-compressor/releases">发布版本</a> •
   <a href="https://lessup.github.io/fq-compressor/">文档</a> •
-  <a href="CHANGELOG.zh-CN.md">变更日志</a> •
+  <a href="CHANGELOG.md">变更日志</a> •
   <a href="https://github.com/LessUp/fq-compressor/discussions">讨论</a>
 </p>

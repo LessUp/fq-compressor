@@ -47,7 +47,7 @@ hero:
       <ul class="wp-list">
         <li><a href="./architecture/">Architecture</a> maps public concepts to <code>include/fqc/</code>, <code>src/</code>, and format responsibilities</li>
         <li><a href="./benchmarks/">Performance</a> keeps benchmark claims tied to repository artifacts and proof limits</li>
-        <li><a href="./research/">References</a> connects the site to papers, comparator repositories, and archived notes</li>
+        <li><a href="./research/">References</a> connects the site to papers, comparator repositories, and archived research notes</li>
       </ul>
     </article>
   </div>

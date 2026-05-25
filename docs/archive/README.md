@@ -5,10 +5,9 @@ truth for current development, closeout work, or repository governance.
 
 ## Use these surfaces instead
 
-- `openspec/specs/` — living requirements
-- `openspec/changes/` — active change work
+- `AGENTS.md` / `CLAUDE.md` — repository workflow guidance
 - `README.md` / `README.zh-CN.md` — repository entry copy
-- `docs/website/` — GitHub Pages source (bilingual)
+- `docs/` — GitHub Pages source (bilingual)
 
 ## Directory Structure
 
@@ -35,6 +34,7 @@ docs/archive/
 - Superseded research, planning notes, and historical reviews
 - Legacy release notes or migration notes kept only for reference
 - Diagnostic material that may still be useful for retrospective bug revalidation
+- Historical OpenSpec exports that are kept only as archived context
 
 If a document here becomes actively maintained again, it should move back to an authoritative surface
 instead of being edited in place.

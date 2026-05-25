@@ -130,7 +130,9 @@ fqc_add_test(chunk_marshal_test
 
 # Pipeline split-header compile test
 fqc_add_test(pipeline_node_headers_test
-    SOURCES pipeline/pipeline_node_headers_test.cpp
+    SOURCES
+        pipeline/pipeline_node_headers_test.cpp
+        pipeline/pipeline_nodes_header_test.cpp
 )
 
 # Compressed Stream Tests
@@ -158,6 +160,18 @@ fqc_add_test(archive_regression_test
 # Compression profile tests
 fqc_add_test(compression_profile_test
     SOURCES commands/compression_profile_test.cpp
+    LIBRARIES fqc_cli
+)
+
+# Compression request tests
+fqc_add_test(compression_request_test
+    SOURCES commands/compression_request_test.cpp
+    LIBRARIES fqc_cli
+)
+
+# Compression engine tests
+fqc_add_test(compression_engine_test
+    SOURCES commands/compression_engine_test.cpp
     LIBRARIES fqc_cli
 )
 

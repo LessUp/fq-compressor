@@ -4,11 +4,11 @@ This directory is **archive-only**. Do not use it as the source of truth for act
 
 ## Active sources of truth
 
-- **Living specifications:** `openspec/specs/`
-- **Active change work:** `openspec/changes/`
-- **Project context:** `openspec/config.yaml`
+- **Repository workflow:** `AGENTS.md` / `CLAUDE.md`
+- **Public docs:** `docs/`
+- **Current tasks:** the issue or task description driving the change
 
-If you are planning or implementing current work, stop reading here and switch to `openspec/`.
+If you are planning or implementing current work, stop reading here and use the repository docs instead.
 
 ## Archived documents kept for reference
 
@@ -16,8 +16,8 @@ If you are planning or implementing current work, stop reading here and switch t
 
 | Document | Status |
 |----------|--------|
-| [requirements.md](product/requirements.md) | Archived - migrated to OpenSpec |
-| [tasks.md](product/tasks.md) | Archived - superseded by OpenSpec change tasks |
+| [requirements.md](product/requirements.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
+| [tasks.md](product/tasks.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
 
 ### Technical design (`specs/rfc/`)
 
@@ -33,15 +33,10 @@ If you are planning or implementing current work, stop reading here and switch t
 
 | Document | Status |
 |----------|--------|
-| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - scenarios migrated into OpenSpec |
-| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - scenarios migrated into OpenSpec |
+| [boundary-conditions.md](testing/boundary-conditions.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
+| [acceptance-criteria.md](testing/acceptance-criteria.md) | Archived - historical reference superseded by the current repository docs/code/tests workflow |
 
 ## Workflow note
 
-Use OpenSpec for all new work:
-
-- `/opsx:propose "<idea>"`
-- `/opsx:apply <change>`
-- `/opsx:archive <change>`
-
-See [AGENTS.md](../AGENTS.md) for repository workflow details.
+This material is retained for historical comparison only. Follow [AGENTS.md](../../../AGENTS.md)
+and [CLAUDE.md](../../../CLAUDE.md) for current repository workflow details.

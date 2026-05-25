@@ -10,14 +10,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Restored the default repository health baseline so `format-check` and the `clang-debug` unit test
-  suite pass again.
-- Added closeout-oriented repository workflow assets: `CLAUDE.md`, Copilot instructions, preflight
-  and worktree bootstrap scripts, and clangd project configuration.
-- Reworked the GitHub Pages entry surface and aligned the repository About metadata with the project
-  landing story.
-- Added OpenSpec closeout changes for baseline health, governance, docs/pages, AI collaboration,
-  engineering tooling, and final archive readiness.
+- Removed stale OpenSpec workflow guidance from repository docs and archive surfaces.
+- Consolidated changelog expectations around a single English `CHANGELOG.md` and deleted the
+  Chinese duplicate.
+- Demoted `pipeline_node.h` and `pipeline_nodes.h` to documented legacy compatibility includes;
+  `pipeline.h` remains the preferred integration surface.
 
 ## [0.1.0] - 2026-04-16
 

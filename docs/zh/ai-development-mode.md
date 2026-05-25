@@ -2,7 +2,7 @@
 
 ## 概述
 
-本项目曾采用 **Trellis + OpenSpec** 双轨制的AI驱动开发模式。经评估后，针对项目当前阶段（closeout 模式、低频率变更、AI 为主开发者），已简化为**直接对话开发模式**。
+本项目曾采用 **Trellis + OpenSpec** 双轨制的AI驱动开发模式。经评估后，针对项目当前阶段（closeout 模式、低频率变更、AI 为主开发者），已简化为**直接对话开发模式**；OpenSpec 仅作为历史资料保留。
 
 ---
 
@@ -11,7 +11,7 @@
 ### 调整前：Trellis + OpenSpec 双轨制
 
 ```
-openspec/              # OpenSpec：需求与规格管理
+specs/                 # 历史规格资料
 ├── specs/             # 活跃规格
 ├── changes/           # 变更提案
 └── archive/           # 已完成变更
@@ -51,7 +51,7 @@ openspec/              # OpenSpec：需求与规格管理
 
 ### 关键原则
 
-1. **直接对话** - 不需要创建任务、不需要子代理
+1. **直接对话** - 不需要创建任务、不需要子代理，也不依赖 OpenSpec
 2. **文档即规范** - AGENTS.md 包含所有编码规范
 3. **质量门禁** - 保留 `./scripts/build.sh`、`./scripts/test.sh`、`./scripts/lint.sh`
 4. **知识在文档** - 重要决策写入 `docs/` 或代码注释
@@ -153,7 +153,7 @@ openspec/              # OpenSpec：需求与规格管理
 
 ## 参考资源
 
-- [AGENTS.md](AGENTS.md) - 完整项目规则和架构
-- [CLAUDE.md](../CLAUDE.md) - AI 入口文档
-- [GitHub: OpenSpec](https://github.com/Fission-AI/OpenSpec) - 规格驱动开发工具
-- Trellis - 工作流系统（已归档，链接已移除）
+- [AGENTS.md](../../AGENTS.md) - 完整项目规则和架构
+- [CLAUDE.md](../../CLAUDE.md) - AI 入口文档
+- [GitHub: OpenSpec](https://github.com/Fission-AI/OpenSpec) - 历史参考工具
+- Trellis：工作流系统（历史归档）
