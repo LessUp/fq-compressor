@@ -197,9 +197,12 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
     }
 
     // Save current state
+    const auto savedPosition = stream_ ? stream_->tellg() : std::istream::pos_type(-1);
     auto savedLineNumber = lineNumber_;
     auto savedRecordNumber = recordNumber_;
     auto savedStats = stats_;
+    auto savedLastError = lastError_;
+    auto savedEof = eof_;
 
     // Reset for sampling
     reset();
@@ -218,10 +221,15 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
     }
 
     // Restore state
-    reset();
+    stream_->clear();
+    if (savedPosition != std::istream::pos_type(-1)) {
+        stream_->seekg(savedPosition);
+    }
+    eof_ = savedEof;
     lineNumber_ = savedLineNumber;
     recordNumber_ = savedRecordNumber;
     stats_ = savedStats;
+    lastError_ = std::move(savedLastError);
 
     return sampleStats;
 }
@@ -388,16 +396,16 @@ bool FastqParser::validateQuality(std::string_view qual) const {
 void FastqParser::setError(std::string message, std::string_view lineContent) {
     lastError_ = ParseError{
         .lineNumber = lineNumber_,
-        .recordNumber = recordNumber_,
+        .recordNumber = recordNumber_ + 1,
         .message = std::move(message),
         .lineContent = std::string(lineContent.substr(0, 100))  // Truncate long lines
     };
 }
 
 void FastqParser::trimRight(std::string& str) {
-    auto it =
-        std::find_if(str.rbegin(), str.rend(), [](unsigned char c) { return !std::isspace(c); });
-    str.erase(it.base(), str.end());
+    while (!str.empty() && str.back() == '\r') {
+        str.pop_back();
+    }
 }
 
 // =============================================================================

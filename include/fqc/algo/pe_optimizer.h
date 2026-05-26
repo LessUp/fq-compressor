@@ -56,7 +56,7 @@ struct PEEncodedPair {
     bool useComplementarity = false;
 
     /// @brief If complementarity: positions where R2 differs from R1-RC.
-    std::vector<std::uint16_t> diffPositions;
+    std::vector<std::uint32_t> diffPositions;
 
     /// @brief If complementarity: bases at diff positions.
     std::vector<char> diffBases;
@@ -188,7 +188,7 @@ private:
     [[nodiscard]] static std::string reverseComplement(std::string_view seq);
 
     /// @brief Compute diff between two sequences.
-    [[nodiscard]] static std::pair<std::vector<std::uint16_t>, std::vector<char>> computeDiff(
+    [[nodiscard]] static std::pair<std::vector<std::uint32_t>, std::vector<char>> computeDiff(
         std::string_view seq1, std::string_view seq2);
 };
 

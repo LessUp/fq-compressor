@@ -73,7 +73,7 @@ struct Minimizer {
     std::uint64_t hash;
 
     /// @brief Position in the read where minimizer starts
-    std::uint16_t position;
+    std::uint32_t position;
 
     /// @brief Whether the minimizer is from reverse complement
     bool isReverseComplement;
@@ -82,7 +82,7 @@ struct Minimizer {
     constexpr Minimizer() noexcept : hash(0), position(0), isReverseComplement(false) {}
 
     /// @brief Construct with values
-    constexpr Minimizer(std::uint64_t h, std::uint16_t pos, bool rc) noexcept
+    constexpr Minimizer(std::uint64_t h, std::uint32_t pos, bool rc) noexcept
         : hash(h), position(pos), isReverseComplement(rc) {}
 
     /// @brief Equality comparison

@@ -172,7 +172,7 @@ BlockData FQCReader::readBlock(BlockId blockId, StreamSelection selection) {
     result.header = readBlockHeader(blockId);
 
     // Calculate payload start position
-    auto payloadStart = blockIndex_[blockId].offset + BlockHeader::kSize;
+    auto payloadStart = blockIndex_[blockId].offset + result.header.headerSize;
 
     // Read selected streams
     if (hasStream(selection, StreamSelection::kIds) && result.header.sizeIds > 0) {

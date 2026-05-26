@@ -87,6 +87,7 @@ TEST(CompressionEngineTest, ExecutesSingleThreadArchivePlanAndReportsStats) {
     EXPECT_EQ(statsResult->totalBases, 8u);
     EXPECT_GT(statsResult->inputBytes, 0u);
     EXPECT_GT(statsResult->outputBytes, 0u);
+    EXPECT_EQ(statsResult->outputBytes, std::filesystem::file_size(outputPath));
     EXPECT_EQ(statsResult->blocksWritten, 1u);
     EXPECT_TRUE(std::filesystem::exists(outputPath));
 

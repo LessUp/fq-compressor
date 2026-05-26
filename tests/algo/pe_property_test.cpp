@@ -384,6 +384,14 @@ TEST(PairedEndTest, EmptyPairHandling) {
     EXPECT_FALSE(pair.isValid());  // Empty sequences are invalid
 }
 
+TEST(PairedEndTest, GenerateR2IdPreservesUnderscoreConvention) {
+    const std::string r1Id = "instrument:run:flowcell_1";
+    const std::string r2Id = generateR2Id(r1Id);
+
+    EXPECT_EQ(r2Id, "instrument:run:flowcell_2");
+    EXPECT_TRUE(io::arePairedIds(r1Id, r2Id));
+}
+
 /// @brief Test single base pair.
 TEST(PairedEndTest, SingleBasePair) {
     io::PairedEndRecord pair;
