@@ -99,7 +99,11 @@ std::size_t BackpressureController::maxInFlight() const noexcept {
 }
 
 void BackpressureController::reset() noexcept {
-    inFlight_.store(0);
+    {
+        std::lock_guard lock(mutex_);
+        inFlight_.store(0);
+    }
+    cv_.notify_all();
 }
 
 }  // namespace fqc::pipeline

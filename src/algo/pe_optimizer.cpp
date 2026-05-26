@@ -98,22 +98,24 @@ std::string PEOptimizer::reverseComplement(std::string_view seq) {
     return result;
 }
 
-std::pair<std::vector<std::uint16_t>, std::vector<char>> PEOptimizer::computeDiff(
+std::pair<std::vector<std::uint32_t>, std::vector<char>> PEOptimizer::computeDiff(
     std::string_view seq1, std::string_view seq2) {
-    std::vector<std::uint16_t> positions;
+    std::vector<std::uint32_t> positions;
     std::vector<char> bases;
+    positions.reserve(seq2.length());
+    bases.reserve(seq2.length());
 
     std::size_t len = std::min(seq1.length(), seq2.length());
     for (std::size_t i = 0; i < len; ++i) {
         if (seq1[i] != seq2[i]) {
-            positions.push_back(static_cast<std::uint16_t>(i));
+            positions.push_back(static_cast<std::uint32_t>(i));
             bases.push_back(seq2[i]);
         }
     }
 
     // Handle length differences
     for (std::size_t i = len; i < seq2.length(); ++i) {
-        positions.push_back(static_cast<std::uint16_t>(i));
+        positions.push_back(static_cast<std::uint32_t>(i));
         bases.push_back(seq2[i]);
     }
 
@@ -182,7 +184,7 @@ PEEncodedPair PEOptimizer::encodePair(const io::PairedEndRecord& pair) const {
         // Compute quality deltas
         std::string r1QualRev(pair.read1.quality.rbegin(), pair.read1.quality.rend());
         for (std::size_t i = 0; i < encoded.diffPositions.size(); ++i) {
-            std::uint16_t pos = encoded.diffPositions[i];
+            std::uint32_t pos = encoded.diffPositions[i];
             if (pos < r1QualRev.length() && pos < pair.read2.quality.length()) {
                 std::int8_t delta =
                     static_cast<std::int8_t>(pair.read2.quality[pos] - r1QualRev[pos]);
@@ -194,7 +196,13 @@ PEEncodedPair PEOptimizer::encodePair(const io::PairedEndRecord& pair) const {
 
         // Update stats
         ++stats_.complementarityUsed;
-        stats_.bytesSaved += pair.read2.sequence.length() - encoded.diffPositions.size() * 3;
+        const std::size_t encodedBytes =
+            encoded.diffPositions.size() * (sizeof(std::uint32_t) + sizeof(char)) +
+            encoded.qualDelta.size() * sizeof(std::int8_t);
+        const std::size_t rawBytes = pair.read2.sequence.size() + pair.read2.quality.size();
+        if (rawBytes > encodedBytes) {
+            stats_.bytesSaved += rawBytes - encodedBytes;
+        }
     } else {
         encoded.useComplementarity = false;
         encoded.seq2 = pair.read2.sequence;
@@ -307,7 +315,7 @@ std::string generateR2Id(std::string_view r1Id) {
 
     // Check for existing /1 suffix
     if (id.length() >= 2 && id[id.length() - 1] == '1' &&
-        (id[id.length() - 2] == '/' || id[id.length() - 2] == '.')) {
+        (id[id.length() - 2] == '/' || id[id.length() - 2] == '.' || id[id.length() - 2] == '_')) {
         id[id.length() - 1] = '2';
         return id;
     }

@@ -128,6 +128,11 @@ fqc_add_test(chunk_marshal_test
     SOURCES pipeline/chunk_marshal_test.cpp
 )
 
+# Backpressure controller regression tests
+fqc_add_test(backpressure_controller_test
+    SOURCES pipeline/backpressure_controller_test.cpp
+)
+
 # Pipeline split-header compile test
 fqc_add_test(pipeline_node_headers_test
     SOURCES
@@ -143,6 +148,11 @@ fqc_add_test(compressed_stream_test
 # Block compressor regression tests
 fqc_add_test(block_compressor_regression_test
     SOURCES algo/block_compressor_regression_test.cpp
+)
+
+# Algorithm regression tests
+fqc_add_test(algo_regression_test
+    SOURCES algo/algo_regression_test.cpp
 )
 
 # Original-order command tests

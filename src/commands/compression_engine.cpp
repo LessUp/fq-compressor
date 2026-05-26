@@ -174,8 +174,6 @@ auto executeSingleThreadCompression(const CompressionPlan& plan,
     compressorConfig.readLengthClass = analysisResult.lengthClass;
     algo::BlockCompressor blockCompressor(compressorConfig);
 
-    std::uint64_t totalCompressedBytes = 0;
-
     for (const auto& blockBoundary : analysisResult.blockBoundaries) {
         std::vector<ReadRecord> blockReads;
         const auto startId = blockBoundary.archiveIdStart;
@@ -227,8 +225,6 @@ auto executeSingleThreadCompression(const CompressionPlan& plan,
         payload.auxData = compressedBlock.auxStream;
 
         fqcWriter.writeBlock(blockHeader, payload);
-
-        totalCompressedBytes += compressedBlock.totalCompressedSize();
         stats.blocksWritten++;
     }
 
@@ -246,7 +242,7 @@ auto executeSingleThreadCompression(const CompressionPlan& plan,
     }
 
     fqcWriter.finalize();
-    stats.outputBytes = totalCompressedBytes;
+    stats.outputBytes = std::filesystem::file_size(options.outputPath);
     format::unregisterWriterForCleanup(&fqcWriter);
 }
 

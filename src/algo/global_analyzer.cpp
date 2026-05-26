@@ -75,7 +75,7 @@ constexpr char kComplement[256] = {
 struct BucketEntry {
     std::uint64_t readId;     ///< Original read ID
     std::uint64_t minimizer;  ///< Minimizer hash
-    std::uint16_t position;   ///< Position in read
+    std::uint32_t position;   ///< Position in read
     bool isRC;                ///< Is reverse complement
 };
 
@@ -338,7 +338,7 @@ std::vector<Minimizer> extractMinimizers(std::string_view sequence, std::size_t 
             }
             bool isRC = (minHash != fwdHash);
 
-            minimizers.emplace_back(minHash, static_cast<std::uint16_t>(minPos), isRC);
+            minimizers.emplace_back(minHash, static_cast<std::uint32_t>(minPos), isRC);
             prevMinPos = minPos;
         }
     }

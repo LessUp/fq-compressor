@@ -580,8 +580,12 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressSCM(
 
 Result<std::vector<std::string>> QualityCompressorImpl::decompressSCM(
     std::span<const std::uint8_t> data, std::span<const std::uint32_t> lengths) {
-    if (data.empty() || lengths.empty()) {
+    if (lengths.empty()) {
         return std::vector<std::string>(lengths.size());
+    }
+    if (data.empty()) {
+        return makeError<std::vector<std::string>>(ErrorCode::kFormatError,
+                                                   "Compressed quality payload is empty");
     }
 
     // Decompress Zstd layer first

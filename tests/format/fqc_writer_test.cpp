@@ -17,7 +17,9 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <random>
 #include <string>
 #include <vector>
@@ -62,6 +64,33 @@ struct TempFile {
         std::filesystem::remove(path.string() + ".tmp", ec);
     }
 };
+
+static std::vector<std::uint8_t> readFileBytes(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    EXPECT_TRUE(file.is_open());
+    return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(file),
+                                     std::istreambuf_iterator<char>());
+}
+
+static void writeFileBytes(const std::filesystem::path& path, std::span<const std::uint8_t> bytes) {
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    ASSERT_TRUE(file.is_open());
+    file.write(reinterpret_cast<const char*>(bytes.data()),
+               static_cast<std::streamsize>(bytes.size()));
+    ASSERT_TRUE(file.good());
+}
+
+static void writeLe32(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint32_t value) {
+    for (std::size_t i = 0; i < sizeof(value); ++i) {
+        bytes[offset + i] = static_cast<std::uint8_t>((value >> (8 * i)) & 0xFFu);
+    }
+}
+
+static void writeLe64(std::vector<std::uint8_t>& bytes, std::size_t offset, std::uint64_t value) {
+    for (std::size_t i = 0; i < sizeof(value); ++i) {
+        bytes[offset + i] = static_cast<std::uint8_t>((value >> (8 * i)) & 0xFFu);
+    }
+}
 
 static GlobalHeader makeMinimalGlobalHeader(bool hasReorderMap = false) {
     GlobalHeader h;
@@ -267,6 +296,54 @@ TEST(FQCWriterTest, ReaderRejectsTruncatedBlockIndexRegion) {
 
     FQCReader reader(tmp.path);
     EXPECT_THROW(reader.open(), FormatError);
+}
+
+TEST(FQCWriterTest, ReaderUsesDeclaredExtendedBlockHeaderSizeWhenReadingPayload) {
+    TempFile tmp;
+
+    {
+        FQCWriter writer(tmp.path);
+        auto gh = makeMinimalGlobalHeader(false);
+        writer.writeGlobalHeader(gh, "test.fastq", 0);
+
+        BlockPayload payload;
+        payload.seqData = {0xAA, 0xBB, 0xCC};
+        writer.writeBlock(makeMinimalBlockHeader(), payload);
+        writer.finalize();
+    }
+
+    FQCReader baseline(tmp.path);
+    ASSERT_NO_THROW(baseline.open());
+    ASSERT_EQ(baseline.blockCount(), 1u);
+
+    const auto blockOffset = baseline.blockIndex().front().offset;
+    const auto originalIndexOffset = baseline.footer().indexOffset;
+    auto bytes = readFileBytes(tmp.path);
+
+    constexpr std::uint32_t kExtendedHeaderSize =
+        static_cast<std::uint32_t>(BlockHeader::kSize + 8);
+    const std::array<std::uint8_t, 8> extensionBytes = {
+        0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE};
+
+    bytes.insert(bytes.begin() + static_cast<std::ptrdiff_t>(blockOffset + BlockHeader::kSize),
+                 extensionBytes.begin(),
+                 extensionBytes.end());
+
+    writeLe32(bytes, static_cast<std::size_t>(blockOffset), kExtendedHeaderSize);
+    writeLe64(bytes,
+              static_cast<std::size_t>(originalIndexOffset + extensionBytes.size() +
+                                       BlockIndex::kHeaderSize + 8),
+              static_cast<std::uint64_t>(BlockHeader::kSize + extensionBytes.size() + 3));
+    writeLe64(bytes, bytes.size() - FileFooter::kSize, originalIndexOffset + extensionBytes.size());
+
+    writeFileBytes(tmp.path, bytes);
+
+    FQCReader reader(tmp.path);
+    ASSERT_NO_THROW(reader.open());
+
+    auto block = reader.readBlock(0, StreamSelection::kSequence);
+    EXPECT_EQ(block.header.headerSize, kExtendedHeaderSize);
+    EXPECT_EQ(block.seqData, (std::vector<std::uint8_t>{0xAA, 0xBB, 0xCC}));
 }
 
 }  // namespace fqc::format::test
