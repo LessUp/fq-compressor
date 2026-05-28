@@ -6,6 +6,10 @@
 # =============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/sshd.sh"
+
 # 颜色输出
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,13 +25,13 @@ if ! command -v sshd >/dev/null 2>&1; then
 fi
 
 # 配置常量
-SSHD_PORT="${FQCOMPRESSOR_SSH_PORT:-2222}"
 DEVELOPER_USER="developer"
-AUTHORIZED_KEYS_FILE="/home/${DEVELOPER_USER}/.ssh_authorized_keys"
+AUTHORIZED_KEYS_FILE="$(sshd_authorized_keys_file "${DEVELOPER_USER}")"
 CONF_MAIN="/etc/ssh/sshd_config"
 CONF_D="/etc/ssh/sshd_config.d"
 CONF_SNIPPET="${CONF_D}/fqcompressor-devcontainer.conf"
 
+SSHD_PORT="$(sshd_port)"
 if [[ ! "${SSHD_PORT}" =~ ^[0-9]+$ ]] || ((SSHD_PORT < 1 || SSHD_PORT > 65535)); then
     log_warn "无效 SSH 端口: ${SSHD_PORT}"
     exit 1
@@ -39,23 +43,10 @@ log_info "配置 SSHD (端口: ${SSHD_PORT})..."
 sudo mkdir -p /var/run/sshd
 sudo ssh-keygen -A 2>/dev/null || true
 
-# 生成 sshd 配置
-generate_sshd_config() {
-    cat <<EOF
-Port ${SSHD_PORT}
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PubkeyAuthentication yes
-PermitRootLogin no
-AuthorizedKeysFile ${AUTHORIZED_KEYS_FILE}
-AllowUsers ${DEVELOPER_USER}
-EOF
-}
-
 # 应用配置
 if sudo test -d "${CONF_D}" && sudo grep -Fq "Include /etc/ssh/sshd_config.d/*.conf" "${CONF_MAIN}" 2>/dev/null; then
     # 使用 sshd_config.d 目录
-    generate_sshd_config | sudo tee "${CONF_SNIPPET}" >/dev/null
+    sshd_render_config "${DEVELOPER_USER}" "${AUTHORIZED_KEYS_FILE}" | sudo tee "${CONF_SNIPPET}" >/dev/null
     log_info "配置写入 ${CONF_SNIPPET}"
 else
     # 直接修改主配置文件
@@ -68,7 +59,7 @@ else
     # 追加新配置
     {
         echo "${MARK_START}"
-        generate_sshd_config
+        sshd_render_config "${DEVELOPER_USER}" "${AUTHORIZED_KEYS_FILE}"
         echo "${MARK_END}"
     } | sudo tee -a "${CONF_MAIN}" >/dev/null
 

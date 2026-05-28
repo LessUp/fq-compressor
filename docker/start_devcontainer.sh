@@ -6,6 +6,11 @@
 # =============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=/dev/null
+source "${REPO_ROOT}/.devcontainer/scripts/lib/devcontainer_contract.sh"
+
 # 颜色输出
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -102,9 +107,8 @@ done
 # =============================================================================
 # 路径设置
 # =============================================================================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker/docker-compose.yml"
+START_SSHD_COMMAND="bash ${FQC_DEVCONTAINER_WORKSPACE}/.devcontainer/scripts/start-sshd.sh"
 
 # 导出环境变量供 docker-compose 使用
 export FQCOMPRESSOR_SSH_BIND="${BIND}"
@@ -120,24 +124,24 @@ main() {
     # 1. 构建镜像
     if [ "${REBUILD}" -eq 1 ]; then
         log_step "强制重新构建镜像..."
-        compose -f "${COMPOSE_FILE}" build --no-cache dev
+        compose -f "${COMPOSE_FILE}" build --no-cache "${FQC_DEVCONTAINER_SERVICE}"
     elif [ "${NO_BUILD}" -eq 0 ]; then
         log_step "构建镜像（如有更新）..."
-        compose -f "${COMPOSE_FILE}" build dev
+        compose -f "${COMPOSE_FILE}" build "${FQC_DEVCONTAINER_SERVICE}"
     else
         log_step "跳过构建"
     fi
 
     # 2. 启动容器
     log_step "启动容器..."
-    compose -f "${COMPOSE_FILE}" up -d dev
+    compose -f "${COMPOSE_FILE}" up -d "${FQC_DEVCONTAINER_SERVICE}"
 
     # 3. 注入 authorized_keys
     log_step "配置 SSH 认证..."
     if [ -f "${AUTHORIZED_KEYS_FILE}" ]; then
-        compose -f "${COMPOSE_FILE}" exec -T -u developer dev bash -lc \
+        compose -f "${COMPOSE_FILE}" exec -T -u developer "${FQC_DEVCONTAINER_SERVICE}" bash -lc \
             'mkdir -p ~/.ssh && chmod 700 ~/.ssh'
-        compose -f "${COMPOSE_FILE}" exec -T -u developer dev bash -lc \
+        compose -f "${COMPOSE_FILE}" exec -T -u developer "${FQC_DEVCONTAINER_SERVICE}" bash -lc \
             'cat > ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys' \
             < "${AUTHORIZED_KEYS_FILE}"
         log_info "已注入 authorized_keys: ${AUTHORIZED_KEYS_FILE}"
@@ -148,8 +152,8 @@ main() {
 
     # 4. 启动 SSHD
     log_step "启动 SSHD..."
-    compose -f "${COMPOSE_FILE}" exec -T -u developer dev bash -lc \
-        'bash /workspace/.devcontainer/scripts/start-sshd.sh'
+    compose -f "${COMPOSE_FILE}" exec -T -u developer "${FQC_DEVCONTAINER_SERVICE}" bash -lc \
+        "${START_SSHD_COMMAND}"
 
     # 5. 完成
     echo ""

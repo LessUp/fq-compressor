@@ -11,6 +11,10 @@
 # =============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/host_sync.sh"
+
 # 颜色输出
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -51,62 +55,6 @@ get_home() {
     echo "$h"
 }
 
-# 确保路径是文件（不是目录）
-ensure_file() {
-    local path="$1"
-    local default_content="${2:-}"
-
-    if [ -d "$path" ]; then
-        log_warn "$path 是目录，正在删除并创建为文件..."
-        rm -rf "$path"
-    fi
-
-    if [ ! -e "$path" ]; then
-        if [ -n "$default_content" ] && [ -f "$default_content" ]; then
-            cp -f "$default_content" "$path"
-        else
-            touch "$path"
-        fi
-    fi
-}
-
-# 确保路径是目录（不是文件）
-ensure_dir() {
-    local path="$1"
-
-    if [ -e "$path" ] && [ ! -d "$path" ]; then
-        log_warn "$path 是文件，正在删除并创建为目录..."
-        rm -f "$path"
-    fi
-
-    mkdir -p "$path"
-}
-
-# 同步文件到目标目录
-sync_files() {
-    local src_dir="$1"
-    local dst_dir="$2"
-    shift 2
-    local files=("$@")
-
-    ensure_dir "$dst_dir"
-
-    for f in "${files[@]}"; do
-        local src="$src_dir/$f"
-        local dst="$dst_dir/$f"
-
-        if [ -d "$dst" ]; then
-            rm -rf "$dst"
-        fi
-
-        if [ -f "$src" ]; then
-            cp -f "$src" "$dst"
-        elif [ ! -e "$dst" ]; then
-            touch "$dst"
-        fi
-    done
-}
-
 main() {
     local PLATFORM
     PLATFORM="$(detect_platform)"
@@ -141,62 +89,9 @@ main() {
             ;;
     esac
 
-    # 0. 确保 ~/.ssh 目录存在（devcontainer 需要 bind mount）
-    ensure_dir "$H/.ssh"
-    chmod 700 "$H/.ssh" 2>/dev/null || true
-
-    # 1. 准备 gitconfig
-    ensure_file "$H/.gitconfig"
-    ensure_file "$H/.fqcompressor-host-gitconfig" "$H/.gitconfig"
-    cp -f "$H/.gitconfig" "$H/.fqcompressor-host-gitconfig"
-
-    # 2. 准备 Claude 配置
-    local claude_files=(
-        "CLAUDE.md"
-        "config.json"
-        "settings.json"
-        "settings.duck.json"
-        "settings.glm.json"
-        "settings.kimi.json"
-        "settings.local.json"
-        "settings.minimax.json"
-        "settings.wong.json"
-    )
-    sync_files "$H/.claude" "$H/.fqcompressor-host-claude" "${claude_files[@]}"
-
-    # Claude CLI 登录信息（位于 HOME 根目录）
-    local claude_root_src="$H/.claude.json"
-    local claude_root_dst="$H/.fqcompressor-host-claude/.claude.json"
-    if [ -f "$claude_root_src" ]; then
-        cp -f "$claude_root_src" "$claude_root_dst"
-    elif [ ! -e "$claude_root_dst" ]; then
-        touch "$claude_root_dst"
-    fi
-
-    # 3. 准备 Codex 配置
-    local codex_files=(
-        "auth.json"
-        "config.toml"
-    )
-    sync_files "$H/.codex" "$H/.fqcompressor-host-codex" "${codex_files[@]}"
-
-    # 4. 确保数据目录存在
-    local SCRIPT_DIR
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local REPO_ROOT
     REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-
-    # 从 .env 读取数据路径（如果存在）
-    local DATA_PATH="${FQCOMPRESSOR_HOST_DATA_DIR:-}"
-    if [ -z "$DATA_PATH" ] && [ -f "$REPO_ROOT/docker/.env" ]; then
-        DATA_PATH="$(grep -E '^FQCOMPRESSOR_HOST_DATA_DIR=' "$REPO_ROOT/docker/.env" 2>/dev/null | cut -d= -f2- || true)"
-    fi
-    DATA_PATH="${DATA_PATH:-/tmp/fqcompressor-data}"
-
-    if [ ! -d "$DATA_PATH" ]; then
-        log_info "创建数据目录: $DATA_PATH"
-        mkdir -p "$DATA_PATH" 2>/dev/null || log_warn "无法创建数据目录: $DATA_PATH（可忽略）"
-    fi
+    host_sync_stage_home "$H" "$H" "$REPO_ROOT"
 
     # 5. 检查 SSH agent（提示用户）
     if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "${SSH_AUTH_SOCK}" ]; then

@@ -148,7 +148,8 @@ code .
 │   ├── host-prepare-windows.ps1   # Windows 环境检查/安装脚本（PowerShell）
 │   ├── container-setup.sh         # 容器内设置脚本（postXxxCommand，平台感知）
 │   ├── setup-sshd.sh              # SSHD 配置脚本
-│   └── start-sshd.sh              # SSHD 启动脚本
+│   ├── start-sshd.sh              # SSHD 启动脚本
+│   └── lib/devcontainer_contract.sh # 共享 contract：生命周期、挂载、工作区约定
 └── README.md                      # 本文件
 
 docker/
@@ -165,6 +166,19 @@ docker/
 ---
 
 ## 配置选项
+
+### 共享 contract
+
+`devcontainer.json`、`devcontainer.clion.json`、`docker/docker-compose.yml` 和
+`scripts/devcontainer-validate.sh` 共享同一组关键约定：
+
+- 工作区路径固定为 `/workspace`
+- 生命周期入口固定为 `.devcontainer/scripts/container-setup.sh`
+- SSH 端口环境变量固定为 `FQCOMPRESSOR_SSH_PORT`
+- 宿主机 Git / Claude / Codex 暂存挂载目标固定在 `/tmp/host-*`
+
+这些共享值收敛在 `.devcontainer/scripts/lib/devcontainer_contract.sh`，语义漂移会由
+`scripts/devcontainer-validate.sh` 提前拦截。
 
 ### 环境变量 (docker/.env)
 

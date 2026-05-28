@@ -7,6 +7,10 @@
 # =============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/host_sync.sh"
+
 # 颜色输出
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -20,75 +24,6 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 # 配置常量
 DEVELOPER_HOME="/home/developer"
 WORKSPACE="${WORKSPACE:-/workspace}"
-
-# =============================================================================
-# 配置同步函数
-# =============================================================================
-
-# 同步 gitconfig
-sync_gitconfig() {
-    local target="$DEVELOPER_HOME/.gitconfig"
-    local source="/tmp/host-gitconfig"
-
-    if [ -d "$target" ]; then
-        rm -rf "$target"
-    fi
-
-    if [ ! -e "$target" ]; then
-        touch "$target"
-    fi
-
-    if [ -f "$source" ]; then
-        cp -f "$source" "$target"
-    fi
-}
-
-# 同步 Claude 配置
-sync_claude_config() {
-    local target_dir="$DEVELOPER_HOME/.claude"
-    local source_dir="/tmp/host-claude"
-
-    mkdir -p "$target_dir"
-
-    local files=(
-        "CLAUDE.md"
-        "config.json"
-        "settings.json"
-        "settings.duck.json"
-        "settings.glm.json"
-        "settings.kimi.json"
-        "settings.local.json"
-        "settings.minimax.json"
-        "settings.wong.json"
-    )
-
-    for f in "${files[@]}"; do
-        if [ -s "$source_dir/$f" ]; then
-            cp -f "$source_dir/$f" "$target_dir/$f"
-        fi
-    done
-
-    # Claude CLI 登录信息（宿主机侧已放入 /tmp/host-claude/.claude.json）
-    if [ -s "$source_dir/.claude.json" ]; then
-        cp -f "$source_dir/.claude.json" "$DEVELOPER_HOME/.claude.json"
-    fi
-}
-
-# 同步 Codex 配置
-sync_codex_config() {
-    local target_dir="$DEVELOPER_HOME/.codex"
-    local source_dir="/tmp/host-codex"
-
-    mkdir -p "$target_dir"
-
-    local files=("auth.json" "config.toml")
-
-    for f in "${files[@]}"; do
-        if [ -s "$source_dir/$f" ]; then
-            cp -f "$source_dir/$f" "$target_dir/$f"
-        fi
-    done
-}
 
 # 配置 Git
 setup_git() {
@@ -180,9 +115,7 @@ cmd_create() {
     cd "$WORKSPACE" || exit 0
 
     check_environment
-    sync_gitconfig
-    sync_claude_config
-    sync_codex_config
+    host_sync_apply_container_home "$DEVELOPER_HOME" "/tmp"
     setup_git
     setup_conan
 
@@ -195,9 +128,7 @@ cmd_create() {
 }
 
 _sync_and_start() {
-    sync_gitconfig
-    sync_claude_config
-    sync_codex_config
+    host_sync_apply_container_home "$DEVELOPER_HOME" "/tmp"
     setup_git
     start_sshd
 }

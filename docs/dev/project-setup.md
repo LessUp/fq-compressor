@@ -47,26 +47,9 @@
 
 ### 推荐开发环境（Dev Container）
 
-项目提供 Dev Container 配置，确保开发环境一致性：
-
-```json
-// .devcontainer/devcontainer.json
-{
-  "name": "fq-compressor-dev",
-  "dockerComposeFile": "../docker/docker-compose.yml",
-  "service": "dev",
-  "workspaceFolder": "/workspace",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "llvm-vs-code-extensions.vscode-clangd",
-        "ms-vscode.cmake-tools",
-        "xaver.clang-format"
-      ]
-    }
-  }
-}
-```
+项目提供 Dev Container 配置，确保开发环境一致性。实际支持的入口、平台差异、
+宿主机配置同步和远程 SSH 用法以 `.devcontainer/README.md` 为准；本页不再复制
+配置片段，避免与真实 contract 漂移。
 
 ### 本地开发环境设置
 

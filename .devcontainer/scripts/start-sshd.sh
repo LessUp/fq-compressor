@@ -6,6 +6,10 @@
 # =============================================================================
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/sshd.sh"
+
 # 颜色输出
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -21,12 +25,12 @@ if ! command -v sshd >/dev/null 2>&1; then
 fi
 
 WORKSPACE="${WORKSPACE:-/workspace}"
-SETUP_SCRIPT="${WORKSPACE}/.devcontainer/scripts/setup-sshd.sh"
-SETUP_SENTINEL="/tmp/.sshd-setup-done"
+SETUP_SCRIPT="$(sshd_setup_script_path "${WORKSPACE}")"
+SETUP_SENTINEL="$(sshd_setup_sentinel_path)"
 
 # 仅在首次或脚本更新后重新配置
 if [ -x "$SETUP_SCRIPT" ]; then
-    if [ ! -f "$SETUP_SENTINEL" ] || [ "$SETUP_SCRIPT" -nt "$SETUP_SENTINEL" ]; then
+    if sshd_setup_needed "$SETUP_SCRIPT" "$SETUP_SENTINEL"; then
         if bash "$SETUP_SCRIPT"; then
             touch "$SETUP_SENTINEL"
         else
