@@ -65,11 +65,26 @@ from pathlib import Path
 path = Path(sys.argv[1])
 data = json.loads(path.read_text(encoding="utf-8"))
 
-measured = set(data.get("measured_tools") or data.get("tools_tested") or [])
+if data.get("kind") != "benchmark_report_v2":
+    raise SystemExit("benchmark smoke did not produce canonical benchmark_v2 report output")
+
+suite = data.get("suite")
+if not isinstance(suite, dict):
+    raise SystemExit("benchmark smoke did not emit report suite metadata")
+
+benchmark_command = data.get("benchmark_command")
+if not isinstance(benchmark_command, dict) or benchmark_command.get("command_path") != "scripts/benchmark.sh":
+    raise SystemExit("benchmark smoke did not track wrapper command metadata")
+
+tool_metrics = data.get("tool_metrics")
+if not isinstance(tool_metrics, list) or not tool_metrics:
+    raise SystemExit("benchmark smoke did not emit aggregated tool metrics")
+
+measured = set(data.get("measured_tools") or [])
 if "fqc" not in measured:
     raise SystemExit("benchmark smoke did not measure fqc")
 
-results = [item for item in data.get("results", []) if item.get("tool") == "fqc"]
+results = [item for item in suite.get("results", []) if item.get("tool_id") == "fqc"]
 if not results:
     raise SystemExit("benchmark smoke did not record fqc results")
 

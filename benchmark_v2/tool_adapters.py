@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import shlex
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -125,11 +127,49 @@ def _render_shell_command(template: str, *, input_path: Path, output_path: Path)
     return ["bash", "-c", command]
 
 
+def _shared_project_root() -> Path | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(_PROJECT_ROOT), "rev-parse", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    common_dir = Path(result.stdout.strip()).resolve()
+    if common_dir.name != ".git":
+        return None
+    root = common_dir.parent
+    if root == _PROJECT_ROOT:
+        return None
+    return root
+
+
 def _resolve_fqc_binary() -> Path:
-    candidates = (
-        _PROJECT_ROOT / "build/clang-release/src/fqc",
-        _PROJECT_ROOT / "build/clang-debug/src/fqc",
-    )
+    explicit = os.environ.get("FQC_BENCHMARK_BINARY")
+    if explicit:
+        candidate = Path(explicit).expanduser()
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return candidate.resolve()
+        raise ValueError(f"FQC_BENCHMARK_BINARY is not executable: {candidate}")
+
+    roots = [_PROJECT_ROOT]
+    shared_root = _shared_project_root()
+    if shared_root is not None:
+        roots.append(shared_root)
+
+    candidates: list[Path] = []
+    for root in roots:
+        candidates.extend(
+            (
+                root / "build/clang-release/src/fqc",
+                root / "build/clang-debug/src/fqc",
+            )
+        )
     existing = [candidate for candidate in candidates if candidate.exists()]
     if existing:
         return max(existing, key=lambda candidate: candidate.stat().st_mtime)

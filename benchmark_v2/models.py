@@ -122,6 +122,11 @@ class ToolSpec:
     supports_paired: bool
     compress_template: str
     decompress_template: str
+    name: str = ""
+    description: str = ""
+    version_cmd: str = ""
+    claim_scope: str = "local-supported"
+    scope_note: str = ""
 
     def __post_init__(self) -> None:
         _validate_non_empty_string(self.tool_id, field_name="tool_id")
@@ -139,6 +144,18 @@ class ToolSpec:
             field_name="decompress_template",
             required_placeholders=_DECOMPRESS_TEMPLATE_PLACEHOLDERS,
         )
+        if self.name:
+            _validate_non_empty_string(self.name, field_name="name")
+        else:
+            object.__setattr__(self, "name", self.tool_id)
+        if self.description and not isinstance(self.description, str):
+            raise ValueError("description must be a string")
+        if self.version_cmd and not isinstance(self.version_cmd, str):
+            raise ValueError("version_cmd must be a string")
+        if not isinstance(self.claim_scope, str) or not self.claim_scope:
+            raise ValueError("claim_scope must be a non-empty string")
+        if not isinstance(self.scope_note, str):
+            raise ValueError("scope_note must be a string")
 
 
 @dataclass(frozen=True)

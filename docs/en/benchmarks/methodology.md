@@ -17,7 +17,9 @@ The current benchmark workflow follows the rules documented in `docs/benchmark/R
 - requested, measured, unavailable, and deferred tools must be called out explicitly
 - conclusions should be dimension-specific rather than a single overall ranking
 
-Those rules are implemented by the benchmark harness in `benchmark/benchmark.py` and the dataset registry in `benchmark/datasets.yaml`.
+Those rules are now implemented by the canonical `benchmark_v2/` execution and reporting stack, with
+`./scripts/benchmark.sh` acting as the tracked-evidence wrapper and `benchmark/datasets.yaml`
+remaining the dataset registry for the published ERR091571 evidence chain.
 
 ## Tracked dataset and artifact
 
@@ -51,16 +53,16 @@ The documented reproduction loop is:
 ```bash
 ./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only
 ./scripts/build.sh clang-release
-python3 benchmark/benchmark.py \
+./scripts/benchmark.sh \
   --dataset err091571-local-supported \
+  --build \
   --tools fqc,gzip,xz,bzip2,spring \
   --threads 1 \
-  --runs 1 \
-  --json benchmark/results/err091571-local-supported.json \
-  --report benchmark/results/err091571-local-supported.md
+  --runs 1
 ```
 
-That sequence matches the evidence trail in `docs/benchmark/README.md` and the generated report itself.
+That sequence matches the evidence trail in `docs/benchmark/README.md`. Internally it now routes through
+the `benchmark_v2/` runner and emits the canonical `benchmark_report_v2` JSON + Markdown artifacts.
 
 ## How to read the current numbers
 

@@ -17,7 +17,8 @@ description: 已跟踪结果的范围、证据规则与复现命令
 - requested、measured、unavailable、deferred 的工具都要显式列出
 - 结论应按维度分别陈述，而不是给出单一总体排名
 
-这些规则由 `benchmark/benchmark.py` 中的 benchmark harness 和 `benchmark/datasets.yaml` 中的数据集注册表共同落地。
+这些规则现在统一由 `benchmark_v2/` 这套执行 / 报告栈落地；`./scripts/benchmark.sh` 只是面向已跟踪证据链的
+wrapper，而公开 ERR091571 证据链的数据集注册表仍保留在 `benchmark/datasets.yaml`。
 
 ## 当前跟踪的数据集与工件
 
@@ -51,16 +52,16 @@ description: 已跟踪结果的范围、证据规则与复现命令
 ```bash
 ./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only
 ./scripts/build.sh clang-release
-python3 benchmark/benchmark.py \
+./scripts/benchmark.sh \
   --dataset err091571-local-supported \
+  --build \
   --tools fqc,gzip,xz,bzip2,spring \
   --threads 1 \
-  --runs 1 \
-  --json benchmark/results/err091571-local-supported.json \
-  --report benchmark/results/err091571-local-supported.md
+  --runs 1
 ```
 
-这条命令链与 `docs/benchmark/README.md` 以及生成出的报告本身保持一致。
+这条命令链与 `docs/benchmark/README.md` 以及生成出的报告本身保持一致。底层现在统一走
+`benchmark_v2/`，并产出 canonical `benchmark_report_v2` JSON / Markdown 工件。
 
 ## 应如何解读当前数字
 

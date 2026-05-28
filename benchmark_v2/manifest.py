@@ -220,6 +220,11 @@ def load_tools() -> tuple[ToolSpec, ...]:
                 supports_paired=_require_bool(entry, "supports_paired", path, index, "tool"),
                 compress_template=compress_template,
                 decompress_template=decompress_template,
+                name=entry.get("name", tool_id),
+                description=entry.get("description", ""),
+                version_cmd=entry.get("version_cmd", ""),
+                claim_scope=entry.get("claim_scope", "local-supported"),
+                scope_note=entry.get("scope_note", ""),
             )
         )
     return tuple(tools)
