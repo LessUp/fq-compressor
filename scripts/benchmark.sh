@@ -352,25 +352,71 @@ main() {
         fi
     fi
 
-    local json_out="${RESULTS_DIR}/${DATASET_ID}.json"
-    local report_out="${RESULTS_DIR}/${DATASET_ID}.md"
-    local cmd=(python3 "${PROJECT_ROOT}/benchmark/benchmark.py" --dataset "$DATASET_ID" --runs "$RUNS" --json "$json_out" --report "$report_out" --command-path "scripts/benchmark.sh")
-
-    if [ -n "$INPUT_OVERRIDE" ]; then
-        cmd=(python3 "${PROJECT_ROOT}/benchmark/benchmark.py" --input "$INPUT_OVERRIDE" --runs "$RUNS" --json "$json_out" --report "$report_out" --command-path "scripts/benchmark.sh")
+    local benchmark_input="$INPUT_OVERRIDE"
+    if [ -z "$benchmark_input" ]; then
+        benchmark_input="$(resolve_dataset_input "$DATASET_ID")"
     fi
 
-    if [ "$REQUEST_ALL" = true ]; then
-        cmd+=(--all)
-    elif [ -n "$TOOLS_OVERRIDE" ]; then
-        cmd+=(--tools "$TOOLS_OVERRIDE")
+    local benchmark_tools="$TOOLS_OVERRIDE"
+    if [ -z "$benchmark_tools" ] && [ "$REQUEST_ALL" = true ]; then
+        benchmark_tools="fqc,gzip,xz,bzip2,spring"
+    fi
+
+    local invocation="./scripts/benchmark.sh"
+    if [ -n "$INPUT_OVERRIDE" ]; then
+        invocation+=" --input ${INPUT_OVERRIDE}"
+    else
+        invocation+=" --dataset ${DATASET_ID}"
+    fi
+    if [ "$BUILD_BINARY" = true ]; then
+        invocation+=" --build"
+    fi
+    if [ -n "$benchmark_tools" ]; then
+        invocation+=" --tools ${benchmark_tools}"
+    fi
+    invocation+=" --runs ${RUNS} --threads ${THREADS[*]}"
+
+    local json_out="${RESULTS_DIR}/${DATASET_ID}.json"
+    local report_out="${RESULTS_DIR}/${DATASET_ID}.md"
+    local cmd=(
+        python3
+        "${PROJECT_ROOT}/benchmark_v2/unified_runner.py"
+        --input "$benchmark_input"
+        --workload-id "$DATASET_ID"
+        --layout single
+        --runs "$RUNS"
+        --json "$json_out"
+        --report "$report_out"
+        --command-path "scripts/benchmark.sh"
+        --invocation "$invocation"
+        --working-directory "$PROJECT_ROOT"
+        --dataset-config "$DATASETS_FILE"
+        --dataset-id "$DATASET_ID"
+    )
+
+    if [ -n "$INPUT_OVERRIDE" ]; then
+        cmd=(
+            python3
+            "${PROJECT_ROOT}/benchmark_v2/unified_runner.py"
+            --input "$INPUT_OVERRIDE"
+            --workload-id "$DATASET_ID"
+            --layout single
+            --runs "$RUNS"
+            --json "$json_out"
+            --report "$report_out"
+            --command-path "scripts/benchmark.sh"
+            --invocation "$invocation"
+            --working-directory "$PROJECT_ROOT"
+        )
+    fi
+
+    if [ -n "$benchmark_tools" ]; then
+        cmd+=(--tools "$benchmark_tools")
     fi
 
     if [ ${#THREADS[@]} -gt 0 ]; then
         cmd+=(--threads "${THREADS[@]}")
     fi
-
-    cmd+=(--invocation "./scripts/benchmark.sh --dataset ${DATASET_ID} --runs ${RUNS} --threads ${THREADS[*]}")
 
     log_info "Running benchmark runner..."
     "${cmd[@]}"

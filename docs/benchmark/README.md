@@ -21,7 +21,8 @@
 
 ## 数据集清单
 
-数据集清单位于 `benchmark/datasets.yaml`。
+公开数据集注册表仍位于 `benchmark/datasets.yaml`，但 benchmark 的唯一执行 / 报告实现现在统一收口到
+`benchmark_v2/`；`./scripts/benchmark.sh` 只是它的 tracked-evidence wrapper。
 
 当前跟踪条目：`err091571-local-supported`
 
@@ -70,30 +71,33 @@
   --runs 1
 ```
 
-4. 直接使用 Python 运行器也可以
+4. 如果只是做本地 exploratory / comparison run，直接使用 canonical CLI：
 
 ```bash
-python3 benchmark/benchmark.py \
-  --dataset err091571-local-supported \
-  --tools fqc,gzip,xz,bzip2,spring \
+./scripts/benchmark_v2.sh run \
+  --workload small20k-single \
+  --data-root /home/shane/data/test \
+  --tools fqc,gzip,xz,bzip2 \
   --threads 1 \
   --runs 1 \
-  --json benchmark/results/err091571-local-supported.json \
-  --report benchmark/results/err091571-local-supported.md
+  --json build/benchmark_v2/small20k-single.json \
+  --report build/benchmark_v2/small20k-single.md
 ```
 
 ## 结果结构
 
 `benchmark/results/err091571-local-supported.json` 现在包含：
 
+- `kind: benchmark_report_v2`
 - 数据集 provenance
 - 基准命令与工作目录
 - 请求工具列表
 - 已测量工具列表
 - 不可用工具列表
 - 延后工具列表
-- 原始结果条目
-- 按维度拆开的结论摘要
+- `suite.results` 原始结果条目
+- `tool_metrics` 与 `peer_standing` 聚合摘要
+- 顶层 `conclusion`
 
 ## Smoke Test
 

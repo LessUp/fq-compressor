@@ -30,20 +30,46 @@ def run_matrix(
 
     workload_dir = work_dir / workload.workload_id
     prepared_inputs = prepare_workload(workload, data_root, workload_dir)
+    return run_prepared_matrix(
+        workload_id=workload.workload_id,
+        layout=workload.layout,
+        prepared_inputs=prepared_inputs,
+        work_dir=workload_dir,
+        tools=tools,
+        threads=threads,
+        runs=runs,
+    )
+
+
+def run_prepared_matrix(
+    *,
+    workload_id: str,
+    layout: Layout,
+    prepared_inputs: list[Path],
+    work_dir: Path,
+    tools: list[ToolSpec],
+    threads: list[int],
+    runs: int,
+) -> BenchmarkSuite:
+    if not threads:
+        raise ValueError("threads must not be empty")
+    if any(thread_count <= 0 for thread_count in threads):
+        raise ValueError("threads must be positive")
+
     results: list[BenchmarkResult] = []
     for tool in tools:
         adapter = create_adapter(tool)
-        if workload.layout == "paired" and not adapter.supports_paired:
+        if layout == "paired" and not adapter.supports_paired:
             continue
         for thread_count in _effective_thread_counts(adapter, threads):
             results.extend(
-                run_best_of_n(adapter, prepared_inputs, workload.layout, thread_count, runs, workload_dir)
+                run_best_of_n(adapter, prepared_inputs, layout, thread_count, runs, work_dir)
             )
     if not results:
-        raise ValueError(f"no benchmark results produced for workload '{workload.workload_id}'")
+        raise ValueError(f"no benchmark results produced for workload '{workload_id}'")
     return BenchmarkSuite(
-        workload_id=workload.workload_id,
-        layout=workload.layout,
+        workload_id=workload_id,
+        layout=layout,
         results=tuple(results),
     )
 

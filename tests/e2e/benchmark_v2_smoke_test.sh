@@ -173,6 +173,7 @@ cat <<'EOF' > "${TEST_DIR}/expected-tools.txt"
 bzip2
 fqc
 gzip
+spring
 xz
 EOF
 

@@ -9,7 +9,7 @@ The performance section is the evidence contract for the portal. Its job is not 
 - The tracked public evidence is currently centered on ENA accession `ERR091571` and a reproducible 2,000-record smoke-scale subset.
 - The site can discuss compression density, compression throughput, decompression throughput, and archive semantics, but not claim an already-proven specialized-peer leadership position.
 - Spring remains deferred in the local evidence chain, so readers should treat the current benchmark story as bounded rather than exhaustive.
-- Fresh local benchmark evidence should be generated with `./scripts/benchmark_v2.sh`, which emits both machine-readable JSON and Markdown conclusions.
+- Fresh tracked benchmark evidence should be generated with `./scripts/benchmark.sh`, while `./scripts/benchmark_v2.sh` remains the local comparison CLI for exploratory runs.
 - Current ratio and throughput standing should be read from those generated reports instead of from hard-coded repository copy.
 
 ## Claim matrix
@@ -24,6 +24,7 @@ The performance section is the evidence contract for the portal. Its job is not 
 ## Evidence anchors worth keeping open
 
 - [Methodology](./methodology)
+- `./scripts/benchmark.sh --dataset err091571-local-supported --build --threads 1 --runs 1`
 - `./scripts/benchmark_v2.sh run --json <path> --report <path>`
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md)
 - [`benchmark/results/err091571-local-supported.json`](https://github.com/LessUp/fq-compressor/blob/master/benchmark/results/err091571-local-supported.json)
