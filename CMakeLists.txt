@@ -205,11 +205,6 @@ set(FQC_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Source files (libraries and main executable)
 add_subdirectory(src)
 
-# Vendor dependencies (Spring core, etc.)
-# NOTE: vendor/spring-core contains the extracted Spring ABC algorithm.
-# It is not yet linked into fqc_core. Uncomment below when integration is ready.
-# add_subdirectory(vendor/spring-core)
-
 # =============================================================================
 # Testing Configuration
 # =============================================================================

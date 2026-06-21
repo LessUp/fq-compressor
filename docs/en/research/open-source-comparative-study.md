@@ -15,7 +15,6 @@ it inherits, and where the repository currently limits the strength of compariso
 ## Repository-local anchors
 
 - [`ref-projects/README.md`](https://github.com/LessUp/fq-compressor/blob/master/ref-projects/README.md): explains which external tools are tracked as comparison or study targets.
-- [`vendor/spring-core/README.md`](https://github.com/LessUp/fq-compressor/blob/master/vendor/spring-core/README.md): documents the extracted Spring components and their license boundary.
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md): constrains what repository evidence can currently support in public.
 
 ## What fq-compressor keeps

@@ -210,7 +210,6 @@ the repository workflow.
 ## 📄 License
 
 - **Project Code:** MIT License — see [LICENSE](LICENSE)
-- **vendor/spring-core/:** Spring's original research license (not MIT)
 
 ---
 

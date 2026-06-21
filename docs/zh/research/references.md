@@ -26,9 +26,7 @@
 
 1. **[E1]** [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)  
    性能部分使用的机器可读和叙事型 benchmark 产物。
-2. **[E2]** [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)  
-   带有明确许可边界的 Spring 派生参考代码。
-3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
+2. **[E2]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
    本地对照目标和学习记录。
-4. **[E4]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
+3. **[E3]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
    仅保留历史研究和规格材料，供参考使用。

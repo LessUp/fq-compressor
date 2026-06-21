@@ -90,12 +90,6 @@ fqc_add_test(build_smoke_test
     SOURCES placeholder_test.cpp
 )
 
-# Memory Budget Tests
-# Validates: Requirements 4.3
-fqc_add_test(memory_budget_test
-    SOURCES common/memory_budget_test.cpp
-)
-
 # Error Handling Tests
 fqc_add_test(error_test
     SOURCES common/error_test.cpp

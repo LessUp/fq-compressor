@@ -10,9 +10,6 @@
 //
 // Memory budget: ~24 bytes/read (Minimizer index + Reorder Map)
 //
-// This module integrates with Spring core algorithms from vendor/spring-core/
-// for minimizer bucketing and reordering.
-//
 // Requirements: 1.1.2, 4.3
 // =============================================================================
 

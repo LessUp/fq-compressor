@@ -16,7 +16,6 @@
 set(FQC_CORE_SOURCES
     common/error.cpp
     common/logger.cpp
-    common/memory_budget.cpp
     format/fqc_reader.cpp
     format/fqc_writer.cpp
     format/reorder_map.cpp

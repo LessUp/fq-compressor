@@ -187,7 +187,6 @@ bash tests/e2e/benchmark_v2_smoke_test.sh
 ## 📄 许可证
 
 - **项目代码：** MIT 许可证 — 参见 [LICENSE](LICENSE)
-- **vendor/spring-core/：** Spring 原始研究许可证（非 MIT）
 
 ---
 

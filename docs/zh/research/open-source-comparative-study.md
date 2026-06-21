@@ -14,7 +14,6 @@
 ## 仓库内锚点
 
 - [`ref-projects/README.md`](https://github.com/LessUp/fq-compressor/blob/master/ref-projects/README.md)：说明跟踪了哪些对照工具。
-- [`vendor/spring-core/README.md`](https://github.com/LessUp/fq-compressor/blob/master/vendor/spring-core/README.md)：说明提取的 Spring 组件及许可边界。
 - [`docs/benchmark/README.md`](https://github.com/LessUp/fq-compressor/blob/master/docs/benchmark/README.md)：限制仓库当前可以公开支撑哪些比较结论。
 
 ## fq-compressor 保留了什么

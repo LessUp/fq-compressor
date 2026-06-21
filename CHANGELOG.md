@@ -8,6 +8,17 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+
+- Deleted `vendor/spring-core/` (unlinked Spring ABC extraction) and its references in
+  `CMakeLists.txt`, `README.md`, `README.zh-CN.md`, `AGENTS.md`, and `docs/{en,zh}/research/*`.
+  Spring remains acknowledged as an algorithm reference only.
+- Removed the `memory_budget` module (`include/fqc/common/memory_budget.h`,
+  `src/common/memory_budget.cpp`, `tests/common/memory_budget_test.cpp`) and its CMake
+  registrations. The module had no production callers and existed only as a test island.
+- Removed the unused `IPipelineStage` template interface from `include/fqc/pipeline/pipeline.h`;
+  the TBB pipeline uses direct lambdas and never instantiated this interface.
+
 ### Changed
 
 - Removed stale OpenSpec workflow guidance from repository docs and archive surfaces.

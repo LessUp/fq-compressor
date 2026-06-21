@@ -101,9 +101,6 @@ docs/                  Documentation
   en/                 English public documentation
   zh/                 Chinese public documentation
 
-vendor/                Third-party vendored code
-  spring-core/        Spring ABC algorithm (research license)
-
 ref-projects/          Reference implementations for comparison
   HARC/, NanoSpring/, Spring/, fqzcomp5/, minicom/, etc.
 ```
@@ -462,7 +459,6 @@ Before submitting changes:
 - **Documentation**: https://lessup.github.io/fq-compressor/
 - **CI Status**: See badges in README.md
 - **Reference**: Spring paper (Chandak et al., 2019) for ABC algorithm
-- **Spring Core**: Located in `vendor/spring-core/` (research license)
 
 ## Exit Codes
 

@@ -26,9 +26,7 @@ Use this page as the citation key for the public documentation set.
 
 1. **[E1]** [`benchmark/results/`](https://github.com/LessUp/fq-compressor/tree/master/benchmark/results)  
    Machine-readable and narrative benchmark outputs used by the performance section.
-2. **[E2]** [`vendor/spring-core/`](https://github.com/LessUp/fq-compressor/tree/master/vendor/spring-core)  
-   Extracted Spring-derived reference code with an explicit license boundary.
-3. **[E3]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
+2. **[E2]** [`ref-projects/`](https://github.com/LessUp/fq-compressor/tree/master/ref-projects)  
    Repository-local comparison targets and study notes.
-4. **[E4]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
+3. **[E3]** [`docs/archive/`](https://github.com/LessUp/fq-compressor/tree/master/docs/archive)  
    Historical research and spec material retained for reference only.

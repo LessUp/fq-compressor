@@ -64,36 +64,6 @@ inline constexpr std::size_t kMinBlockSize = 100;
 inline constexpr std::size_t kMaxBlockSize = 1'000'000;
 
 // =============================================================================
-// Pipeline Stage Interface
-// =============================================================================
-
-/// @brief Base interface for pipeline stages
-/// @tparam Input Input type for this stage
-/// @tparam Output Output type for this stage
-template <typename Input, typename Output>
-class IPipelineStage {
-public:
-    virtual ~IPipelineStage() = default;
-
-    /// @brief Process a single item
-    /// @param input Input item
-    /// @return Processed output or error
-    [[nodiscard]] virtual Result<Output> process(Input input) = 0;
-
-    /// @brief Check if stage is ready to process
-    /// @return true if ready
-    [[nodiscard]] virtual bool isReady() const noexcept {
-        return true;
-    }
-
-    /// @brief Reset stage state
-    virtual void reset() noexcept {}
-
-    /// @brief Get stage name for logging
-    [[nodiscard]] virtual std::string_view name() const noexcept = 0;
-};
-
-// =============================================================================
 // Pipeline Token Types
 // =============================================================================
 
