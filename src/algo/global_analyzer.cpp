@@ -14,6 +14,7 @@
 #include <atomic>
 #include <bitset>
 #include <cstring>
+#include <deque>
 #include <mutex>
 #include <numeric>
 #include <thread>
@@ -274,8 +275,7 @@ std::size_t InMemoryReadProvider::maxLength() const {
 // =============================================================================
 
 std::uint64_t computeKmerHash(std::string_view sequence) {
-    // Use a simple rolling hash for k-mers
-    // This is a basic implementation; could be optimized with NTHash or similar
+    // Canonical hash: min of forward and reverse-complement 2-bit encoding.
     std::uint64_t hash = 0;
     std::uint64_t rcHash = 0;
     const std::size_t k = sequence.length();
@@ -289,9 +289,62 @@ std::uint64_t computeKmerHash(std::string_view sequence) {
         rcHash = (rcHash << 2) | rcBase;
     }
 
-    // Return canonical (minimum of forward and reverse complement)
     return std::min(hash, rcHash);
 }
+
+namespace {
+
+/// @brief Rolling canonical k-mer hash with O(1) incremental update.
+/// Maintains forward and reverse-complement hashes simultaneously;
+/// the canonical hash is min(fwd, rc).
+class RollingKmerHash {
+public:
+    RollingKmerHash(std::string_view seq, std::size_t k)
+        : k_(k), mask_((k_ >= 32) ? ~0ULL : (1ULL << (2 * k_)) - 1) {
+        // Seed the first k-mer
+        fwdHash_ = 0;
+        rcHash_ = 0;
+        for (std::size_t i = 0; i < k_; ++i) {
+            std::uint8_t b = kBaseToInt[static_cast<unsigned char>(seq[i])];
+            fwdHash_ = ((fwdHash_ << 2) | b) & mask_;
+            std::uint8_t rcB = 3 - kBaseToInt[static_cast<unsigned char>(seq[k_ - 1 - i])];
+            rcHash_ = ((rcHash_ << 2) | rcB) & mask_;
+        }
+    }
+
+    /// @brief Slide the window by one base: drop seq[pos], add seq[pos+k].
+    void roll(std::uint8_t oldBase, std::uint8_t newBase) {
+        std::uint8_t oldB = kBaseToInt[oldBase];
+        std::uint8_t newB = kBaseToInt[newBase];
+        std::uint8_t rcNew = 3 - newB;
+
+        // Forward: remove oldBase from the high end, shift, add newBase
+        fwdHash_ =
+            ((fwdHash_ - (static_cast<std::uint64_t>(oldB) << (2 * (k_ - 1)))) << 2 | newB) & mask_;
+
+        // RC: remove oldBase's complement from the low end, shift, add rcNew at high end
+        std::uint8_t rcOld = 3 - oldB;
+        rcHash_ = ((rcHash_ >> 2) | (static_cast<std::uint64_t>(rcNew) << (2 * (k_ - 1)))) & mask_;
+        // Suppress unused warning when rcOld is computed but only used for clarity
+        (void)rcOld;
+    }
+
+    [[nodiscard]] std::uint64_t canonical() const noexcept {
+        return std::min(fwdHash_, rcHash_);
+    }
+
+    [[nodiscard]] bool isRC() const noexcept {
+        return rcHash_ < fwdHash_;
+    }
+
+private:
+    std::size_t k_;
+    std::uint64_t mask_;
+    std::uint64_t fwdHash_ = 0;
+    std::uint64_t rcHash_ = 0;
+};
+
+}  // namespace
 
 std::vector<Minimizer> extractMinimizers(std::string_view sequence, std::size_t k, std::size_t w) {
     std::vector<Minimizer> minimizers;
@@ -305,41 +358,54 @@ std::vector<Minimizer> extractMinimizers(std::string_view sequence, std::size_t 
         return minimizers;
     }
 
-    // Compute all k-mer hashes
-    std::vector<std::uint64_t> hashes(numKmers);
-    for (std::size_t i = 0; i < numKmers; ++i) {
-        hashes[i] = computeKmerHash(sequence.substr(i, k));
-    }
+    const std::size_t windowSize = std::min(w, numKmers);
 
-    // Find minimizers using sliding window
-    std::size_t windowSize = std::min(w, numKmers);
+    // Rolling hash + monotonic deque for O(n) sliding-window minimum.
+    RollingKmerHash hasher(sequence, k);
+
+    // Deque stores indices into the k-mer stream; front is always the minimum.
+    // Hashes are stored alongside to avoid recomputation.
+    struct WindowEntry {
+        std::uint64_t hash;
+        std::size_t pos;
+        bool isRC;
+    };
+    std::deque<WindowEntry> window;
+
     std::size_t prevMinPos = SIZE_MAX;
 
-    for (std::size_t windowStart = 0; windowStart + windowSize <= numKmers; ++windowStart) {
-        // Find minimum in current window
-        std::uint64_t minHash = UINT64_MAX;
-        std::size_t minPos = 0;
-
-        for (std::size_t i = 0; i < windowSize; ++i) {
-            std::size_t pos = windowStart + i;
-            if (hashes[pos] < minHash) {
-                minHash = hashes[pos];
-                minPos = pos;
-            }
+    for (std::size_t i = 0; i < numKmers; ++i) {
+        if (i > 0) {
+            hasher.roll(static_cast<std::uint8_t>(sequence[i - 1]),
+                        static_cast<std::uint8_t>(sequence[i + k - 1]));
         }
 
-        // Add minimizer if it's new (different position from previous)
-        if (minPos != prevMinPos) {
-            // Check if this is from reverse complement
-            std::uint64_t fwdHash = 0;
-            for (std::size_t i = 0; i < k; ++i) {
-                std::uint8_t base = kBaseToInt[static_cast<unsigned char>(sequence[minPos + i])];
-                fwdHash = (fwdHash << 2) | base;
-            }
-            bool isRC = (minHash != fwdHash);
+        const std::uint64_t canonical = hasher.canonical();
+        const bool isRC = hasher.isRC();
 
-            minimizers.emplace_back(minHash, static_cast<std::uint32_t>(minPos), isRC);
-            prevMinPos = minPos;
+        // Evict entries that can no longer be the minimum (>= current from the back)
+        while (!window.empty() && window.back().hash >= canonical) {
+            window.pop_back();
+        }
+        window.push_back({canonical, i, isRC});
+
+        // Start emitting once the first full window is filled
+        if (i + 1 < windowSize) {
+            continue;
+        }
+
+        const std::size_t windowStart = i + 1 - windowSize;
+
+        // Evict entries outside the current window from the front
+        while (!window.empty() && window.front().pos < windowStart) {
+            window.pop_front();
+        }
+
+        // Front of deque is the minimum for this window
+        const auto& min = window.front();
+        if (min.pos != prevMinPos) {
+            minimizers.emplace_back(min.hash, static_cast<std::uint32_t>(min.pos), min.isRC);
+            prevMinPos = min.pos;
         }
     }
 

@@ -56,18 +56,15 @@ constexpr std::uint32_t kAdaptIncrement = 8;
 }  // namespace
 
 // =============================================================================
-// Adaptive Frequency Model
+// Adaptive Frequency Model (SoA view — no per-model heap allocations)
 // =============================================================================
 
-/// @brief Adaptive frequency model for arithmetic coding
+/// @brief Adaptive frequency model for arithmetic coding.
+/// Non-owning view over flat SoA arrays owned by QualityContextModel.
 class AdaptiveModel {
 public:
-    explicit AdaptiveModel(std::size_t numSymbols)
-        : numSymbols_(numSymbols),
-          frequencies_(numSymbols + 1, kInitialFrequency),
-          cumulative_(numSymbols + 1, 0) {
-        updateCumulative();
-    }
+    AdaptiveModel(std::uint32_t* freqs, std::uint32_t* cumuls, std::size_t numSymbols)
+        : numSymbols_(numSymbols), frequencies_(freqs), cumulative_(cumuls) {}
 
     /// @brief Get cumulative frequency for symbol
     [[nodiscard]] std::uint32_t getCumulative(std::size_t symbol) const noexcept {
@@ -117,7 +114,7 @@ public:
 
     /// @brief Reset model to initial state
     void reset() {
-        std::fill(frequencies_.begin(), frequencies_.end(), kInitialFrequency);
+        std::fill(frequencies_, frequencies_ + numSymbols_, kInitialFrequency);
         updateCumulative();
     }
 
@@ -130,16 +127,16 @@ private:
     }
 
     void rescale() {
-        for (auto& freq : frequencies_) {
-            freq = (freq + 1) / 2;
-            if (freq == 0)
-                freq = 1;
+        for (std::size_t i = 0; i < numSymbols_; ++i) {
+            frequencies_[i] = (frequencies_[i] + 1) / 2;
+            if (frequencies_[i] == 0)
+                frequencies_[i] = 1;
         }
     }
 
     std::size_t numSymbols_;
-    std::vector<std::uint32_t> frequencies_;
-    std::vector<std::uint32_t> cumulative_;
+    std::uint32_t* frequencies_;
+    std::uint32_t* cumulative_;
 };
 
 // =============================================================================
@@ -324,42 +321,50 @@ private:
 };
 
 // =============================================================================
-// Context Model for Quality Compression
+// Context Model for Quality Compression (SoA — 2 allocations total)
 // =============================================================================
 
-/// @brief Context model for SCM quality compression
+/// @brief Context model for SCM quality compression.
+/// Uses Structure-of-Arrays layout: all frequency/cumulative tables are
+/// flattened into two contiguous vectors, eliminating per-context heap
+/// allocations (previously 282k allocations for order-2 + 16 bins).
 class QualityContextModel {
 public:
     QualityContextModel(QualityContextOrder order, std::size_t numPositionBins)
-        : order_(order), numPositionBins_(numPositionBins), numQualitySymbols_(kNumQualitySymbols) {
-        initializeModels();
+        : order_(order),
+          numPositionBins_(numPositionBins),
+          numQualitySymbols_(kNumQualitySymbols),
+          numContexts_(computeNumContexts()) {
+        // Two flat arrays, one allocation each:
+        //   frequencies_: numContexts * numSymbols
+        //   cumulatives_: numContexts * (numSymbols + 1)
+        frequencies_.assign(numContexts_ * numQualitySymbols_, kInitialFrequency);
+        cumulatives_.assign(numContexts_ * (numQualitySymbols_ + 1), 0);
+        // Initial cumulative computation for all contexts
+        for (std::size_t ctx = 0; ctx < numContexts_; ++ctx) {
+            updateCumulative(ctx);
+        }
     }
 
-    /// @brief Get model for given context
-    [[nodiscard]] AdaptiveModel& getModel(std::uint8_t prevQual1,
-                                          std::uint8_t prevQual2,
-                                          std::size_t positionBin) {
-        std::size_t contextIndex = computeContextIndex(prevQual1, prevQual2, positionBin);
-        return models_[contextIndex];
+    /// @brief Get model for given context (returns lightweight view by value)
+    [[nodiscard]] AdaptiveModel getModel(std::uint8_t prevQual1,
+                                         std::uint8_t prevQual2,
+                                         std::size_t positionBin) {
+        std::size_t ctx = computeContextIndex(prevQual1, prevQual2, positionBin);
+        std::uint32_t* freqs = &frequencies_[ctx * numQualitySymbols_];
+        std::uint32_t* cumuls = &cumulatives_[ctx * (numQualitySymbols_ + 1)];
+        return AdaptiveModel(freqs, cumuls, numQualitySymbols_);
     }
 
-    /// @brief Reset all models
+    /// @brief Reset all models to initial state
     void reset() {
-        for (auto& model : models_) {
-            model.reset();
+        std::fill(frequencies_.begin(), frequencies_.end(), kInitialFrequency);
+        for (std::size_t ctx = 0; ctx < numContexts_; ++ctx) {
+            updateCumulative(ctx);
         }
     }
 
 private:
-    void initializeModels() {
-        std::size_t numContexts = computeNumContexts();
-        models_.reserve(numContexts);
-
-        for (std::size_t i = 0; i < numContexts; ++i) {
-            models_.emplace_back(numQualitySymbols_);
-        }
-    }
-
     [[nodiscard]] std::size_t computeNumContexts() const {
         std::size_t qualContexts = 1;
 
@@ -398,10 +403,21 @@ private:
         return qualContext * numPositionBins_ + positionBin;
     }
 
+    void updateCumulative(std::size_t ctx) {
+        std::uint32_t* freqs = &frequencies_[ctx * numQualitySymbols_];
+        std::uint32_t* cumuls = &cumulatives_[ctx * (numQualitySymbols_ + 1)];
+        cumuls[0] = 0;
+        for (std::size_t i = 0; i < numQualitySymbols_; ++i) {
+            cumuls[i + 1] = cumuls[i] + freqs[i];
+        }
+    }
+
     QualityContextOrder order_;
     std::size_t numPositionBins_;
     std::size_t numQualitySymbols_;
-    std::vector<AdaptiveModel> models_;
+    std::size_t numContexts_;
+    std::vector<std::uint32_t> frequencies_;  // SoA: numContexts * numSymbols
+    std::vector<std::uint32_t> cumulatives_;  // SoA: numContexts * (numSymbols + 1)
 };
 
 // =============================================================================
@@ -539,7 +555,7 @@ Result<std::vector<std::uint8_t>> QualityCompressorImpl::compressSCM(
             }
 
             // Get context model and encode
-            auto& model = contextModel_.getModel(prevQual1, prevQual2, positionBin);
+            auto model = contextModel_.getModel(prevQual1, prevQual2, positionBin);
             encoder.encode(qualValue, model);
             model.update(qualValue);
 
@@ -628,7 +644,7 @@ Result<std::vector<std::string>> QualityCompressorImpl::decompressSCM(
             }
 
             // Get context model and decode
-            auto& model = contextModel_.getModel(prevQual1, prevQual2, positionBin);
+            auto model = contextModel_.getModel(prevQual1, prevQual2, positionBin);
             std::size_t qualValue = decoder.decode(model);
             model.update(qualValue);
 

@@ -574,9 +574,8 @@ class BlockCompressorImpl {
 public:
     explicit BlockCompressorImpl(BlockCompressorConfig config) : config_(std::move(config)) {}
 
-    Result<CompressedBlockData> compress(std::span<const ReadRecord> reads, BlockId blockId);
-
-    Result<CompressedBlockData> compress(std::span<const ReadRecordView> reads, BlockId blockId);
+    Result<CompressedBlockData> compressViews(std::span<const ReadRecordView> reads,
+                                              BlockId blockId);
 
     Result<DecompressedBlockData> decompress(const CompressedBlockData& data);
 
@@ -606,12 +605,12 @@ private:
     BlockCompressorConfig config_;
     std::vector<Contig> contigs_;
 
-    // Internal compression methods
-    Result<std::vector<std::uint8_t>> compressSequencesABC(std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressSequencesZstd(std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressQuality(std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressIds(std::span<const ReadRecord> reads);
-    Result<std::vector<std::uint8_t>> compressAux(std::span<const ReadRecord> reads,
+    // Internal compression methods (operate on views for zero-copy)
+    Result<std::vector<std::uint8_t>> compressSequencesABC(std::span<const ReadRecordView> reads);
+    Result<std::vector<std::uint8_t>> compressSequencesZstd(std::span<const ReadRecordView> reads);
+    Result<std::vector<std::uint8_t>> compressQuality(std::span<const ReadRecordView> reads);
+    Result<std::vector<std::uint8_t>> compressIds(std::span<const ReadRecordView> reads);
+    Result<std::vector<std::uint8_t>> compressAux(std::span<const ReadRecordView> reads,
                                                   std::uint32_t& uniformLength);
 
     // Internal decompression methods
@@ -632,10 +631,10 @@ private:
                                                      std::uint32_t readCount);
 
     // Consensus building
-    void buildContigs(std::span<const ReadRecord> reads);
+    void buildContigs(std::span<const ReadRecordView> reads);
 
     // Checksum computation
-    std::uint64_t computeBlockChecksum(std::span<const ReadRecord> reads) const;
+    std::uint64_t computeBlockChecksum(std::span<const ReadRecordView> reads) const;
 
     void reportProgress(double progress) {
         if (config_.progressCallback) {
@@ -648,7 +647,7 @@ private:
 // Consensus Building (ABC Algorithm)
 // =============================================================================
 
-void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
+void BlockCompressorImpl::buildContigs(std::span<const ReadRecordView> reads) {
     contigs_.clear();
 
     if (reads.empty())
@@ -720,7 +719,7 @@ void BlockCompressorImpl::buildContigs(std::span<const ReadRecord> reads) {
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
-    std::span<const ReadRecord> reads) {
+    std::span<const ReadRecordView> reads) {
     // Build contigs for ABC compression
     buildContigs(reads);
 
@@ -824,7 +823,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesABC(
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
-    std::span<const ReadRecord> reads) {
+    std::span<const ReadRecordView> reads) {
     // Concatenate all sequences with length prefixes
     std::vector<std::uint8_t> buffer;
     buffer.reserve(reads.size() * 200);  // Estimate for medium reads
@@ -862,7 +861,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressSequencesZstd(
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressQuality(
-    std::span<const ReadRecord> reads) {
+    std::span<const ReadRecordView> reads) {
     if (config_.qualityMode == QualityMode::kDiscard) {
         return std::vector<std::uint8_t>{};
     }
@@ -903,7 +902,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressQuality(
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
-    std::span<const ReadRecord> reads) {
+    std::span<const ReadRecordView> reads) {
     if (config_.idMode == IDMode::kDiscard) {
         return std::vector<std::uint8_t>{};
     }
@@ -956,7 +955,7 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressIds(
 // =============================================================================
 
 Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
-    std::span<const ReadRecord> reads, std::uint32_t& uniformLength) {
+    std::span<const ReadRecordView> reads, std::uint32_t& uniformLength) {
     if (reads.empty()) {
         uniformLength = 0;
         return std::vector<std::uint8_t>{};
@@ -1023,7 +1022,8 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
 // Checksum Computation
 // =============================================================================
 
-std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadRecord> reads) const {
+std::uint64_t BlockCompressorImpl::computeBlockChecksum(
+    std::span<const ReadRecordView> reads) const {
     XXH64_state_t* state = XXH64_createState();
     if (!state) {
         throw IOError("Failed to create xxHash64 state for block checksum");
@@ -1074,8 +1074,8 @@ std::uint64_t BlockCompressorImpl::computeBlockChecksum(std::span<const ReadReco
 // Main Compression Entry Point
 // =============================================================================
 
-Result<CompressedBlockData> BlockCompressorImpl::compress(std::span<const ReadRecord> reads,
-                                                          BlockId blockId) {
+Result<CompressedBlockData> BlockCompressorImpl::compressViews(
+    std::span<const ReadRecordView> reads, BlockId blockId) {
     CompressedBlockData result;
     result.blockId = blockId;
     result.readCount = static_cast<std::uint32_t>(reads.size());
@@ -1144,19 +1144,6 @@ Result<CompressedBlockData> BlockCompressorImpl::compress(std::span<const ReadRe
                   result.totalCompressedSize());
 
     return result;
-}
-
-Result<CompressedBlockData> BlockCompressorImpl::compress(std::span<const ReadRecordView> reads,
-                                                          BlockId blockId) {
-    // Convert views to records for compression
-    std::vector<ReadRecord> records;
-    records.reserve(reads.size());
-
-    for (const auto& view : reads) {
-        records.push_back(view.toRecord());
-    }
-
-    return compress(std::span<const ReadRecord>(records), blockId);
 }
 
 // =============================================================================
@@ -1631,12 +1618,15 @@ BlockCompressor& BlockCompressor::operator=(BlockCompressor&&) noexcept = defaul
 
 Result<CompressedBlockData> BlockCompressor::compress(std::span<const ReadRecord> reads,
                                                       BlockId blockId) {
-    return impl_->compress(reads, blockId);
+    // Convert owning records to views (zero string copies — just pointer+length)
+    std::vector<ReadRecordView> views(reads.begin(), reads.end());
+    return impl_->compressViews(std::span<const ReadRecordView>(views), blockId);
 }
 
 Result<CompressedBlockData> BlockCompressor::compress(std::span<const ReadRecordView> reads,
                                                       BlockId blockId) {
-    return impl_->compress(reads, blockId);
+    // Zero-copy: pass views directly to the implementation
+    return impl_->compressViews(reads, blockId);
 }
 
 Result<DecompressedBlockData> BlockCompressor::decompress(
