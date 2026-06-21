@@ -634,7 +634,7 @@ private:
     void buildContigs(std::span<const ReadRecordView> reads);
 
     // Checksum computation
-    std::uint64_t computeBlockChecksum(std::span<const ReadRecordView> reads) const;
+    Result<std::uint64_t> computeBlockChecksum(std::span<const ReadRecordView> reads) const;
 
     void reportProgress(double progress) {
         if (config_.progressCallback) {
@@ -1022,11 +1022,12 @@ Result<std::vector<std::uint8_t>> BlockCompressorImpl::compressAux(
 // Checksum Computation
 // =============================================================================
 
-std::uint64_t BlockCompressorImpl::computeBlockChecksum(
+Result<std::uint64_t> BlockCompressorImpl::computeBlockChecksum(
     std::span<const ReadRecordView> reads) const {
     XXH64_state_t* state = XXH64_createState();
     if (!state) {
-        throw IOError("Failed to create xxHash64 state for block checksum");
+        return makeError<std::uint64_t>(ErrorCode::kInternalError,
+                                        "Failed to create xxHash64 state for block checksum");
     }
 
     // Use RAII guard to ensure state is freed
@@ -1133,7 +1134,11 @@ Result<CompressedBlockData> BlockCompressorImpl::compressViews(
     result.codecAux = config_.getAuxCodec();
 
     // Compute checksum
-    result.blockChecksum = computeBlockChecksum(reads);
+    auto checksumResult = computeBlockChecksum(reads);
+    if (!checksumResult) {
+        return makeError<CompressedBlockData>(checksumResult.error());
+    }
+    result.blockChecksum = *checksumResult;
 
     reportProgress(1.0);
 

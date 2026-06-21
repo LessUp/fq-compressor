@@ -382,7 +382,7 @@ private:
                                                         std::uint32_t numIds);
     Result<std::vector<std::string>> decompressDiscard(std::uint32_t numIds);
 
-    std::vector<std::uint8_t> compressWithZstd(std::span<const std::uint8_t> data);
+    Result<std::vector<std::uint8_t>> compressWithZstd(std::span<const std::uint8_t> data);
     Result<std::vector<std::uint8_t>> decompressWithZstd(std::span<const std::uint8_t> data,
                                                          std::size_t uncompressedSize);
 
@@ -531,7 +531,11 @@ Result<CompressedIDData> IDCompressorImpl::compressExact(std::span<const std::st
     }
 
     // Compress with Zstd
-    auto compressed = compressWithZstd(uncompressed);
+    auto compressedResult = compressWithZstd(uncompressed);
+    if (!compressedResult) {
+        return std::unexpected(compressedResult.error());
+    }
+    const auto& compressed = *compressedResult;
 
     // Build output: [magic][uncompressed_size][compressed_data]
     result.data.reserve(1 + kMaxVarintBytes + compressed.size());
@@ -650,7 +654,11 @@ Result<CompressedIDData> IDCompressorImpl::compressTokenize(std::span<const std:
     }
 
     // Compress with Zstd
-    auto compressed = compressWithZstd(uncompressed);
+    auto compressedResult = compressWithZstd(uncompressed);
+    if (!compressedResult) {
+        return std::unexpected(compressedResult.error());
+    }
+    const auto& compressed = *compressedResult;
 
     // Build final output
     result.data.reserve(1 + kMaxVarintBytes + compressed.size());
@@ -914,10 +922,11 @@ Result<std::vector<std::string>> IDCompressorImpl::decompressDiscard(std::uint32
 // IDCompressorImpl - Zstd Compression
 // =============================================================================
 
-std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(std::span<const std::uint8_t> data) {
+Result<std::vector<std::uint8_t>> IDCompressorImpl::compressWithZstd(
+    std::span<const std::uint8_t> data) {
     // Handle empty input
     if (data.empty()) {
-        return {};
+        return std::vector<std::uint8_t>{};
     }
 
     // Estimate compressed size (use Zstd's bound function)
@@ -934,8 +943,9 @@ std::vector<std::uint8_t> IDCompressorImpl::compressWithZstd(std::span<const std
 
     // Check for errors
     if (ZSTD_isError(cSize)) {
-        throw FQCException(ErrorCode::kCompressionFailed,
-                           "Zstd compression failed: " + std::string(ZSTD_getErrorName(cSize)));
+        return makeError<std::vector<std::uint8_t>>(ErrorCode::kCompressionFailed,
+                                                    "Zstd compression failed: " +
+                                                        std::string(ZSTD_getErrorName(cSize)));
     }
 
     // Resize to actual compressed size
