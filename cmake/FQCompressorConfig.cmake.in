@@ -24,7 +24,6 @@ find_dependency(ZLIB)
 find_dependency(BZip2)
 find_dependency(LibLZMA)
 find_dependency(zstd CONFIG)
-find_dependency(libdeflate CONFIG)
 find_dependency(TBB CONFIG)
 find_dependency(xxHash CONFIG)
 

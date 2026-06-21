@@ -22,7 +22,7 @@
 | **日志库** | Quill | 11.x | 异步日志 |
 | **格式化库** | fmt | 12.x | 格式化输出 |
 | **校验库** | xxHash | 0.8+ | 非加密哈希 |
-| **压缩库** | zstd, zlib-ng, liblzma, bzip2, libdeflate | 最新稳定版 | 压缩支持 |
+| **压缩库** | zstd, zlib-ng, liblzma, bzip2 | 最新稳定版 | 压缩支持 |
 
 ## Docker 工具链选型
 

@@ -174,9 +174,6 @@ find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
 find_package(LibLZMA REQUIRED)
 find_package(zstd CONFIG REQUIRED)
-find_package(libdeflate CONFIG REQUIRED)
-add_compile_definitions(USE_LIBDEFLATE)
-message(STATUS "Found libdeflate: ${libdeflate_VERSION}")
 
 # Parallel processing
 find_package(TBB CONFIG REQUIRED)

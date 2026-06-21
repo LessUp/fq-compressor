@@ -11,7 +11,7 @@
 # Dependencies are organized by purpose:
 #   - CLI parsing: CLI11
 #   - Logging: Quill (with fmt)
-#   - Compression: zlib-ng, bzip2, xz_utils, zstd, libdeflate
+#   - Compression: zlib-ng, bzip2, xz_utils, zstd
 #   - Checksums: xxHash
 #   - Parallel processing: oneTBB
 #   - Testing: GTest with RapidCheck
@@ -71,8 +71,6 @@ class FQCompressorConan(ConanFile):
         self.requires("xz_utils/5.4.5")
         # zstd: Fast compression algorithm (for Medium/Long reads)
         self.requires("zstd/1.5.7")
-        # libdeflate: Fast gzip/deflate compression
-        self.requires("libdeflate/1.25")
 
         # =========================================================================
         # Checksums (Requirement 5.1, 5.2)

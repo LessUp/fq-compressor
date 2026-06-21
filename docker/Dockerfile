@@ -44,7 +44,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # 安装构建依赖（仅编译所需，不包含开发工具）
-# 注意：项目依赖（TBB、zstd、libdeflate 等）由 Conan 管理，无需系统 -dev 包
+# 注意：项目依赖（TBB、zstd 等）由 Conan 管理，无需系统 -dev 包
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     build-essential \
     ninja-build \

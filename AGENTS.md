@@ -120,7 +120,7 @@ ref-projects/          Reference implementations for comparison
 | Logging | Quill | 11.0.2 |
 | Formatting | fmt | 12.1.0 |
 | Compression | zlib-ng, bzip2, xz_utils | various |
-| Compression | zstd, libdeflate | 1.5.7, 1.25 |
+| Compression | zstd | 1.5.7 |
 | Checksums | xxHash | 0.8.3 |
 | Parallelism | Intel oneTBB | 2022.3.0 |
 | Testing | GTest | 1.12.1 |
