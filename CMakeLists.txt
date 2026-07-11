@@ -4,7 +4,7 @@
 # CMake build configuration for fq-compressor project
 # 
 # Requirements: CMake 3.28+, C++23 compiler (GCC 14+ or Clang 18+)
-# Dependencies: CLI11, Quill, xxHash, TBB, GTest, RapidCheck (via Conan 2.x)
+# Dependencies: CLI11, Quill, xxHash, TBB, GTest (via Conan 2.x)
 #
 # Build presets are defined in CMakePresets.json for consistent builds.
 # =============================================================================
@@ -211,14 +211,6 @@ option(BUILD_TESTING "Build tests" ON)
 
 if(BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
-    # RapidCheck for property-based testing (optional)
-    find_package(rapidcheck CONFIG QUIET)
-    if(rapidcheck_FOUND)
-        message(STATUS "Found RapidCheck: Property-based testing enabled")
-    else()
-        message(STATUS "RapidCheck not found: Property-based testing disabled")
-    endif()
-    
     add_subdirectory(tests)
 endif()
 

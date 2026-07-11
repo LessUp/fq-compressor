@@ -10,7 +10,12 @@
 // Requirements: 4.1 (Parallel processing)
 // =============================================================================
 
-#include "fqc/pipeline/pipeline_nodes.h"
+#include "fqc/pipeline/decompressor_node.h"
+#include "fqc/pipeline/fastq_writer_node.h"
+#include "fqc/pipeline/fqc_reader_node.h"
+#include "fqc/pipeline/node_common.h"
+#include "fqc/pipeline/reader_node.h"
+#include "fqc/pipeline/writer_node.h"
 
 #include <fmt/format.h>
 
