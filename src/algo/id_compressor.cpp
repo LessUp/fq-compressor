@@ -130,10 +130,6 @@ VoidResult IDCompressorConfig::validate() const {
         return makeVoidError(ErrorCode::kInvalidArgument, "Zstd level must be between 1 and 22");
     }
 
-    if (lzmaLevel < 0 || lzmaLevel > 9) {
-        return makeVoidError(ErrorCode::kInvalidArgument, "LZMA level must be between 0 and 9");
-    }
-
     if (minPatternMatchRatio < 0.0 || minPatternMatchRatio > 1.0) {
         return makeVoidError(ErrorCode::kInvalidArgument,
                              "Pattern match ratio must be between 0.0 and 1.0");

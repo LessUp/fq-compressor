@@ -65,10 +65,6 @@ class FQCompressorConan(ConanFile):
         # =========================================================================
         # zlib-ng: High-performance zlib replacement for gzip support
         self.requires("zlib-ng/2.3.2")
-        # bzip2: bzip2 compression support
-        self.requires("bzip2/1.0.8")
-        # xz_utils (liblzma): xz/LZMA compression support
-        self.requires("xz_utils/5.4.5")
         # zstd: Fast compression algorithm (for Medium/Long reads)
         self.requires("zstd/1.5.7")
 
@@ -90,9 +86,6 @@ class FQCompressorConan(ConanFile):
         # =========================================================================
         # GTest: Google Test framework for unit testing
         self.test_requires("gtest/1.12.1")
-        # RapidCheck: Property-based testing framework
-        # NOTE: Temporarily disabled due to C++23 incompatibility (uses deprecated std::aligned_storage)
-        # self.test_requires("rapidcheck/cci.20230815")
 
     def generate(self):
         """Generate CMake toolchain and dependency files."""

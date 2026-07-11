@@ -66,8 +66,6 @@ target_link_libraries(fqc_core
         quill::quill
         TBB::tbb
         ZLIB::ZLIB
-        BZip2::BZip2
-        LibLZMA::LibLZMA
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_shared>
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_static>
         xxHash::xxhash

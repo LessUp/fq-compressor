@@ -2,7 +2,7 @@
 // fq-compressor - Compressed Stream Unit Tests
 // =============================================================================
 // Unit tests for transparent compression/decompression stream support.
-// Tests gzip, bzip2, xz, and uncompressed formats.
+// Tests gzip and uncompressed formats.
 // =============================================================================
 
 #include "fqc/io/compressed_stream.h"
@@ -185,58 +185,6 @@ TEST_F(CompressedStreamTest, OpenCompressedFileGzip) {
 }
 
 // =============================================================================
-// Bzip2 Tests
-// =============================================================================
-
-TEST_F(CompressedStreamTest, ReadBzip2File) {
-    auto compressedPath = tempDir_ / "test.bz2";
-
-    // Create bzip2 file using system command
-    {
-        auto plainPath = tempDir_ / "test_plain.txt";
-        writeTestFile(plainPath, testData_);
-        std::string cmd = "bzip2 -c " + plainPath.string() + " > " + compressedPath.string();
-        // Skip if bzip2 not available
-        if (system("which bzip2 > /dev/null 2>&1") != 0) {
-            GTEST_SKIP() << "bzip2 not available";
-        }
-        ASSERT_EQ(system(cmd.c_str()), 0);
-    }
-
-    CompressedInputStream stream(compressedPath);
-    EXPECT_EQ(stream.format(), CompressionFormat::kBzip2);
-    EXPECT_TRUE(stream.isCompressed());
-
-    std::stringstream buffer;
-    buffer << stream.rdbuf();
-    EXPECT_EQ(buffer.str(), testData_);
-}
-
-// =============================================================================
-// Xz Tests
-// =============================================================================
-
-TEST_F(CompressedStreamTest, ReadXzFile) {
-    auto compressedPath = tempDir_ / "test.xz";
-
-    // Create xz file using system command
-    {
-        auto plainPath = tempDir_ / "test_plain.txt";
-        writeTestFile(plainPath, testData_);
-        std::string cmd = "xz -c " + plainPath.string() + " > " + compressedPath.string();
-        ASSERT_EQ(system(cmd.c_str()), 0);
-    }
-
-    CompressedInputStream stream(compressedPath);
-    EXPECT_EQ(stream.format(), CompressionFormat::kXz);
-    EXPECT_TRUE(stream.isCompressed());
-
-    std::stringstream buffer;
-    buffer << stream.rdbuf();
-    EXPECT_EQ(buffer.str(), testData_);
-}
-
-// =============================================================================
 // GzipStreamBuf Tests
 // =============================================================================
 
@@ -311,58 +259,14 @@ TEST_F(GzipStreamBufTest, MoveSemantics) {
 }
 
 // =============================================================================
-// XzStreamBuf Tests
-// =============================================================================
-
-class XzStreamBufTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        tempDir_ = std::filesystem::temp_directory_path() / "fqc_xz_streambuf_test";
-        std::filesystem::create_directories(tempDir_);
-    }
-
-    void TearDown() override {
-        std::filesystem::remove_all(tempDir_);
-    }
-
-    std::filesystem::path tempDir_;
-};
-
-TEST_F(XzStreamBufTest, DecompressXzStream) {
-    auto compressedPath = tempDir_ / "test.xz";
-    std::string testData(1024, 'Y');
-
-    {
-        auto plainPath = tempDir_ / "test_plain.txt";
-        {
-            std::ofstream file(plainPath);
-            file << testData;
-        }
-        std::string cmd = "xz -c " + plainPath.string() + " > " + compressedPath.string();
-        ASSERT_EQ(system(cmd.c_str()), 0);
-    }
-
-    std::ifstream compressedFile(compressedPath, std::ios::binary);
-    ASSERT_TRUE(compressedFile.is_open());
-
-    XzStreamBuf streamBuf(compressedFile);
-    std::istream stream(&streamBuf);
-
-    std::stringstream buffer;
-    buffer << stream.rdbuf();
-    EXPECT_EQ(buffer.str(), testData);
-}
-
-// =============================================================================
 // Compression Support Query Tests
 // =============================================================================
 
 TEST_F(CompressedStreamTest, IsCompressionSupported) {
     EXPECT_TRUE(isCompressionSupported(CompressionFormat::kNone));
     EXPECT_TRUE(isCompressionSupported(CompressionFormat::kGzip));
-    EXPECT_TRUE(isCompressionSupported(CompressionFormat::kBzip2));
-    EXPECT_TRUE(isCompressionSupported(CompressionFormat::kXz));
-    // Zstd is noted as not yet supported in header
+    EXPECT_FALSE(isCompressionSupported(CompressionFormat::kBzip2));
+    EXPECT_FALSE(isCompressionSupported(CompressionFormat::kXz));
     EXPECT_FALSE(isCompressionSupported(CompressionFormat::kZstd));
 }
 
@@ -371,9 +275,8 @@ TEST_F(CompressedStreamTest, SupportedFormats) {
     EXPECT_FALSE(formats.empty());
     EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kGzip) !=
                 formats.end());
-    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kBzip2) !=
+    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kNone) !=
                 formats.end());
-    EXPECT_TRUE(std::find(formats.begin(), formats.end(), CompressionFormat::kXz) != formats.end());
 }
 
 // =============================================================================
@@ -446,11 +349,9 @@ TEST_F(CompressedStreamTest, InvalidGzipData) {
 // Integration Tests
 // =============================================================================
 
-TEST_F(CompressedStreamTest, RoundTripAllFormats) {
+TEST_F(CompressedStreamTest, RoundTripGzip) {
     std::vector<std::pair<std::string, std::string>> formats = {
         {"gzip", ".gz"},
-        {"xz", ".xz"},
-        // bzip2 is optional in CI
     };
 
     for (const auto& [formatName, ext] : formats) {

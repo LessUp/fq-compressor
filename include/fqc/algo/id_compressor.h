@@ -254,9 +254,6 @@ struct IDCompressorConfig {
     /// @brief Zstd compression level (1-22)
     int zstdLevel = 3;
 
-    /// @brief LZMA compression level (0-9)
-    int lzmaLevel = 6;
-
     /// @brief Delimiters to use for tokenization
     std::string delimiters = std::string(kCommonDelimiters);
 

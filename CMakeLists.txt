@@ -171,8 +171,6 @@ message(STATUS "Found fmt: ${fmt_VERSION}")
 
 # Compression libraries
 find_package(ZLIB REQUIRED)
-find_package(BZip2 REQUIRED)
-find_package(LibLZMA REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 
 # Parallel processing
