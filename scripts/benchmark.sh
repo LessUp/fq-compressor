@@ -8,7 +8,7 @@
 #   ./scripts/benchmark.sh [options]
 #
 # Options:
-#   --dataset ID  Benchmark dataset id from benchmark/datasets.yaml
+#   --dataset ID  Benchmark dataset id from benchmark_v2/manifests/datasets.yaml
 #   --input PATH  Override benchmark input path
 #   --tools CSV   Override tool set
 #   --all         Request all configured tools
@@ -20,8 +20,8 @@
 #   --help        Show this help message
 #
 # Output:
-#   - JSON results: benchmark/results/<dataset>.json
-#   - Markdown report: benchmark/results/<dataset>.md
+#   - JSON results: benchmark_v2/results/<dataset>.json
+#   - Markdown report: benchmark_v2/results/<dataset>.md
 # =============================================================================
 
 set -euo pipefail
@@ -32,8 +32,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-RESULTS_DIR="${PROJECT_ROOT}/benchmark/results"
-DATASETS_FILE="${PROJECT_ROOT}/benchmark/datasets.yaml"
+RESULTS_DIR="${PROJECT_ROOT}/benchmark_v2/results"
+DATASETS_FILE="${PROJECT_ROOT}/benchmark_v2/manifests/datasets.yaml"
 DEFAULT_DATASET="err091571-local-supported"
 DEFAULT_THREADS=(1 4)
 
@@ -160,7 +160,7 @@ dataset = (config.get("datasets") or {}).get(dataset_id)
 if not dataset:
     raise SystemExit(f"unknown dataset: {dataset_id}")
 
-root = project_root / "benchmark/data/ERR091571"
+root = project_root / "benchmark_v2/data/ERR091571"
 root.mkdir(parents=True, exist_ok=True)
 
 urls = dataset.get("source_urls") or []

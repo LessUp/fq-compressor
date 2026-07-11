@@ -4,8 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-RESULT_JSON="${PROJECT_ROOT}/benchmark/results/err091571-local-supported.json"
-RESULT_MD="${PROJECT_ROOT}/benchmark/results/err091571-local-supported.md"
+RESULT_JSON="${PROJECT_ROOT}/benchmark_v2/results/err091571-local-supported.json"
+RESULT_MD="${PROJECT_ROOT}/benchmark_v2/results/err091571-local-supported.md"
 TMP_DIR="$(mktemp -d)"
 MISSING_BINARY="${TMP_DIR}/missing-fqc"
 

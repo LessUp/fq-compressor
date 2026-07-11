@@ -90,23 +90,8 @@ benchmark-*.csv
 *.profraw
 *.profdata
 
-# Benchmark 结果（保留目录结构，排除临时结果）
-benchmark_results/results/*.json
-benchmark_results/reports/*.md
-benchmark_results/reports/charts/*.svg
-benchmark_results/reports/charts/*.png
-benchmark_results/data/*.fastq
-benchmark_results/data/*.fastq.gz
-!benchmark_results/baselines/*.json
-
-# docs/benchmark 生成文件（由 benchmark 脚本自动生成）
-docs/benchmark/*.png
-docs/benchmark/*.html
-docs/benchmark/benchmark-report.md
-docs/benchmark/results/
-
 # Benchmark datasets (local caches and prepared subsets)
-benchmark/data/
+benchmark_v2/data/
 
 # Python 相关
 __pycache__/
