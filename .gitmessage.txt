@@ -27,4 +27,4 @@
 # ---------------------
 # 如何强制推行？
 # 1. 设置本地模板: git config --local commit.template .gitmessage.txt
-# 2. 启用校验勾子: 请参考 docs/dev/git_commit_guide.md 中的 Git Hook 设置说明。
+# 2. 启用校验勾子: 请参考 AGENTS.md 中的 Git Hook 设置说明。

@@ -8,9 +8,6 @@
   <a href="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml">
     <img src="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml/badge.svg" alt="CI 状态">
   </a>
-  <a href="https://github.com/LessUp/fq-compressor/actions/workflows/quality.yml">
-    <img src="https://github.com/LessUp/fq-compressor/actions/workflows/quality.yml/badge.svg" alt="代码质量">
-  </a>
   <a href="https://github.com/LessUp/fq-compressor/releases/latest">
     <img src="https://img.shields.io/github/v/release/LessUp/fq-compressor?include_prereleases&label=发布版本" alt="最新发布">
   </a>
@@ -19,9 +16,6 @@
   </a>
   <a href="https://en.cppreference.com/w/cpp/23">
     <img src="https://img.shields.io/badge/C%2B%2B-23-blue.svg" alt="C++23">
-  </a>
-  <a href="https://lessup.github.io/fq-compressor/">
-    <img src="https://img.shields.io/badge/文档-在线-blue?logo=gitbook" alt="文档">
   </a>
 </p>
 
@@ -42,7 +36,7 @@
 - 📊 自动产出压缩比、压缩速度、解压速度的 **性能站位**
 - 🎯 **随机访问**，无需完整解压
 - 🚀 **Intel oneTBB** 并行流水线
-- 📦 **透明支持** .gz、.bz2、.xz 输入
+- 📦 **透明支持** .gz 输入
 
 ---
 
@@ -62,7 +56,7 @@ sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
 # 即将推出
 ```
 
-**其他平台：** 参见 [安装指南](https://lessup.github.io/fq-compressor/zh/academy/installation)
+**其他平台：** 从源码构建（见下方）
 
 ### 从源码构建
 
@@ -125,21 +119,19 @@ fqc info reads.fqc
 - 最新 benchmark 证据由 `./scripts/benchmark_v2.sh` 生成，产出 JSON 与 Markdown 报告
 - 当前性能区间应以生成的报告为准，而不是继续依赖 README 中写死的常数
 - 通过 `fqc info` 和 `fqc verify` 提供**归档检查与完整性验证**
-- **透明支持** `.gz`、`.bz2`、`.xz` FASTQ 输入
+- **透明支持** `.gz` FASTQ 输入
 
-更详细的性能数据、算法说明和格式设计请查看维护中的文档，而不是继续把 README 扩成第二个站点首页。
+更详细的架构和格式设计请查看 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ---
 
-## 📚 文档与项目表面
+## 📚 文档
 
 | 表面 | 角色 |
 |------|------|
-| [📖 GitHub Pages](https://lessup.github.io/fq-compressor/) | 对外 landing page 与中英文入口 |
-| [English docs](https://lessup.github.io/fq-compressor/en/) | 白皮书、学院、架构与证据 |
-| [简体中文文档](https://lessup.github.io/fq-compressor/zh/) | 白皮书、学院、架构说明、证据链 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统设计、流水线、格式与随机访问 |
+| [AGENTS.md](AGENTS.md) | 构建命令、代码规范、开发流程 |
 | [📦 发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
-| [🤝 贡献指南](https://lessup.github.io/fq-compressor/zh/academy/contributing) | 面向 closeout 阶段的开发流程 |
 
 ---
 
@@ -160,7 +152,7 @@ bash tests/e2e/benchmark_v2_smoke_test.sh
 ./scripts/benchmark_v2.sh run \
   --workload small20k-single \
   --data-root /home/shane/data/test \
-  --tools fqc,gzip,xz,bzip2 \
+  --tools fqc,gzip \
   --threads 1 \
   --runs 1 \
   --json build/benchmark_v2/small20k-single.json \
@@ -180,7 +172,7 @@ bash tests/e2e/benchmark_v2_smoke_test.sh
 - 工作流与工具链精简
 - archive-readiness 打磨
 
-具体流程请参阅 [贡献指南](https://lessup.github.io/fq-compressor/zh/academy/contributing)。
+具体流程请参阅 [AGENTS.md](AGENTS.md)。
 
 ---
 
@@ -201,7 +193,7 @@ bash tests/e2e/benchmark_v2_smoke_test.sh
 
 <p align="center">
   <a href="https://github.com/LessUp/fq-compressor/releases">发布版本</a> •
-  <a href="https://lessup.github.io/fq-compressor/">文档</a> •
+  <a href="ARCHITECTURE.md">架构</a> •
   <a href="CHANGELOG.md">变更日志</a> •
   <a href="https://github.com/LessUp/fq-compressor/discussions">讨论</a>
 </p>
