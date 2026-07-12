@@ -73,7 +73,7 @@ jobs:
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.arch }}-glibc
           path: ${{ env.ASSET }}
@@ -120,7 +120,7 @@ jobs:
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.arch }}-musl
           path: ${{ env.ASSET }}
@@ -167,7 +167,7 @@ jobs:
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.arch }}-clang
           path: ${{ env.ASSET }}
@@ -192,7 +192,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.conan2
           key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py') }}
@@ -243,7 +243,7 @@ jobs:
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-${{ matrix.arch }}
           path: ${{ env.ASSET }}
@@ -259,7 +259,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
