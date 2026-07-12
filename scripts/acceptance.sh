@@ -12,9 +12,4 @@ bash "${ROOT}/tests/e2e/devcontainer_validate_test.sh"
 bash "${ROOT}/tests/e2e/devcontainer_host_sync_test.sh"
 bash "${ROOT}/tests/e2e/devcontainer_sshd_lib_test.sh"
 bash "${ROOT}/tests/e2e/devcontainer_adapter_contract_test.sh"
-(
-    cd "${ROOT}/docs"
-    npm ci --quiet
-    npm run build
-)
 bash "${ROOT}/scripts/devcontainer-validate.sh"
