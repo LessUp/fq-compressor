@@ -74,7 +74,7 @@ src/                   Implementation files
   pipeline/           Pipeline node implementations
   main.cpp            CLI entry point
 
-tests/                 Test files (GTest + optional RapidCheck)
+tests/                 Test files (GTest)
   algo/               Algorithm tests
   commands/           Command tests
   common/             Common utility tests
@@ -114,7 +114,6 @@ cmake/                 CMake modules
 | Checksums | xxHash | 0.8.3 |
 | Parallelism | Intel oneTBB | 2022.3.0 |
 | Testing | GTest | 1.12.1 |
-| Property Testing | RapidCheck | optional (currently disabled) |
 
 ### Additional Tools
 - **clang-format-21**: Code formatting (100 column limit, 4-space indent)
@@ -198,33 +197,32 @@ Options:
 ./scripts/run_tests.sh -p gcc-release -l unit
 
 # Run specific test by name
-./scripts/run_tests.sh -p gcc-release -f '^memory_budget_test$'
+./scripts/run_tests.sh -p gcc-release -f '^compression_engine_test$'
 
 # Run a specific GTest case
-build/clang-debug/tests/memory_budget_test \
-  --gtest_filter=MemoryBudgetTest.DefaultConstruction
+build/clang-debug/tests/compression_engine_test \
+  --gtest_filter=CompressionEngineTest.*
 ```
 
 ### Current Test Targets
 
 **Unit Tests:**
 - `build_smoke_test`
-- `memory_budget_test`
 - `error_test`
 - `fqc_writer_test`
 - `async_io_test`
+- `stream_factory_test`
+- `fastq_parser_test`
+- `chunk_marshal_test`
+- `backpressure_controller_test`
 - `compressed_stream_test`
+- `block_compressor_regression_test`
+- `algo_regression_test`
 - `original_order_command_test`
-
-**Property Tests (RapidCheck):**
-- `fqc_format_property_test`
-- `fastq_parser_property_test`
-- `two_phase_compression_property_test`
-- `quality_compressor_property_test`
-- `id_compressor_property_test`
-- `long_read_property_test`
-- `pe_property_test`
-- `pipeline_property_test`
+- `archive_regression_test`
+- `compression_profile_test`
+- `compression_request_test`
+- `compression_engine_test`
 
 ## Lint / Format Commands
 
@@ -373,8 +371,7 @@ fqc verify <file>
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR/push to main | Build & test with multiple presets |
-| `quality.yml` | PR to main | Format and static analysis |
+| `ci.yml` | PR/push to main | Format check, build & test with multiple presets |
 | `release.yml` | Tag push | Build and publish release binaries |
 
 ### Docker Support
@@ -402,7 +399,6 @@ docker build -f docker/Dockerfile.glibc-release -t fq-compressor:glibc .
 - Checksum verification (xxh64) ensures data integrity
 - Input validation at all entry points
 - No use of unsafe C functions
-- Fuzzing support via property-based tests
 
 ## Development Checklist
 
@@ -440,7 +436,6 @@ Before submitting changes:
        SOURCES my/my_test.cpp
    )
    ```
-   For property tests, add `PROPERTY_BASED` flag.
 3. Run: `./scripts/run_tests.sh -f '^my_test$'`
 
 ## Useful Resources

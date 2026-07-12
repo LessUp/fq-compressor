@@ -11,10 +11,10 @@
 # Dependencies are organized by purpose:
 #   - CLI parsing: CLI11
 #   - Logging: Quill (with fmt)
-#   - Compression: zlib-ng, bzip2, xz_utils, zstd
+#   - Compression: zlib-ng, zstd
 #   - Checksums: xxHash
 #   - Parallel processing: oneTBB
-#   - Testing: GTest with RapidCheck
+#   - Testing: GTest
 # =============================================================================
 
 from conan import ConanFile
@@ -23,7 +23,7 @@ from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 
 class FQCompressorConan(ConanFile):
     name = "fqcompressor"
-    version = "0.1.0"
+    version = "0.2.0"
     license = "MIT"  # Project-authored code; vendored third-party code keeps its own license
     author = "LessUp <jiashuai.mail@gmail.com>"
     url = "https://github.com/LessUp/fq-compressor"
@@ -95,7 +95,7 @@ class FQCompressorConan(ConanFile):
         tc = CMakeToolchain(self)
         # Enable position-independent code for shared library compatibility
         tc.variables["CMAKE_POSITION_INDEPENDENT_CODE"] = self.options.get_safe("fPIC", True)
-        # Fix CMake version compatibility for older packages like rapidcheck
+        # CMake policy floor for older transitive package configs
         tc.variables["CMAKE_POLICY_VERSION_MINIMUM"] = "3.5"
         tc.generate()
 
