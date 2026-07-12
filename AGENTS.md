@@ -15,8 +15,6 @@ current version over adding new product surface area.
 - Treat `docs/archive/` as archived reference only.
 - Do not treat OpenSpec as the current requirements or workflow source.
 - Prefer deletion/consolidation over preserving duplicate docs and duplicate tooling.
-- Keep GitHub Pages focused on project positioning, onboarding, and proof points rather than being
-  a README mirror.
 - Keep CI and tool integrations minimal and high-signal.
 
 ## Development Workflow
@@ -46,7 +44,7 @@ For risky or cross-file changes, use `/review` before pushing.
 - **Language**: C++23
 - **License**: MIT (project code); vendored code keeps its own license
 - **Homepage**: https://github.com/LessUp/fq-compressor
-- **Documentation**: https://lessup.github.io/fq-compressor/
+- **Documentation**: See `README.md` and `ARCHITECTURE.md` in the repository
 
 ### Key Features
 
@@ -95,11 +93,6 @@ scripts/               Build, test, lint, dependency helpers
 cmake/                 CMake modules
   fqc_coverage.cmake  Code coverage support
   fqc_sanitizers.cmake Sanitizer support (ASan, TSan, UBSan, MSan)
-
-docs/                  Documentation
-  .vitepress/         VitePress config, theme entry, and site styling
-  en/                 English public documentation
-  zh/                 Chinese public documentation
 
 ref-projects/          Reference implementations for comparison
   HARC/, NanoSpring/, Spring/, fqzcomp5/, minicom/, etc.
@@ -385,7 +378,6 @@ fqc verify <file>
 |----------|---------|---------|
 | `ci.yml` | PR/push to main | Build & test with multiple presets |
 | `quality.yml` | PR to main | Format and static analysis |
-| `pages.yml` | push to main | Deploy documentation |
 | `release.yml` | Tag push | Build and publish release binaries |
 
 ### Docker Support
@@ -456,7 +448,7 @@ Before submitting changes:
 
 ## Useful Resources
 
-- **Documentation**: https://lessup.github.io/fq-compressor/
+- **Documentation**: See `README.md` and `ARCHITECTURE.md` in this repository
 - **CI Status**: See badges in README.md
 - **Reference**: Spring paper (Chandak et al., 2019) for ABC algorithm
 
