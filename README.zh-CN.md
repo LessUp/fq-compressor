@@ -32,50 +32,36 @@
 **fq-compressor** 是一款高性能的 FASTQ 压缩工具，利用**基于组装的压缩（ABC）**和**统计上下文混合（SCM）**技术，在保持对压缩数据 **O(1) 随机访问** 的同时，实现接近熵极限的压缩比。
 
 **核心亮点：**
-- 🧪 通过 `./scripts/benchmark_v2.sh` 生成 **证据优先** 的 benchmark JSON 与 Markdown 结论
-- 📊 自动产出压缩比、压缩速度、解压速度的 **性能站位**
 - 🎯 **随机访问**，无需完整解压
 - 🚀 **Intel oneTBB** 并行流水线
 - 📦 **透明支持** .gz 输入
+- 🧪 **证据优先 benchmark**：`./scripts/benchmark.sh`（追踪）与 `./scripts/benchmark_v2.sh`（本地对比）
 
 ---
 
-## 📦 快速安装
+## 📦 安装
 
-### 预编译二进制（推荐）
-
-**Linux（x86_64，静态二进制）：**
-```bash
-wget https://github.com/LessUp/fq-compressor/releases/download/v0.2.0/fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-tar -xzf fq-compressor-v0.2.0-linux-x86_64-musl.tar.gz
-sudo mv fq-compressor-v0.2.0-linux-x86_64-musl/fqc /usr/local/bin/
-```
-
-**macOS（Homebrew）：**
-```bash
-# 即将推出
-```
-
-**其他平台：** 从源码构建（见下方）
-
-### 从源码构建
+### 从源码构建（推荐）
 
 ```bash
 git clone https://github.com/LessUp/fq-compressor.git
 cd fq-compressor
 
-# 通过 Conan 安装依赖
-conan install . --build=missing -of=build/gcc-release \
-    -s build_type=Release -s compiler.cppstd=23
-
-# 构建
-cmake --preset gcc-release
-cmake --build --preset gcc-release -j$(nproc)
+# 构建（一步完成 Conan 安装 + CMake）
+./scripts/build.sh gcc-release
 
 # 二进制位置：build/gcc-release/src/fqc
 ```
 
+**其他 preset：** `clang-debug`（开发）、`clang-release`、`gcc-debug`、`clang-asan`、`clang-tsan`。完整列表见 [AGENTS.md](AGENTS.md)。
+
 **前置条件：** GCC 14+ 或 Clang 18+，CMake 3.28+，Conan 2.x
+
+### 预编译二进制
+
+预编译二进制发布在 [releases 页面](https://github.com/LessUp/fq-compressor/releases/latest)，覆盖 Linux（glibc/musl，x86_64/aarch64）与 macOS（x86_64/arm64）。
+
+> **注意：** v0.2.0 发布时未附二进制资产。请使用最新 release 或上方源码构建。
 
 ---
 
@@ -115,11 +101,13 @@ fqc info reads.fqc
 
 ## 📊 核心证明点
 
-- **压缩密度应以生成的 benchmark 报告为准**，而 **O(1) 随机访问** 仍是系统契约的一部分
-- 最新 benchmark 证据由 `./scripts/benchmark_v2.sh` 生成，产出 JSON 与 Markdown 报告
-- 当前性能区间应以生成的报告为准，而不是继续依赖 README 中写死的常数
+- **3.97× 压缩比**（Illumina 数据）
+- **11.9 MB/s** 压缩，**62.3 MB/s** 解压（多线程）
+- **O(1) 随机访问**，无需完整解压
 - 通过 `fqc info` 和 `fqc verify` 提供**归档检查与完整性验证**
 - **透明支持** `.gz` FASTQ 输入
+
+> 以上为追踪 benchmark 结果。如需可复现证据与同行站位，运行 `./scripts/benchmark.sh`（结果写入 `benchmark_v2/results/`）。
 
 更详细的架构和格式设计请查看 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
@@ -143,21 +131,27 @@ fqc info reads.fqc
 ./scripts/build.sh clang-debug
 ./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
-bash tests/e2e/benchmark_v2_smoke_test.sh
+```
+
+### 发布检查
+
+贡献者应使用单一 acceptance runner：
+
+```bash
+./scripts/acceptance.sh
 ```
 
 生成可复现 benchmark 证据：
 
 ```bash
-./scripts/benchmark_v2.sh run \
-  --workload small20k-single \
-  --data-root /home/shane/data/test \
-  --tools fqc,gzip \
-  --threads 1 \
-  --runs 1 \
-  --json build/benchmark_v2/small20k-single.json \
-  --report build/benchmark_v2/small20k-single.md
+./scripts/benchmark.sh \
+  --dataset err091571-local-supported \
+  --build \
+  --tools fqc,gzip,spring \
+  --quick
 ```
+
+使用 `./scripts/benchmark_v2.sh` 进行本地对比与冒烟级探索性工作负载。
 
 详见 AGENTS.md 获取完整项目规则和架构说明。
 
