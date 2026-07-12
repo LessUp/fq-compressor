@@ -1,7 +1,7 @@
 # fq-compressor
 
 <p align="center">
-  <b>High-performance FASTQ compression for the sequencing era</b>
+  <b>A high-performance FASTQ compressor with O(1) random access</b>
 </p>
 
 <p align="center">
@@ -29,10 +29,10 @@
 
 ## Contents
 
-- [What is fq-compressor?](#-what-is-fq-compressor)
+- [Overview](#-overview)
 - [Installation](#-installation)
-- [Basic Usage](#-basic-usage)
-- [Proof Points](#-proof-points)
+- [Usage](#-usage)
+- [Performance](#-performance)
 - [Documentation](#-documentation)
 - [Development](#-development)
 - [Contributing](#-contributing)
@@ -41,15 +41,15 @@
 
 ---
 
-## 🎯 What is fq-compressor?
+## 🎯 Overview
 
-**fq-compressor** is a high-performance FASTQ compression tool that leverages **Assembly-based Compression (ABC)** and **Statistical Context Mixing (SCM)** to achieve near-entropy compression ratios while maintaining **O(1) random access** to compressed data.
+**fq-compressor** is a FASTQ compression tool written in C++23. It combines **Assembly-based Compression (ABC)** with **Statistical Context Mixing (SCM)** to reach near-entropy compression ratios while keeping **O(1) random access** into the compressed archive.
 
-**Key highlights:**
-- 🎯 **Random access** without full decompression
-- 🚀 **Intel oneTBB** parallel pipeline
-- 📦 **Transparent support** for .gz inputs
-- 🧪 **Evidence-first benchmarking** via `./scripts/benchmark.sh` (tracked) and `./scripts/benchmark_v2.sh` (local comparison)
+Notable properties:
+- Random access to reads without full decompression
+- Intel oneTBB parallel pipeline
+- Reads `.gz` FASTQ inputs directly, no pre-decompression
+- Reproducible benchmarks via `./scripts/benchmark.sh` (tracked) and `./scripts/benchmark_v2.sh` (local comparison)
 
 ---
 
@@ -61,7 +61,7 @@
 git clone https://github.com/LessUp/fq-compressor.git
 cd fq-compressor
 
-# Build (handles Conan install + CMake in one step)
+# Conan install + CMake build in one step
 ./scripts/build.sh gcc-release
 
 # Binary: build/gcc-release/src/fqc
@@ -73,15 +73,15 @@ cd fq-compressor
 
 ### Pre-built Binaries
 
-Pre-built binaries are published on the [releases page](https://github.com/LessUp/fq-compressor/releases/latest) for Linux (glibc/musl, x86_64/aarch64) and macOS (x86_64/arm64).
+Pre-built binaries for Linux (glibc/musl, x86_64/aarch64) and macOS (x86_64/arm64) are available on the [releases page](https://github.com/LessUp/fq-compressor/releases/latest).
 
-> **Note:** The v0.2.0 release shipped without binary assets. Use the latest release or build from source above.
+> **Note:** v0.2.0 was released without binary assets. Use a newer release or build from source.
 
 ---
 
-## 🚀 Basic Usage
+## 🚀 Usage
 
-### Compress & Decompress
+### Compress and Decompress
 
 ```bash
 # Compress FASTQ to FQC format
@@ -97,7 +97,7 @@ fqc decompress -i reads.fqc -o restored.fastq
 ### Advanced Features
 
 ```bash
-# Random access - extract reads 1000-2000
+# Random access — extract reads 1000-2000
 fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 
 # Multi-threaded compression (8 threads)
@@ -113,33 +113,33 @@ fqc info reads.fqc
 
 ---
 
-## 📊 Proof Points
+## 📊 Performance
 
 - **3.97× compression ratio** on Illumina data
 - **11.9 MB/s** compression, **62.3 MB/s** decompression (multithreaded)
 - **O(1) random access** without full decompression
-- **Archive inspection and verification** via `fqc info` and `fqc verify`
-- **Transparent input handling** for `.gz` FASTQ inputs
+- Archive inspection and verification via `fqc info` and `fqc verify`
+- Direct `.gz` FASTQ input handling
 
-> Figures above are tracked benchmark results. For reproducible evidence and peer standing, run `./scripts/benchmark.sh` (results written to `benchmark_v2/results/`).
+These figures come from the tracked benchmark. To reproduce them and compare against peer tools, run `./scripts/benchmark.sh` (results written to `benchmark_v2/results/`).
 
-For deeper architecture and file-format details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For architecture and file-format details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
 ## 📚 Documentation
 
-| Surface | Role |
-|---------|------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, pipeline, format, and random access |
+| Document | Contents |
+|----------|----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, pipeline, format, random access |
 | [AGENTS.md](AGENTS.md) | Build commands, code style, development workflow |
-| [📦 Releases](https://github.com/LessUp/fq-compressor/releases) | Prebuilt binaries |
+| [Releases](https://github.com/LessUp/fq-compressor/releases) | Pre-built binaries |
 
 ---
 
 ## 🛠️ Development
 
-`fq-compressor` is in **closeout mode**. Simple development workflow:
+`fq-compressor` is in **closeout mode**. The development workflow is intentionally small:
 
 ```bash
 ./scripts/build.sh clang-debug
@@ -147,15 +147,15 @@ For deeper architecture and file-format details, see [ARCHITECTURE.md](ARCHITECT
 ./scripts/test.sh clang-debug
 ```
 
-### Release checks
+### Release Checks
 
-Contributors should use the single acceptance runner:
+Run the acceptance script before tagging a release:
 
 ```bash
 ./scripts/acceptance.sh
 ```
 
-Generate reproducible tracked benchmark evidence with:
+To regenerate the tracked benchmark:
 
 ```bash
 ./scripts/benchmark.sh \
@@ -165,20 +165,19 @@ Generate reproducible tracked benchmark evidence with:
   --quick
 ```
 
-Use `./scripts/benchmark_v2.sh` for local comparison runs and smoke-scale exploratory workloads.
+`./scripts/benchmark_v2.sh` runs a lighter local comparison for quick checks.
 
-See AGENTS.md for full project rules and architecture.
+See [AGENTS.md](AGENTS.md) for full project rules and architecture.
 
 ---
 
 ## 🤝 Contributing
 
-Focused contributions are welcome, especially for:
+Contributions are welcome, particularly:
 
-- documentation cleanup and ownership tightening
-- evidence-driven bug fixes with regression coverage
+- documentation cleanup
+- bug fixes with regression tests
 - workflow and tooling simplification
-- archive-readiness polish
 
 See [AGENTS.md](AGENTS.md) for the repository workflow and coding standards.
 
@@ -186,7 +185,7 @@ See [AGENTS.md](AGENTS.md) for the repository workflow and coding standards.
 
 ## 📄 License
 
-- **Project Code:** MIT License — see [LICENSE](LICENSE)
+Project code is MIT-licensed — see [LICENSE](LICENSE).
 
 ---
 

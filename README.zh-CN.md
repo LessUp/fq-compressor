@@ -1,7 +1,7 @@
 # fq-compressor
 
 <p align="center">
-  <b>面向测序时代的高性能 FASTQ 压缩工具</b>
+  <b>高性能 FASTQ 压缩工具，支持 O(1) 随机访问</b>
 </p>
 
 <p align="center">
@@ -27,15 +27,15 @@
 
 ---
 
-## 🎯 什么是 fq-compressor？
+## 🎯 概述
 
-**fq-compressor** 是一款高性能的 FASTQ 压缩工具，利用**基于组装的压缩（ABC）**和**统计上下文混合（SCM）**技术，在保持对压缩数据 **O(1) 随机访问** 的同时，实现接近熵极限的压缩比。
+**fq-compressor** 是一款用 C++23 编写的 FASTQ 压缩工具。它结合**基于组装的压缩（ABC）**与**统计上下文混合（SCM）**，在接近熵极限的压缩比下仍保留对压缩归档的 **O(1) 随机访问**能力。
 
-**核心亮点：**
-- 🎯 **随机访问**，无需完整解压
-- 🚀 **Intel oneTBB** 并行流水线
-- 📦 **透明支持** .gz 输入
-- 🧪 **证据优先 benchmark**：`./scripts/benchmark.sh`（追踪）与 `./scripts/benchmark_v2.sh`（本地对比）
+主要特性：
+- 无需完整解压即可随机访问 reads
+- Intel oneTBB 并行流水线
+- 直接读取 `.gz` FASTQ 输入，无需预先解压
+- 可复现 benchmark：`./scripts/benchmark.sh`（追踪）与 `./scripts/benchmark_v2.sh`（本地对比）
 
 ---
 
@@ -47,7 +47,7 @@
 git clone https://github.com/LessUp/fq-compressor.git
 cd fq-compressor
 
-# 构建（一步完成 Conan 安装 + CMake）
+# 一步完成 Conan 安装 + CMake 构建
 ./scripts/build.sh gcc-release
 
 # 二进制位置：build/gcc-release/src/fqc
@@ -59,13 +59,13 @@ cd fq-compressor
 
 ### 预编译二进制
 
-预编译二进制发布在 [releases 页面](https://github.com/LessUp/fq-compressor/releases/latest)，覆盖 Linux（glibc/musl，x86_64/aarch64）与 macOS（x86_64/arm64）。
+Linux（glibc/musl，x86_64/aarch64）与 macOS（x86_64/arm64）的预编译二进制可在 [releases 页面](https://github.com/LessUp/fq-compressor/releases/latest) 下载。
 
-> **注意：** v0.2.0 发布时未附二进制资产。请使用最新 release 或上方源码构建。
+> **注意：** v0.2.0 发布时未附带二进制资产。请使用更新的 release 或从源码构建。
 
 ---
 
-## 🚀 基本用法
+## 🚀 用法
 
 ### 压缩与解压
 
@@ -83,7 +83,7 @@ fqc decompress -i reads.fqc -o restored.fastq
 ### 高级功能
 
 ```bash
-# 随机访问 - 提取第 1000-2000 条 reads
+# 随机访问 — 提取第 1000-2000 条 reads
 fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
 
 # 多线程压缩（8 线程）
@@ -99,33 +99,33 @@ fqc info reads.fqc
 
 ---
 
-## 📊 核心证明点
+## 📊 性能
 
 - **3.97× 压缩比**（Illumina 数据）
 - **11.9 MB/s** 压缩，**62.3 MB/s** 解压（多线程）
 - **O(1) 随机访问**，无需完整解压
-- 通过 `fqc info` 和 `fqc verify` 提供**归档检查与完整性验证**
-- **透明支持** `.gz` FASTQ 输入
+- 通过 `fqc info` 与 `fqc verify` 进行归档检查与完整性验证
+- 直接处理 `.gz` FASTQ 输入
 
-> 以上为追踪 benchmark 结果。如需可复现证据与同行站位，运行 `./scripts/benchmark.sh`（结果写入 `benchmark_v2/results/`）。
+以上数据来自追踪 benchmark。如需复现并与同类工具对比，运行 `./scripts/benchmark.sh`（结果写入 `benchmark_v2/results/`）。
 
-更详细的架构和格式设计请查看 [ARCHITECTURE.md](ARCHITECTURE.md)。
+架构与文件格式细节请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ---
 
 ## 📚 文档
 
-| 表面 | 角色 |
+| 文档 | 内容 |
 |------|------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 系统设计、流水线、格式与随机访问 |
 | [AGENTS.md](AGENTS.md) | 构建命令、代码规范、开发流程 |
-| [📦 发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
+| [发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
 
 ---
 
 ## 🛠️ 开发
 
-`fq-compressor` 当前处于 **closeout mode**。简化的开发流程：
+`fq-compressor` 当前处于 **closeout mode**。开发流程刻意保持精简：
 
 ```bash
 ./scripts/build.sh clang-debug
@@ -135,13 +135,13 @@ fqc info reads.fqc
 
 ### 发布检查
 
-贡献者应使用单一 acceptance runner：
+在打 release 标签前运行 acceptance 脚本：
 
 ```bash
 ./scripts/acceptance.sh
 ```
 
-生成可复现 benchmark 证据：
+重新生成追踪 benchmark：
 
 ```bash
 ./scripts/benchmark.sh \
@@ -151,28 +151,27 @@ fqc info reads.fqc
   --quick
 ```
 
-使用 `./scripts/benchmark_v2.sh` 进行本地对比与冒烟级探索性工作负载。
+`./scripts/benchmark_v2.sh` 用于更轻量的本地对比与快速检查。
 
-详见 AGENTS.md 获取完整项目规则和架构说明。
+完整项目规则与架构说明请参阅 [AGENTS.md](AGENTS.md)。
 
 ---
 
 ## 🤝 贡献
 
-欢迎面向收尾阶段的聚焦贡献，尤其包括：
+欢迎贡献，尤其是：
 
-- 文档清理与职责边界收紧
-- 基于证据的缺陷修复与回归覆盖
+- 文档清理
+- 带回归测试的缺陷修复
 - 工作流与工具链精简
-- archive-readiness 打磨
 
-具体流程请参阅 [AGENTS.md](AGENTS.md)。
+仓库工作流与编码规范请参阅 [AGENTS.md](AGENTS.md)。
 
 ---
 
 ## 📄 许可证
 
-- **项目代码：** MIT 许可证 — 参见 [LICENSE](LICENSE)
+项目代码采用 MIT 许可证 — 参见 [LICENSE](LICENSE)。
 
 ---
 
