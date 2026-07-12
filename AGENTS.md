@@ -52,7 +52,7 @@ For risky or cross-file changes, use `/review` before pushing.
 - 11.9 MB/s compression, 62.3 MB/s decompression (multithreaded)
 - O(1) random access without full decompression
 - Intel oneTBB parallel pipeline
-- Transparent support for .gz, .bz2, .xz inputs
+- Transparent support for .gz inputs
 
 ## Project Structure
 
@@ -93,9 +93,6 @@ scripts/               Build, test, lint, dependency helpers
 cmake/                 CMake modules
   fqc_coverage.cmake  Code coverage support
   fqc_sanitizers.cmake Sanitizer support (ASan, TSan, UBSan, MSan)
-
-ref-projects/          Reference implementations for comparison
-  HARC/, NanoSpring/, Spring/, fqzcomp5/, minicom/, etc.
 ```
 
 ## Technology Stack
@@ -112,7 +109,7 @@ ref-projects/          Reference implementations for comparison
 | CLI parsing | CLI11 | 2.4.2 |
 | Logging | Quill | 11.0.2 |
 | Formatting | fmt | 12.1.0 |
-| Compression | zlib-ng, bzip2, xz_utils | various |
+| Compression | zlib-ng | 2.3.2 |
 | Compression | zstd | 1.5.7 |
 | Checksums | xxHash | 0.8.3 |
 | Parallelism | Intel oneTBB | 2022.3.0 |
