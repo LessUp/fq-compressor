@@ -48,8 +48,8 @@ For risky or cross-file changes, use `/review` before pushing.
 
 ### Key Features
 
-- 3.97× compression ratio on Illumina data
-- 11.9 MB/s compression, 62.3 MB/s decompression (multithreaded)
+- 4.0–4.9× compression ratio (tracked benchmark workloads, ahead of gzip, on par with xz/bzip2)
+- Throughput is the known short board (~0.1 MiB/s compress, ~2 MiB/s decompress at 4 threads)
 - O(1) random access without full decompression
 - Intel oneTBB parallel pipeline
 - Transparent support for .gz inputs

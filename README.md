@@ -49,7 +49,7 @@ Notable properties:
 - Random access to reads without full decompression
 - Intel oneTBB parallel pipeline
 - Reads `.gz` FASTQ inputs directly, no pre-decompression
-- Reproducible benchmarks via `./scripts/benchmark.sh` (tracked) and `./scripts/benchmark_v2.sh` (local comparison)
+- Tracked benchmarks with peer-tool comparison (see [Performance](#-performance))
 
 ---
 
@@ -115,13 +115,51 @@ fqc info reads.fqc
 
 ## 📊 Performance
 
-- **3.97× compression ratio** on Illumina data
-- **11.9 MB/s** compression, **62.3 MB/s** decompression (multithreaded)
-- **O(1) random access** without full decompression
-- Archive inspection and verification via `fqc info` and `fqc verify`
-- Direct `.gz` FASTQ input handling
+Compression ratio and throughput measured on tracked benchmark workloads
+(results in `benchmark_v2/results/`). fqc runs with 4 threads; peer tools run
+single-threaded with their defaults.
 
-These figures come from the tracked benchmark. To reproduce them and compare against peer tools, run `./scripts/benchmark.sh` (results written to `benchmark_v2/results/`).
+### Compression Ratio
+
+| Workload | fqc | gzip | xz | bzip2 |
+|----------|-----|------|----|-------|
+| small20k-single | 4.04× | 3.25× | 4.05× | 3.98× |
+| big100k-single | 4.86× | 3.89× | 5.16× | 4.88× |
+| small20k-paired | 3.94× | — | — | — |
+| big100k-paired | 4.68× | — | — | — |
+
+fqc holds the competitive compression-ratio tier, ahead of gzip and on par with
+xz and bzip2 on single-end data.
+
+### Throughput (big100k-single, 4 threads)
+
+| Tool | Compress (MiB/s) | Decompress (MiB/s) |
+|------|------------------|---------------------|
+| fqc | 0.10 | 2.12 |
+| gzip | 4.24 | 79.07 |
+| xz | 0.24 | 27.56 |
+| bzip2 | 7.93 | 4.27 |
+
+Throughput is the known short board: fqc trades speed for ratio. The current
+pipeline is not yet tuned for throughput; compression spends most of its time
+in the ABC reordering and consensus stages.
+
+### Reproduce
+
+```bash
+# Tracked benchmark (dataset-driven, auto-prepares data, writes to benchmark_v2/results/)
+./scripts/benchmark.sh --dataset err091571-local-supported --build --prepare --quick
+
+# Local workload comparison via the v2 CLI
+./scripts/benchmark_v2.sh prepare \
+  --workload big100k-single --data-root benchmark_v2/data \
+  --output-dir benchmark_v2/data
+./scripts/benchmark_v2.sh run \
+  --workload big100k-single --data-root benchmark_v2/data \
+  --tools fqc,gzip,xz,bzip2 --threads 4 --runs 1 \
+  --json benchmark_v2/results/big100k-single.json \
+  --report benchmark_v2/results/big100k-single.md
+```
 
 For architecture and file-format details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -161,11 +199,12 @@ To regenerate the tracked benchmark:
 ./scripts/benchmark.sh \
   --dataset err091571-local-supported \
   --build \
-  --tools fqc,gzip,spring \
+  --tools fqc,gzip,xz,bzip2 \
   --quick
 ```
 
-`./scripts/benchmark_v2.sh` runs a lighter local comparison for quick checks.
+For workload-level local comparison, use `./scripts/benchmark_v2.sh run` (see
+[Performance → Reproduce](#-performance)).
 
 See [AGENTS.md](AGENTS.md) for full project rules and architecture.
 

@@ -35,7 +35,7 @@
 - 无需完整解压即可随机访问 reads
 - Intel oneTBB 并行流水线
 - 直接读取 `.gz` FASTQ 输入，无需预先解压
-- 可复现 benchmark：`./scripts/benchmark.sh`（追踪）与 `./scripts/benchmark_v2.sh`（本地对比）
+- 追踪 benchmark，支持与同类工具对比（见[性能](#-性能)）
 
 ---
 
@@ -101,13 +101,48 @@ fqc info reads.fqc
 
 ## 📊 性能
 
-- **3.97× 压缩比**（Illumina 数据）
-- **11.9 MB/s** 压缩，**62.3 MB/s** 解压（多线程）
-- **O(1) 随机访问**，无需完整解压
-- 通过 `fqc info` 与 `fqc verify` 进行归档检查与完整性验证
-- 直接处理 `.gz` FASTQ 输入
+压缩比与吞吐量来自追踪 benchmark workload（结果位于 `benchmark_v2/results/`）。
+fqc 使用 4 线程；对比工具单线程运行，采用各自默认参数。
 
-以上数据来自追踪 benchmark。如需复现并与同类工具对比，运行 `./scripts/benchmark.sh`（结果写入 `benchmark_v2/results/`）。
+### 压缩比
+
+| Workload | fqc | gzip | xz | bzip2 |
+|----------|-----|------|----|-------|
+| small20k-single | 4.04× | 3.25× | 4.05× | 3.98× |
+| big100k-single | 4.86× | 3.89× | 5.16× | 4.88× |
+| small20k-paired | 3.94× | — | — | — |
+| big100k-paired | 4.68× | — | — | — |
+
+fqc 处于压缩比竞争力梯队，优于 gzip，与 xz、bzip2 同级（单端数据）。
+
+### 吞吐量（big100k-single，4 线程）
+
+| 工具 | 压缩 (MiB/s) | 解压 (MiB/s) |
+|------|----------------|-----------------|
+| fqc | 0.10 | 2.12 |
+| gzip | 4.24 | 79.07 |
+| xz | 0.24 | 27.56 |
+| bzip2 | 7.93 | 4.27 |
+
+吞吐量是已知短板：fqc 以速度换压缩比。当前流水线尚未针对吞吐量优化，
+压缩耗时主要消耗在 ABC 重排序与共识生成阶段。
+
+### 复现
+
+```bash
+# 追踪 benchmark（数据集驱动，自动准备数据，写入 benchmark_v2/results/）
+./scripts/benchmark.sh --dataset err091571-local-supported --build --prepare --quick
+
+# 通过 v2 CLI 进行 workload 级本地对比
+./scripts/benchmark_v2.sh prepare \
+  --workload big100k-single --data-root benchmark_v2/data \
+  --output-dir benchmark_v2/data
+./scripts/benchmark_v2.sh run \
+  --workload big100k-single --data-root benchmark_v2/data \
+  --tools fqc,gzip,xz,bzip2 --threads 4 --runs 1 \
+  --json benchmark_v2/results/big100k-single.json \
+  --report benchmark_v2/results/big100k-single.md
+```
 
 架构与文件格式细节请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
@@ -147,11 +182,11 @@ fqc info reads.fqc
 ./scripts/benchmark.sh \
   --dataset err091571-local-supported \
   --build \
-  --tools fqc,gzip,spring \
+  --tools fqc,gzip,xz,bzip2 \
   --quick
 ```
 
-`./scripts/benchmark_v2.sh` 用于更轻量的本地对比与快速检查。
+workload 级本地对比请使用 `./scripts/benchmark_v2.sh run`（见[性能 → 复现](#-性能)）。
 
 完整项目规则与架构说明请参阅 [AGENTS.md](AGENTS.md)。
 
