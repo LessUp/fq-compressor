@@ -274,24 +274,6 @@ std::size_t InMemoryReadProvider::maxLength() const {
 // Minimizer Extraction Functions
 // =============================================================================
 
-std::uint64_t computeKmerHash(std::string_view sequence) {
-    // Canonical hash: min of forward and reverse-complement 2-bit encoding.
-    std::uint64_t hash = 0;
-    std::uint64_t rcHash = 0;
-    const std::size_t k = sequence.length();
-
-    for (std::size_t i = 0; i < k; ++i) {
-        std::uint8_t base = kBaseToInt[static_cast<unsigned char>(sequence[i])];
-        hash = (hash << 2) | base;
-
-        // Reverse complement hash
-        std::uint8_t rcBase = 3 - kBaseToInt[static_cast<unsigned char>(sequence[k - 1 - i])];
-        rcHash = (rcHash << 2) | rcBase;
-    }
-
-    return std::min(hash, rcHash);
-}
-
 namespace {
 
 /// @brief Rolling canonical k-mer hash with O(1) incremental update.

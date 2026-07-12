@@ -52,9 +52,8 @@ auto FileStreamFactory::createInputStream(const std::filesystem::path& path)
     return openInputFile(path);
 }
 
-auto FileStreamFactory::createOutputStream(const std::filesystem::path& path,
-                                           CompressionFormat format)
-    -> std::unique_ptr<std::ostream> {
+auto FileStreamFactory::createOutputStream(
+    const std::filesystem::path& path, CompressionFormat format) -> std::unique_ptr<std::ostream> {
     FQC_LOG_DEBUG("FileStreamFactory: Creating output stream for '{}'", path.string());
 
     // For now, compression for output is not supported
@@ -110,9 +109,8 @@ auto MemoryStreamFactory::createInputStream(const std::filesystem::path& path)
     return std::make_unique<std::istringstream>(std::move(content));
 }
 
-auto MemoryStreamFactory::createOutputStream(const std::filesystem::path& path,
-                                             CompressionFormat format)
-    -> std::unique_ptr<std::ostream> {
+auto MemoryStreamFactory::createOutputStream(
+    const std::filesystem::path& path, CompressionFormat format) -> std::unique_ptr<std::ostream> {
     std::lock_guard<std::mutex> lock(mutex_);
 
     FQC_LOG_DEBUG("MemoryStreamFactory: Creating output stream for '{}'", path.string());
@@ -140,8 +138,8 @@ auto MemoryStreamFactory::detectCompression(const std::filesystem::path& path) c
     return detectCompressionFormatFromExtension(path);
 }
 
-auto MemoryStreamFactory::injectError(const std::filesystem::path& path, ErrorConfig config)
-    -> void {
+auto MemoryStreamFactory::injectError(const std::filesystem::path& path,
+                                      ErrorConfig config) -> void {
     std::lock_guard<std::mutex> lock(mutex_);
 
     FQC_LOG_DEBUG("MemoryStreamFactory: Injecting error for '{}'", path.string());
@@ -204,8 +202,8 @@ auto MemoryStreamFactory::clear() -> void {
     files_.clear();
 }
 
-auto MemoryStreamFactory::persistOutput(const std::filesystem::path& path, std::string_view content)
-    -> void {
+auto MemoryStreamFactory::persistOutput(const std::filesystem::path& path,
+                                        std::string_view content) -> void {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto& entry = files_[path];

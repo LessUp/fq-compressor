@@ -10,7 +10,7 @@
 //
 // Usage:
 //   fqc::log::init("app.log", fqc::log::Level::kInfo);
-//   LOG_INFO(fqc::log::logger(), "Message with {} args", 42);
+//   FQC_LOG_INFO("Message with {} args", 42);
 //
 // Requirements: 4.2 (Quill async logging)
 // =============================================================================

@@ -82,12 +82,6 @@ struct ParserStats {
     /// @brief Sum of lengths for median calculation.
     std::uint64_t lengthSum = 0;
 
-    /// @brief Number of records with N bases.
-    std::uint64_t recordsWithN = 0;
-
-    /// @brief Total N bases.
-    std::uint64_t totalNBases = 0;
-
     /// @brief Update stats with a new record.
     void update(const FastqRecord& record) noexcept {
         ++totalRecords;
@@ -96,17 +90,6 @@ struct ParserStats {
         lengthSum += len;
         minLength = std::min(minLength, len);
         maxLength = std::max(maxLength, len);
-
-        // Count N bases
-        std::size_t nCount = 0;
-        for (char c : record.sequence) {
-            if (c == 'N' || c == 'n')
-                ++nCount;
-        }
-        if (nCount > 0) {
-            ++recordsWithN;
-            totalNBases += nCount;
-        }
     }
 
     /// @brief Get average read length.

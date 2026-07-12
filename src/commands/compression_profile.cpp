@@ -8,6 +8,7 @@
 #include "fqc/io/fastq_parser.h"
 
 #include <filesystem>
+#include <limits>
 #include <thread>
 #include <utility>
 
@@ -47,7 +48,7 @@ auto validateOptions(CompressOptions& options,
     }
 
     if (options.inputPath != "-") {
-        if (dynamic_cast<io::FileStreamFactory*>(streamFactory.get()) != nullptr) {
+        if (streamFactory->isFileStream()) {
             if (!std::filesystem::exists(options.inputPath)) {
                 throw IOError("Input file not found: " + options.inputPath.string());
             }
@@ -181,8 +182,8 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
         options.input2Path.empty() && lengthClass == ReadLengthClass::kShort;
 }
 
-[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options, bool forcePipelineForScale)
-    -> CompressionExecutionMode {
+[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options,
+                                        bool forcePipelineForScale) -> CompressionExecutionMode {
     if (forcePipelineForScale) {
         return CompressionExecutionMode::kPipeline;
     }
@@ -221,7 +222,16 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
     -> algo::GlobalAnalyzerConfig {
     algo::GlobalAnalyzerConfig config;
     config.readsPerBlock = options.blockSize;
-    config.memoryLimit = options.memoryLimitMb > 0 ? options.memoryLimitMb * 1024 * 1024 : 0;
+    if (options.memoryLimitMb > 0) {
+        constexpr std::size_t kBytesPerMb = 1024 * 1024;
+        // Guard against size_t overflow on MB->bytes conversion (32-bit builds).
+        config.memoryLimit =
+            (options.memoryLimitMb > std::numeric_limits<std::size_t>::max() / kBytesPerMb)
+            ? std::numeric_limits<std::size_t>::max()
+            : options.memoryLimitMb * kBytesPerMb;
+    } else {
+        config.memoryLimit = 0;
+    }
     config.numThreads = options.threads > 0 ? static_cast<std::size_t>(options.threads) : 0;
     config.enableReorder = executionMode == CompressionExecutionMode::kSingleThread &&
         options.enableReordering && !options.streamingMode;

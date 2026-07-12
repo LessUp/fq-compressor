@@ -145,9 +145,6 @@ struct DecompressionStats {
     /// @brief Corrupted blocks skipped.
     std::uint32_t corruptedBlocks = 0;
 
-    /// @brief Checksum failures.
-    std::uint32_t checksumFailures = 0;
-
     /// @brief Input bytes read.
     std::uint64_t inputBytes = 0;
 

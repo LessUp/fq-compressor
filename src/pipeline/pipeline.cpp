@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <limits>
 #include <mutex>
 #include <thread>
 
@@ -448,7 +449,11 @@ bool hasEnoughMemory(const CompressionPipelineConfig& config, std::size_t estima
     }
 
     std::size_t estimated = estimateMemoryUsage(config, estimatedReads);
-    std::size_t limitBytes = config.memoryLimitMB * 1024 * 1024;
+    constexpr std::size_t kBytesPerMb = 1024 * 1024;
+    std::size_t limitBytes =
+        (config.memoryLimitMB > std::numeric_limits<std::size_t>::max() / kBytesPerMb)
+        ? std::numeric_limits<std::size_t>::max()
+        : config.memoryLimitMB * kBytesPerMb;
 
     return estimated <= limitBytes;
 }

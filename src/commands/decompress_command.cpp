@@ -340,6 +340,9 @@ void DecompressCommand::runDecompression() {
     if (options_.outputPath == "-") {
         output = &std::cout;
     } else {
+        if (const auto parent = options_.outputPath.parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
         fileOutput = std::make_unique<std::ofstream>(options_.outputPath);
         if (!fileOutput->is_open()) {
             throw IOError("Failed to create output file: " + options_.outputPath.string());
@@ -364,6 +367,9 @@ void DecompressCommand::runDecompression() {
             }
             fileOutput2 = std::make_unique<std::ofstream>(r2Path);
         } else {
+            if (const auto parent = options_.output2Path.parent_path(); !parent.empty()) {
+                std::filesystem::create_directories(parent);
+            }
             fileOutput2 = std::make_unique<std::ofstream>(options_.output2Path);
         }
         if (!fileOutput2->is_open()) {
@@ -606,6 +612,9 @@ void DecompressCommand::runDecompressionOriginalOrder() {
     if (options_.outputPath == "-") {
         output = &std::cout;
     } else {
+        if (const auto parent = options_.outputPath.parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
         fileOutput = std::make_unique<std::ofstream>(options_.outputPath);
         if (!fileOutput->is_open()) {
             throw IOError("Failed to create output file: " + options_.outputPath.string());
@@ -614,6 +623,9 @@ void DecompressCommand::runDecompressionOriginalOrder() {
     }
 
     if (options_.splitPairedEnd) {
+        if (const auto parent = options_.output2Path.parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
         fileOutput2 = std::make_unique<std::ofstream>(options_.output2Path);
         if (!fileOutput2->is_open()) {
             throw IOError("Failed to create output file: " + options_.output2Path.string());
@@ -705,9 +717,6 @@ void DecompressCommand::printSummary() const {
     std::cout << "  Blocks processed:  " << stats_.blocksProcessed << std::endl;
     if (stats_.corruptedBlocks > 0) {
         std::cout << "  Corrupted blocks:  " << stats_.corruptedBlocks << std::endl;
-    }
-    if (stats_.checksumFailures > 0) {
-        std::cout << "  Checksum failures: " << stats_.checksumFailures << std::endl;
     }
     std::cout << "  Input size:        " << stats_.inputBytes << " bytes" << std::endl;
     std::cout << "  Output size:       " << stats_.outputBytes << " bytes" << std::endl;

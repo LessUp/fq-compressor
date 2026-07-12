@@ -102,8 +102,8 @@ public:
     /// @return Output stream (may be compressing).
     /// @throws IOError if file cannot be created or error is injected.
     [[nodiscard]] virtual auto createOutputStream(
-        const std::filesystem::path& path, CompressionFormat format = CompressionFormat::kNone)
-        -> std::unique_ptr<std::ostream> = 0;
+        const std::filesystem::path& path,
+        CompressionFormat format = CompressionFormat::kNone) -> std::unique_ptr<std::ostream> = 0;
 
     // =========================================================================
     // Path Queries
@@ -123,6 +123,14 @@ public:
     /// @return Detected compression format.
     [[nodiscard]] virtual auto detectCompression(const std::filesystem::path& path) const
         -> CompressionFormat = 0;
+
+    /// @brief Whether this factory is backed by the real filesystem.
+    /// @return true for FileStreamFactory, false otherwise.
+    /// @note Used to avoid dynamic_cast when choosing between filesystem
+    ///       queries (e.g. std::filesystem::exists) and stream probing.
+    [[nodiscard]] virtual auto isFileStream() const -> bool {
+        return false;
+    }
 
     // =========================================================================
     // Error Injection (Testing Support)
@@ -200,6 +208,11 @@ public:
     /// @return Detected compression format.
     [[nodiscard]] auto detectCompression(const std::filesystem::path& path) const
         -> CompressionFormat override;
+
+    /// @brief FileStreamFactory is backed by the real filesystem.
+    [[nodiscard]] auto isFileStream() const -> bool override {
+        return true;
+    }
 
 private:
     /// @brief Buffer size for file I/O.
@@ -301,8 +314,8 @@ public:
     /// @brief Set content for a file path from binary data.
     /// @param path File path to set content for.
     /// @param data Binary data (will be copied).
-    auto setFileContent(const std::filesystem::path& path, std::span<const std::uint8_t> data)
-        -> void;
+    auto setFileContent(const std::filesystem::path& path,
+                        std::span<const std::uint8_t> data) -> void;
 
     /// @brief Get content written to a file path.
     /// @param path File path to get content from.

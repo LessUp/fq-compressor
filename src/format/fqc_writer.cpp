@@ -192,6 +192,11 @@ FQCWriter::FQCWriter(std::filesystem::path outputPath)
     }
     XXH64_reset(static_cast<XXH64_state_t*>(xxhashState_), 0);
 
+    // Ensure the output parent directory exists (no-op if empty or present).
+    if (const auto parent = outputPath_.parent_path(); !parent.empty()) {
+        std::filesystem::create_directories(parent);
+    }
+
     // Open temporary file for writing
     stream_.open(tempPath_, std::ios::binary | std::ios::trunc);
     if (!stream_.is_open()) {

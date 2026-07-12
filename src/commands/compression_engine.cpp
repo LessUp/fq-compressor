@@ -43,7 +43,7 @@ namespace {
 auto populateInputBytesHint(CompressionRequest& request,
                             const std::shared_ptr<io::StreamFactory>& streamFactory) -> void {
     if (request.inputBytesHint != 0 || request.input.primaryPath == "-" || !streamFactory ||
-        dynamic_cast<io::FileStreamFactory*>(streamFactory.get()) == nullptr) {
+        !streamFactory->isFileStream()) {
         return;
     }
 
@@ -184,14 +184,14 @@ auto executeSingleThreadCompression(const CompressionPlan& plan,
                 if (archiveId < analysisResult.reverseMap.size()) {
                     const auto originalId = analysisResult.reverseMap[archiveId];
                     if (originalId < readRecords.size()) {
-                        blockReads.push_back(readRecords[originalId]);
+                        blockReads.push_back(std::move(readRecords[originalId]));
                     }
                 }
             }
         } else {
             for (auto archiveId = startId; archiveId < endId; ++archiveId) {
                 if (archiveId < readRecords.size()) {
-                    blockReads.push_back(readRecords[archiveId]);
+                    blockReads.push_back(std::move(readRecords[archiveId]));
                 }
             }
         }

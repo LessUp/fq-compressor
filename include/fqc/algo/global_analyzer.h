@@ -394,11 +394,6 @@ private:
                                                        std::size_t k = kDefaultMinimizerK,
                                                        std::size_t w = kDefaultMinimizerW);
 
-/// @brief Compute canonical k-mer hash (min of forward and reverse complement)
-/// @param sequence K-mer sequence
-/// @return Canonical hash value
-[[nodiscard]] std::uint64_t computeKmerHash(std::string_view sequence);
-
 /// @brief Compute reverse complement of a DNA sequence
 /// @param sequence Input sequence
 /// @return Reverse complement
