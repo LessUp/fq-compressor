@@ -182,8 +182,8 @@ auto applyResolvedDefaults(CompressOptions& options, ReadLengthClass lengthClass
         options.input2Path.empty() && lengthClass == ReadLengthClass::kShort;
 }
 
-[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options,
-                                        bool forcePipelineForScale) -> CompressionExecutionMode {
+[[nodiscard]] auto resolveExecutionMode(const CompressOptions& options, bool forcePipelineForScale)
+    -> CompressionExecutionMode {
     if (forcePipelineForScale) {
         return CompressionExecutionMode::kPipeline;
     }
