@@ -355,7 +355,6 @@ PY
 PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'
 import os
 import tempfile
-import time
 from pathlib import Path
 
 import benchmark_v2.tool_adapters as tool_adapters
@@ -368,17 +367,16 @@ with tempfile.TemporaryDirectory() as temp_dir:
     debug.parent.mkdir(parents=True, exist_ok=True)
     release.write_text("#!/bin/sh\n", encoding="utf-8")
     debug.write_text("#!/bin/sh\n", encoding="utf-8")
-    now = time.time()
-    os.utime(release, (now - 60, now - 60))
-    os.utime(debug, (now, now))
+    release.chmod(0o755)
+    debug.chmod(0o755)
     original_root = tool_adapters._PROJECT_ROOT
     try:
         tool_adapters._PROJECT_ROOT = fake_root
         resolved = tool_adapters._resolve_fqc_binary()
     finally:
         tool_adapters._PROJECT_ROOT = original_root
-    if resolved != debug:
-        raise AssertionError(f"expected newest debug binary, got {resolved!r}")
+    if resolved != release:
+        raise AssertionError(f"expected release binary preference, got {resolved!r}")
 PY
 
 PROJECT_ROOT="${PROJECT_ROOT}" python3 <<'PY'

@@ -1,227 +1,117 @@
 # fq-compressor
 
-<p align="center">
-  <b>高性能 FASTQ 压缩工具，支持 O(1) 随机访问</b>
-</p>
+`fq-compressor` 是一个使用 C++23 实现的 FASTQ 压缩工具，采用顺序、可流式处理、受内存
+上限约束的 FQC v2 格式。它无损保存 read ID、注释、序列、质量值以及双端 reads 的相邻
+关系，并可直接读取普通 FASTQ 和 `.gz` FASTQ。
 
-<p align="center">
-  <a href="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml">
-    <img src="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml/badge.svg" alt="CI 状态">
-  </a>
-  <a href="https://github.com/LessUp/fq-compressor/releases/latest">
-    <img src="https://img.shields.io/github/v/release/LessUp/fq-compressor?include_prereleases&label=发布版本" alt="最新发布">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/许可证-MIT-green.svg" alt="许可证">
-  </a>
-  <a href="https://en.cppreference.com/w/cpp/23">
-    <img src="https://img.shields.io/badge/C%2B%2B-23-blue.svg" alt="C++23">
-  </a>
-</p>
+> FQC v2 有意不兼容旧 v1 格式和旧 CLI。不提供 v1 reader、迁移命令、随机访问、有损模式
+> 或原始顺序映射。
 
-<p align="center">
-  <a href="README.md">English</a> •
-  <a href="README.zh-CN.md">简体中文</a> •
-  <a href="https://github.com/LessUp/fq-compressor-rust">Rust 实现</a>
-</p>
+## 为什么重构为 v2
 
----
+旧 ABC/SCM 实现同时存在昂贵的全局分析、每线程稠密质量模型，以及两套相互分叉的串行/并行
+引擎；已追踪吞吐约为 0.1 MiB/s。v2 改为彼此独立的顺序 frame，并由同一个引擎完成压缩、
+解压和完整校验。
 
-## 🎯 概述
+当前生产 fallback：
 
-**fq-compressor** 是一款用 C++23 编写的 FASTQ 压缩工具。它结合**基于组装的压缩（ABC）**与**统计上下文混合（SCM）**，在接近熵极限的压缩比下仍保留对压缩归档的 **O(1) 随机访问**能力。
+- ID/注释以 varint 分帧，再用 Zstd level 1 压缩；
+- 大写 A/C/G/T 使用 2-bit 编码，其他 IUPAC 字符和小写字符以精确位置异常表保存，再用
+  Zstd level 1 压缩；
+- 质量值以 varint 分帧，再用 Zstd level 1 压缩；
+- 全局头、每个逻辑 frame 和 footer 汇总均使用 XXH64 校验。
 
-主要特性：
-- 无需完整解压即可随机访问 reads
-- Intel oneTBB 并行流水线
-- 直接读取 `.gz` FASTQ 输入，无需预先解压
-- 追踪 benchmark，支持与同类工具对比（见[性能](#-性能)）
+支持 `illumina`、`ont`、`pacbio-hifi`、`pacbio-clr` 四类 profile，可自动检测或显式指定。
+目前四类 profile 共用已经验证的 fallback codec。专用 codec 只有在保持吞吐门槛、基准语料库
+中位体积至少改善 5%，且任何单个数据集退化不超过 1% 时才允许进入生产路径。
 
----
+## 构建
 
-## 📦 安装
-
-### 从源码构建（推荐）
+要求：CMake 3.28+、Conan 2.x、GCC 14+ 或 Clang 18+。
 
 ```bash
-git clone https://github.com/LessUp/fq-compressor.git
-cd fq-compressor
-
-# 一步完成 Conan 安装 + CMake 构建
-./scripts/build.sh gcc-release
-
-# 二进制位置：build/gcc-release/src/fqc
+conan profile detect --force
+./scripts/build.sh clang-release
 ```
 
-**其他 preset：** `clang-debug`（开发）、`clang-release`、`gcc-debug`、`clang-asan`、`clang-tsan`。完整列表见 [AGENTS.md](AGENTS.md)。
+二进制位于 `build/clang-release/src/fqc`。
 
-**前置条件：** GCC 14+ 或 Clang 18+，CMake 3.28+，Conan 2.x
-
-### 预编译二进制
-
-Linux（glibc/musl，x86_64/aarch64）与 macOS（x86_64/arm64）的预编译二进制可在 [releases 页面](https://github.com/LessUp/fq-compressor/releases/latest) 下载。
-
-> **注意：** v0.2.0 发布时未附带二进制资产。请使用更新的 release 或从源码构建。
-
----
-
-## 🚀 用法
-
-### 压缩与解压
+## CLI
 
 ```bash
-# 将 FASTQ 压缩为 FQC 格式
+# 单端数据，自动检测 profile
 fqc compress -i reads.fastq -o reads.fqc
 
-# 验证归档完整性
+# 双端文件；每个 R1/R2 pair 保持相邻，frame 不会拆开 pair
+fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
+
+# 显式指定长读 profile
+fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
+
+# 完整校验和解压
 fqc verify reads.fqc
-
-# 完整解压
 fqc decompress -i reads.fqc -o restored.fastq
+
+# stdin/stdout 管道
+producer | fqc compress -i - -o - | consumer
+fqc decompress -i reads.fqc -o - | downstream-tool
 ```
 
-### 高级功能
+全局参数可放在子命令前或后：
 
-```bash
-# 随机访问 — 提取第 1000-2000 条 reads
-fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-
-# 多线程压缩（8 线程）
-fqc compress -i reads.fastq -o reads.fqc -t 8 -v
-
-# 双端数据
-fqc compress -i reads_1.fastq -2 reads_2.fastq \
-  -o paired.fqc --paired
-
-# 查看归档信息
-fqc info reads.fqc
+```text
+--memory-limit MiB   操作硬预算；默认 16384，最小 64
+-q, --quiet          仅输出错误
 ```
 
----
+压缩还支持 `--profile`、`--frame-mib`、`--force`；解压支持 `--force`。双端归档解压为一个
+标准交错 FASTQ 流。
 
-## 📊 性能
+## 格式与兼容性
 
-压缩比与吞吐量来自追踪 benchmark workload（结果位于 `benchmark_v2/results/`）。
-fqc 使用 4 线程；对比工具单线程运行，采用各自默认参数。
+FQC v2 由带校验的全局头、零到多个独立 frame 和结束 footer 组成。reader 会拒绝未知版本或
+codec、超限 frame、不完整 pair、截断、逻辑流或 footer 后的尾随数据和 checksum 不一致。它
+不会探测或解码 v1。
 
-### 压缩比
+字节布局与内存模型见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
-| Workload | fqc | gzip | xz | bzip2 |
-|----------|-----|------|----|-------|
-| small20k-single | 4.04× | 3.25× | 4.05× | 3.98× |
-| big100k-single | 4.86× | 3.89× | 5.16× | 4.88× |
-| small20k-paired | 3.94× | — | — | — |
-| big100k-paired | 4.68× | — | — | — |
+## 已测性能
 
-fqc 处于压缩比竞争力梯队，优于 gzip，与 xz、bzip2 同级（单端数据）。
+在 8 核 AMD Ryzen 7 5800H x86_64 上使用 release CLI 测量；数据包含 FASTQ 解析、checksum、
+frame 构建、文件 I/O、解压和逐字节一致性检查。
 
-### 吞吐量（big100k-single，4 线程）
+| 合成数据 | 压缩 | 解压 | 64 MiB 预算下峰值 RSS |
+|---|---:|---:|---:|
+| 随机化 Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
+| 随机化 ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-| 工具 | 压缩 (MiB/s) | 解压 (MiB/s) |
-|------|----------------|-----------------|
-| fqc | 0.10 | 2.12 |
-| gzip | 4.24 | 79.07 |
-| xz | 0.24 | 27.56 |
-| bzip2 | 7.93 | 4.27 |
-
-吞吐量是已知短板：fqc 以速度换压缩比。当前流水线尚未针对吞吐量优化，
-压缩耗时主要消耗在 ABC 重排序与共识生成阶段。
-
-### 复现
+这些结果只证明本机 x86_64 的吞吐下限，不用于宣称真实生物数据压缩率。仓库目前没有足够的
+真实 ONT/HiFi/CLR 语料来准入专用长读 codec；ARM64 仍需在发布机上单独验证。
+表格是启用完整逻辑记录校验后的三次墙钟中位数，并记录各轮最大 RSS。
 
 ```bash
-# 追踪 benchmark（数据集驱动，自动准备数据，写入 benchmark_v2/results/）
-./scripts/benchmark.sh --dataset err091571-local-supported --build --prepare --quick
-
-# 通过 v2 CLI 进行 workload 级本地对比
-./scripts/benchmark_v2.sh prepare \
-  --workload big100k-single --data-root benchmark_v2/data \
-  --output-dir benchmark_v2/data
-./scripts/benchmark_v2.sh run \
-  --workload big100k-single --data-root benchmark_v2/data \
-  --tools fqc,gzip,xz,bzip2 --threads 4 --runs 1 \
-  --json benchmark_v2/results/big100k-single.json \
-  --report benchmark_v2/results/big100k-single.md
+FQC_BIN=build/clang-release/src/fqc \
+FQC_PERF_SIZES="64 256" \
+FQC_PERF_DATA=random \
+FQC_PERF_ENFORCE_SLA=1 \
+bash tests/e2e/test_performance.sh
 ```
 
-架构与文件格式细节请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。
+数据集驱动的同类工具对比入口为 `./scripts/benchmark_v2.sh`。
+codec 的准入/拒绝结论记录在 [benchmark_v2/CODEC_GATES.md](benchmark_v2/CODEC_GATES.md)。
 
----
+## 开发与验证
 
-## 📚 文档
-
-| 文档 | 内容 |
-|------|------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统设计、流水线、格式与随机访问 |
-| [AGENTS.md](AGENTS.md) | 构建命令、代码规范、开发流程 |
-| [发布版本](https://github.com/LessUp/fq-compressor/releases) | 预编译二进制下载 |
-
----
-
-## 🛠️ 开发
-
-`fq-compressor` 当前处于 **closeout mode**。开发流程刻意保持精简：
+项目处于 closeout 模式：优先完成、简化和稳定，不保留重复路径。
 
 ```bash
-./scripts/build.sh clang-debug
-./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
+./scripts/lint.sh format-check
 ```
 
-### 发布检查
+测试覆盖 v2 字节格式、损坏/截断、内存准入、parser/I/O、单端/双端往返、stdin/stdout 和真实
+CLI 进程边界。
 
-在打 release 标签前运行 acceptance 脚本：
+## 许可证
 
-```bash
-./scripts/acceptance.sh
-```
-
-重新生成追踪 benchmark：
-
-```bash
-./scripts/benchmark.sh \
-  --dataset err091571-local-supported \
-  --build \
-  --tools fqc,gzip,xz,bzip2 \
-  --quick
-```
-
-workload 级本地对比请使用 `./scripts/benchmark_v2.sh run`（见[性能 → 复现](#-性能)）。
-
-完整项目规则与架构说明请参阅 [AGENTS.md](AGENTS.md)。
-
----
-
-## 🤝 贡献
-
-欢迎贡献，尤其是：
-
-- 文档清理
-- 带回归测试的缺陷修复
-- 工作流与工具链精简
-
-仓库工作流与编码规范请参阅 [AGENTS.md](AGENTS.md)。
-
----
-
-## 📄 许可证
-
-项目代码采用 MIT 许可证 — 参见 [LICENSE](LICENSE)。
-
----
-
-## 🙏 致谢
-
-- **Spring** ([Chandak 等，2019](https://doi.org/10.1101/gr.234583.119)) — ABC 算法灵感
-- **fqzcomp5** (Bonfield) — 质量压缩参考
-- **Intel oneTBB** — 并行计算框架
-- **贡献者** — 所有帮助改进本项目的人
-
----
-
-<p align="center">
-  <a href="https://github.com/LessUp/fq-compressor/releases">发布版本</a> •
-  <a href="ARCHITECTURE.md">架构</a> •
-  <a href="CHANGELOG.md">变更日志</a> •
-  <a href="https://github.com/LessUp/fq-compressor/discussions">讨论</a>
-</p>
+MIT，见 [LICENSE](LICENSE)。

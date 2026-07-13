@@ -9,7 +9,7 @@
 #   - bugprone-*: Bug-prone patterns
 #   - cert-*: CERT C++ Coding Standard
 #   - clang-analyzer-*: Static analyzer checks
-#   - concurrency-*: Concurrency/thread-safety (TBB pipeline)
+#   - concurrency-*: Concurrency/thread-safety
 #   - cppcoreguidelines-*: C++ Core Guidelines
 #   - misc-*: Miscellaneous checks
 #   - modernize-*: Modern C++ idioms
@@ -56,35 +56,41 @@ WarningsAsErrors: ''
 HeaderFilterRegex: '^(.*[/\\])?(src|include|tests)/.*\.(h|hh|hpp|hxx|ipp|inl|c|cc|cpp|cxx)$'
 CheckOptions:
   - key:             readability-identifier-naming.ClassCase
-    value:           PascalCase
+    value:           CamelCase
   - key:             readability-identifier-naming.StructCase
-    value:           PascalCase
+    value:           CamelCase
   - key:             readability-identifier-naming.FunctionCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.MethodCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.VariableCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.ParameterCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.PrivateMemberCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.PrivateMemberSuffix
     value:           _
   - key:             readability-identifier-naming.ProtectedMemberCase
-    value:           camelCase
+    value:           camelBack
   - key:             readability-identifier-naming.ProtectedMemberSuffix
     value:           _
   - key:             readability-identifier-naming.ConstantCase
-    value:           camelCase
+    value:           CamelCase
   - key:             readability-identifier-naming.ConstantPrefix
     value:           k
+  - key:             readability-identifier-naming.LocalConstantCase
+    value:           camelBack
+  - key:             readability-identifier-naming.LocalConstantPrefix
+    value:           ''
   - key:             readability-identifier-naming.NamespaceCase
     value:           lower_case
   - key:             readability-identifier-naming.EnumCase
     value:           CamelCase
   - key:             readability-identifier-naming.EnumConstantCase
     value:           CamelCase
+  - key:             readability-identifier-naming.EnumConstantPrefix
+    value:           k
   - key:             readability-identifier-naming.MacroDefinitionCase
     value:           UPPER_CASE
   - key:             readability-identifier-naming.TemplateParameterCase

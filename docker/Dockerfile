@@ -44,7 +44,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::https::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # 安装构建依赖（仅编译所需，不包含开发工具）
-# 注意：项目依赖（TBB、zstd 等）由 Conan 管理，无需系统 -dev 包
+# 注意：项目依赖（zstd、zlib-ng 等）由 Conan 管理，无需系统 -dev 包
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     build-essential \
     ninja-build \
@@ -115,11 +115,9 @@ FROM debian:bookworm-slim AS production
 # APT 重试配置
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries
 
-# 运行时共享库：虽然 Conan 默认静态链接大部分依赖，
-# 但 onetbb/hwloc 为 shared，且 libstdc++ 是 GCC 运行时必需
+# 运行时共享库：Conan 默认静态链接项目依赖，保留 GCC C++ 运行时
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
-    libtbb12 \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 

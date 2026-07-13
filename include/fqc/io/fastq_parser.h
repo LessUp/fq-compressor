@@ -110,9 +110,6 @@ struct ParserStats {
 
 /// @brief Configuration options for the FASTQ parser.
 struct ParserOptions {
-    /// @brief Buffer size for reading (default: 4MB).
-    std::size_t bufferSize = 4 * 1024 * 1024;
-
     /// @brief Whether to validate sequence characters.
     bool validateSequence = true;
 
@@ -131,8 +128,8 @@ struct ParserOptions {
     /// @brief Maximum quality score (Phred+33).
     char maxQualityChar = '~';  // Phred 93
 
-    /// @brief Valid sequence characters (ACGTN by default).
-    std::string validBases = "ACGTNacgtn";
+    /// @brief Valid IUPAC nucleotide symbols.
+    std::string validBases = "ACGTRYSWKMBDHVNacgtryswkmbdhvn";
 };
 
 // =============================================================================
@@ -372,27 +369,11 @@ private:
 
     /// @brief Last parse error.
     std::optional<ParseError> lastError_;
-
-    /// @brief Read buffer.
-    std::string buffer_;
-
-    /// @brief Line buffer for parsing.
-    std::string lineBuffer_;
 };
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/// @brief Detect read length class from statistics.
-/// @param stats Parser statistics.
-/// @return Detected read length class.
-[[nodiscard]] ReadLengthClass detectReadLengthClass(const ParserStats& stats) noexcept;
 
 /// @brief Check if a character is a valid DNA base.
 [[nodiscard]] constexpr bool isValidBase(char c) noexcept {
-    return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N' || c == 'a' || c == 'c' ||
-        c == 'g' || c == 't' || c == 'n';
+    return std::string_view{"ACGTRYSWKMBDHVNacgtryswkmbdhvn"}.contains(c);
 }
 
 /// @brief Check if a character is a valid quality score.

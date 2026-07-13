@@ -1,132 +1,136 @@
-# Architecture
+# FQC v2 architecture
 
-System design overview for fq-compressor. Maps the conceptual story to the codebase.
+FQC v2 is a sequential framed archive. The design optimises for bounded memory, process pipelines,
+simple failure boundaries, and measured throughput. It deliberately does not provide v1
+compatibility, an index, random access, global read reordering, or a second parallel engine.
 
-## Layer Map
-
-| Layer | Responsibility | Key Headers |
-|-------|---------------|-------------|
-| Ingest | Open FASTQ and compressed FASTQ inputs, normalize stream handling | `include/fqc/io/fastq_parser.h`, `include/fqc/io/compressed_stream.h` |
-| Analysis | Collect global statistics, reorder intent, memory discipline | `include/fqc/algo/global_analyzer.h` |
-| Compression | Encode sequence, IDs, and quality values on block-local units | `include/fqc/algo/block_compressor.h`, `include/fqc/algo/id_compressor.h`, `include/fqc/algo/quality_compressor.h` |
-| Format | Write blocks, checksums, reorder metadata, and direct-lookup structures | `include/fqc/format/fqc_writer.h`, `include/fqc/format/fqc_format.h` |
-| Retrieval | Verify, range decode, and optionally restore original order | `include/fqc/format/fqc_reader.h`, `include/fqc/pipeline/decompressor_node.h` |
-
-## Invariants
-
-- The block is the unit that makes throughput, checksum scope, and random access compatible.
-- The archive format is part of the product contract. It is not just an opaque byte bucket behind the CLI.
-- The command layer stays thin so compression and decompression behavior lives in reusable library code.
-
-## Compression Pipeline
-
-```
-FASTQ Input -> FastqParser -> GlobalAnalyzer -> BlockCompressor -> FQC Writer
-                                              (TBB parallel pipeline)
-```
-
-1. **Input opening and FASTQ parsing** via `include/fqc/io/fastq_parser.h` and `include/fqc/io/compressed_stream.h`.
-2. **Global analysis** via `include/fqc/algo/global_analyzer.h`, which decides how reads should be grouped and whether reorder metadata is needed.
-3. **Chunk marshaling** via `include/fqc/pipeline/pipeline.h`, which turns parsed records into per-stream views.
-4. **Block compression** via `include/fqc/algo/block_compressor.h`, `include/fqc/algo/id_compressor.h`, and `include/fqc/algo/quality_compressor.h`.
-5. **Archive writing** via `include/fqc/format/fqc_writer.h` and `include/fqc/pipeline/writer_node.h`.
-
-The important boundary is the block. Analysis may look across the full input, but payload encoding and archive storage stay block-local so compression work can scale across cores without giving up direct block lookup later.
-
-## Decompression Pipeline
-
-```
-FQC Input -> FQC Reader -> Decompressor -> FastqWriter -> FASTQ Output
-              (TBB parallel pipeline)
-```
-
-1. Reader entry starts from archive metadata, index tables, and block boundaries.
-2. Header and block metadata are loaded so the command can select a full restore or targeted extraction.
-3. Index-driven lookup resolves the exact block set that must be decoded.
-4. Payload streams are decompressed independently on the same block-local contract.
-5. Optional reorder restore is applied only when the command asks for it.
-
-The reader side is anchored in `include/fqc/format/fqc_reader.h`, `include/fqc/pipeline/fqc_reader_node.h`, and `include/fqc/pipeline/decompressor_node.h`.
-
-## FQC Format and Random Access
-
-The `.fqc` container is a block archive, not a raw byte stream wrapper. Its layout is defined in `include/fqc/format/fqc_format.h`.
-
-### File Layout
+## Data flow
 
 ```text
-magic + version
--> global header
--> block payloads
--> optional reorder map
--> block index
--> file footer
+FASTQ/.gz/stdin
+    -> FastqParser
+    -> profile sample and resolution
+    -> retained-byte frame accumulator
+    -> three logical stream encoders
+    -> checked FQC v2 frame
+    -> file/stdout
+
+FQC v2/file/stdin
+    -> checked header
+    -> bounded frame decode
+    -> logical checksum
+    -> canonical FASTQ writer
+    -> file/stdout
 ```
 
-The payload region stays append-only during compression, and the block index plus footer are written only after the writer knows every block offset and size.
+The reusable orchestration boundary is
+`include/fqc/commands/v2_archive_engine.h`. The CLI in `src/main.cpp` only parses arguments,
+constructs requests, and reports structured errors.
 
-### Per-Block Storage
+## Archive layout
 
-A block groups a bounded run of reads and keeps its logical streams separate:
+All integers are little-endian. Sizes needed for allocation are stored before the corresponding
+payload and are checked before memory is allocated.
 
-- identifiers
-- sequences
-- qualities
-- auxiliary data (e.g. variable read lengths)
+| Region | Contents | Integrity/bounds |
+|---|---|---|
+| 32-byte global header | magic, version, flags, profile, stream codec IDs | XXH64 header checksum; strict version/codec IDs |
+| Repeated 72-byte frame header | frame ID, record count, raw and encoded stream sizes | monotonic frame IDs; complete-pair invariant; per-field and aggregate memory limits |
+| ID payload | record count, ID/comment lengths and bytes | Zstd level 1 |
+| Sequence payload | record count, length, 2-bit A/C/G/T, exact exceptions | Zstd level 1 |
+| Quality payload | record count, quality lengths and bytes | Zstd level 1 |
+| 40-byte footer | frame/read/base totals and rolling checksum | totals must match decoded state |
 
-The split keeps codec choices local to each stream and lets readers skip data they do not need.
+The logical frame checksum covers the three uncompressed streams. The footer checksum advances
+over each frame checksum, so reordering, omission, duplication, payload corruption, and inconsistent
+totals are detected.
 
-### What "Random Access" Means Here
+## Sequence representation
 
-Random access is block-addressable lookup. The reader opens the archive, reads the footer and index once, then uses index entries to seek directly to the block that owns a target read range. It does not need to replay every earlier block.
+Uppercase A/C/G/T use two bits each. Every other accepted IUPAC symbol, including lowercase bases,
+is stored as an exact byte plus a delta-coded position. Encoding makes one packing pass and only
+makes a second positional pass when exceptions exist; it emits exceptions directly and does not
+allocate an exception object per base. This matters for lowercase or ambiguity-heavy long reads,
+where the legacy temporary vector could dwarf the input.
 
-The cost is effectively constant with respect to archive length once the index is loaded: metadata read, one seek, then decode only the needed block payloads.
+The v2 admission preflight validates the full upper/lower-case IUPAC alphabet while measuring the
+same stream, avoiding a duplicate parser scan. Archive decode validates exception bytes and quality
+scores before emitting a record. Sequence and quality lengths must match in both directions.
 
-### Reorder Map
+## Profiles
 
-When reads are reordered for better compression, a forward/reverse map is stored in the archive. Original-order recovery is applied only when the command asks for it (`--original-order`).
+`auto` samples at most 50,000 records or 512 MiB of bases, further capped by one eighth of the
+available operation budget.
 
-## Pipeline Design
+- Illumina: short reads (maximum at most 1,000 bp and average at most 500 bp).
+- ONT: majority header evidence such as `runid=` or channel tags.
+- PacBio HiFi: majority `/ccs` or `hifi` header evidence.
+- PacBio CLR: majority PacBio/subread or movie/ZMW/subread-style header evidence.
 
-### Serial Ingress and Egress
+Ambiguous long-read input is rejected with an instruction to pass `--profile`; it is not silently
+misclassified. Profiles are recorded in the archive but currently share fallback coding. This is
+intentional: no specialised Illumina, HiFi, ONT, or CLR codec has yet passed the size and throughput
+admission gate on an adequate real-data corpus.
 
-FASTQ parsing and final archive writes are naturally ordered operations. Keeping those stages serial avoids cross-thread coordination around record framing, footer updates, and final output order.
+## Memory model
 
-### Parallel Block Work
+The CLI default is 16 GiB and the supported minimum is 64 MiB. The codec uses no scratch files;
+regular-file output is staged beside the destination and published only after the archive is
+complete.
 
-Once a chunk has a stable archive-order read range, each block can be compressed or decompressed independently. `include/fqc/pipeline/pipeline.h` models `ReadChunk` and `CompressedBlock` as complete units of work.
+Compression applies three levels of control:
 
-### Explicit Backpressure
+1. Profile sampling is capped by bytes and record count.
+2. Frame accumulation charges the actual capacities of retained record strings and closes a frame
+   at the smaller of the requested target and the budget-derived target.
+3. Before encoding, the writer exactly measures all raw stream sizes, adds retained record
+   capacities, Zstd output bounds, vector metadata, and a fixed codec/runtime reserve, then rejects
+   a frame whose conservative peak exceeds the operation budget.
 
-The pipeline is designed to stop unlimited in-flight buffering. `include/fqc/pipeline/pipeline.h` defines `kDefaultMaxInFlightBlocks`, while memory budgeting controls how much data the pipeline should hold at once.
+Decompression validates each individual raw/encoded size and also an aggregate conservative peak:
+encoded bytes + two copies of raw logical bytes + decoded record metadata + runtime reserve. A
+hostile header therefore cannot allocate three individually legal streams whose sum violates the
+budget.
 
-## Key Algorithms
+The max frame size is derived from `(memory limit - runtime reserve) / 4`; the accumulation target
+uses `/ 8`. At a 64 MiB configured limit, measured release-process RSS was 25--32 MiB for randomised
+short- and long-read fixtures.
 
-1. **Assembly-based Compression (ABC)**
-   - Minimizer Bucketing - groups reads by shared k-mer signatures
-   - TSP Reordering - maximizes neighbor similarity
-   - Consensus Generation - builds local consensus per bucket
-   - Delta Encoding - stores only edits from consensus
+## Execution architecture
 
-2. **Statistical Context Mixing (SCM)**
-   - Context: Previous QVs + current base + position
-   - Prediction: High-order context modeling
-   - Coding: Adaptive arithmetic coding
+The engine is intentionally sequential. Final three-run medians on the available 8-core x86_64
+host reached 53--56 MiB/s compression and 182--215 MiB/s decompression on randomised data, already
+clearing the 50/100 floor. Adding a TBB DAG without a demonstrated bottleneck would restore
+duplicate state, output ordering, and in-flight-memory risks that v2 removed.
 
-## Module Organization
+Independent frame boundaries remain the concurrency seam. If a release machine later misses the
+floor, parallel work should be added as one ordered frame pipeline with byte-budget admission—not as
+a separate compression implementation. Codec state must remain frame-local or worker-local.
 
-| Namespace | Purpose |
-|-----------|---------|
-| `fqc::algo` | Compression algorithms (ABC core) |
-| `fqc::commands` | CLI command implementations |
-| `fqc::common` | Shared utilities (errors, logging, types) |
-| `fqc::format` | FQC archive format definition |
-| `fqc::io` | I/O abstractions (FASTQ, compressed streams) |
-| `fqc::pipeline` | TBB-based parallel processing pipelines |
+## Paired reads
 
-## Code Anchors
+Two input files are read in lockstep and stored R1, R2, R1, R2. Different record counts are a hard
+format error. A paired frame must contain an even number of records, so a pair never crosses a frame
+boundary. Decompression produces one canonical interleaved FASTQ stream.
 
-- Pipeline types and coordination: `include/fqc/pipeline/pipeline.h`, `src/pipeline/pipeline.cpp`
-- Compression nodes: `include/fqc/pipeline/reader_node.h`, `include/fqc/pipeline/writer_node.h`
-- Decompression nodes: `include/fqc/pipeline/fqc_reader_node.h`, `include/fqc/pipeline/decompressor_node.h`, `include/fqc/pipeline/fastq_writer_node.h`
-- Command wiring: `src/commands/compress_command.cpp`, `src/commands/decompress_command.cpp`
+## Failure behaviour
+
+- Output overwrite requires `--force`.
+- Input and output paths may not be the same file.
+- Truncation, unknown format/version/codec, checksum mismatch, impossible stream lengths, trailing
+  logical-stream or post-footer bytes, pair-count disagreement, and memory-limit violations fail
+  closed.
+- `verify` performs the same full frame decode and checks as decompression but emits no FASTQ.
+- v1 input is rejected; there is no partial or heuristic compatibility path.
+
+## Modules
+
+| Namespace | Responsibility |
+|---|---|
+| `fqc::format::v2` | wire format, stream coding, checksums, memory preflight |
+| `fqc::commands::v2` | profile resolution and single bounded engine |
+| `fqc::io` | FASTQ parsing, gzip input, file/stdin/stdout stream factories |
+| `fqc::common` | records, structured errors, logging |
+
+Legacy ABC, SCM, v1 format/index/reorder map, async-I/O island, paired parser, and TBB pipeline
+modules were deleted rather than retained as unreachable compatibility code.

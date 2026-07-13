@@ -13,6 +13,8 @@
 #include <sstream>
 #include <vector>
 
+#include <unistd.h>
+
 #include <gtest/gtest.h>
 
 namespace fqc::io {
@@ -25,7 +27,8 @@ namespace {
 class CompressedStreamTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        tempDir_ = std::filesystem::temp_directory_path() / "fqc_compressed_stream_test";
+        tempDir_ = std::filesystem::temp_directory_path() /
+            ("fqc_compressed_stream_test_" + std::to_string(::getpid()));
         std::filesystem::create_directories(tempDir_);
 
         // Generate test data
@@ -184,6 +187,27 @@ TEST_F(CompressedStreamTest, OpenCompressedFileGzip) {
     EXPECT_EQ(buffer.str(), testData_);
 }
 
+TEST_F(CompressedStreamTest, ReadsConcatenatedGzipMembers) {
+    const auto firstPlain = tempDir_ / "first.txt";
+    const auto secondPlain = tempDir_ / "second.txt";
+    const auto firstGzip = tempDir_ / "first.gz";
+    const auto secondGzip = tempDir_ / "second.gz";
+    const auto concatenated = tempDir_ / "concatenated.gz";
+    writeTestFile(firstPlain, "first member\n");
+    writeTestFile(secondPlain, "second member\n");
+
+    const auto firstCommand = "gzip -c " + firstPlain.string() + " > " + firstGzip.string();
+    const auto secondCommand = "gzip -c " + secondPlain.string() + " > " + secondGzip.string();
+    ASSERT_EQ(system(firstCommand.c_str()), 0);
+    ASSERT_EQ(system(secondCommand.c_str()), 0);
+    writeTestFile(concatenated, readFile(firstGzip) + readFile(secondGzip));
+
+    CompressedInputStream stream(concatenated);
+    std::stringstream buffer;
+    buffer << stream.rdbuf();
+    EXPECT_EQ(buffer.str(), "first member\nsecond member\n");
+}
+
 // =============================================================================
 // GzipStreamBuf Tests
 // =============================================================================
@@ -191,7 +215,8 @@ TEST_F(CompressedStreamTest, OpenCompressedFileGzip) {
 class GzipStreamBufTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        tempDir_ = std::filesystem::temp_directory_path() / "fqc_gzip_streambuf_test";
+        tempDir_ = std::filesystem::temp_directory_path() /
+            ("fqc_gzip_streambuf_test_" + std::to_string(::getpid()));
         std::filesystem::create_directories(tempDir_);
     }
 
@@ -256,6 +281,32 @@ TEST_F(GzipStreamBufTest, MoveSemantics) {
     std::stringstream buffer;
     buffer << stream.rdbuf();
     EXPECT_EQ(buffer.str(), testData);
+}
+
+TEST_F(GzipStreamBufTest, MoveAssignmentPreservesBufferedOutput) {
+    const auto compressedPath = tempDir_ / "buffered.gz";
+    const std::string testData(200'000, 'B');
+    const auto plainPath = tempDir_ / "buffered.txt";
+    {
+        std::ofstream output(plainPath, std::ios::binary);
+        output << testData;
+    }
+    const auto command = "gzip -c " + plainPath.string() + " > " + compressedPath.string();
+    ASSERT_EQ(system(command.c_str()), 0);
+
+    std::ifstream compressedFile(compressedPath, std::ios::binary);
+    GzipStreamBuf source(compressedFile);
+    std::istream first(&source);
+    std::string prefix(17, '\0');
+    first.read(prefix.data(), static_cast<std::streamsize>(prefix.size()));
+    ASSERT_EQ(prefix, testData.substr(0, prefix.size()));
+
+    GzipStreamBuf destination;
+    destination = std::move(source);
+    std::istream remainder(&destination);
+    std::stringstream buffer;
+    buffer << remainder.rdbuf();
+    EXPECT_EQ(prefix + buffer.str(), testData);
 }
 
 // =============================================================================

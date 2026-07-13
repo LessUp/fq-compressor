@@ -16,36 +16,15 @@
 set(FQC_CORE_SOURCES
     common/error.cpp
     common/logger.cpp
-    format/fqc_reader.cpp
-    format/fqc_writer.cpp
-    format/reorder_map.cpp
+    format/v2_archive.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
     io/stream_factory.cpp
-    io/paired_end_parser.cpp
-    io/async_io.cpp
-    algo/global_analyzer.cpp
-    algo/block_compressor.cpp
-    algo/quality_compressor.cpp
-    algo/id_compressor.cpp
-    algo/pe_optimizer.cpp
-    pipeline/pipeline.cpp
-    pipeline/pipeline_node.cpp
-    pipeline/reader_node.cpp
-    pipeline/writer_node.cpp
-    pipeline/fqc_reader_node.cpp
-    pipeline/decompressor_node.cpp
-    pipeline/fastq_writer_node.cpp
 )
 
 # Command sources
 set(FQC_COMMAND_SOURCES
-    commands/compression_engine.cpp
-    commands/compression_profile.cpp
-    commands/compress_command.cpp
-    commands/decompress_command.cpp
-    commands/info_command.cpp
-    commands/verify_command.cpp
+    commands/v2_archive_engine.cpp
 )
 
 # Create the core library
@@ -64,7 +43,6 @@ target_link_libraries(fqc_core
     PUBLIC
         fmt::fmt
         quill::quill
-        TBB::tbb
         ZLIB::ZLIB
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_shared>
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_static>
@@ -81,6 +59,7 @@ add_library(fqc_cli STATIC ${FQC_COMMAND_SOURCES})
 target_include_directories(fqc_cli
     PUBLIC
         $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(fqc_cli
@@ -118,9 +97,8 @@ target_include_directories(fqc
 # Install libraries
 install(TARGETS fqc fqc_core fqc_cli
     EXPORT FQCompressorTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Runtime
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT Development
 )

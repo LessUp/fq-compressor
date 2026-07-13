@@ -13,7 +13,6 @@
 #   - Logging: Quill (with fmt)
 #   - Compression: zlib-ng, zstd
 #   - Checksums: xxHash
-#   - Parallel processing: oneTBB
 #   - Testing: GTest
 # =============================================================================
 
@@ -27,20 +26,20 @@ class FQCompressorConan(ConanFile):
     license = "MIT"  # Project-authored code; vendored third-party code keeps its own license
     author = "LessUp <jiashuai.mail@gmail.com>"
     url = "https://github.com/LessUp/fq-compressor"
-    description = "High-performance FASTQ compressor with random access support"
+    description = "High-performance sequential FASTQ compressor"
     topics = ("bioinformatics", "fastq", "compression", "genomics", "archival")
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    default_options = {
+        "shared": False,
+        "fPIC": True,
+        "zlib-ng/*:zlib_compat": True,
+    }
     exports_sources = "CMakeLists.txt", "src/*", "include/*", "cmake/*", "tests/*"
 
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
-
-    def configure(self):
-        # onetbb requires hwloc to always be built as shared library.
-        self.options["hwloc/*"].shared = True
 
     def layout(self):
         cmake_layout(self)
@@ -65,7 +64,7 @@ class FQCompressorConan(ConanFile):
         # =========================================================================
         # zlib-ng: High-performance zlib replacement for gzip support
         self.requires("zlib-ng/2.3.2")
-        # zstd: Fast compression algorithm (for Medium/Long reads)
+        # zstd: Fast compression for v2 frame streams
         self.requires("zstd/1.5.7")
 
         # =========================================================================
@@ -73,12 +72,6 @@ class FQCompressorConan(ConanFile):
         # =========================================================================
         # xxHash: Extremely fast non-cryptographic hash algorithm
         self.requires("xxhash/0.8.3")
-
-        # =========================================================================
-        # Parallel Processing (Requirement 4.1)
-        # =========================================================================
-        # oneTBB: Intel Threading Building Blocks for parallel pipelines
-        self.requires("onetbb/2022.3.0")
 
     def build_requirements(self):
         # =========================================================================

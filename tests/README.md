@@ -1,25 +1,22 @@
 # fq-compressor tests
 
-This directory contains unit tests and property-based tests.
+This directory contains focused unit and end-to-end tests for FQC v2.
 
 ## Testing frameworks
 
 - **Google Test (GTest)** for unit tests
-- **RapidCheck** for property-based tests
 
 ## Test file naming convention
 
 - Unit tests: `*_test.cpp`
-- Property tests: `*_property_test.cpp`
 
 ## Directory structure
 
-- `algo/` — Algorithm tests (block compressor, ID compressor, quality compressor, etc.)
-- `common/` — Common utility tests (memory budget, etc.)
+- `commands/` — Bounded v2 engine tests
+- `common/` — Structured error tests
 - `e2e/` — End-to-end CLI tests (shell scripts)
-- `format/` — FQC format tests (reader/writer round-trip)
-- `io/` — I/O tests (FASTQ parser)
-- `pipeline/` — Pipeline tests (compression/decompression round-trip)
+- `format/` — FQC v2 wire-format, integrity, and memory-bound tests
+- `io/` — FASTQ parser and stream tests
 
 ## Running tests
 
@@ -28,7 +25,7 @@ This directory contains unit tests and property-based tests.
 ./scripts/test.sh clang-debug
 
 # Run with filter
-./scripts/test.sh clang-debug 'MemoryBudget*'
+./scripts/test.sh clang-debug 'V2Archive*'
 
 # Run via ctest directly
 ctest --test-dir build/clang-debug --output-on-failure

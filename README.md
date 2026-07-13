@@ -1,245 +1,124 @@
 # fq-compressor
 
-<p align="center">
-  <b>A high-performance FASTQ compressor with O(1) random access</b>
-</p>
+`fq-compressor` is a C++23 FASTQ compressor built around a small, sequential, bounded-memory
+archive format. It preserves read IDs, comments, sequences, quality strings, and paired-read
+adjacency. Plain FASTQ and `.gz` FASTQ inputs are supported.
 
-<p align="center">
-  <a href="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml">
-    <img src="https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-  </a>
-  <a href="https://github.com/LessUp/fq-compressor/releases/latest">
-    <img src="https://img.shields.io/github/v/release/LessUp/fq-compressor?include_prereleases&label=Release" alt="Latest Release">
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
-  </a>
-  <a href="https://en.cppreference.com/w/cpp/23">
-    <img src="https://img.shields.io/badge/C%2B%2B-23-blue.svg" alt="C++23">
-  </a>
-</p>
+> FQC v2 is intentionally incompatible with the legacy v1 archive and CLI. There is no v1 reader,
+> migration command, random access, lossy mode, or original-order map.
 
-<p align="center">
-  <a href="README.md">English</a> •
-  <a href="README.zh-CN.md">简体中文</a> •
-  <a href="https://github.com/LessUp/fq-compressor-rust">Rust Implementation</a>
-</p>
+## Why v2
 
----
+The previous ABC/SCM implementation combined an expensive global analysis path, dense per-thread
+quality models, and two separate serial/parallel engines. Its tracked throughput was roughly
+0.1 MiB/s. V2 replaces that stack with independent sequential frames and one engine shared by
+compression, decompression, and verification.
 
-## Contents
+The production fallback uses:
 
-- [Overview](#-overview)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Performance](#-performance)
-- [Documentation](#-documentation)
-- [Development](#-development)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Acknowledgments](#-acknowledgments)
+- varint-framed ID/comment streams compressed with Zstd level 1;
+- 2-bit uppercase A/C/G/T sequence packing plus exact-position exceptions for every other IUPAC
+  symbol and lowercase base, followed by Zstd level 1;
+- varint-framed quality streams compressed with Zstd level 1;
+- XXH64 checksums for the global header, each logical frame, and footer totals.
 
----
+Dataset profiles (`illumina`, `ont`, `pacbio-hifi`, and `pacbio-clr`) are recorded explicitly and
+can be detected or overridden. They currently share the validated fallback codec. A specialised
+codec is not admitted unless it keeps the throughput floor and beats fallback size by at least 5%
+on the benchmark corpus without a per-dataset regression above 1%.
 
-## 🎯 Overview
+## Build
 
-**fq-compressor** is a FASTQ compression tool written in C++23. It combines **Assembly-based Compression (ABC)** with **Statistical Context Mixing (SCM)** to reach near-entropy compression ratios while keeping **O(1) random access** into the compressed archive.
-
-Notable properties:
-- Random access to reads without full decompression
-- Intel oneTBB parallel pipeline
-- Reads `.gz` FASTQ inputs directly, no pre-decompression
-- Tracked benchmarks with peer-tool comparison (see [Performance](#-performance))
-
----
-
-## 📦 Installation
-
-### Build from Source (Recommended)
+Requirements: CMake 3.28+, Conan 2.x, GCC 14+ or Clang 18+.
 
 ```bash
-git clone https://github.com/LessUp/fq-compressor.git
-cd fq-compressor
-
-# Conan install + CMake build in one step
-./scripts/build.sh gcc-release
-
-# Binary: build/gcc-release/src/fqc
+conan profile detect --force
+./scripts/build.sh clang-release
 ```
 
-**Other presets:** `clang-debug` (development), `clang-release`, `gcc-debug`, `clang-asan`, `clang-tsan`. See [AGENTS.md](AGENTS.md) for the full list.
+The executable is `build/clang-release/src/fqc`.
 
-**Requirements:** GCC 14+ or Clang 18+, CMake 3.28+, Conan 2.x
-
-### Pre-built Binaries
-
-Pre-built binaries for Linux (glibc/musl, x86_64/aarch64) and macOS (x86_64/arm64) are available on the [releases page](https://github.com/LessUp/fq-compressor/releases/latest).
-
-> **Note:** v0.2.0 was released without binary assets. Use a newer release or build from source.
-
----
-
-## 🚀 Usage
-
-### Compress and Decompress
+## CLI
 
 ```bash
-# Compress FASTQ to FQC format
+# Single-end; profile is auto-detected.
 fqc compress -i reads.fastq -o reads.fqc
 
-# Verify archive integrity
+# Paired files. Each R1/R2 pair stays adjacent and each frame contains complete pairs.
+fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
+
+# Explicit long-read profile.
+fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
+
+# Full integrity verification and decompression.
 fqc verify reads.fqc
-
-# Full decompression
 fqc decompress -i reads.fqc -o restored.fastq
+
+# Process pipelines.
+producer | fqc compress -i - -o - | consumer
+fqc decompress -i reads.fqc -o - | downstream-tool
 ```
 
-### Advanced Features
+Global options may appear before or after the subcommand:
 
-```bash
-# Random access — extract reads 1000-2000
-fqc decompress -i reads.fqc --range 1000:2000 -o subset.fastq
-
-# Multi-threaded compression (8 threads)
-fqc compress -i reads.fastq -o reads.fqc -t 8 -v
-
-# Paired-end data
-fqc compress -i reads_1.fastq -2 reads_2.fastq \
-  -o paired.fqc --paired
-
-# Archive inspection
-fqc info reads.fqc
+```text
+--memory-limit MiB   Hard operation budget; default 16384, minimum 64
+-q, --quiet          Suppress non-error status messages
 ```
 
----
+Compression additionally accepts `--profile`, `--frame-mib`, and `--force`. Decompression accepts
+`--force`. Paired archives decompress as one canonical interleaved FASTQ stream.
 
-## 📊 Performance
+## Format and compatibility
 
-Compression ratio and throughput measured on tracked benchmark workloads
-(results in `benchmark_v2/results/`). fqc runs with 4 threads; peer tools run
-single-threaded with their defaults.
+FQC v2 consists of a checked global header, zero or more independent frames, and an end footer.
+The reader rejects unknown versions/codecs, oversized frames, inconsistent paired counts,
+truncation, trailing logical-stream or post-footer data, and checksum mismatches. It does not probe
+or decode v1.
 
-### Compression Ratio
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the byte layout and memory model.
 
-| Workload | fqc | gzip | xz | bzip2 |
-|----------|-----|------|----|-------|
-| small20k-single | 4.04× | 3.25× | 4.05× | 3.98× |
-| big100k-single | 4.86× | 3.89× | 5.16× | 4.88× |
-| small20k-paired | 3.94× | — | — | — |
-| big100k-paired | 4.68× | — | — | — |
+## Measured performance
 
-fqc holds the competitive compression-ratio tier, ahead of gzip and on par with
-xz and bzip2 on single-end data.
+Release CLI measurements on an 8-core AMD Ryzen 7 5800H x86_64 host include FASTQ parsing,
+checksums, frame construction, file I/O, decompression, and exact comparison.
 
-### Throughput (big100k-single, 4 threads)
+| Synthetic input | Compress | Decompress | Max RSS at 64 MiB budget |
+|---|---:|---:|---:|
+| Randomised Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
+| Randomised ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-| Tool | Compress (MiB/s) | Decompress (MiB/s) |
-|------|------------------|---------------------|
-| fqc | 0.10 | 2.12 |
-| gzip | 4.24 | 79.07 |
-| xz | 0.24 | 27.56 |
-| bzip2 | 7.93 | 4.27 |
+These results establish the local x86_64 throughput floor, not biological compression-ratio
+claims. The repository does not currently contain enough real ONT/HiFi/CLR data to admit a
+specialised long-read codec, and ARM64 remains an explicit release-machine verification item.
+The table reports three-run medians after full logical-record validation and the maximum RSS across
+repetitions.
 
-Throughput is the known short board: fqc trades speed for ratio. The current
-pipeline is not yet tuned for throughput; compression spends most of its time
-in the ABC reordering and consensus stages.
-
-### Reproduce
+Run the local scaling harness with:
 
 ```bash
-# Tracked benchmark (dataset-driven, auto-prepares data, writes to benchmark_v2/results/)
-./scripts/benchmark.sh --dataset err091571-local-supported --build --prepare --quick
-
-# Local workload comparison via the v2 CLI
-./scripts/benchmark_v2.sh prepare \
-  --workload big100k-single --data-root benchmark_v2/data \
-  --output-dir benchmark_v2/data
-./scripts/benchmark_v2.sh run \
-  --workload big100k-single --data-root benchmark_v2/data \
-  --tools fqc,gzip,xz,bzip2 --threads 4 --runs 1 \
-  --json benchmark_v2/results/big100k-single.json \
-  --report benchmark_v2/results/big100k-single.md
+FQC_BIN=build/clang-release/src/fqc \
+FQC_PERF_SIZES="64 256" \
+FQC_PERF_DATA=random \
+FQC_PERF_ENFORCE_SLA=1 \
+bash tests/e2e/test_performance.sh
 ```
 
-For architecture and file-format details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+The dataset-driven peer comparison remains available through `./scripts/benchmark_v2.sh`.
+Codec pass/fail decisions are recorded in [benchmark_v2/CODEC_GATES.md](benchmark_v2/CODEC_GATES.md).
 
----
+## Development
 
-## 📚 Documentation
-
-| Document | Contents |
-|----------|----------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, pipeline, format, random access |
-| [AGENTS.md](AGENTS.md) | Build commands, code style, development workflow |
-| [Releases](https://github.com/LessUp/fq-compressor/releases) | Pre-built binaries |
-
----
-
-## 🛠️ Development
-
-`fq-compressor` is in **closeout mode**. The development workflow is intentionally small:
+The project is in closeout mode. Keep changes small, delete duplicate paths, and run:
 
 ```bash
-./scripts/build.sh clang-debug
-./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
+./scripts/lint.sh format-check
 ```
 
-### Release Checks
+Focused tests cover the v2 wire format, corruption/truncation, memory admission, parser/I/O,
+single/paired round trips, stdin/stdout, and the real CLI process boundary.
 
-Run the acceptance script before tagging a release:
+## License
 
-```bash
-./scripts/acceptance.sh
-```
-
-To regenerate the tracked benchmark:
-
-```bash
-./scripts/benchmark.sh \
-  --dataset err091571-local-supported \
-  --build \
-  --tools fqc,gzip,xz,bzip2 \
-  --quick
-```
-
-For workload-level local comparison, use `./scripts/benchmark_v2.sh run` (see
-[Performance → Reproduce](#-performance)).
-
-See [AGENTS.md](AGENTS.md) for full project rules and architecture.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome, particularly:
-
-- documentation cleanup
-- bug fixes with regression tests
-- workflow and tooling simplification
-
-See [AGENTS.md](AGENTS.md) for the repository workflow and coding standards.
-
----
-
-## 📄 License
-
-Project code is MIT-licensed — see [LICENSE](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-- **Spring** ([Chandak et al., 2019](https://doi.org/10.1101/gr.234583.119)) — ABC algorithm inspiration
-- **fqzcomp5** (Bonfield) — Quality compression reference
-- **Intel oneTBB** — Parallel computing framework
-- **Contributors** — Everyone who has helped improve this project
-
----
-
-<p align="center">
-  <a href="https://github.com/LessUp/fq-compressor/releases">Releases</a> •
-  <a href="ARCHITECTURE.md">Architecture</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
-  <a href="https://github.com/LessUp/fq-compressor/discussions">Discussions</a>
-</p>
+MIT. See [LICENSE](LICENSE).

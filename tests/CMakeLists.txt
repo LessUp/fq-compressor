@@ -74,16 +74,9 @@ fqc_add_test(error_test
     SOURCES common/error_test.cpp
 )
 
-# FQCWriter Unit Tests
-# Regression: reorder map size fields written correctly (forwardMapSize/reverseMapSize)
-# Validates: Requirements 2.1, 5.1
-fqc_add_test(fqc_writer_test
-    SOURCES format/fqc_writer_test.cpp
-)
-
-# Async I/O Tests
-fqc_add_test(async_io_test
-    SOURCES io/async_io_test.cpp
+# FQC v2 sequential archive tests
+fqc_add_test(v2_archive_test
+    SOURCES format/v2_archive_test.cpp
 )
 
 # Stream factory tests
@@ -96,59 +89,26 @@ fqc_add_test(fastq_parser_test
     SOURCES io/fastq_parser_test.cpp
 )
 
-# Chunk marshaling tests
-fqc_add_test(chunk_marshal_test
-    SOURCES pipeline/chunk_marshal_test.cpp
-)
-
-# Backpressure controller regression tests
-fqc_add_test(backpressure_controller_test
-    SOURCES pipeline/backpressure_controller_test.cpp
-)
-
 # Compressed Stream Tests
 fqc_add_test(compressed_stream_test
     SOURCES io/compressed_stream_test.cpp
 )
 
-# Block compressor regression tests
-fqc_add_test(block_compressor_regression_test
-    SOURCES algo/block_compressor_regression_test.cpp
-)
-
-# Algorithm regression tests
-fqc_add_test(algo_regression_test
-    SOURCES algo/algo_regression_test.cpp
-)
-
-# Original-order command tests
-fqc_add_test(original_order_command_test
-    SOURCES commands/original_order_command_test.cpp
+# V2 end-to-end archive engine tests
+fqc_add_test(v2_archive_engine_test
+    SOURCES commands/v2_archive_engine_test.cpp
     LIBRARIES fqc_cli
 )
 
-# Archive regression tests
-fqc_add_test(archive_regression_test
-    SOURCES commands/archive_regression_test.cpp
-    LIBRARIES fqc_cli
+add_test(
+    NAME v2_cli_smoke_test
+    COMMAND ${CMAKE_COMMAND} -E env
+        FQC_BIN=$<TARGET_FILE:fqc>
+        bash ${CMAKE_CURRENT_SOURCE_DIR}/e2e/cli_smoke_test.sh
 )
-
-# Compression profile tests
-fqc_add_test(compression_profile_test
-    SOURCES commands/compression_profile_test.cpp
-    LIBRARIES fqc_cli
-)
-
-# Compression request tests
-fqc_add_test(compression_request_test
-    SOURCES commands/compression_request_test.cpp
-    LIBRARIES fqc_cli
-)
-
-# Compression engine tests
-fqc_add_test(compression_engine_test
-    SOURCES commands/compression_engine_test.cpp
-    LIBRARIES fqc_cli
+set_tests_properties(v2_cli_smoke_test PROPERTIES
+    TIMEOUT 60
+    LABELS "e2e"
 )
 
 # =============================================================================

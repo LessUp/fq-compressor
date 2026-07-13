@@ -1,535 +1,223 @@
 // =============================================================================
-// fq-compressor - High Performance FASTQ Compressor
-// =============================================================================
-// Main entry point for the fqc command-line tool.
-//
-// This file implements the CLI framework using CLI11, providing:
-// - Subcommands: compress, decompress, info, verify
-// - Global options: threads, verbose, memory-limit
-// - TTY detection for progress display
-// - stdin detection for streaming mode
-//
-// Requirements: 6.1, 6.2, 6.3
+// fq-compressor - FQC v2 Command-Line Interface
 // =============================================================================
 
-#include <cstdlib>
-#include <iostream>
+#include "fqc/commands/v2_archive_engine.h"
+#include "fqc/common/error.h"
+#include "fqc/common/logger.h"
+#include "fqc/format/v2_archive.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <limits>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include <CLI/CLI.hpp>
 
-#ifdef _WIN32
-#include <io.h>
-#define isatty _isatty
-#define fileno _fileno
-#else
-#include <unistd.h>
-#endif
-
-#include "fqc/common/error.h"
-#include "fqc/common/logger.h"
-#include "fqc/common/types.h"
-
-// Command implementations
-#include "fqc/commands/compress_command.h"
-#include "fqc/commands/decompress_command.h"
-#include "fqc/commands/info_command.h"
-#include "fqc/commands/verify_command.h"
-
 namespace {
-
-// =============================================================================
-// Version Information
-// =============================================================================
 
 #ifndef FQC_VERSION
 #define FQC_VERSION "0.2.0"
 #endif
 
-constexpr const char* kVersion = FQC_VERSION;
-constexpr const char* kDescription =
-    "fq-compressor: High-performance FASTQ compressor with random access support\n"
-    "Combines Spring's ABC algorithm with modern C++23 and TBB parallelism.\n\n"
-    "Note: The .fqc format is already highly compressed (0.4-0.6 bits/base).\n"
-    "External compression (gzip/xz) provides minimal benefit and breaks random access.\n"
-    "For distribution, wrap with 'xz' externally and unwrap before use.";
-
-// =============================================================================
-// Global Options
-// =============================================================================
+constexpr std::uint64_t kBytesPerMiB = 1024ULL * 1024ULL;
 
 struct GlobalOptions {
-    int threads = 0;              // 0 = auto-detect
-    int verbosity = 0;            // 0 = normal, 1 = verbose, 2 = debug
-    std::size_t memoryLimit = 0;  // 0 = no limit (in MB)
+    std::uint64_t memoryLimitMiB = std::uint64_t{16} * 1024;
     bool quiet = false;
-    bool noProgress = false;
-    std::string logFile;            // Log file path (default: stderr)
-    std::string logLevel = "info";  // Log level: trace, debug, info, warning, error
-    bool jsonOutput = false;        // JSON output for info/verify
 };
 
-// =============================================================================
-// TTY Detection
-// =============================================================================
-
-/// @brief Check if stdout is a TTY.
-[[nodiscard]] bool isStdoutTty() noexcept {
-    return isatty(fileno(stdout)) != 0;
-}
-
-// =============================================================================
-// CLI Option Structs
-// =============================================================================
-
-struct CliCompressOptions {
+struct CompressOptions {
     std::string input;
-    std::string input2;
+    std::string mate;
     std::string output;
-    int level = 6;
-    bool reorder = true;
-    bool preserveOrder = false;
-    bool streaming = false;
-    std::string qualityMode = "lossless";
-    std::string idMode = "exact";
-    std::string longReadMode = "auto";
-    std::size_t blockReads = 100000;
-    bool blockReadsExplicit = false;
-    std::size_t maxBlockBases = 0;
-    bool scanAllLengths = false;
-    bool paired = false;
-    bool interleaved = false;
-    std::string peLayout = "interleaved";
-    bool saveReorderMap = true;
-    std::string checksum = "xxh64";
+    std::string profile = "auto";
+    std::uint64_t frameMiB = 64;
     bool force = false;
 };
 
-struct CliDecompressOptions {
+struct DecompressOptions {
     std::string input;
     std::string output;
-    std::string range;
-    std::string rangePairs;
-    bool headerOnly = false;
-    std::string streams = "all";
-    std::string outputFormat;
-    bool originalOrder = false;
-    bool skipCorrupted = false;
-    std::string corruptedPlaceholder;
-    bool splitPe = false;
-    bool verify = true;
-    std::string placeholderQual;
-    std::string idPrefix;
+    bool force = false;
 };
 
-struct CliInfoOptions {
+struct VerifyOptions {
     std::string input;
-    bool json = false;
-    bool detailed = false;
-    bool showIndex = false;
-    bool showCodecs = false;
 };
 
-struct CliVerifyOptions {
-    std::string input;
-    bool failFast = false;
-    bool verbose = false;
-    std::string mode = "full";
-    bool json = false;
-};
-
-// =============================================================================
-// Command Setup Functions (accept options by reference)
-// =============================================================================
-
-void setupCompressCommand(CLI::App& app, GlobalOptions& gOpts, CliCompressOptions& opts) {
-    auto* compress = app.add_subcommand("compress", "Compress FASTQ file(s) to .fqc format");
-    compress->alias("c");
-
-    compress->add_option("-i,--input,-1", opts.input, "Input FASTQ file (or '-' for stdin)")
-        ->required()
-        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
-
-    compress->add_option("-2,--input2", opts.input2, "Second input file for paired-end (R2)")
-        ->check(CLI::ExistingFile);
-
-    compress->add_option("-o,--output", opts.output, "Output .fqc file")->required();
-
-    compress->add_option("-l,--level", opts.level, "Compression level (1-9)")
-        ->default_val(6)
-        ->check(CLI::Range(1, 9));
-
-    compress
-        ->add_flag("--reorder,!--no-reorder", opts.reorder, "Enable/disable global read reordering")
-        ->default_val(true);
-
-    compress->add_flag("--preserve-order",
-                       opts.preserveOrder,
-                       "Force preserve original order (equivalent to --no-reorder)");
-
-    compress->add_flag(
-        "--streaming", opts.streaming, "Streaming mode (disables reordering, lower compression)");
-
-    compress
-        ->add_option("--quality-mode",
-                     opts.qualityMode,
-                     "Quality compression mode: lossless, illumina8, discard")
-        ->default_val("lossless")
-        ->check(CLI::IsMember({"lossless", "illumina8", "discard"}));
-
-    compress->add_option("--id-mode", opts.idMode, "ID handling mode: exact, tokenize, discard")
-        ->default_val("exact")
-        ->check(CLI::IsMember({"exact", "tokenize", "discard"}));
-
-    compress
-        ->add_option(
-            "--long-read-mode", opts.longReadMode, "Long read handling: auto, short, medium, long")
-        ->default_val("auto")
-        ->check(CLI::IsMember({"auto", "short", "medium", "long"}));
-
-    auto* blockReadsOpt = compress
-                              ->add_option("--block-reads",
-                                           opts.blockReads,
-                                           "Number of reads per block (default: 100000)")
-                              ->default_val(100000);
-
-    compress
-        ->add_option(
-            "--max-block-bases", opts.maxBlockBases, "Maximum bases per block (for long reads)")
-        ->default_val(0);
-
-    compress->add_flag("--scan-all-lengths",
-                       opts.scanAllLengths,
-                       "Scan all reads for length detection (slower but more accurate)");
-
-    compress->add_flag("--paired", opts.paired, "Input is paired-end data");
-
-    compress->add_flag(
-        "--interleaved", opts.interleaved, "Input is interleaved paired-end (R1, R2, R1, R2, ...)");
-
-    compress
-        ->add_option(
-            "--pe-layout", opts.peLayout, "Paired-end storage layout: interleaved, consecutive")
-        ->default_val("interleaved")
-        ->check(CLI::IsMember({"interleaved", "consecutive"}));
-
-    compress
-        ->add_flag("--save-reorder-map,!--no-save-reorder-map",
-                   opts.saveReorderMap,
-                   "Save/skip reorder map for original order reconstruction")
-        ->default_val(true);
-
-    compress->add_option("--checksum", opts.checksum, "Checksum algorithm: xxh64")
-        ->default_val("xxh64")
-        ->check(CLI::IsMember({"xxh64"}));
-
-    compress->add_flag("-f,--force", opts.force, "Overwrite existing output file");
-
-    compress->callback([&opts, blockReadsOpt]() {
-        if (opts.input == "-") {
-            if (!opts.streaming) {
-                FQC_LOG_WARNING(
-                    "stdin input detected, enabling streaming mode (no global reordering)");
-                opts.streaming = true;
-            }
-        }
-        // --interleaved or -2 implies --paired
-        if (opts.interleaved || !opts.input2.empty()) {
-            opts.paired = true;
-        }
-        // --preserve-order disables reordering
-        if (opts.preserveOrder) {
-            opts.reorder = false;
-        }
-        opts.blockReadsExplicit = blockReadsOpt->count() > 0;
-    });
+[[nodiscard]] auto checkedMiB(std::uint64_t value, std::string_view option)
+    -> fqc::Result<std::size_t> {
+    if (value == 0 || value > std::numeric_limits<std::size_t>::max() / kBytesPerMiB) {
+        return fqc::makeError<std::size_t>(fqc::ErrorCode::kInvalidArgument,
+                                           std::string(option) + " is out of range");
+    }
+    return static_cast<std::size_t>(value * kBytesPerMiB);
 }
 
-void setupDecompressCommand(CLI::App& app, CliDecompressOptions& opts) {
-    auto* decompress = app.add_subcommand("decompress", "Decompress .fqc file to FASTQ");
-    decompress->alias("d");
-    decompress->alias("x");
-
-    decompress->add_option("-i,--input", opts.input, "Input .fqc file")
-        ->required()
-        ->check(CLI::ExistingFile);
-
-    decompress->add_option("-o,--output", opts.output, "Output FASTQ file (or '-' for stdout)")
-        ->required();
-
-    decompress->add_option(
-        "--range", opts.range, "Read range to extract (1-based, e.g., '1:1000' or '100:')");
-
-    decompress->add_option("--range-pairs",
-                           opts.rangePairs,
-                           "Paired read range to extract (e.g., '1:50' for first 50 pairs)");
-
-    decompress->add_flag("--header-only", opts.headerOnly, "Only output read headers (IDs)");
-
-    decompress
-        ->add_option("--streams",
-                     opts.streams,
-                     "Streams to decode: all, id, seq, qual, or comma-separated (e.g., 'id,seq')")
-        ->default_val("all");
-
-    decompress->add_option(
-        "--output-format", opts.outputFormat, "Output format override: fastq, fasta, tsv, raw");
-
-    decompress->add_flag("--original-order",
-                         opts.originalOrder,
-                         "Restore reads to their original order using reorder map");
-
-    decompress->add_flag(
-        "--skip-corrupted", opts.skipCorrupted, "Skip corrupted blocks instead of failing");
-
-    decompress->add_option("--corrupted-placeholder",
-                           opts.corruptedPlaceholder,
-                           "Placeholder sequence for corrupted reads");
-
-    decompress->add_flag("--split-pe", opts.splitPe, "Split paired-end output to separate files");
-
-    decompress
-        ->add_flag("--verify,!--no-verify",
-                   opts.verify,
-                   "Enable/disable checksum verification during decompression")
-        ->default_val(true);
-
-    decompress->add_option("--placeholder-qual",
-                           opts.placeholderQual,
-                           "Placeholder quality character for Quality Discard mode (default: '!')");
-
-    decompress->add_option(
-        "--id-prefix", opts.idPrefix, "ID prefix for ID Discard mode reconstruction");
+[[nodiscard]] auto resolveProfile(std::string_view value)
+    -> fqc::Result<std::optional<fqc::format::v2::DatasetProfile>> {
+    if (value == "auto") {
+        return std::optional<fqc::format::v2::DatasetProfile>{};
+    }
+    auto profile = fqc::format::v2::parseProfile(value);
+    if (!profile) {
+        return fqc::makeError<std::optional<fqc::format::v2::DatasetProfile>>(profile.error());
+    }
+    return std::optional<fqc::format::v2::DatasetProfile>(*profile);
 }
 
-void setupInfoCommand(CLI::App& app, CliInfoOptions& opts) {
-    auto* info = app.add_subcommand("info", "Display archive information");
-    info->alias("i");
-
-    info->add_option("input,-i,--input", opts.input, "Input .fqc file")
-        ->required()
-        ->check(CLI::ExistingFile);
-
-    info->add_flag("--json", opts.json, "Output as JSON");
-
-    info->add_flag("--detailed", opts.detailed, "Show detailed block information");
-
-    info->add_flag(
-        "--show-index", opts.showIndex, "Show index summary (block count, ranges, offsets)");
-
-    info->add_flag("--show-codecs", opts.showCodecs, "Show codec statistics and distribution");
+void logStats(std::string_view operation,
+              const fqc::commands::v2::OperationStats& stats,
+              bool quiet) {
+    if (quiet) {
+        return;
+    }
+    FQC_LOG_INFO(
+        "{} complete: profile={}, paired={}, frames={}, records={}, bases={}, input={} "
+        "bytes, output={} bytes",
+        operation,
+        fqc::format::v2::profileToString(stats.profile),
+        stats.paired,
+        stats.frameCount,
+        stats.recordCount,
+        stats.totalBases,
+        stats.inputBytes,
+        stats.outputBytes);
 }
 
-void setupVerifyCommand(CLI::App& app, CliVerifyOptions& opts) {
-    auto* verify = app.add_subcommand("verify", "Verify archive integrity");
-    verify->alias("v");
-
-    verify->add_option("input,-i,--input", opts.input, "Input .fqc file")
-        ->required()
-        ->check(CLI::ExistingFile);
-
-    verify->add_flag("--fail-fast", opts.failFast, "Stop on first error");
-
-    verify->add_flag("--verbose", opts.verbose, "Show detailed verification progress");
-
-    verify
-        ->add_option("--mode",
-                     opts.mode,
-                     "Verification mode: quick (metadata only) or full (block checksums)")
-        ->default_val("full")
-        ->check(CLI::IsMember({"quick", "full"}));
-
-    verify->add_flag("--json", opts.json, "Output results as JSON");
+template <typename T>
+[[nodiscard]] auto reportError(const fqc::Result<T>& result) -> int {
+    FQC_LOG_ERROR("{}", result.error().message());
+    fqc::log::flush();
+    fqc::log::shutdown();
+    return fqc::toExitCode(result.error().code());
 }
 
 }  // namespace
 
-// =============================================================================
-// Main Entry Point
-// =============================================================================
-
 int main(int argc, char* argv[]) {
-    // All options are local — no global mutable state.
-    GlobalOptions globalOpts;
-    CliCompressOptions compressOpts;
-    CliDecompressOptions decompressOpts;
-    CliInfoOptions infoOpts;
-    CliVerifyOptions verifyOpts;
+    GlobalOptions global;
+    CompressOptions compress;
+    DecompressOptions decompress;
+    VerifyOptions verify;
 
-    CLI::App app{kDescription};
-    app.set_version_flag("-V,--version", kVersion);
+    CLI::App app{"fq-compressor v2: bounded-memory, lossless sequential FASTQ compression"};
+    app.set_version_flag("-V,--version", FQC_VERSION);
+    app.require_subcommand(1);
     app.fallthrough();
 
-    // Global options
-    app.add_option("-t,--threads", globalOpts.threads, "Number of threads (0 = auto-detect)")
-        ->default_val(0)
-        ->check(CLI::NonNegativeNumber);
+    app.add_option("--memory-limit", global.memoryLimitMiB, "Hard memory limit in MiB")
+        ->default_val(16 * 1024)
+        ->check(CLI::PositiveNumber);
+    app.add_flag("-q,--quiet", global.quiet, "Suppress non-error status messages");
 
-    app.add_flag("-v,--verbose", globalOpts.verbosity, "Increase verbosity (-v, -vv for debug)");
+    auto* compressCommand =
+        app.add_subcommand("compress", "Compress FASTQ into the sequential FQC v2 format");
+    compressCommand->alias("c");
+    compressCommand
+        ->add_option("-i,--input,-1", compress.input, "Primary FASTQ input, or '-' for stdin")
+        ->required()
+        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
+    compressCommand->add_option("-2,--mate", compress.mate, "Mate FASTQ input; pairs stay atomic")
+        ->check(CLI::ExistingFile);
+    compressCommand->add_option("-o,--output", compress.output, "FQC v2 output, or '-' for stdout")
+        ->required();
+    compressCommand
+        ->add_option("--profile",
+                     compress.profile,
+                     "Dataset profile: auto, illumina, ont, pacbio-hifi, pacbio-clr")
+        ->default_val("auto")
+        ->check(CLI::IsMember({"auto", "illumina", "ont", "pacbio-hifi", "pacbio-clr"}));
+    compressCommand
+        ->add_option("--frame-mib", compress.frameMiB, "Target raw FASTQ bytes per frame")
+        ->default_val(64)
+        ->check(CLI::PositiveNumber);
+    compressCommand->add_flag("-f,--force", compress.force, "Overwrite an existing output");
 
-    app.add_flag("-q,--quiet", globalOpts.quiet, "Suppress non-error output");
+    auto* decompressCommand =
+        app.add_subcommand("decompress", "Decompress FQC v2 into canonical FASTQ order");
+    decompressCommand->alias("d");
+    decompressCommand->alias("x");
+    decompressCommand->add_option("-i,--input", decompress.input, "FQC v2 input")
+        ->required()
+        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
+    decompressCommand
+        ->add_option("-o,--output", decompress.output, "FASTQ output, or '-' for stdout")
+        ->required();
+    decompressCommand->add_flag("-f,--force", decompress.force, "Overwrite an existing output");
 
-    app.add_option("--memory-limit", globalOpts.memoryLimit, "Memory limit in MB (0 = no limit)")
-        ->default_val(0);
+    auto* verifyCommand = app.add_subcommand("verify", "Fully decode and verify an FQC v2 archive");
+    verifyCommand->alias("v");
+    verifyCommand->add_option("input,-i,--input", verify.input, "FQC v2 input")
+        ->required()
+        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
 
-    app.add_flag("--no-progress", globalOpts.noProgress, "Disable progress display");
-
-    app.add_option("--log-file", globalOpts.logFile, "Write log to file (default: stderr)");
-
-    app.add_option(
-           "--log-level", globalOpts.logLevel, "Log level: trace, debug, info, warning, error")
-        ->default_val("info")
-        ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
-
-    app.add_flag("--json", globalOpts.jsonOutput, "JSON output for info/verify commands");
-
-    // Setup subcommands (pass local options by reference)
-    setupCompressCommand(app, globalOpts, compressOpts);
-    setupDecompressCommand(app, decompressOpts);
-    setupInfoCommand(app, infoOpts);
-    setupVerifyCommand(app, verifyOpts);
-
-    app.require_subcommand(1);
-
-    CLI11_PARSE(app, argc, argv);
-
-    // Initialize logger
     try {
-        auto logLevel = fqc::log::Level::kInfo;
-        if (globalOpts.quiet) {
-            logLevel = fqc::log::Level::kError;
-        } else if (globalOpts.verbosity >= 2) {
-            logLevel = fqc::log::Level::kDebug;
-        } else if (globalOpts.verbosity >= 1) {
-            logLevel = fqc::log::Level::kDebug;
-        }
-        // Parse --log-level if explicitly set (overrides -v/-q)
-        if (!globalOpts.logLevel.empty() && !globalOpts.quiet && globalOpts.verbosity == 0) {
-            if (globalOpts.logLevel == "trace")
-                logLevel = fqc::log::Level::kDebug;
-            else if (globalOpts.logLevel == "debug")
-                logLevel = fqc::log::Level::kDebug;
-            else if (globalOpts.logLevel == "info")
-                logLevel = fqc::log::Level::kInfo;
-            else if (globalOpts.logLevel == "warning")
-                logLevel = fqc::log::Level::kWarning;
-            else if (globalOpts.logLevel == "error")
-                logLevel = fqc::log::Level::kError;
-        }
-        fqc::log::init(globalOpts.logFile, logLevel);
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize logger: " << e.what() << std::endl;
-        return EXIT_FAILURE;
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError& error) {
+        return app.exit(error);
     }
 
-    if (!isStdoutTty() && !globalOpts.noProgress) {
-        globalOpts.noProgress = true;
-    }
-
-    // Dispatch to subcommand handlers
-    using namespace fqc;
-    using namespace fqc::commands;
     try {
-        if (app.got_subcommand("compress")) {
-            CompressOptions opts;
-            opts.inputPath = compressOpts.input;
-            opts.input2Path = compressOpts.input2;
-            opts.outputPath = compressOpts.output;
-            opts.compressionLevel = compressOpts.level;
-            opts.threads = globalOpts.threads;
-            opts.memoryLimitMb = globalOpts.memoryLimit;
-            opts.enableReordering = compressOpts.reorder;
-            opts.streamingMode = compressOpts.streaming;
-            opts.qualityMode = parseQualityMode(compressOpts.qualityMode);
-            opts.idMode = parseIdMode(compressOpts.idMode);
-            opts.maxBlockBases = compressOpts.maxBlockBases;
-            opts.blockSize = compressOpts.blockReads;
-            opts.blockSizeExplicit = compressOpts.blockReadsExplicit;
-            opts.scanAllLengths = compressOpts.scanAllLengths;
-            opts.paired = compressOpts.paired;
-            opts.interleaved = compressOpts.interleaved;
-            opts.saveReorderMap = compressOpts.saveReorderMap;
-            opts.forceOverwrite = compressOpts.force;
-            opts.showProgress = !globalOpts.noProgress;
-
-            if (compressOpts.longReadMode == "auto") {
-                opts.autoDetectLongRead = true;
-            } else if (compressOpts.longReadMode == "short") {
-                opts.autoDetectLongRead = false;
-                opts.longReadMode = ReadLengthClass::kShort;
-            } else if (compressOpts.longReadMode == "medium") {
-                opts.autoDetectLongRead = false;
-                opts.longReadMode = ReadLengthClass::kMedium;
-            } else if (compressOpts.longReadMode == "long") {
-                opts.autoDetectLongRead = false;
-                opts.longReadMode = ReadLengthClass::kLong;
-            }
-
-            if (compressOpts.peLayout == "consecutive") {
-                opts.peLayout = PELayout::kConsecutive;
-            }
-
-            return CompressCommand(std::move(opts)).execute();
+        fqc::log::init("", global.quiet ? fqc::log::Level::kError : fqc::log::Level::kInfo);
+        auto memoryLimit = checkedMiB(global.memoryLimitMiB, "--memory-limit");
+        if (!memoryLimit) {
+            return reportError(memoryLimit);
         }
-        if (app.got_subcommand("decompress")) {
-            DecompressOptions opts;
-            opts.inputPath = decompressOpts.input;
-            opts.outputPath = decompressOpts.output;
-            opts.headerOnly = decompressOpts.headerOnly;
-            opts.streams = decompressOpts.streams;
-            opts.outputFormat = decompressOpts.outputFormat;
-            opts.originalOrder = decompressOpts.originalOrder;
-            opts.skipCorrupted = decompressOpts.skipCorrupted;
-            opts.splitPairedEnd = decompressOpts.splitPe;
-            opts.verifyChecksums = decompressOpts.verify;
-            opts.idPrefix = decompressOpts.idPrefix;
-            opts.threads = globalOpts.threads;
-            opts.showProgress = !globalOpts.noProgress;
 
-            if (!decompressOpts.corruptedPlaceholder.empty()) {
-                opts.corruptedPlaceholder = decompressOpts.corruptedPlaceholder;
+        const fqc::commands::v2::ArchiveEngine engine;
+        if (*compressCommand) {
+            auto targetFrameBytes = checkedMiB(compress.frameMiB, "--frame-mib");
+            if (!targetFrameBytes) {
+                return reportError(targetFrameBytes);
             }
-            if (!decompressOpts.placeholderQual.empty()) {
-                opts.placeholderQual = decompressOpts.placeholderQual[0];
+            auto profile = resolveProfile(compress.profile);
+            if (!profile) {
+                return reportError(profile);
             }
-            if (!decompressOpts.range.empty()) {
-                opts.range = parseRange(decompressOpts.range);
+            auto result = engine.compress({.inputPath = compress.input,
+                                           .matePath = compress.mate,
+                                           .outputPath = compress.output,
+                                           .profile = *profile,
+                                           .memoryLimitBytes = *memoryLimit,
+                                           .targetFrameBytes = *targetFrameBytes,
+                                           .forceOverwrite = compress.force});
+            if (!result) {
+                return reportError(result);
             }
-            if (!decompressOpts.rangePairs.empty()) {
-                opts.rangePairs = parseRange(decompressOpts.rangePairs);
+            logStats("compression", *result, global.quiet);
+        } else if (*decompressCommand) {
+            auto result = engine.decompress({.inputPath = decompress.input,
+                                             .outputPath = decompress.output,
+                                             .memoryLimitBytes = *memoryLimit,
+                                             .forceOverwrite = decompress.force});
+            if (!result) {
+                return reportError(result);
             }
-
-            return DecompressCommand(std::move(opts)).execute();
+            logStats("decompression", *result, global.quiet);
+        } else if (*verifyCommand) {
+            auto result = engine.verify(verify.input, *memoryLimit);
+            if (!result) {
+                return reportError(result);
+            }
+            logStats("verification", *result, global.quiet);
         }
-        if (app.got_subcommand("info")) {
-            bool jsonOut = infoOpts.json || globalOpts.jsonOutput;
-            return createInfoCommand(infoOpts.input,
-                                     jsonOut,
-                                     infoOpts.detailed,
-                                     infoOpts.showIndex,
-                                     infoOpts.showCodecs)
-                ->execute();
-        }
-        if (app.got_subcommand("verify")) {
-            VerifyOptions opts;
-            opts.inputPath = verifyOpts.input;
-            opts.failFast = verifyOpts.failFast;
-            opts.verbose = verifyOpts.verbose;
-            opts.jsonOutput = verifyOpts.json || globalOpts.jsonOutput;
-            if (verifyOpts.mode == "quick") {
-                opts.quickMode = true;
-                opts.verifyBlocks = false;
-            }
-
-            return VerifyCommand(std::move(opts)).execute();
-        }
-    } catch (const FQCException& ex) {
-        FQC_LOG_ERROR("Error: {}", ex.what());
-        return toExitCode(ex.code());
-    } catch (const std::exception& ex) {
-        FQC_LOG_ERROR("Unexpected error: {}", ex.what());
-        return EXIT_FAILURE;
+        fqc::log::flush();
+        fqc::log::shutdown();
+        return 0;
+    } catch (const fqc::FQCException& error) {
+        FQC_LOG_ERROR("{}", error.what());
+        fqc::log::flush();
+        fqc::log::shutdown();
+        return fqc::toExitCode(error.code());
+    } catch (const std::exception& error) {
+        FQC_LOG_ERROR("unexpected error: {}", error.what());
+        fqc::log::flush();
+        fqc::log::shutdown();
+        return 3;
     }
-
-    return EXIT_SUCCESS;
 }

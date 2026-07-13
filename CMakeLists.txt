@@ -4,7 +4,7 @@
 # CMake build configuration for fq-compressor project
 # 
 # Requirements: CMake 3.28+, C++23 compiler (GCC 14+ or Clang 18+)
-# Dependencies: CLI11, Quill, xxHash, TBB, GTest (via Conan 2.x)
+# Dependencies: CLI11, Quill, zlib, zstd, xxHash, GTest (via Conan 2.x)
 #
 # Build presets are defined in CMakePresets.json for consistent builds.
 # =============================================================================
@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.28)
 project(FQCompressor
     LANGUAGES CXX
     VERSION 0.2.0
-    DESCRIPTION "High-performance FASTQ compressor with random access support"
+    DESCRIPTION "High-performance sequential FASTQ compressor"
     HOMEPAGE_URL "https://github.com/LessUp/fq-compressor"
 )
 
@@ -172,10 +172,6 @@ message(STATUS "Found fmt: ${fmt_VERSION}")
 # Compression libraries
 find_package(ZLIB REQUIRED)
 find_package(zstd CONFIG REQUIRED)
-
-# Parallel processing
-find_package(TBB CONFIG REQUIRED)
-message(STATUS "Found TBB: ${TBB_VERSION}")
 
 # Checksum library
 find_package(xxHash CONFIG REQUIRED)

@@ -22,13 +22,16 @@
 
 #include "fqc/common/error.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <istream>
 #include <memory>
 #include <span>
 #include <streambuf>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace fqc::io {
@@ -82,7 +85,7 @@ public:
     /// @brief Construct a gzip stream buffer.
     /// @param source Source stream to decompress.
     /// @param bufferSize Internal buffer size.
-    explicit GzipStreamBuf(std::istream& source, std::size_t bufferSize = 64 * 1024);
+    explicit GzipStreamBuf(std::istream& source, std::size_t bufferSize = std::size_t{64} * 1024);
 
     /// @brief Destructor.
     ~GzipStreamBuf() override;
@@ -92,8 +95,8 @@ public:
     GzipStreamBuf& operator=(const GzipStreamBuf&) = delete;
 
     // Movable
-    GzipStreamBuf(GzipStreamBuf&&) noexcept;
-    GzipStreamBuf& operator=(GzipStreamBuf&&) noexcept;
+    GzipStreamBuf(GzipStreamBuf&& other) noexcept;
+    GzipStreamBuf& operator=(GzipStreamBuf&& other) noexcept;
 
 protected:
     /// @brief Underflow handler - refill buffer.

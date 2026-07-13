@@ -24,7 +24,7 @@ TEST(FastqParserTest, LastErrorUsesOneBasedRecordNumberForFailingRecord) {
     FastqParser parser("broken.fastq", factory);
     parser.open();
 
-    EXPECT_THROW(parser.readRecord(), FormatError);
+    EXPECT_THROW(static_cast<void>(parser.readRecord()), FormatError);
     ASSERT_TRUE(parser.lastError().has_value());
     EXPECT_EQ(parser.lastError()->lineNumber, 3u);
     EXPECT_EQ(parser.lastError()->recordNumber, 1u);
@@ -58,7 +58,21 @@ TEST(FastqParserTest, TrailingSpacesInSequenceAndQualityRemainFormatErrors) {
     FastqParser parser("broken.fastq", factory);
     parser.open();
 
-    EXPECT_THROW(parser.readRecord(), FormatError);
+    EXPECT_THROW(static_cast<void>(parser.readRecord()), FormatError);
+}
+
+TEST(FastqParserTest, AcceptsUpperAndLowerCaseIupacSequenceSymbols) {
+    auto factory = std::make_shared<MemoryStreamFactory>();
+    factory->setFileContent("iupac.fastq",
+                            "@read1\nACGTRYSWKMBDHVNacgtryswkmbdhvn\n+\n"
+                            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
+
+    FastqParser parser("iupac.fastq", factory);
+    parser.open();
+
+    auto record = parser.readRecord();
+    ASSERT_TRUE(record.has_value());
+    EXPECT_EQ(record->sequence, "ACGTRYSWKMBDHVNacgtryswkmbdhvn");
 }
 
 }  // namespace fqc::io::test

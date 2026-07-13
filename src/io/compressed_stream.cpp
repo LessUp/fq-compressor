@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 #include <zlib.h>
 
@@ -168,6 +169,9 @@ std::vector<CompressionFormat> supportedCompressionFormats() {
 
 GzipStreamBuf::GzipStreamBuf(std::istream& source, std::size_t bufferSize)
     : source_(&source), inputBuffer_(bufferSize), outputBuffer_(bufferSize) {
+    if (bufferSize == 0 || bufferSize > std::numeric_limits<uInt>::max()) {
+        throw ArgumentError("gzip buffer size is out of range");
+    }
     initZlib();
 }
 
@@ -176,16 +180,18 @@ GzipStreamBuf::~GzipStreamBuf() {
 }
 
 GzipStreamBuf::GzipStreamBuf(GzipStreamBuf&& other) noexcept
-    : std::streambuf(std::move(other)),
-      source_(other.source_),
+    : source_(other.source_),
       inputBuffer_(std::move(other.inputBuffer_)),
       outputBuffer_(std::move(other.outputBuffer_)),
       zlibStream_(other.zlibStream_),
       initialized_(other.initialized_),
       streamEnd_(other.streamEnd_) {
+    setg(other.eback(), other.gptr(), other.egptr());
+    other.setg(nullptr, nullptr, nullptr);
     other.source_ = nullptr;
     other.zlibStream_ = nullptr;
     other.initialized_ = false;
+    other.streamEnd_ = false;
 }
 
 GzipStreamBuf& GzipStreamBuf::operator=(GzipStreamBuf&& other) noexcept {
@@ -198,10 +204,13 @@ GzipStreamBuf& GzipStreamBuf::operator=(GzipStreamBuf&& other) noexcept {
         zlibStream_ = other.zlibStream_;
         initialized_ = other.initialized_;
         streamEnd_ = other.streamEnd_;
+        setg(other.eback(), other.gptr(), other.egptr());
+        other.setg(nullptr, nullptr, nullptr);
 
         other.source_ = nullptr;
         other.zlibStream_ = nullptr;
         other.initialized_ = false;
+        other.streamEnd_ = false;
     }
     return *this;
 }
@@ -274,8 +283,28 @@ std::size_t GzipStreamBuf::decompress() {
         const int ret = inflate(stream, Z_NO_FLUSH);
 
         if (ret == Z_STREAM_END) {
-            streamEnd_ = true;
-            break;
+            auto* remainingInput = stream->next_in;
+            const auto remainingInputSize = stream->avail_in;
+            auto* nextOutput = stream->next_out;
+            const auto remainingOutputSize = stream->avail_out;
+            const auto resetResult = inflateReset(stream);
+            if (resetResult != Z_OK) {
+                throw IOError("Failed to reset zlib for a concatenated gzip member: " +
+                              std::string(zError(resetResult)));
+            }
+            stream->next_in = remainingInput;
+            stream->avail_in = remainingInputSize;
+            stream->next_out = nextOutput;
+            stream->avail_out = remainingOutputSize;
+
+            if (stream->avail_in == 0 && source_->peek() == std::char_traits<char>::eof()) {
+                if (source_->bad()) {
+                    throw IOError("Failed while reading the end of a gzip stream");
+                }
+                streamEnd_ = true;
+                break;
+            }
+            continue;
         }
 
         if (ret != Z_OK && ret != Z_BUF_ERROR) {
@@ -454,7 +483,7 @@ protected:
     }
 
 private:
-    enum class Phase { kPrefix, kUnderlying };
+    enum class Phase : std::uint8_t { kPrefix, kUnderlying };
     std::vector<char> prefix_;
     std::streambuf* underlying_;
     Phase phase_;
@@ -497,12 +526,9 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
                           std::string(compressionFormatName(format)));
         }
 
-        // Compressed stdin: must buffer fully for decompression seek support
-        auto ss = std::make_unique<std::stringstream>();
-        ss->write(reinterpret_cast<const char*>(magic), static_cast<std::streamsize>(bytesRead));
-        *ss << std::cin.rdbuf();
-
-        return std::make_unique<CompressedInputStream>(std::move(ss), format);
+        // Preserve the bytes consumed for detection and continue streaming through zlib.
+        auto prefixed = std::make_unique<PrependInputStream>(magic, bytesRead, std::cin.rdbuf());
+        return std::make_unique<CompressedInputStream>(std::move(prefixed), format);
     }
 
     return openCompressedFile(path);

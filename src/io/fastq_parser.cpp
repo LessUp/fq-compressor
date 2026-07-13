@@ -75,10 +75,6 @@ void FastqParser::open() {
     recordNumber_ = 0;
     stats_.reset();
     lastError_.reset();
-
-    // Reserve buffer space
-    buffer_.reserve(options_.bufferSize);
-    lineBuffer_.reserve(1024);
 }
 
 void FastqParser::close() noexcept {
@@ -377,7 +373,7 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
 bool FastqParser::validateSequence(std::string_view seq) const {
     for (char c : seq) {
-        if (!isValidBase(c)) {
+        if (!options_.validBases.contains(c)) {
             return false;
         }
     }
@@ -406,44 +402,6 @@ void FastqParser::trimRight(std::string& str) {
     while (!str.empty() && str.back() == '\r') {
         str.pop_back();
     }
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-ReadLengthClass detectReadLengthClass(const ParserStats& stats) noexcept {
-    // Priority-based classification (from design doc):
-    // 1. max >= 100KB → LONG (Ultra-long)
-    // 2. max >= 10KB → LONG
-    // 3. max > 511 → MEDIUM (Spring compatibility protection)
-    // 4. median >= 1KB → MEDIUM
-    // 5. Otherwise → SHORT
-
-    constexpr std::uint32_t kUltraLongThreshold = 100 * 1024;  // 100KB
-    constexpr std::uint32_t kLongThreshold = 10 * 1024;        // 10KB
-    constexpr std::uint32_t kSpringMaxLen = 511;               // Spring ABC limit
-    constexpr std::uint32_t kMediumMedianThreshold = 1024;     // 1KB
-
-    if (stats.maxLength >= kUltraLongThreshold) {
-        return ReadLengthClass::kLong;  // Ultra-long (still LONG enum)
-    }
-
-    if (stats.maxLength >= kLongThreshold) {
-        return ReadLengthClass::kLong;
-    }
-
-    if (stats.maxLength > kSpringMaxLen) {
-        return ReadLengthClass::kMedium;  // Spring compatibility protection
-    }
-
-    // Calculate approximate median (using average as proxy)
-    auto avgLength = static_cast<std::uint32_t>(stats.averageLength());
-    if (avgLength >= kMediumMedianThreshold) {
-        return ReadLengthClass::kMedium;
-    }
-
-    return ReadLengthClass::kShort;
 }
 
 }  // namespace fqc::io

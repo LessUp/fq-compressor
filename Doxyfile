@@ -4,7 +4,7 @@
 # Project related configuration options
 #---------------------------------------------------------------------------
 PROJECT_NAME           = "fq-compressor"
-PROJECT_BRIEF          = "High-performance FASTQ compressor with random access support"
+PROJECT_BRIEF          = "Bounded-memory sequential FASTQ compressor"
 OUTPUT_DIRECTORY       = docs/api
 CREATE_SUBDIRS         = YES
 #---------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 # AGENTS.md - fq-compressor
 
 This is `fq-compressor`, a high-performance FASTQ compression tool written in C++23.
-It combines Assembly-based Compression (ABC) and Statistical Context Mixing (SCM)
-to achieve near-entropy compression ratios while maintaining O(1) random access.
+FQC v2 uses independent sequential frames, bounded-memory admission, packed DNA, Zstd,
+and XXH64. It deliberately has no v1 compatibility or random-access path.
 
 ---
 
@@ -48,39 +48,32 @@ For risky or cross-file changes, use `/review` before pushing.
 
 ### Key Features
 
-- 4.0–4.9× compression ratio (tracked benchmark workloads, ahead of gzip, on par with xz/bzip2)
-- Throughput is the known short board (~0.1 MiB/s compress, ~2 MiB/s decompress at 4 threads)
-- O(1) random access without full decompression
-- Intel oneTBB parallel pipeline
+- Lossless sequential FQC v2 frames with strict checksums and allocation bounds
+- Measured x86_64 fallback throughput above 50 MiB/s compress and 100 MiB/s decompress
+- Illumina, ONT, PacBio HiFi, and PacBio CLR profile metadata
 - Transparent support for .gz inputs
 
 ## Project Structure
 
 ```text
 include/fqc/           Public header files (API)
-  algo/               Compression algorithms (ABC, SCM)
-  commands/           CLI command APIs
-  common/             Errors, logging, types, memory budget
-  format/             FQC archive format, reader/writer, reorder map
-  io/                 FASTQ parsing, compressed stream I/O, async I/O
-  pipeline/           TBB pipeline types and nodes
+  commands/           V2 engine API
+  common/             Errors, logging, record types
+  format/             Sequential FQC v2 reader/writer
+  io/                 FASTQ parsing and stream I/O
 
 src/                   Implementation files
-  algo/               Algorithm implementations
-  commands/           Command implementations
+  commands/           V2 engine implementation
   common/             Common utilities
-  format/             Format implementations
+  format/             V2 format implementation
   io/                 I/O implementations
-  pipeline/           Pipeline node implementations
   main.cpp            CLI entry point
 
 tests/                 Test files (GTest)
-  algo/               Algorithm tests
   commands/           Command tests
   common/             Common utility tests
   format/             Format tests
   io/                 I/O tests
-  pipeline/           Pipeline tests
   e2e/                End-to-end tests
 
 scripts/               Build, test, lint, dependency helpers
@@ -112,7 +105,6 @@ cmake/                 CMake modules
 | Compression | zlib-ng | 2.3.2 |
 | Compression | zstd | 1.5.7 |
 | Checksums | xxHash | 0.8.3 |
-| Parallelism | Intel oneTBB | 2022.3.0 |
 | Testing | GTest | 1.12.1 |
 
 ### Additional Tools
@@ -197,11 +189,11 @@ Options:
 ./scripts/run_tests.sh -p gcc-release -l unit
 
 # Run specific test by name
-./scripts/run_tests.sh -p gcc-release -f '^compression_engine_test$'
+./scripts/run_tests.sh -p gcc-release -f '^v2_archive_engine_test$'
 
 # Run a specific GTest case
-build/clang-debug/tests/compression_engine_test \
-  --gtest_filter=CompressionEngineTest.*
+build/clang-debug/tests/v2_archive_engine_test \
+  --gtest_filter=V2ArchiveEngineTest.*
 ```
 
 ### Current Test Targets
@@ -209,20 +201,12 @@ build/clang-debug/tests/compression_engine_test \
 **Unit Tests:**
 - `build_smoke_test`
 - `error_test`
-- `fqc_writer_test`
-- `async_io_test`
+- `v2_archive_test`
 - `stream_factory_test`
 - `fastq_parser_test`
-- `chunk_marshal_test`
-- `backpressure_controller_test`
 - `compressed_stream_test`
-- `block_compressor_regression_test`
-- `algo_regression_test`
-- `original_order_command_test`
-- `archive_regression_test`
-- `compression_profile_test`
-- `compression_request_test`
-- `compression_engine_test`
+- `v2_archive_engine_test`
+- `v2_cli_smoke_test`
 
 ## Lint / Format Commands
 
@@ -251,7 +235,7 @@ build/clang-debug/tests/compression_engine_test \
 | Entity | Convention | Example |
 |--------|------------|---------|
 | Files/Directories | snake_case | `block_compressor.cpp` |
-| Types/Classes/Structs | PascalCase | `BlockCompressor` |
+| Types/Classes/Structs | PascalCase | `ArchiveWriter` |
 | Functions/Methods | camelCase | `compressBlock()` |
 | Variables/Parameters | camelCase | `inputPath` |
 | Private/Protected members | camelCase + `_` | `buffer_` |
@@ -311,40 +295,31 @@ Do NOT use `std::cout` for status/debug logging.
 ### Compression Pipeline
 
 ```
-FASTQ Input → FastqParser → GlobalAnalyzer → BlockCompressor → FQC Writer
-                                              (TBB parallel pipeline)
+FASTQ Input → FastqParser → Profile Resolver → Bounded Frame Accumulator → FQC v2 Writer
 ```
 
 ### Decompression Pipeline
 
 ```
-FQC Input → FQC Reader → Decompressor → FastqWriter → FASTQ Output
-              (TBB parallel pipeline)
+FQC v2 Input → Bounded Frame Reader → Canonical FASTQ Writer → FASTQ Output
 ```
 
 ### Key Algorithms
 
-1. **Assembly-based Compression (ABC)**
-   - Minimizer Bucketing - groups reads by shared k-mer signatures
-   - TSP Reordering - maximizes neighbor similarity
-   - Consensus Generation - builds local consensus per bucket
-   - Delta Encoding - stores only edits from consensus
-
-2. **Statistical Context Mixing (SCM)**
-   - Context: Previous QVs + current base + position
-   - Prediction: High-order context modeling
-   - Coding: Adaptive arithmetic coding
+1. **Sequence packing** - 2-bit uppercase A/C/G/T plus exact delta-position exceptions.
+2. **Stream coding** - independent varint-framed ID/comment, sequence, and quality streams using
+   Zstd level 1.
+3. **Integrity** - XXH64 header, logical frame, and rolling footer checksums.
+4. **Memory admission** - exact raw stream measurement and conservative encode/decode peak checks.
 
 ### Module Organization
 
 | Namespace | Purpose |
 |-----------|---------|
-| `fqc::algo` | Compression algorithms (ABC core) |
-| `fqc::commands` | CLI command implementations |
+| `fqc::commands::v2` | Profile resolution and bounded archive engine |
 | `fqc::common` | Shared utilities (errors, logging, types) |
-| `fqc::format` | FQC archive format definition |
+| `fqc::format::v2` | Sequential FQC v2 archive definition |
 | `fqc::io` | I/O abstractions (FASTQ, compressed streams) |
-| `fqc::pipeline` | TBB-based parallel processing pipelines |
 
 ## CLI Commands
 
@@ -353,17 +328,12 @@ FQC Input → FQC Reader → Decompressor → FastqWriter → FASTQ Output
 ```bash
 fqc compress -i <input> -o <output> [options]
 fqc decompress -i <input> -o <output> [options]
-fqc info <file>
 fqc verify <file>
 ```
 
 ### Global Options
-- `-t, --threads <n>`: Thread count (0 = auto)
-- `-v, --verbose`: Increase verbosity
 - `-q, --quiet`: Suppress non-error output
-- `--memory-limit <MB>`: Memory limit
-- `--no-progress`: Disable progress display
-- `--json`: JSON output for info/verify
+- `--memory-limit <MiB>`: Hard operation budget (default 16384, minimum 64)
 
 ## CI/CD and Deployment
 
@@ -442,7 +412,7 @@ Before submitting changes:
 
 - **Documentation**: See `README.md` and `ARCHITECTURE.md` in this repository
 - **CI Status**: See badges in README.md
-- **Reference**: Spring paper (Chandak et al., 2019) for ABC algorithm
+- **Format and memory model**: See `ARCHITECTURE.md`
 
 ## Exit Codes
 

@@ -1,9 +1,5 @@
 // =============================================================================
-// fq-compressor - Stream Factory Implementation
-// =============================================================================
-// Implementation of StreamFactory, FileStreamFactory, and MemoryStreamFactory.
-//
-// Requirements: Architecture improvement - I/O layer dependency injection
+// fq-compressor - Injectable Stream Factories
 // =============================================================================
 
 #include "fqc/io/stream_factory.h"
@@ -11,10 +7,10 @@
 #include "fqc/common/error.h"
 #include "fqc/common/logger.h"
 
-#include <algorithm>
 #include <fstream>
-#include <iomanip>
+#include <iostream>
 #include <sstream>
+#include <utility>
 
 #include <fmt/format.h>
 
@@ -22,7 +18,7 @@ namespace fqc::io {
 
 namespace detail {
 
-class MemoryOutputStream : public std::ostringstream {
+class MemoryOutputStream final : public std::ostringstream {
 public:
     MemoryOutputStream(MemoryStreamFactory& factory, std::filesystem::path path)
         : factory_(factory), path_(std::move(path)) {}
@@ -38,42 +34,33 @@ private:
 
 }  // namespace detail
 
-// =============================================================================
-// FileStreamFactory Implementation
-// =============================================================================
-
-FileStreamFactory::FileStreamFactory(std::size_t bufferSize) : bufferSize_(bufferSize) {}
-
 auto FileStreamFactory::createInputStream(const std::filesystem::path& path)
     -> std::unique_ptr<std::istream> {
-    FQC_LOG_DEBUG("FileStreamFactory: Creating input stream for '{}'", path.string());
-
-    // Use existing openInputFile which handles stdin and compression
+    FQC_LOG_DEBUG("opening input stream '{}'", path.string());
     return openInputFile(path);
 }
 
 auto FileStreamFactory::createOutputStream(const std::filesystem::path& path,
                                            CompressionFormat format)
     -> std::unique_ptr<std::ostream> {
-    FQC_LOG_DEBUG("FileStreamFactory: Creating output stream for '{}'", path.string());
-
-    // For now, compression for output is not supported
-    // Future work: add CompressedOutputStream
+    FQC_LOG_DEBUG("opening output stream '{}'", path.string());
     if (format != CompressionFormat::kNone && format != CompressionFormat::kUnknown) {
-        throw ArgumentError(fmt::format("Compression for output streams not yet supported: {}",
+        throw ArgumentError(fmt::format("compressed output streams are unsupported: {}",
                                         compressionFormatName(format)));
+    }
+    if (path == "-") {
+        return std::make_unique<std::ostream>(std::cout.rdbuf());
     }
 
     auto stream = std::make_unique<std::ofstream>(path, std::ios::binary);
     if (!stream->is_open()) {
-        throw IOError(fmt::format("Cannot create output file: {}", path.string()));
+        throw IOError(fmt::format("cannot create output file: {}", path.string()));
     }
-
     return stream;
 }
 
 auto FileStreamFactory::outputExists(const std::filesystem::path& path) const -> bool {
-    return std::filesystem::exists(path);
+    return path != "-" && std::filesystem::exists(path);
 }
 
 auto FileStreamFactory::detectCompression(const std::filesystem::path& path) const
@@ -81,53 +68,25 @@ auto FileStreamFactory::detectCompression(const std::filesystem::path& path) con
     return detectCompressionFormatFromExtension(path);
 }
 
-// =============================================================================
-// MemoryStreamFactory Implementation
-// =============================================================================
-
 auto MemoryStreamFactory::createInputStream(const std::filesystem::path& path)
     -> std::unique_ptr<std::istream> {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    FQC_LOG_DEBUG("MemoryStreamFactory: Creating input stream for '{}'", path.string());
-
-    auto it = files_.find(path);
-    if (it == files_.end()) {
-        throw IOError(fmt::format("Memory file not found: {}", path.string()));
+    std::lock_guard lock(mutex_);
+    const auto entry = files_.find(path);
+    if (entry == files_.end()) {
+        throw IOError(fmt::format("memory file not found: {}", path.string()));
     }
-
-    // Check for error injection
-    if (it->second.hasError) {
-        const auto& config = it->second.errorConfig;
-        throw IOError(fmt::format("Injected error for: {}", path.string()));
-    }
-
-    // Create string stream from content
-    // Note: This copies the data, which is fine for testing
-    std::string content(reinterpret_cast<const char*>(it->second.content.data()),
-                        it->second.content.size());
-
+    std::string content(reinterpret_cast<const char*>(entry->second.data()), entry->second.size());
     return std::make_unique<std::istringstream>(std::move(content));
 }
 
 auto MemoryStreamFactory::createOutputStream(const std::filesystem::path& path,
                                              CompressionFormat format)
     -> std::unique_ptr<std::ostream> {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    FQC_LOG_DEBUG("MemoryStreamFactory: Creating output stream for '{}'", path.string());
-
-    // For memory streams, compression is ignored
     (void)format;
-
-    // Create an output string stream
-    // We'll capture its content when it's destroyed
-    // Note: This is a simplified implementation
-    // A more robust version would use a custom streambuf
-
-    // Initialize empty entry if it doesn't exist
-    files_[path] = FileEntry{};
-
+    {
+        std::lock_guard lock(mutex_);
+        files_[path].clear();
+    }
     return std::make_unique<detail::MemoryOutputStream>(*this, path);
 }
 
@@ -140,17 +99,6 @@ auto MemoryStreamFactory::detectCompression(const std::filesystem::path& path) c
     return detectCompressionFormatFromExtension(path);
 }
 
-auto MemoryStreamFactory::injectError(const std::filesystem::path& path, ErrorConfig config)
-    -> void {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    FQC_LOG_DEBUG("MemoryStreamFactory: Injecting error for '{}'", path.string());
-
-    auto& entry = files_[path];
-    entry.errorConfig = config;
-    entry.hasError = config.injectError;
-}
-
 auto MemoryStreamFactory::setFileContent(const std::filesystem::path& path,
                                          std::string_view content) -> void {
     setFileContent(path,
@@ -160,91 +108,28 @@ auto MemoryStreamFactory::setFileContent(const std::filesystem::path& path,
 
 auto MemoryStreamFactory::setFileContent(const std::filesystem::path& path,
                                          std::span<const std::uint8_t> data) -> void {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    FQC_LOG_DEBUG(
-        "MemoryStreamFactory: Setting content for '{}' ({} bytes)", path.string(), data.size());
-
-    FileEntry entry;
-    entry.content.assign(data.begin(), data.end());
-    files_[path] = std::move(entry);
+    std::lock_guard lock(mutex_);
+    files_[path].assign(data.begin(), data.end());
 }
 
 auto MemoryStreamFactory::getFileContent(const std::filesystem::path& path) const -> std::string {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto it = files_.find(path);
-    if (it == files_.end()) {
+    std::lock_guard lock(mutex_);
+    const auto entry = files_.find(path);
+    if (entry == files_.end()) {
         return {};
     }
-
-    return std::string(reinterpret_cast<const char*>(it->second.content.data()),
-                       it->second.content.size());
-}
-
-auto MemoryStreamFactory::getFileContentBinary(const std::filesystem::path& path) const
-    -> std::vector<std::uint8_t> {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto it = files_.find(path);
-    if (it == files_.end()) {
-        return {};
-    }
-
-    return it->second.content;
+    return std::string(reinterpret_cast<const char*>(entry->second.data()), entry->second.size());
 }
 
 auto MemoryStreamFactory::hasFile(const std::filesystem::path& path) const -> bool {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return files_.find(path) != files_.end();
-}
-
-auto MemoryStreamFactory::clear() -> void {
-    std::lock_guard<std::mutex> lock(mutex_);
-    files_.clear();
+    std::lock_guard lock(mutex_);
+    return files_.contains(path);
 }
 
 auto MemoryStreamFactory::persistOutput(const std::filesystem::path& path, std::string_view content)
     -> void {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto& entry = files_[path];
-    entry.content.assign(content.begin(), content.end());
-}
-
-auto MemoryStreamFactory::listFiles() const -> std::vector<std::filesystem::path> {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    std::vector<std::filesystem::path> paths;
-    paths.reserve(files_.size());
-
-    for (const auto& [path, entry] : files_) {
-        paths.push_back(path);
-    }
-
-    return paths;
-}
-
-// =============================================================================
-// Global Factory Functions
-// =============================================================================
-
-namespace {
-
-// Thread-local default factory
-thread_local std::shared_ptr<StreamFactory> tlsDefaultFactory;
-
-}  // anonymous namespace
-
-auto getDefaultStreamFactory() -> std::shared_ptr<StreamFactory> {
-    if (!tlsDefaultFactory) {
-        tlsDefaultFactory = std::make_shared<FileStreamFactory>();
-    }
-    return tlsDefaultFactory;
-}
-
-auto setDefaultStreamFactory(std::shared_ptr<StreamFactory> factory) -> void {
-    tlsDefaultFactory = std::move(factory);
+    std::lock_guard lock(mutex_);
+    files_[path].assign(content.begin(), content.end());
 }
 
 }  // namespace fqc::io

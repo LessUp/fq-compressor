@@ -214,9 +214,51 @@ def _run_command(
 
 
 def _files_match(expected: list[Path], actual: tuple[Path, ...]) -> bool:
+    if len(expected) == 2 and len(actual) == 1:
+        return _interleaved_files_match(expected[0], expected[1], actual[0])
     if len(expected) != len(actual):
         return False
     for expected_path, actual_path in zip(expected, actual):
-        if expected_path.read_bytes() != actual_path.read_bytes():
+        if not _binary_files_match(expected_path, actual_path):
             return False
     return True
+
+
+def _binary_files_match(expected_path: Path, actual_path: Path) -> bool:
+    if expected_path.stat().st_size != actual_path.stat().st_size:
+        return False
+    with expected_path.open("rb") as expected, actual_path.open("rb") as actual:
+        while True:
+            expected_chunk = expected.read(1024 * 1024)
+            actual_chunk = actual.read(1024 * 1024)
+            if expected_chunk != actual_chunk:
+                return False
+            if not expected_chunk:
+                return True
+
+
+def _read_fastq_record(stream) -> bytes | None:
+    header = stream.readline()
+    if not header:
+        return None
+    lines = [header, stream.readline(), stream.readline(), stream.readline()]
+    if any(not line for line in lines):
+        return b""
+    return b"".join(lines)
+
+
+def _interleaved_files_match(first_path: Path, second_path: Path, actual_path: Path) -> bool:
+    with first_path.open("rb") as first, second_path.open("rb") as second, actual_path.open(
+        "rb"
+    ) as actual:
+        while True:
+            first_record = _read_fastq_record(first)
+            second_record = _read_fastq_record(second)
+            if first_record is None and second_record is None:
+                return _read_fastq_record(actual) is None
+            if first_record is None or second_record is None or not first_record or not second_record:
+                return False
+            if _read_fastq_record(actual) != first_record:
+                return False
+            if _read_fastq_record(actual) != second_record:
+                return False

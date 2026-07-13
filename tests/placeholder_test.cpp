@@ -89,18 +89,17 @@ TEST(BuildSmokeTest, AllowsGlobalOptionsAfterSubcommand) {
 
     const std::string command = quote(binary.string()) + " compress -i " +
         quote(inputPath.string()) + " -o " + quote(outputPath.string()) +
-        " -t 1 --no-progress >/dev/null 2>&1";
+        " --memory-limit 64 -q >/dev/null 2>&1";
 
     EXPECT_EQ(std::system(command.c_str()), 0);
     EXPECT_TRUE(std::filesystem::exists(outputPath));
 }
 
-TEST(BuildSmokeTest, SupportsPositionalInfoAndVerify) {
+TEST(BuildSmokeTest, SupportsPositionalVerify) {
     TempDir tempDir;
     const auto binary = locateCliBinary();
     const auto inputPath = tempDir.path / "reads.fastq";
     const auto archivePath = tempDir.path / "reads.fqc";
-    const auto infoPath = tempDir.path / "info.json";
     const auto verifyPath = tempDir.path / "verify.txt";
 
     {
@@ -109,16 +108,11 @@ TEST(BuildSmokeTest, SupportsPositionalInfoAndVerify) {
         out << "@r1\nACGT\n+\nIIII\n";
     }
 
-    const std::string compressCommand = quote(binary.string()) +
-        " -t 1 --no-progress compress -i " + quote(inputPath.string()) + " -o " +
-        quote(archivePath.string()) + " >/dev/null 2>&1";
+    const std::string compressCommand = quote(binary.string()) + " -q compress -i " +
+        quote(inputPath.string()) + " -o " + quote(archivePath.string()) + " >/dev/null 2>&1";
     ASSERT_EQ(std::system(compressCommand.c_str()), 0);
 
-    const std::string infoCommand = quote(binary.string()) + " info --json " +
-        quote(archivePath.string()) + " >" + quote(infoPath.string()) + " 2>/dev/null";
-    EXPECT_EQ(std::system(infoCommand.c_str()), 0);
-
-    const std::string verifyCommand = quote(binary.string()) + " verify " +
+    const std::string verifyCommand = quote(binary.string()) + " -q verify " +
         quote(archivePath.string()) + " >" + quote(verifyPath.string()) + " 2>/dev/null";
     EXPECT_EQ(std::system(verifyCommand.c_str()), 0);
 }

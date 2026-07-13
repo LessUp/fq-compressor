@@ -77,10 +77,32 @@ case $PRESET in
         #   1. compiler settings 正确（clang + libc++）
         #   2. [buildenv] 设置 CC/CXX 环境变量，Conan 构建依赖时使用 Clang
         #   3. compiler_executables 在 conan_toolchain.cmake 中设置 CMAKE_CXX_COMPILER
-        CLANG_VER=$(clang --version 2>/dev/null | head -1 | sed 's/[^0-9]*\([0-9]*\).*/\1/')
-        if [[ -z "$CLANG_VER" ]]; then
+        DETECTED_CLANG_VER=$(clang --version 2>/dev/null | head -1 | sed 's/[^0-9]*\([0-9]*\).*/\1/')
+        if [[ -z "$DETECTED_CLANG_VER" ]]; then
             echo "Error: Could not detect Clang version"
             exit 1
+        fi
+        CONAN_SETTINGS="$(conan config home)/settings.yml"
+        MAX_CONAN_CLANG_VER=$(
+            awk '
+                /^    clang:$/ { in_clang = 1; next }
+                in_clang && /^        version:/ { in_version = 1 }
+                in_version { print; if (/\]/) exit }
+            ' "$CONAN_SETTINGS" \
+                | grep -oE '"[0-9]+([.][0-9]+)?"' \
+                | tr -d '"' \
+                | sort -V \
+                | tail -n 1
+        )
+        if [[ -z "$MAX_CONAN_CLANG_VER" ]]; then
+            echo "Error: Could not determine Conan's maximum supported Clang version"
+            exit 1
+        fi
+        CONAN_CLANG_VER="$DETECTED_CLANG_VER"
+        if ((DETECTED_CLANG_VER > ${MAX_CONAN_CLANG_VER%%.*})); then
+            CONAN_CLANG_VER="$MAX_CONAN_CLANG_VER"
+            printf 'Warning: Conan does not model Clang %s; using its latest known ABI setting (%s)\n' \
+                "$DETECTED_CLANG_VER" "$CONAN_CLANG_VER"
         fi
         export CC=clang
         export CXX=clang++
@@ -92,7 +114,7 @@ case $PRESET in
 os=Linux
 arch=x86_64
 compiler=clang
-compiler.version=${CLANG_VER}
+compiler.version=${CONAN_CLANG_VER}
 compiler.libcxx=libc++
 compiler.cppstd=23
 
@@ -104,7 +126,8 @@ CXX=clang++
 tools.build:compiler_executables={"c": "clang", "cpp": "clang++"}
 tools.build:skip_test=True
 EOF
-        echo "Generated temporary Clang profile (version=${CLANG_VER}):"
+        printf 'Generated temporary Clang profile (compiler=%s, Conan setting=%s):\n' \
+            "$DETECTED_CLANG_VER" "$CONAN_CLANG_VER"
         cat "$TMPPROFILE"
         echo ""
         CONAN_EXTRA_ARGS+=(--profile:host "$TMPPROFILE" --profile:build "$TMPPROFILE")
@@ -128,6 +151,11 @@ conan install . \
     --build=missing \
     -s build_type="$BUILD_TYPE" \
     "${CONAN_EXTRA_ARGS[@]}"
+
+# Project presets reference each generated toolchain directly. Conan's root user-preset aggregator
+# assigns the same `conan-debug` name to debug, ASan, and TSan outputs, which makes CMake reject the
+# repository as soon as a second Debug-family preset is installed.
+rm -f "$PROJECT_DIR/CMakeUserPresets.json"
 
 echo ""
 echo "=== Dependencies installed ==="

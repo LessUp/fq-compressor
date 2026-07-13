@@ -46,15 +46,13 @@ class FqcAdapter(ToolAdapter):
 
     def __init__(self, binary: Path) -> None:
         super().__init__(
-            tool_id="fqc", supports_paired=True, supports_threads=True, archive_suffix=".fqc"
+            tool_id="fqc", supports_paired=True, supports_threads=False, archive_suffix=".fqc"
         )
         object.__setattr__(self, "binary", binary)
 
     def compress_command(self, inputs: list[Path], output: Path, threads: int) -> list[str]:
         command = [
             str(self.binary),
-            "-t",
-            str(threads),
             "-q",
             "compress",
             "-i",
@@ -63,7 +61,7 @@ class FqcAdapter(ToolAdapter):
             str(output),
         ]
         if len(inputs) == 2:
-            command.extend(["-2", str(inputs[1]), "--paired"])
+            command.extend(["-2", str(inputs[1])])
         return command
 
     def decompress_command(
@@ -71,8 +69,6 @@ class FqcAdapter(ToolAdapter):
     ) -> list[str]:
         command = [
             str(self.binary),
-            "-t",
-            str(threads),
             "-q",
             "decompress",
             "-i",
@@ -80,11 +76,11 @@ class FqcAdapter(ToolAdapter):
             "-o",
             str(restored_base),
         ]
-        if paired:
-            command.extend(["--split-pe", "--original-order"])
-        else:
-            command.append("--original-order")
         return command
+
+    def restored_outputs(self, restored_base: Path, paired: bool) -> tuple[Path, ...]:
+        del paired
+        return (restored_base,)
 
 
 @dataclass(frozen=True)
@@ -162,17 +158,11 @@ def _resolve_fqc_binary() -> Path:
     if shared_root is not None:
         roots.append(shared_root)
 
-    candidates: list[Path] = []
-    for root in roots:
-        candidates.extend(
-            (
-                root / "build/clang-release/src/fqc",
-                root / "build/clang-debug/src/fqc",
-            )
-        )
-    existing = [candidate for candidate in candidates if candidate.exists()]
-    if existing:
-        return max(existing, key=lambda candidate: candidate.stat().st_mtime)
+    for build_name in ("clang-release", "clang-debug"):
+        for root in roots:
+            candidate = root / f"build/{build_name}/src/fqc"
+            if candidate.exists() and os.access(candidate, os.X_OK):
+                return candidate.resolve()
     raise ValueError("fqc binary not found under build/clang-release/src/fqc or build/clang-debug/src/fqc")
 
 

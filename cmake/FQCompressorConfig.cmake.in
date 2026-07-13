@@ -21,10 +21,7 @@ find_dependency(CLI11 CONFIG)
 find_dependency(quill CONFIG)
 find_dependency(fmt CONFIG)
 find_dependency(ZLIB)
-find_dependency(BZip2)
-find_dependency(LibLZMA)
 find_dependency(zstd CONFIG)
-find_dependency(TBB CONFIG)
 find_dependency(xxHash CONFIG)
 
 # Include the targets file
