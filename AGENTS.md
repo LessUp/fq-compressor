@@ -86,6 +86,17 @@ scripts/               Build, test, lint, dependency helpers
 cmake/                 CMake modules
   fqc_coverage.cmake  Code coverage support
   fqc_sanitizers.cmake Sanitizer support (ASan, TSan, UBSan, MSan)
+
+troubleshooting/        Problem log: symptoms, investigation, root cause, fix
+  INDEX.md            Status table for all issues
+  TEMPLATE.md         Copy this when opening a new issue
+  NNNN-*.md           One file per issue
+
+performance/            Performance data and optimisation history
+  INDEX.md            Current best results per profile x dataset
+  baselines/          Immutable milestone snapshots
+  optimizations/      One file per optimisation (before/after)
+  runs/YYYY-MM-DD/    Raw harness output and pinned environment
 ```
 
 ## Technology Stack
