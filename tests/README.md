@@ -39,18 +39,23 @@ Use the single acceptance runner for the validated release loop:
 ./scripts/acceptance.sh
 ```
 
-Release-check command surface (kept in sync with the acceptance runner):
+Blocking release-check command surface (kept in sync with the acceptance runner):
 
 ```bash
 ./scripts/lint.sh format-check
 ./scripts/test.sh clang-debug
 bash tests/e2e/cli_smoke_test.sh
 bash tests/e2e/benchmark_v2_smoke_test.sh
+```
+
+Devcontainer validation is a separate, non-blocking CI concern because live validation requires
+Docker and npx. Run its contract and live configuration checks explicitly on a prepared host:
+
+```bash
 bash tests/e2e/devcontainer_validate_test.sh
 bash tests/e2e/devcontainer_host_sync_test.sh
 bash tests/e2e/devcontainer_sshd_lib_test.sh
 bash tests/e2e/devcontainer_adapter_contract_test.sh
-(cd docs && npm ci && npm run build)
 bash scripts/devcontainer-validate.sh
 ```
 

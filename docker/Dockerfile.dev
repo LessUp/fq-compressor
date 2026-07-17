@@ -174,7 +174,10 @@ RUN wget -q https://apt.llvm.org/llvm.sh && \
 # Conan 2.x 包管理器
 # =============================================================================
 ARG CONAN_VERSION=2.24.0
-RUN pip3 install --no-cache-dir --break-system-packages conan==${CONAN_VERSION}
+ARG PYYAML_VERSION=6.0.2
+RUN pip3 install --no-cache-dir --break-system-packages \
+    conan==${CONAN_VERSION} \
+    pyyaml==${PYYAML_VERSION}
 
 # =============================================================================
 # Development Stage - 开发工具

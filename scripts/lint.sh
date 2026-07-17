@@ -18,11 +18,9 @@ find_all_sources() {
         -not -path "*/build/*" 2>/dev/null || true
 }
 
-# 查找生产源文件（不含测试，用于 clang-tidy 静态分析）
+# 查找生产 translation units（项目头文件通过 header filter 检查）
 find_lint_sources() {
-    find "$PROJECT_DIR/src" "$PROJECT_DIR/include" \
-        \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) \
-        -not -path "*/build/*" 2>/dev/null || true
+    find "$PROJECT_DIR/src" -name "*.cpp" -not -path "*/build/*" 2>/dev/null || true
 }
 
 # 检测 clang-format 版本（优先项目标准版本）
@@ -86,7 +84,16 @@ case $ACTION in
         fi
         mapfile -t sources < <(find_lint_sources)
         if [ ${#sources[@]} -gt 0 ]; then
-            "$CLANG_TIDY" -p "$BUILD_DIR" "${sources[@]}"
+            "$CLANG_TIDY" \
+                -p "$BUILD_DIR" \
+                --quiet \
+                --header-filter="^${PROJECT_DIR}/(include|src)/" \
+                --exclude-header-filter='(^|/)(build|\.conan2|vcpkg_installed)/' \
+                --system-headers=false \
+                "${sources[@]}" \
+                2>&1 | sed -E \
+                    -e '/^[0-9]+ warnings generated\.$/d' \
+                    -e '/^Suppressed [0-9]+ warnings/d'
             echo "Lint check passed."
         else
             echo "No source files found."
