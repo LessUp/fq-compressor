@@ -40,6 +40,6 @@ bash tests/e2e/test_performance.sh
 The harness defaults to three repetitions, reports median wall-clock throughput and maximum RSS,
 and rejects any workload below the floor when `FQC_PERF_ENFORCE_SLA=1`.
 
-Dataset-driven peer/fallback comparisons use `./scripts/benchmark_v2.sh`. Results should be
+Dataset-driven peer/fallback comparisons use `./scripts/benchmark.sh`. Results should be
 committed only when the dataset provenance and release-machine metadata are recorded; legacy v1
 results were deleted because they describe a removed codec and CLI.

@@ -102,10 +102,12 @@ short- and long-read fixtures.
 
 ## Execution architecture
 
-The engine is intentionally sequential. Final three-run medians on the available 8-core x86_64
-host reached 53--56 MiB/s compression and 182--215 MiB/s decompression on randomised data, already
-clearing the 50/100 floor. Adding a TBB DAG without a demonstrated bottleneck would restore
-duplicate state, output ordering, and in-flight-memory risks that v2 removed.
+The engine is intentionally sequential. Pinned three-run medians on the available 8-core x86_64
+WSL2 host reached 53.15/182.40 MiB/s for randomised 150 bp data and 55.66/215.22 MiB/s for
+randomised 20 kbp data (compress/decompress). WSL2 reruns can fall below the 50 MiB/s compression
+floor, so a non-WSL2 release machine remains the qualification gate. Adding a TBB DAG without a
+demonstrated bottleneck would restore duplicate state, output ordering, and in-flight-memory risks
+that v2 removed.
 
 Independent frame boundaries remain the concurrency seam. If a release machine later misses the
 floor, parallel work should be added as one ordered frame pipeline with byte-budget admission—not as

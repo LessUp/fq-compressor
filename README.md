@@ -95,10 +95,12 @@ checksums, frame construction, file I/O, decompression, and exact comparison.
 | Randomised Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
 | Randomised ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-These results establish the local x86_64 throughput floor, not biological compression-ratio
-claims. The repository does not currently contain enough real ONT/HiFi/CLR data to admit a
-specialised long-read codec, and ARM64 remains an explicit release-machine verification item.
-The table reports three-run medians after full logical-record validation and the maximum RSS across
+These are the pinned three-run medians from the WSL2 environment recorded in
+[performance/INDEX.md](performance/INDEX.md), not biological compression-ratio claims or stable
+release-machine guarantees. WSL2 wall-clock noise has produced lower reruns, including Illumina
+compression below 50 MiB/s. The repository does not currently contain enough real ONT/HiFi/CLR
+data to admit a specialised long-read codec, and ARM64 remains an explicit release-machine
+verification item. The table includes full logical-record validation and the maximum RSS across
 repetitions.
 
 Run the local scaling harness with:
@@ -111,7 +113,8 @@ FQC_PERF_ENFORCE_SLA=1 \
 bash tests/e2e/test_performance.sh
 ```
 
-The dataset-driven peer comparison remains available through `./scripts/benchmark_v2.sh`.
+`tests/e2e/test_performance.sh` is the throughput/RSS/SLA harness. The user-facing dataset-driven
+peer comparison, including Spring when configured, is `./scripts/benchmark.sh`.
 Codec pass/fail decisions are recorded in [benchmark_v2/CODEC_GATES.md](benchmark_v2/CODEC_GATES.md).
 
 ## Development

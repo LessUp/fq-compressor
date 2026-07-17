@@ -45,8 +45,8 @@ Copy the printed results and `RESULTS_DIR/benchmarks.jsonl` into
 ## Adding a baseline
 
 When tagging a release or reaching a milestone, copy the current `INDEX.md` table plus environment
-into `baselines/YYYY-MM-DD-vX.Y.Z.md`. Baselines are immutable; later optimisations reference them
-by filename.
+into `baselines/YYYY-MM-DD-<release-or-milestone>.md`. Baselines are immutable; later optimisations
+reference them by filename.
 
 ## Adding an optimisation record
 

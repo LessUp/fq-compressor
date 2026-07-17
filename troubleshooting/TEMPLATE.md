@@ -2,7 +2,7 @@
 
 - Status: open
 - Severity: medium
-- Found in: v0.2.0 / <commit>
+- Found in: <version> / <commit>
 - Related: <file:line>, performance/optimizations/NNNN-*.md (if any)
 
 ## Symptom

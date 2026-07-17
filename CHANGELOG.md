@@ -41,9 +41,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Performance
 
-- Full release CLI on the available 8-core x86_64 host measured 58.0/163.6 MiB/s for randomised
-  150 bp data and 65.2/252.1 MiB/s for randomised 20 kbp data (compress/decompress) under a 64 MiB
-  configured budget.
+- Pinned three-run medians on the available 8-core x86_64 WSL2 host measured 53.15/182.40 MiB/s
+  for randomised 150 bp data and 55.66/215.22 MiB/s for randomised 20 kbp data
+  (compress/decompress) under a 64 MiB configured budget. WSL2 wall-clock noise has produced lower
+  reruns, so these are evidence snapshots rather than stable guarantees.
 - The local performance harness defaults to three repetitions, reports median throughput and
   maximum RSS, and can enforce the 50/100 MiB/s release floor.
 - Specialised codecs remain gated and are not shipped without adequate real-data evidence of at

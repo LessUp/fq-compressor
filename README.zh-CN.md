@@ -91,9 +91,10 @@ frame 构建、文件 I/O、解压和逐字节一致性检查。
 | 随机化 Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
 | 随机化 ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-这些结果只证明本机 x86_64 的吞吐下限，不用于宣称真实生物数据压缩率。仓库目前没有足够的
-真实 ONT/HiFi/CLR 语料来准入专用长读 codec；ARM64 仍需在发布机上单独验证。
-表格是启用完整逻辑记录校验后的三次墙钟中位数，并记录各轮最大 RSS。
+这些数字是 [performance/INDEX.md](performance/INDEX.md) 所记录 WSL2 环境的固定三次中位数，
+不用于宣称真实生物数据压缩率，也不是稳定的发布机保证。WSL2 墙钟波动曾使重跑结果下降，
+其中 Illumina 压缩低于 50 MiB/s。仓库目前没有足够的真实 ONT/HiFi/CLR 语料来准入专用长读
+codec；ARM64 仍需在发布机上单独验证。表格包含完整逻辑记录校验，并记录各轮最大 RSS。
 
 ```bash
 FQC_BIN=build/clang-release/src/fqc \
@@ -103,7 +104,8 @@ FQC_PERF_ENFORCE_SLA=1 \
 bash tests/e2e/test_performance.sh
 ```
 
-数据集驱动的同类工具对比入口为 `./scripts/benchmark_v2.sh`。
+`tests/e2e/test_performance.sh` 用于吞吐、RSS 和 SLA 测量；用户可见的数据集同类工具对比（配置
+后包括 Spring）统一使用 `./scripts/benchmark.sh`。
 codec 的准入/拒绝结论记录在 [benchmark_v2/CODEC_GATES.md](benchmark_v2/CODEC_GATES.md)。
 
 ## 开发与验证
