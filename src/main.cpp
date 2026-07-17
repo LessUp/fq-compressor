@@ -120,10 +120,8 @@ int main(int argc, char* argv[]) {
     compressCommand->alias("c");
     compressCommand
         ->add_option("-i,--input,-1", compress.input, "Primary FASTQ input, or '-' for stdin")
-        ->required()
-        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
-    compressCommand->add_option("-2,--mate", compress.mate, "Mate FASTQ input; pairs stay atomic")
-        ->check(CLI::ExistingFile);
+        ->required();
+    compressCommand->add_option("-2,--mate", compress.mate, "Mate FASTQ input; pairs stay atomic");
     compressCommand->add_option("-o,--output", compress.output, "FQC v2 output, or '-' for stdout")
         ->required();
     compressCommand
@@ -142,9 +140,7 @@ int main(int argc, char* argv[]) {
         app.add_subcommand("decompress", "Decompress FQC v2 into canonical FASTQ order");
     decompressCommand->alias("d");
     decompressCommand->alias("x");
-    decompressCommand->add_option("-i,--input", decompress.input, "FQC v2 input")
-        ->required()
-        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
+    decompressCommand->add_option("-i,--input", decompress.input, "FQC v2 input")->required();
     decompressCommand
         ->add_option("-o,--output", decompress.output, "FASTQ output, or '-' for stdout")
         ->required();
@@ -152,14 +148,13 @@ int main(int argc, char* argv[]) {
 
     auto* verifyCommand = app.add_subcommand("verify", "Fully decode and verify an FQC v2 archive");
     verifyCommand->alias("v");
-    verifyCommand->add_option("input,-i,--input", verify.input, "FQC v2 input")
-        ->required()
-        ->check(CLI::ExistingFile | CLI::IsMember({"-"}));
+    verifyCommand->add_option("input,-i,--input", verify.input, "FQC v2 input")->required();
 
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError& error) {
-        return app.exit(error);
+        const auto cliExitCode = app.exit(error);
+        return cliExitCode == 0 ? 0 : fqc::toExitCode(fqc::ErrorCode::kUsageError);
     }
 
     try {

@@ -76,7 +76,7 @@ TEST(V2ArchiveEngineTest, InterleavesPairedFilesAndKeepsPairsAtomic) {
               "@pair/1\nACGT\n+\nIIII\n@pair/2\nTGCA\n+\nJJJJ\n");
 }
 
-TEST(V2ArchiveEngineTest, DetectsShortReadsAndRejectsAmbiguousLongReads) {
+TEST(V2ArchiveEngineTest, DetectsAllProfilesAndRejectsAmbiguousLongReads) {
     std::vector<ReadRecord> shortReads = {
         {"read", "", "ACGT", "IIII"},
     };
@@ -88,6 +88,16 @@ TEST(V2ArchiveEngineTest, DetectsShortReadsAndRejectsAmbiguousLongReads) {
         {"abc", "runid=123 ch=7", std::string(2'000, 'A'), std::string(2'000, 'I')},
     };
     ASSERT_EQ(detectProfile(ontReads).value(), format::v2::DatasetProfile::kOnt);
+
+    std::vector<ReadRecord> hifiReads = {
+        {"m64011_220101_010101/42/ccs", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
+    };
+    ASSERT_EQ(detectProfile(hifiReads).value(), format::v2::DatasetProfile::kPacBioHiFi);
+
+    std::vector<ReadRecord> clrReads = {
+        {"m64011_220101_010101/42/0_2000", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
+    };
+    ASSERT_EQ(detectProfile(clrReads).value(), format::v2::DatasetProfile::kPacBioClr);
 
     std::vector<ReadRecord> ambiguous = {
         {"unknown", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
