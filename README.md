@@ -45,6 +45,9 @@ The released product is the `fqc` command-line executable. Install and Conan pac
 internal module boundaries used by source builds and tests; they do not form a supported C++ API,
 ABI, or CMake package and may change without compatibility guarantees.
 
+Release artifacts and platform maintenance currently cover x86_64 only: Linux glibc, static Linux
+musl, and macOS Intel. ARM64 is outside the current support boundary.
+
 ## CLI
 
 ```bash
@@ -99,9 +102,9 @@ These are the pinned three-run medians from the WSL2 environment recorded in
 [performance/INDEX.md](performance/INDEX.md), not biological compression-ratio claims or stable
 release-machine guarantees. WSL2 wall-clock noise has produced lower reruns, including Illumina
 compression below 50 MiB/s. The repository does not currently contain enough real ONT/HiFi/CLR
-data to admit a specialised long-read codec, and ARM64 remains an explicit release-machine
-verification item. The table includes full logical-record validation and the maximum RSS across
-repetitions.
+data to admit a specialised long-read codec. Non-WSL2 performance qualification is waived for the
+0.3.0-rc1 release candidate; ARM64 is outside its support boundary. The table includes full
+logical-record validation and the maximum RSS across repetitions.
 
 Run the local scaling harness with:
 

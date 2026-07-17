@@ -28,6 +28,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Gzip input remains streaming and now accepts standards-compliant concatenated gzip members.
 - Readers reject data appended after the authenticated v2 footer; regular-file output is staged
   and uses atomic replacement where the platform supports it.
+- Release artifacts and platform maintenance are temporarily limited to x86_64 Linux and macOS;
+  ARM64 is outside the current support boundary.
 
 ### Removed
 
@@ -47,6 +49,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
   reruns, so these are evidence snapshots rather than stable guarantees.
 - The local performance harness defaults to three repetitions, reports median throughput and
   maximum RSS, and can enforce the 50/100 MiB/s release floor.
+- Non-WSL2 performance qualification was explicitly waived for this release candidate; the pinned
+  WSL2 medians remain evidence snapshots rather than release-machine guarantees.
 - Specialised codecs remain gated and are not shipped without adequate real-data evidence of at
   least 5% median size improvement, no dataset regression above 1%, and the throughput floor.
 

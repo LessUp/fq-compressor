@@ -17,8 +17,8 @@ Numbers are median-of-3 unless noted. All runs use the full release CLI path
 
 > **Caveat**: WSL2 wall-clock noise is high. Re-running on the same host can produce compress
 > figures below the 50 MiB/s floor (observed 47.8-48.4 MiB/s on Illumina). Treat the numbers below
-> as best-case medians, not as a guarantee. ARM64 and real biological corpora remain
-> release-environment gates.
+> as best-case medians, not as a guarantee. Non-WSL2 qualification was explicitly waived for
+> v0.3.0-rc1, whose supported platform scope is x86_64 only.
 
 ## Current results (2026-07-13)
 
@@ -48,9 +48,9 @@ These are upper-bound evidence, not production SLA claims.
 
 ## Open verification items
 
-- ARM64 reference machine: unverified in current environment.
 - Real biological corpora (Illumina, ONT, HiFi, CLR): compression-ratio claims gated by
   `benchmark_v2/CODEC_GATES.md`.
 - LeakSanitizer and ASan vptr: unavailable under managed ptrace env; see
   `troubleshooting/0006-sanitizer-env-limitations.md`.
-- WSL2 throughput stability: re-run on a non-WSL2 host before tagging a release.
+- Non-WSL2 throughput stability remains a follow-up measurement, not a v0.3.0-rc1 release gate.
+- ARM64 is outside the current platform support and release-artifact scope.

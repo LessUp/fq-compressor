@@ -42,6 +42,9 @@ conan profile detect --force
 `include/fqc` 下的头文件以及 `fqc_core`/`fqc_cli` CMake target 只是源码构建和测试使用的内部
 模块边界；它们不构成受支持的 C++ API、ABI 或 CMake package，也不承诺兼容性。
 
+当前发布产物和平台维护范围仅覆盖 x86_64：Linux glibc、静态 Linux musl 和 macOS Intel。
+ARM64 不在当前支持边界内。
+
 ## CLI
 
 ```bash
@@ -94,7 +97,8 @@ frame 构建、文件 I/O、解压和逐字节一致性检查。
 这些数字是 [performance/INDEX.md](performance/INDEX.md) 所记录 WSL2 环境的固定三次中位数，
 不用于宣称真实生物数据压缩率，也不是稳定的发布机保证。WSL2 墙钟波动曾使重跑结果下降，
 其中 Illumina 压缩低于 50 MiB/s。仓库目前没有足够的真实 ONT/HiFi/CLR 语料来准入专用长读
-codec；ARM64 仍需在发布机上单独验证。表格包含完整逻辑记录校验，并记录各轮最大 RSS。
+codec。0.3.0-rc1 已明确豁免非 WSL2 性能资格；ARM64 不在其支持边界内。表格包含完整逻辑
+记录校验，并记录各轮最大 RSS。
 
 ```bash
 FQC_BIN=build/clang-release/src/fqc \

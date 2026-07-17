@@ -77,17 +77,9 @@ jobs:
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
   build-linux-glibc:
-    name: Linux glibc (${{ matrix.arch }})
+    name: Linux glibc (x86_64)
     needs: validate
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-          - arch: aarch64
-            runner: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
@@ -110,7 +102,7 @@ jobs:
 
       - name: Prepare minimal archive
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-${{ matrix.arch }}-glibc"
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-x86_64-glibc"
           mkdir "$STAGING"
           install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
           install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
@@ -120,22 +112,14 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: linux-${{ matrix.arch }}-glibc
+          name: linux-x86_64-glibc
           path: ${{ env.ASSET }}
           if-no-files-found: error
 
   build-linux-musl:
-    name: Linux musl (${{ matrix.arch }})
+    name: Linux musl (x86_64)
     needs: validate
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-          - arch: aarch64
-            runner: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
@@ -158,7 +142,7 @@ jobs:
 
       - name: Prepare minimal archive
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-${{ matrix.arch }}-musl"
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-x86_64-musl"
           mkdir "$STAGING"
           install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
           install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
@@ -168,22 +152,14 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: linux-${{ matrix.arch }}-musl
+          name: linux-x86_64-musl
           path: ${{ env.ASSET }}
           if-no-files-found: error
 
   build-macos:
-    name: macOS (${{ matrix.arch }})
+    name: macOS (x86_64)
     needs: validate
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: macos-15-intel
-          - arch: arm64
-            runner: macos-15
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v5
 
@@ -194,8 +170,8 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ~/.conan2
-          key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py', 'VERSION') }}
-          restore-keys: macos-${{ matrix.arch }}-conan-
+          key: macos-x86_64-conan-${{ hashFiles('conanfile.py', 'VERSION') }}
+          restore-keys: macos-x86_64-conan-
 
       - name: Install build tools and GCC 15
         run: |
@@ -238,7 +214,7 @@ jobs:
 
       - name: Prepare minimal archive
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-macos-${{ matrix.arch }}"
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-macos-x86_64"
           mkdir "$STAGING"
           install -m 0755 build/release/src/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
           install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
@@ -248,7 +224,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: macos-${{ matrix.arch }}
+          name: macos-x86_64
           path: ${{ env.ASSET }}
           if-no-files-found: error
 
@@ -269,7 +245,7 @@ jobs:
         run: |
           mkdir release-assets
           find artifacts -type f -name '*.tar.gz' -exec cp '{}' release-assets/ \;
-          test "$(find release-assets -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 6
+          test "$(find release-assets -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 3
           ls -la release-assets
 
       - name: Generate SHA-256 manifest
@@ -287,8 +263,10 @@ jobs:
             echo
             echo "- FQC v2 archives are intentionally incompatible with v1."
             echo "- The supported compatibility surface is the \`fqc\` CLI only; no stable C++ API or ABI is provided."
-            echo "- Every artifact was smoke-tested on its native x86_64 or ARM64 runner."
-            echo "- The release includes portable GCC glibc/musl Linux builds and native macOS builds."
+            echo "- The supported release architecture is x86_64 only."
+            echo "- Every artifact was smoke-tested on its native x86_64 runner."
+            echo "- The release includes portable GCC glibc/musl Linux builds and a native macOS x86_64 build."
+            echo "- Non-WSL2 performance qualification was explicitly waived for this release candidate."
             echo
             echo "Verify downloads with \`sha256sum -c checksums-sha256.txt\`."
           } > release-notes.md
