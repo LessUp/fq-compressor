@@ -32,7 +32,6 @@ project(FQCompressor
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
 
 # Set default build type if not specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -214,50 +213,6 @@ if(BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
     add_subdirectory(tests)
 endif()
-
-# =============================================================================
-# Installation Configuration
-# =============================================================================
-
-# Note: fqc, fqc_core, fqc_cli targets are installed via src/CMakeLists.txt
-
-# Install public headers
-install(DIRECTORY ${FQC_INCLUDE_DIR}/fqc/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/fqc
-    COMPONENT Development
-    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
-)
-
-# =============================================================================
-# Package Configuration
-# =============================================================================
-
-set(CMAKE_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/FQCompressor)
-
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FQCompressorConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/FQCompressorConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/FQCompressorConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/FQCompressorConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/FQCompressorConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
-)
-
-install(EXPORT FQCompressorTargets
-    FILE FQCompressorTargets.cmake
-    NAMESPACE FQCompressor::
-    DESTINATION ${CMAKE_INSTALL_CMAKEDIR}
-    COMPONENT Development
-)
 
 # =============================================================================
 # Summary

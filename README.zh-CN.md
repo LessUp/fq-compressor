@@ -36,6 +36,12 @@ conan profile detect --force
 
 二进制位于 `build/clang-release/src/fqc`。
 
+## 支持边界
+
+正式发布的产品仅为 `fqc` 命令行可执行文件，安装目录和 Conan 包只包含 `bin/fqc`。
+`include/fqc` 下的头文件以及 `fqc_core`/`fqc_cli` CMake target 只是源码构建和测试使用的内部
+模块边界；它们不构成受支持的 C++ API、ABI 或 CMake package，也不承诺兼容性。
+
 ## CLI
 
 ```bash

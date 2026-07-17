@@ -3,7 +3,7 @@
 - Status: closed
 - Severity: medium
 - Found in: v2 phases 6-7 (pre-75b7400)
-- Related: conanfile.py, cmake/FQCompressorConfig.cmake.in, CMakePresets.json
+- Related: conanfile.py, CMakePresets.json
 
 ## Symptom
 
@@ -52,5 +52,6 @@ Three related dependency/toolchain issues blocked a clean release build and exte
 
 ## Follow-up / prevention
 
-The `install_deps.sh` flow now produces a single toolchain per preset; the external consumer check
-is part of the release checklist in `README.md`.
+The `install_deps.sh` flow now produces a single toolchain per preset. The later CLI-only closeout
+removed the public CMake export and external C++ consumer surface; installed packages now contain
+only `bin/fqc`.

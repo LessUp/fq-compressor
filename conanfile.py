@@ -25,16 +25,14 @@ import os
 
 class FQCompressorConan(ConanFile):
     name = "fqcompressor"
+    package_type = "application"
     license = "MIT"  # Project-authored code; vendored third-party code keeps its own license
     author = "LessUp <jiashuai.mail@gmail.com>"
     url = "https://github.com/LessUp/fq-compressor"
     description = "High-performance sequential FASTQ compressor"
     topics = ("bioinformatics", "fastq", "compression", "genomics", "archival")
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = {
-        "shared": False,
-        "fPIC": True,
         "zlib-ng/*:zlib_compat": True,
     }
     exports = "VERSION"
@@ -42,10 +40,6 @@ class FQCompressorConan(ConanFile):
 
     def set_version(self):
         self.version = load(self, os.path.join(self.recipe_folder, "VERSION")).strip()
-
-    def config_options(self):
-        if self.settings.os == "Windows":
-            del self.options.fPIC
 
     def layout(self):
         cmake_layout(self)
@@ -92,8 +86,6 @@ class FQCompressorConan(ConanFile):
 
         # Generate CMake toolchain file (conan_toolchain.cmake)
         tc = CMakeToolchain(self)
-        # Enable position-independent code for shared library compatibility
-        tc.variables["CMAKE_POSITION_INDEPENDENT_CODE"] = self.options.get_safe("fPIC", True)
         # CMake policy floor for older transitive package configs
         tc.variables["CMAKE_POLICY_VERSION_MINIMUM"] = "3.5"
         tc.generate()
@@ -112,9 +104,3 @@ class FQCompressorConan(ConanFile):
         """Package the built artifacts."""
         cmake = CMake(self)
         cmake.install()
-
-    def package_info(self):
-        """Define package information for consumers."""
-        self.cpp_info.libs = ["fqc_core", "fqc_cli"]
-        self.cpp_info.set_property("cmake_file_name", "FQCompressor")
-        self.cpp_info.set_property("cmake_target_name", "FQCompressor::FQCompressor")

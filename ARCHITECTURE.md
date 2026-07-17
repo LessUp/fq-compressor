@@ -4,6 +4,10 @@ FQC v2 is a sequential framed archive. The design optimises for bounded memory, 
 simple failure boundaries, and measured throughput. It deliberately does not provide v1
 compatibility, an index, random access, global read reordering, or a second parallel engine.
 
+The supported product boundary is the `fqc` CLI. Targets named `fqc_core` and `fqc_cli` and headers
+under `include/fqc` organise the source tree and tests only; they are not installed and carry no
+source or ABI compatibility promise.
+
 ## Data flow
 
 ```text
@@ -23,7 +27,7 @@ FQC v2/file/stdin
     -> file/stdout
 ```
 
-The reusable orchestration boundary is
+The internal orchestration boundary is
 `include/fqc/commands/v2_archive_engine.h`. The CLI in `src/main.cpp` only parses arguments,
 constructs requests, and reports structured errors.
 

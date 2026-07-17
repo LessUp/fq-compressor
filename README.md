@@ -38,6 +38,13 @@ conan profile detect --force
 
 The executable is `build/clang-release/src/fqc`.
 
+## Support boundary
+
+The released product is the `fqc` command-line executable. Install and Conan packages contain
+`bin/fqc` only. The headers under `include/fqc` and the `fqc_core`/`fqc_cli` CMake targets are
+internal module boundaries used by source builds and tests; they do not form a supported C++ API,
+ABI, or CMake package and may change without compatibility guarantees.
+
 ## CLI
 
 ```bash

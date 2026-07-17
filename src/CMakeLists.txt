@@ -32,8 +32,7 @@ add_library(fqc_core STATIC ${FQC_CORE_SOURCES})
 
 target_include_directories(fqc_core
     PUBLIC
-        $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        ${FQC_INCLUDE_DIR}
 )
 
 target_compile_features(fqc_core PUBLIC cxx_std_23)
@@ -58,8 +57,7 @@ add_library(fqc_cli STATIC ${FQC_COMMAND_SOURCES})
 
 target_include_directories(fqc_cli
     PUBLIC
-        $<BUILD_INTERFACE:${FQC_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        ${FQC_INCLUDE_DIR}
 )
 
 target_link_libraries(fqc_cli
@@ -94,11 +92,8 @@ target_include_directories(fqc
 # Installation
 # =============================================================================
 
-# Install libraries
-install(TARGETS fqc fqc_core fqc_cli
-    EXPORT FQCompressorTargets
+# The installed product surface is the CLI executable only. The static targets above are internal
+# build and test boundaries and are not exported as a C++ package.
+install(TARGETS fqc
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Runtime
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Development
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
