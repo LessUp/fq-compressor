@@ -168,6 +168,45 @@ TGCA
 IIII
 EOF
 
+cat > "${TEST_DIR}/mate_R2_complete.fastq" <<'EOF'
+@pair_1/2
+TGCA
++
+JJJJ
+@pair_2/2
+ACGT
++
+JJJJ
+EOF
+
+cat > "${TEST_DIR}/paired-interleaved.fastq" <<'EOF'
+@pair_1/1
+ACGT
++
+IIII
+@pair_1/2
+TGCA
++
+JJJJ
+@pair_2/1
+TGCA
++
+IIII
+@pair_2/2
+ACGT
++
+JJJJ
+EOF
+
+"${FQC_BIN}" -q compress \
+    -i "${TEST_DIR}/mate_R1.fastq" \
+    -2 "${TEST_DIR}/mate_R2_complete.fastq" \
+    -o "${TEST_DIR}/paired.fqc"
+"${FQC_BIN}" -q verify "${TEST_DIR}/paired.fqc"
+"${FQC_BIN}" -q decompress -i "${TEST_DIR}/paired.fqc" \
+    -o "${TEST_DIR}/paired-restored.fastq"
+cmp -s "${TEST_DIR}/paired-interleaved.fastq" "${TEST_DIR}/paired-restored.fastq"
+
 expect_exit 3 "${FQC_BIN}" -q compress \
     -i "${TEST_DIR}/mate_R1.fastq" \
     -2 "${TEST_DIR}/mate_R2.fastq" \

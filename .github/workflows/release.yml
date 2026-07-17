@@ -3,11 +3,21 @@ name: Release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+*"
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version from the repository VERSION file (without the v prefix)
+        required: true
+        type: string
+      dry_run:
+        description: Build and upload artifacts without creating a GitHub Release
+        required: true
+        default: true
+        type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CONAN_VERSION: 2.24.0
@@ -15,25 +25,59 @@ env:
   PROJECT_NAME: fq-compressor
 
 jobs:
-  # ── Validate version consistency ──────────────────────────────────
   validate:
-    name: Validate Tag
+    name: Validate release identity
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v5
-      - name: Check CMakeLists.txt version matches tag
+
+      - name: Validate VERSION and trigger
+        id: version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          CMAKE_VERSION=$(grep -E '^\s+VERSION [0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt | head -1 | sed 's/.*VERSION \([0-9][0-9.]*\).*/\1/')
-          if [ "$TAG_VERSION" != "$CMAKE_VERSION" ]; then
-            echo "::error::Tag version ($TAG_VERSION) does not match CMakeLists.txt version ($CMAKE_VERSION)"
+          read -r VERSION_VALUE < VERSION
+          if ! cmp -s VERSION <(printf '%s\n' "$VERSION_VALUE"); then
+            echo "::error::VERSION must contain exactly one newline-terminated line"
             exit 1
           fi
-          echo "Version: $TAG_VERSION ✓"
+          if [[ ! "$VERSION_VALUE" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid VERSION value: $VERSION_VALUE"
+            exit 1
+          fi
 
-  # ── Linux glibc builds (Docker GCC 15 × x86_64 + aarch64) ───────
+          EXPECTED_TAG="v${VERSION_VALUE}"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            if [[ "$GITHUB_REF_TYPE" != "tag" || "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match VERSION ($EXPECTED_TAG)"
+              exit 1
+            fi
+          else
+            if [[ "$REQUESTED_VERSION" != "$VERSION_VALUE" ]]; then
+              echo "::error::Requested version ($REQUESTED_VERSION) does not match VERSION ($VERSION_VALUE)"
+              exit 1
+            fi
+            if [[ "$DRY_RUN" != "true" ]]; then
+              echo "::error::Manual workflow runs must use dry_run=true"
+              exit 1
+            fi
+          fi
+
+          PRERELEASE=false
+          if [[ "$VERSION_VALUE" == *-* ]]; then
+            PRERELEASE=true
+          fi
+          echo "version=$VERSION_VALUE" >> "$GITHUB_OUTPUT"
+          echo "tag=$EXPECTED_TAG" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
   build-linux-glibc:
-    name: Build Linux glibc (${{ matrix.arch }})
+    name: Linux glibc (${{ matrix.arch }})
     needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -50,26 +94,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build via Docker (GCC 15 + glibc)
+      - name: Build portable GCC glibc binary
         run: |
           docker build \
             -f docker/Dockerfile.glibc-release \
             --output type=local,dest=out \
             .
 
-      - name: Verify binary
+      - name: Smoke-test native binary
         run: |
-          file out/${{ env.BINARY_NAME }}
           chmod +x out/${{ env.BINARY_NAME }}
+          file out/${{ env.BINARY_NAME }}
+          out/${{ env.BINARY_NAME }} --version | grep -Fx '${{ needs.validate.outputs.version }}'
+          FQC_BIN="${PWD}/out/${{ env.BINARY_NAME }}" bash tests/e2e/cli_smoke_test.sh
 
-      - name: Prepare archive
+      - name: Prepare minimal archive
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-glibc"
-          mkdir -p "$STAGING"
-          cp out/${{ env.BINARY_NAME }} "$STAGING/"
-          chmod +x "$STAGING/${{ env.BINARY_NAME }}"
-          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
-          tar czf "$STAGING.tar.gz" "$STAGING"
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-${{ matrix.arch }}-glibc"
+          mkdir "$STAGING"
+          install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
+          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -77,10 +122,10 @@ jobs:
         with:
           name: linux-${{ matrix.arch }}-glibc
           path: ${{ env.ASSET }}
+          if-no-files-found: error
 
-  # ── Linux musl static builds (Docker GCC 15 + musl-tools) ───────
   build-linux-musl:
-    name: Build Linux musl (${{ matrix.arch }})
+    name: Linux musl (${{ matrix.arch }})
     needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -97,26 +142,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build static binary via Docker (GCC 15 + musl)
+      - name: Build portable static GCC musl binary
         run: |
           docker build \
             -f docker/Dockerfile.musl-release \
             --output type=local,dest=out \
             .
 
-      - name: Verify static binary
+      - name: Smoke-test native binary
         run: |
-          file out/${{ env.BINARY_NAME }}
           chmod +x out/${{ env.BINARY_NAME }}
+          file out/${{ env.BINARY_NAME }}
+          out/${{ env.BINARY_NAME }} --version | grep -Fx '${{ needs.validate.outputs.version }}'
+          FQC_BIN="${PWD}/out/${{ env.BINARY_NAME }}" bash tests/e2e/cli_smoke_test.sh
 
-      - name: Prepare archive
+      - name: Prepare minimal archive
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-musl"
-          mkdir -p "$STAGING"
-          cp out/${{ env.BINARY_NAME }} "$STAGING/"
-          chmod +x "$STAGING/${{ env.BINARY_NAME }}"
-          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
-          tar czf "$STAGING.tar.gz" "$STAGING"
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-${{ matrix.arch }}-musl"
+          mkdir "$STAGING"
+          install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
+          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -124,57 +170,10 @@ jobs:
         with:
           name: linux-${{ matrix.arch }}-musl
           path: ${{ env.ASSET }}
+          if-no-files-found: error
 
-  # ── Linux Clang builds (Docker Clang 21 + libc++ × x86_64 + aarch64)
-  build-linux-clang:
-    name: Build Linux Clang (${{ matrix.arch }})
-    needs: validate
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-latest
-          - arch: aarch64
-            runner: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build via Docker (Clang 21 + libc++)
-        run: |
-          docker build \
-            -f docker/Dockerfile.clang-release \
-            --output type=local,dest=out \
-            .
-
-      - name: Verify binary
-        run: |
-          file out/${{ env.BINARY_NAME }}
-          chmod +x out/${{ env.BINARY_NAME }}
-
-      - name: Prepare archive
-        run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-linux-${{ matrix.arch }}-clang"
-          mkdir -p "$STAGING"
-          cp out/${{ env.BINARY_NAME }} "$STAGING/"
-          chmod +x "$STAGING/${{ env.BINARY_NAME }}"
-          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
-          tar czf "$STAGING.tar.gz" "$STAGING"
-          echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: linux-${{ matrix.arch }}-clang
-          path: ${{ env.ASSET }}
-
-  # ── macOS builds (Homebrew GCC 15 × x86_64 + arm64) ─────────────
   build-macos:
-    name: Build macOS (${{ matrix.arch }})
+    name: macOS (${{ matrix.arch }})
     needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -182,9 +181,9 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            runner: macos-13
+            runner: macos-15-intel
           - arch: arm64
-            runner: macos-14
+            runner: macos-15
     steps:
       - uses: actions/checkout@v5
 
@@ -195,10 +194,10 @@ jobs:
       - uses: actions/cache@v5
         with:
           path: ~/.conan2
-          key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py') }}
+          key: macos-${{ matrix.arch }}-conan-${{ hashFiles('conanfile.py', 'VERSION') }}
           restore-keys: macos-${{ matrix.arch }}-conan-
 
-      - name: Install build tools & GCC 15
+      - name: Install build tools and GCC 15
         run: |
           brew install cmake ninja ccache gcc@15
           echo "CC=$(brew --prefix gcc@15)/bin/gcc-15" >> "$GITHUB_ENV"
@@ -217,7 +216,7 @@ jobs:
             -s build_type=Release \
             -s compiler.cppstd=23
 
-      - name: CMake configure
+      - name: Configure and build portable binary
         run: |
           cmake -B build/release -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -229,17 +228,21 @@ jobs:
             -DFQC_PORTABLE=ON \
             -DBUILD_TESTING=OFF \
             -DENABLE_COVERAGE=OFF
+          cmake --build build/release -j "$(sysctl -n hw.ncpu)"
 
-      - name: Build
-        run: cmake --build build/release -j "$(sysctl -n hw.ncpu)"
-
-      - name: Prepare archive
+      - name: Smoke-test native binary
         run: |
-          STAGING="${{ env.PROJECT_NAME }}-${{ github.ref_name }}-macos-${{ matrix.arch }}"
-          mkdir -p "$STAGING"
-          cp build/release/src/${{ env.BINARY_NAME }} "$STAGING/"
-          cp README.md LICENSE* CHANGELOG.md "$STAGING/" 2>/dev/null || true
-          tar czf "$STAGING.tar.gz" "$STAGING"
+          file build/release/src/${{ env.BINARY_NAME }}
+          build/release/src/${{ env.BINARY_NAME }} --version | grep -Fx '${{ needs.validate.outputs.version }}'
+          FQC_BIN="${PWD}/build/release/src/${{ env.BINARY_NAME }}" bash tests/e2e/cli_smoke_test.sh
+
+      - name: Prepare minimal archive
+        run: |
+          STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-macos-${{ matrix.arch }}"
+          mkdir "$STAGING"
+          install -m 0755 build/release/src/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
+          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
@@ -247,17 +250,16 @@ jobs:
         with:
           name: macos-${{ matrix.arch }}
           path: ${{ env.ASSET }}
+          if-no-files-found: error
 
-  # ── Create GitHub Release ─────────────────────────────────────────
   release:
-    name: Create Release
-    needs: [build-linux-glibc, build-linux-musl, build-linux-clang, build-macos]
+    name: Publish prerelease
+    if: github.event_name == 'push'
+    needs: [validate, build-linux-glibc, build-linux-musl, build-macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
       - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
@@ -265,100 +267,40 @@ jobs:
 
       - name: Collect release assets
         run: |
-          mkdir -p release-assets
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release-assets/ \;
-          ls -la release-assets/
+          mkdir release-assets
+          find artifacts -type f -name '*.tar.gz' -exec cp '{}' release-assets/ \;
+          test "$(find release-assets -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 6
+          ls -la release-assets
 
-      - name: Generate checksums
+      - name: Generate SHA-256 manifest
         working-directory: release-assets
-        run: |
-          sha256sum * > checksums-sha256.txt
-          cat checksums-sha256.txt
+        run: sha256sum *.tar.gz > checksums-sha256.txt
 
-      - name: Generate release notes
-        id: notes
+      - name: Write release-candidate notes
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: |
-          TAG="${{ github.ref_name }}"
-          PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^$TAG$" | tail -1)
           {
-            echo "body<<EOF"
-            if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$TAG" ]; then
-              echo "## What's New / 更新内容"
-              echo ""
-              echo "Initial release of \`fq-compressor\` — High-Performance FASTQ Compressor (C++ implementation)."
-              echo ""
-              echo "\`fq-compressor\` 首次发布 — 高性能 FASTQ 压缩工具（C++ 实现）。"
-            else
-              echo "## Changes since $PREV_TAG / 自 $PREV_TAG 以来的变更"
-              echo ""
-              git log --pretty=format:"- %s (%h)" "$PREV_TAG".."$TAG"
-              echo ""
-              echo ""
-              echo "**Full Changelog / 完整变更记录**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
-            fi
-            echo ""
-            echo "---"
-            echo ""
-            echo "### Build Environment / 构建环境"
-            echo ""
-            echo "- **GCC 15.2** builds: glibc (dynamic) and musl (static)"
-            echo "- **Clang 21** builds: glibc + libc++ (dynamic)"
-            echo ""
-            echo "- **GCC 15.2** 构建：glibc（动态）和 musl（静态）"
-            echo "- **Clang 21** 构建：glibc + libc++（动态）"
-            echo ""
-            echo "### Installation / 安装说明"
-            echo ""
-            echo "Download the binary for your platform from the assets below."
-            echo ""
-            echo "请从下方资源中下载适合您平台的二进制文件。"
-            echo ""
-            echo "- **musl (static)** builds have **zero runtime dependencies** and run on any Linux distribution."
-            echo "- **glibc** builds require a compatible glibc version (typically any recent Linux distro)."
-            echo ""
-            echo "- **musl（静态）** 版本**无任何运行时依赖**，可在任意 Linux 发行版上直接运行。"
-            echo "- **glibc** 版本需要兼容的 glibc 版本（通常任何近期 Linux 发行版均可）。"
-            echo ""
-            echo "| Platform / 平台 | File / 文件 | Note / 说明 |"
-            echo "|---|---|---|"
-            echo "| Linux x64 (GCC glibc) | \`fq-compressor-${TAG}-linux-x86_64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
-            echo "| Linux x64 (GCC musl) | \`fq-compressor-${TAG}-linux-x86_64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
-            echo "| Linux x64 (Clang) | \`fq-compressor-${TAG}-linux-x86_64-clang.tar.gz\` | Clang 21 + libc++ |"
-            echo "| Linux arm64 (GCC glibc) | \`fq-compressor-${TAG}-linux-aarch64-glibc.tar.gz\` | GCC 15, dynamic / 动态链接 |"
-            echo "| Linux arm64 (GCC musl) | \`fq-compressor-${TAG}-linux-aarch64-musl.tar.gz\` | GCC 15, **static / 静态链接** |"
-            echo "| Linux arm64 (Clang) | \`fq-compressor-${TAG}-linux-aarch64-clang.tar.gz\` | Clang 21 + libc++ |"
-            echo "| macOS x64 | \`fq-compressor-${TAG}-macos-x86_64.tar.gz\` | GCC 15, Intel Mac |"
-            echo "| macOS arm64 | \`fq-compressor-${TAG}-macos-arm64.tar.gz\` | GCC 15, Apple Silicon |"
-            echo ""
-            echo "### Quick Start / 快速开始"
-            echo ""
-            echo "\`\`\`bash"
-            echo "# Linux / macOS"
-            echo "tar xzf fq-compressor-${TAG}-<platform>.tar.gz"
-            echo "chmod +x fqc"
-            echo "./fqc --help"
-            echo ""
-            echo "# Compress / 压缩"
-            echo "./fqc compress input.fastq -o output.fqc"
-            echo ""
-            echo "# Decompress / 解压"
-            echo "./fqc decompress output.fqc -o restored.fastq"
-            echo "\`\`\`"
-            echo ""
-            echo "### Verify Checksums / 校验文件完整性"
-            echo ""
-            echo "\`\`\`bash"
-            echo "sha256sum -c checksums-sha256.txt"
-            echo "\`\`\`"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+            echo "# fq-compressor ${RELEASE_TAG}"
+            echo
+            echo "This is a release candidate for the sequential FQC v2 CLI."
+            echo
+            echo "- FQC v2 archives are intentionally incompatible with v1."
+            echo "- The supported compatibility surface is the \`fqc\` CLI only; no stable C++ API or ABI is provided."
+            echo "- Every artifact was smoke-tested on its native x86_64 or ARM64 runner."
+            echo "- The release includes portable GCC glibc/musl Linux builds and native macOS builds."
+            echo
+            echo "Verify downloads with \`sha256sum -c checksums-sha256.txt\`."
+          } > release-notes.md
 
-      - name: Create GitHub Release
+      - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v2
         with:
-          name: "fq-compressor ${{ github.ref_name }}"
-          body: ${{ steps.notes.outputs.body }}
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: fq-compressor ${{ needs.validate.outputs.tag }}
+          body_path: release-notes.md
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') }}
+          prerelease: ${{ needs.validate.outputs.prerelease }}
           files: release-assets/*
+          fail_on_unmatched_files: true
           generate_release_notes: false
