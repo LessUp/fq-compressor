@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.0-rc1] - 2026-07-17
+
 ### Added
 
 - FQC v2 sequential little-endian archive with independent ID, packed-sequence, and quality
@@ -53,5 +55,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 - Initial public C++ implementation.
 
-[Unreleased]: https://github.com/LessUp/fq-compressor/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/LessUp/fq-compressor/compare/v0.3.0-rc1...HEAD
+[0.3.0-rc1]: https://github.com/LessUp/fq-compressor/compare/v0.2.0...v0.3.0-rc1
 [0.1.0]: https://github.com/LessUp/fq-compressor/releases/tag/v0.1.0

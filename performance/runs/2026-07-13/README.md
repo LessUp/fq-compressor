@@ -1,6 +1,6 @@
 # Runs — 2026-07-13
 
-Raw benchmark output for the v0.2.0 closeout baseline. Drop `benchmarks.jsonl` (produced by
+Raw benchmark output for the pre-release FQC v2 baseline. Drop `benchmarks.jsonl` (produced by
 `tests/e2e/test_performance.sh`) into this directory after each run.
 
 ## Files

@@ -2,7 +2,7 @@
 
 - Date: 2026-07-13
 - Related issue: troubleshooting/0003-validation-scan-regression.md
-- Baseline: performance/baselines/2026-07-13-v0.2.0.md (post-fix numbers)
+- Baseline: performance/baselines/2026-07-13-pre-release-v2.md (post-fix numbers)
 - Target: compress >= 50 MiB/s on Illumina-like 150 bp at 64 MiB budget, without weakening
   logical-record validation.
 

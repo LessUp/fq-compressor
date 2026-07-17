@@ -1,6 +1,6 @@
-# Baseline 2026-07-13 — v0.2.0
+# Baseline 2026-07-13 — pre-release FQC v2
 
-Immutable snapshot of FQC v2 performance at the v0.2.0 closeout point (commit `75b7400`).
+Immutable snapshot of FQC v2 performance before its first release candidate (commit `75b7400`).
 Later optimisations reference this file rather than editing it.
 
 ## Environment

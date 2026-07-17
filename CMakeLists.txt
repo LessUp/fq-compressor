@@ -11,9 +11,16 @@
 
 cmake_minimum_required(VERSION 3.28)
 
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" FQC_VERSION)
+string(STRIP "${FQC_VERSION}" FQC_VERSION)
+if(NOT FQC_VERSION MATCHES "^([0-9]+\\.[0-9]+\\.[0-9]+)(-[0-9A-Za-z.-]+)?$")
+    message(FATAL_ERROR "VERSION must contain a valid semantic version: '${FQC_VERSION}'")
+endif()
+set(FQC_VERSION_CORE "${CMAKE_MATCH_1}")
+
 project(FQCompressor
     LANGUAGES CXX
-    VERSION 0.2.0
+    VERSION ${FQC_VERSION_CORE}
     DESCRIPTION "High-performance sequential FASTQ compressor"
     HOMEPAGE_URL "https://github.com/LessUp/fq-compressor"
 )
@@ -258,7 +265,7 @@ install(EXPORT FQCompressorTargets
 
 message(STATUS "")
 message(STATUS "=== fq-compressor Configuration Summary ===")
-message(STATUS "  Version:        ${PROJECT_VERSION}")
+message(STATUS "  Version:        ${FQC_VERSION}")
 message(STATUS "  Build type:     ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ Standard:   ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Compiler:       ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")

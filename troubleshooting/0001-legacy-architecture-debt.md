@@ -55,7 +55,7 @@ Commit `75b7400` replaced the legacy compressor with bounded FQC v2:
 - 8/8 CTest targets pass under clang-debug, clang-release, clang-asan (ASan+UBSan), clang-tsan.
 - `./scripts/lint.sh format-check` passes.
 - Randomised 64 MiB full-path runs clear the x86_64 50/100 floor (see
-  `performance/baselines/2026-07-13-v0.2.0.md`).
+  `performance/baselines/2026-07-13-pre-release-v2.md`).
 
 ## Follow-up / prevention
 

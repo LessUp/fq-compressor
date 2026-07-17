@@ -81,7 +81,7 @@ target_link_libraries(fqc
 
 target_compile_definitions(fqc
     PRIVATE
-        FQC_VERSION="${PROJECT_VERSION}"
+        FQC_VERSION="${FQC_VERSION}"
 )
 
 target_include_directories(fqc

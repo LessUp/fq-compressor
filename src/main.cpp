@@ -20,7 +20,7 @@
 namespace {
 
 #ifndef FQC_VERSION
-#define FQC_VERSION "0.2.0"
+#error "FQC_VERSION must be provided by the build system"
 #endif
 
 constexpr std::uint64_t kBytesPerMiB = 1024ULL * 1024ULL;

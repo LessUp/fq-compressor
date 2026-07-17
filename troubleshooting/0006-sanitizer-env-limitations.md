@@ -44,4 +44,4 @@ clang-tsan` passes 8/8.
 
 Leak detection and the vptr check remain release-environment verification items: they must be run
 on an unrestricted machine before tagging a release. Documented in `README.md` and
-`performance/baselines/2026-07-13-v0.2.0.md`.
+`performance/baselines/2026-07-13-pre-release-v2.md`.

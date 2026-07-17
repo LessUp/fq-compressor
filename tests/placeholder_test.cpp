@@ -13,6 +13,10 @@
 
 #include <gtest/gtest.h>
 
+#ifndef FQC_EXPECTED_VERSION
+#error "FQC_EXPECTED_VERSION must be provided by the build system"
+#endif
+
 namespace {
 
 std::string quote(std::string_view value) {
@@ -126,5 +130,5 @@ TEST(BuildSmokeTest, ReportsProjectVersion) {
         quote(binary.string()) + " --version >" + quote(versionPath.string()) + " 2>/dev/null";
 
     ASSERT_EQ(std::system(command.c_str()), 0);
-    EXPECT_EQ(readFile(versionPath), "0.2.0\n");
+    EXPECT_EQ(readFile(versionPath), std::string(FQC_EXPECTED_VERSION) + "\n");
 }

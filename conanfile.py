@@ -18,11 +18,13 @@
 
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
+from conan.tools.files import load
+
+import os
 
 
 class FQCompressorConan(ConanFile):
     name = "fqcompressor"
-    version = "0.2.0"
     license = "MIT"  # Project-authored code; vendored third-party code keeps its own license
     author = "LessUp <jiashuai.mail@gmail.com>"
     url = "https://github.com/LessUp/fq-compressor"
@@ -35,7 +37,11 @@ class FQCompressorConan(ConanFile):
         "fPIC": True,
         "zlib-ng/*:zlib_compat": True,
     }
-    exports_sources = "CMakeLists.txt", "src/*", "include/*", "cmake/*", "tests/*"
+    exports = "VERSION"
+    exports_sources = "VERSION", "CMakeLists.txt", "src/*", "include/*", "cmake/*", "tests/*"
+
+    def set_version(self):
+        self.version = load(self, os.path.join(self.recipe_folder, "VERSION")).strip()
 
     def config_options(self):
         if self.settings.os == "Windows":

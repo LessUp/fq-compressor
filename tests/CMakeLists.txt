@@ -68,6 +68,10 @@ endfunction()
 fqc_add_test(build_smoke_test
     SOURCES placeholder_test.cpp
 )
+target_compile_definitions(build_smoke_test
+    PRIVATE
+        FQC_EXPECTED_VERSION="${FQC_VERSION}"
+)
 
 # Error Handling Tests
 fqc_add_test(error_test

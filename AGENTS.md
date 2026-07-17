@@ -40,7 +40,7 @@ For risky or cross-file changes, use `/review` before pushing.
 ## Project Overview
 
 - **Name**: fq-compressor
-- **Version**: 0.2.0
+- **Version**: 0.3.0-rc1
 - **Language**: C++23
 - **License**: MIT (project code); vendored code keeps its own license
 - **Homepage**: https://github.com/LessUp/fq-compressor
