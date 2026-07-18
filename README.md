@@ -1,112 +1,79 @@
 # fq-compressor
 
-`fq-compressor` is a C++23 FASTQ compressor built around a small, sequential, bounded-memory
-archive format. It preserves read IDs, comments, sequences, quality strings, and paired-read
-adjacency. Plain FASTQ and `.gz` FASTQ inputs are supported.
+用 C++23 写的 FASTQ 命令行压缩工具。
 
-> FQC v2 is intentionally incompatible with the legacy v1 archive and CLI. There is no v1 reader,
-> migration command, random access, lossy mode, or original-order map.
+fq-compressor 把 FASTQ 测序数据无损压缩成紧凑的 FQC 归档，再完整还原。它保留 read ID、注释、序列和质量值；支持单端和双端数据；直接接受 `.gz` 输入；也能通过 stdin/stdout 接入管道。
 
-## Why v2
+## 它是做什么的
 
-The previous ABC/SCM implementation combined an expensive global analysis path, dense per-thread
-quality models, and two separate serial/parallel engines. Its tracked throughput was roughly
-0.1 MiB/s. V2 replaces that stack with independent sequential frames and one engine shared by
-compression, decompression, and verification.
+这个工具只聚焦一件事：把 FASTQ 文件顺序归档，并在需要时原样恢复。不追求随机访问、全局重排或额外的有损模式，换来的是稳定的吞吐、可控的内存占用和清晰的错误边界。
 
-The production fallback uses:
+编码方式很直接：
 
-- varint-framed ID/comment streams compressed with Zstd level 1;
-- 2-bit uppercase A/C/G/T sequence packing plus exact-position exceptions for every other IUPAC
-  symbol and lowercase base, followed by Zstd level 1;
-- varint-framed quality streams compressed with Zstd level 1;
-- XXH64 checksums for the global header, each logical frame, and footer totals.
+- ID/注释、序列、质量值分三路独立处理；
+- 大写 A/C/G/T 用 2-bit 打包，其它 IUPAC 字符和小写碱基作为精确位置异常保留；
+- 三路流都用 varint 分帧 + Zstd level 1 压缩；
+- 全局头、每个 frame、结尾 footer 都带 XXH64 校验。
 
-Dataset profiles (`illumina`, `ont`, `pacbio-hifi`, and `pacbio-clr`) are recorded explicitly and
-can be detected or overridden. They currently share the validated fallback codec. A specialised
-codec is not admitted unless it keeps the throughput floor and beats fallback size by at least 5%
-on the benchmark corpus without a per-dataset regression above 1%.
+支持 `illumina`、`ont`、`pacbio-hifi`、`pacbio-clr` 四类测序类型，可自动检测，也可以显式指定。目前统一使用一套已经验证的编码；只有当某个专用 codec 在真实基准数据上稳定减小体积且不退化时，才会被纳入。
 
-## Build
+## 用法示例
 
-Requirements: CMake 3.28+, Conan 2.x, GCC 14+ or Clang 18+.
+```bash
+# 单端数据，测序类型自动检测
+fqc compress -i reads.fastq -o reads.fqc
+
+# 双端数据：R1/R2 成对保存，frame 不会拆开 pair
+fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
+
+# 显式指定长读类型
+fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
+
+# 校验与解压
+fqc verify reads.fqc
+fqc decompress -i reads.fqc -o restored.fastq
+
+# 接入管道
+producer | fqc compress -i - -o - | consumer
+fqc decompress -i reads.fqc -o - | downstream-tool
+```
+
+全局选项可放在子命令前后：
+
+```text
+--memory-limit MiB   操作内存预算，默认 16384，最小 64
+-q, --quiet          只输出错误
+```
+
+压缩额外支持 `--profile`、`--frame-mib`、`--force`；解压支持 `--force`。双端归档解压后是一份标准交错 FASTQ 流。
+
+## 构建
+
+要求：CMake 3.28+、Conan 2.x、GCC 14+ 或 Clang 18+。
 
 ```bash
 conan profile detect --force
 ./scripts/build.sh clang-release
 ```
 
-The executable is `build/clang-release/src/fqc`.
+二进制在 `build/clang-release/src/fqc`。
 
-## Support boundary
+## 格式说明
 
-The released product is the `fqc` command-line executable. Install and Conan packages contain
-`bin/fqc` only. The headers under `include/fqc` and the `fqc_core`/`fqc_cli` CMake targets are
-internal module boundaries used by source builds and tests; they do not form a supported C++ API,
-ABI, or CMake package and may change without compatibility guarantees.
+FQC 归档由带校验的全局头、若干独立 frame 和结尾 footer 组成。读取时会拒绝版本或 codec 不符、frame 超限、pair 数量不一致、截断、footer 后残留数据以及 checksum 错误。字节级布局见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
-Release artifacts and platform maintenance currently cover x86_64 only: Linux glibc, static Linux
-musl, and macOS Intel. ARM64 is outside the current support boundary.
+## 实测性能
 
-## CLI
+在 8 核 AMD Ryzen 7 5800H x86_64 上，release CLI 端到端测得：
 
-```bash
-# Single-end; profile is auto-detected.
-fqc compress -i reads.fastq -o reads.fqc
-
-# Paired files. Each R1/R2 pair stays adjacent and each frame contains complete pairs.
-fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
-
-# Explicit long-read profile.
-fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
-
-# Full integrity verification and decompression.
-fqc verify reads.fqc
-fqc decompress -i reads.fqc -o restored.fastq
-
-# Process pipelines.
-producer | fqc compress -i - -o - | consumer
-fqc decompress -i reads.fqc -o - | downstream-tool
-```
-
-Global options may appear before or after the subcommand:
-
-```text
---memory-limit MiB   Hard operation budget; default 16384, minimum 64
--q, --quiet          Suppress non-error status messages
-```
-
-Compression additionally accepts `--profile`, `--frame-mib`, and `--force`. Decompression accepts
-`--force`. Paired archives decompress as one canonical interleaved FASTQ stream.
-
-## Format and compatibility
-
-FQC v2 consists of a checked global header, zero or more independent frames, and an end footer.
-The reader rejects unknown versions/codecs, oversized frames, inconsistent paired counts,
-truncation, trailing logical-stream or post-footer data, and checksum mismatches. It does not probe
-or decode v1.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the byte layout and memory model.
-
-## Measured performance
-
-Release CLI measurements on an 8-core AMD Ryzen 7 5800H x86_64 host include FASTQ parsing,
-checksums, frame construction, file I/O, decompression, and exact comparison.
-
-| Synthetic input | Compress | Decompress | Max RSS at 64 MiB budget |
+| 合成数据 | 压缩 | 解压 | 64 MiB 预算下峰值 RSS |
 |---|---:|---:|---:|
-| Randomised Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
-| Randomised ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
+| 随机 Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
+| 随机 ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-These are the pinned three-run medians from the WSL2 environment recorded in
-[performance/INDEX.md](performance/INDEX.md), not biological compression-ratio claims or stable
-release-machine guarantees. WSL2 wall-clock noise has produced lower reruns, including Illumina
-compression below 50 MiB/s. The repository does not currently contain enough real ONT/HiFi/CLR
-data to admit a specialised long-read codec. Non-WSL2 performance qualification is waived for the
-0.3.0-rc1 release candidate; ARM64 is outside its support boundary. The table includes full
-logical-record validation and the maximum RSS across repetitions.
+这些数字来自 WSL2 环境的三次中位数，计入了解析、校验、frame 构建、I/O 和逐字节比对。它们不是真实生物数据的压缩率承诺，也不能当作所有平台的稳定保证。当前版本已在 x86_64（Linux glibc/musl、macOS Intel）上完成测试和发布。
 
-Run the local scaling harness with:
+本地复现：
 
 ```bash
 FQC_BIN=build/clang-release/src/fqc \
@@ -116,22 +83,23 @@ FQC_PERF_ENFORCE_SLA=1 \
 bash tests/e2e/test_performance.sh
 ```
 
-`tests/e2e/test_performance.sh` is the throughput/RSS/SLA harness. The user-facing dataset-driven
-peer comparison, including Spring when configured, is `./scripts/benchmark.sh`.
-Codec pass/fail decisions are recorded in [benchmark_v2/CODEC_GATES.md](benchmark_v2/CODEC_GATES.md).
+更完整的性能记录见 [`performance/INDEX.md`](performance/INDEX.md)。
 
-## Development
+## 适用范围
 
-The project is in closeout mode. Keep changes small, delete duplicate paths, and run:
+正式发布的产品只有 `fqc` 命令行可执行文件。`include/fqc` 下的头文件以及 `fqc_core`/`fqc_cli` CMake target 是源码构建和测试用的内部模块边界，**不构成受支持的 C++ API、ABI 或 CMake 包**，也不保证兼容性。
+
+当前发布包覆盖 x86_64：Linux glibc、静态 Linux musl、macOS Intel。
+
+## 开发与验证
 
 ```bash
 ./scripts/test.sh clang-debug
 ./scripts/lint.sh format-check
 ```
 
-Focused tests cover the v2 wire format, corruption/truncation, memory admission, parser/I/O,
-single/paired round trips, stdin/stdout, and the real CLI process boundary.
+测试覆盖 FQC 字节格式、损坏/截断、内存准入、parser/I/O、单端/双端往返、stdin/stdout 和真实 CLI 进程边界。
 
-## License
+## 许可证
 
-MIT. See [LICENSE](LICENSE).
+MIT，见 [`LICENSE`](LICENSE)。

@@ -105,7 +105,7 @@ jobs:
           STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-x86_64-glibc"
           mkdir "$STAGING"
           install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
-          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          install -m 0644 README.md README.en.md LICENSE CHANGELOG.md "$STAGING/"
           tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
@@ -145,7 +145,7 @@ jobs:
           STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-linux-x86_64-musl"
           mkdir "$STAGING"
           install -m 0755 out/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
-          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          install -m 0644 README.md README.en.md LICENSE CHANGELOG.md "$STAGING/"
           tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
@@ -217,7 +217,7 @@ jobs:
           STAGING="${{ env.PROJECT_NAME }}-${{ needs.validate.outputs.tag }}-macos-x86_64"
           mkdir "$STAGING"
           install -m 0755 build/release/src/${{ env.BINARY_NAME }} "$STAGING/${{ env.BINARY_NAME }}"
-          install -m 0644 README.md LICENSE CHANGELOG.md "$STAGING/"
+          install -m 0644 README.md README.en.md LICENSE CHANGELOG.md "$STAGING/"
           tar -czf "$STAGING.tar.gz" "$STAGING"
           echo "ASSET=$STAGING.tar.gz" >> "$GITHUB_ENV"
 
