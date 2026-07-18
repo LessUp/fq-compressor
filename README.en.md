@@ -1,105 +1,134 @@
 # fq-compressor
 
-A C++23 command-line FASTQ archiver.
+**A C++23 FASTQ archiver with compress, decompress, and verify commands.**
 
-fq-compressor losslessly compresses FASTQ sequencing reads into a compact FQC archive and restores them byte-for-byte. It keeps read IDs, comments, sequences, and quality strings; handles single-end and paired-end data; reads `.gz` input directly; and works through stdin/stdout pipelines.
+[![CI](https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml/badge.svg)](https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/LessUp/fq-compressor)](https://github.com/LessUp/fq-compressor/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)
+![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
+![Conan 2.x](https://img.shields.io/badge/Conan-2.x-blue.svg)
 
-## What it does
+[中文](README.md) · [English](README.en.md) · [Quick Start](#quick-start) · [Architecture](ARCHITECTURE.md) · [Releases](https://github.com/LessUp/fq-compressor/releases)
 
-The tool focuses on one thing: sequential FASTQ archiving with exact recovery. It skips random access, global reordering, and lossy modes so it can offer steady throughput, bounded memory use, and simple failure boundaries.
+## Features
 
-The encoding is straightforward:
+* `compress`: pack single-end or paired-end FASTQ into an FQC archive.
+* `decompress`: restore an FQC archive to a canonical interleaved FASTQ stream.
+* `verify`: run the same full integrity checks as decompression without writing FASTQ.
 
-- ID/comment, sequence, and quality streams are handled separately;
-- Uppercase A/C/G/T is packed to 2 bits; other IUPAC symbols and lowercase bases are stored as exact-position exceptions;
-- Each stream is varint-framed and compressed with Zstd level 1;
-- XXH64 checksums cover the global header, every frame, and the footer.
-
-Profiles for `illumina`, `ont`, `pacbio-hifi`, and `pacbio-clr` can be auto-detected or set explicitly. All currently share the same validated codec; a specialised codec will only be added if it consistently improves size on real benchmark data without regressions.
-
-## Usage
-
-```bash
-# Single-end; profile is auto-detected.
-fqc compress -i reads.fastq -o reads.fqc
-
-# Paired-end; each R1/R2 pair stays adjacent and frames never split a pair.
-fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
-
-# Explicit long-read profile.
-fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
-
-# Verify and decompress.
-fqc verify reads.fqc
-fqc decompress -i reads.fqc -o restored.fastq
-
-# Pipelines.
-producer | fqc compress -i - -o - | consumer
-fqc decompress -i reads.fqc -o - | downstream-tool
-```
-
-Global options may appear before or after the subcommand:
-
-```text
---memory-limit MiB   Memory budget; default 16384, minimum 64
--q, --quiet          Suppress non-error output
-```
-
-Compression also accepts `--profile`, `--frame-mib`, and `--force`. Decompression accepts `--force`. Paired archives decompress as one canonical interleaved FASTQ stream.
-
-## Build
-
-Requirements: CMake 3.28+, Conan 2.x, GCC 14+ or Clang 18+.
+## Quick Start
 
 ```bash
-conan profile detect --force
+git clone https://github.com/LessUp/fq-compressor.git
+cd fq-compressor
 ./scripts/build.sh clang-release
+./build/clang-release/src/fqc --help
 ```
 
-The executable is at `build/clang-release/src/fqc`.
+Compress:
 
-## Archive format
+```bash
+./build/clang-release/src/fqc compress -i reads.fastq.gz -o reads.fqc
+```
 
-The FQC archive consists of a checked global header, independent frames, and an end footer. The reader rejects unknown versions/codecs, oversized frames, inconsistent paired counts, truncation, trailing data after the footer, and checksum mismatches. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the byte layout.
+Decompress:
 
-## Benchmarks
+```bash
+./build/clang-release/src/fqc decompress -i reads.fqc -o restored.fastq
+```
 
-End-to-end release CLI measurements on an 8-core AMD Ryzen 7 5800H x86_64 host:
+Verify:
 
-| Synthetic input | Compress | Decompress | Max RSS at 64 MiB budget |
-|---|---:|---:|---:|
+```bash
+./build/clang-release/src/fqc verify reads.fqc
+```
+
+Paired-end:
+
+```bash
+./build/clang-release/src/fqc compress \
+  -i reads_R1.fastq.gz \
+  -2 reads_R2.fastq.gz \
+  -o paired.fqc
+```
+
+Run `./build/clang-release/src/fqc --help` for all options. The archive byte layout is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | C++23 (GCC 14+ / Clang 18+) |
+| Build | CMake 3.28+ + Ninja |
+| Package | Conan 2.x |
+| Compression | Zstd |
+| Checksumming | xxHash |
+| Testing | GoogleTest |
+
+## Design
+
+* Sequential frames: independent, self-checking frames; one engine handles compression, decompression, and verification.
+* Compact encoding: uppercase A/C/G/T packed to 2 bits; other IUPAC symbols and lowercase bases stored as exact-position exceptions.
+* Bounded memory: default 16 GiB budget, minimum 64 MiB; conservative per-frame peak estimation before allocation.
+* Pipeline-friendly: supports stdin/stdout; regular-file output is staged and atomically replaced on success.
+* Paired-end adjacency: R1/R2 pairs are stored together and never split across frame boundaries.
+* Layered checksumming: XXH64 over the global header, every logical frame, and the footer.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full layout.
+
+## Performance
+
+Environment: AMD Ryzen 7 5800H (WSL2, 8C/16T), Clang 21 Release, 64 MiB memory budget, randomised synthetic data, median of 3 runs.
+
+| Scenario | Compress | Decompress | Max RSS |
+|---|---|---:|---:|
 | Randomised Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
 | Randomised ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-These are pinned three-run medians from a WSL2 environment, including FASTQ parsing, checksums, frame construction, file I/O, decompression, and exact comparison. They are not claims about real biological compression ratios or stable guarantees across platforms. The current release is tested and published on x86_64: Linux glibc, static Linux musl, and macOS Intel.
+Note: WSL2 wall-clock numbers are noisy, so these figures are best used for relative comparison on the same machine. Full data is in [performance/INDEX.md](performance/INDEX.md).
 
-Reproduce locally:
+## When to use
 
-```bash
-FQC_BIN=build/clang-release/src/fqc \
-FQC_PERF_SIZES="64 256" \
-FQC_PERF_DATA=random \
-FQC_PERF_ENFORCE_SLA=1 \
-bash tests/e2e/test_performance.sh
-```
+Good for:
 
-See [`performance/INDEX.md`](performance/INDEX.md) for the full performance record.
+* Sequential FASTQ archiving and exact recovery with bounded memory.
+* A single format and single set of constraints for compression, decompression, and verification.
+* Pipelines and batch workflows.
 
-## Scope
+Not for:
 
-The released product is only the `fqc` command-line executable. The headers under `include/fqc` and the `fqc_core`/`fqc_cli` CMake targets are internal module boundaries used by source builds and tests; they do **not** form a supported C++ API, ABI, or CMake package and may change without notice.
+* Random access or range extraction.
+* Lossy compression or original-order reordering.
+* Non-FASTQ data formats.
 
-Current release artifacts cover x86_64: Linux glibc, static Linux musl, and macOS Intel.
+## Build Requirements
 
-## Development and verification
+* C++23 compiler: **GCC 14+** or **Clang 18+**
+* **CMake 3.28+**
+* **Conan 2.x**
+* Linux / macOS; Windows via WSL or Docker
 
-```bash
-./scripts/test.sh clang-debug
-./scripts/lint.sh format-check
-```
+## Quality
 
-Tests cover the FQC wire format, corruption/truncation, memory admission, parser/I/O, single/paired round trips, stdin/stdout, and the real CLI process boundary.
+CI covers:
+
+* Formatting: clang-format
+* Static analysis: clang-tidy
+* Builds: GCC Release, Clang Release
+* Sanitizers: ASan, TSan, UBSan
+* Tests: unit, integration, end-to-end
+
+## Documentation
+
+| Want to | Read |
+|---|---|
+| Build and first run | This file |
+| CLI options | `./build/clang-release/src/fqc --help` |
+| Archive layout | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Performance data | [performance/INDEX.md](performance/INDEX.md) |
+| Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+[MIT License](LICENSE).

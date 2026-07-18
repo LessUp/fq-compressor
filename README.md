@@ -1,105 +1,134 @@
 # fq-compressor
 
-用 C++23 写的 FASTQ 命令行压缩工具。
+**C++23 FASTQ 压缩工具，提供 compress、decompress、verify 三个命令。**
 
-fq-compressor 把 FASTQ 测序数据无损压缩成紧凑的 FQC 归档，再完整还原。它保留 read ID、注释、序列和质量值；支持单端和双端数据；直接接受 `.gz` 输入；也能通过 stdin/stdout 接入管道。
+[![CI 状态](https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml/badge.svg)](https://github.com/LessUp/fq-compressor/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/LessUp/fq-compressor)](https://github.com/LessUp/fq-compressor/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)
+![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
+![Conan 2.x](https://img.shields.io/badge/Conan-2.x-blue.svg)
 
-## 它是做什么的
+[中文](README.md) · [English](README.en.md) · [快速开始](#快速开始) · [架构](ARCHITECTURE.md) · [发布版本](https://github.com/LessUp/fq-compressor/releases)
 
-这个工具只聚焦一件事：把 FASTQ 文件顺序归档，并在需要时原样恢复。不追求随机访问、全局重排或额外的有损模式，换来的是稳定的吞吐、可控的内存占用和清晰的错误边界。
+## 功能
 
-编码方式很直接：
+* `compress`：把 FASTQ 单端或双端数据压缩成 FQC 归档。
+* `decompress`：把 FQC 归档还原为标准交错 FASTQ 流。
+* `verify`：不解压输出，只做完整一致性校验。
 
-- ID/注释、序列、质量值分三路独立处理；
-- 大写 A/C/G/T 用 2-bit 打包，其它 IUPAC 字符和小写碱基作为精确位置异常保留；
-- 三路流都用 varint 分帧 + Zstd level 1 压缩；
-- 全局头、每个 frame、结尾 footer 都带 XXH64 校验。
-
-支持 `illumina`、`ont`、`pacbio-hifi`、`pacbio-clr` 四类测序类型，可自动检测，也可以显式指定。目前统一使用一套已经验证的编码；只有当某个专用 codec 在真实基准数据上稳定减小体积且不退化时，才会被纳入。
-
-## 用法示例
-
-```bash
-# 单端数据，测序类型自动检测
-fqc compress -i reads.fastq -o reads.fqc
-
-# 双端数据：R1/R2 成对保存，frame 不会拆开 pair
-fqc compress -i reads_R1.fastq -2 reads_R2.fastq -o paired.fqc
-
-# 显式指定长读类型
-fqc compress -i ont.fastq.gz -o ont.fqc --profile ont
-
-# 校验与解压
-fqc verify reads.fqc
-fqc decompress -i reads.fqc -o restored.fastq
-
-# 接入管道
-producer | fqc compress -i - -o - | consumer
-fqc decompress -i reads.fqc -o - | downstream-tool
-```
-
-全局选项可放在子命令前后：
-
-```text
---memory-limit MiB   操作内存预算，默认 16384，最小 64
--q, --quiet          只输出错误
-```
-
-压缩额外支持 `--profile`、`--frame-mib`、`--force`；解压支持 `--force`。双端归档解压后是一份标准交错 FASTQ 流。
-
-## 构建
-
-要求：CMake 3.28+、Conan 2.x、GCC 14+ 或 Clang 18+。
+## 快速开始
 
 ```bash
-conan profile detect --force
+git clone https://github.com/LessUp/fq-compressor.git
+cd fq-compressor
 ./scripts/build.sh clang-release
+./build/clang-release/src/fqc --help
 ```
 
-二进制在 `build/clang-release/src/fqc`。
+压缩：
 
-## 格式说明
+```bash
+./build/clang-release/src/fqc compress -i reads.fastq.gz -o reads.fqc
+```
 
-FQC 归档由带校验的全局头、若干独立 frame 和结尾 footer 组成。读取时会拒绝版本或 codec 不符、frame 超限、pair 数量不一致、截断、footer 后残留数据以及 checksum 错误。字节级布局见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
+解压：
 
-## 实测性能
+```bash
+./build/clang-release/src/fqc decompress -i reads.fqc -o restored.fastq
+```
 
-在 8 核 AMD Ryzen 7 5800H x86_64 上，release CLI 端到端测得：
+校验：
 
-| 合成数据 | 压缩 | 解压 | 64 MiB 预算下峰值 RSS |
-|---|---:|---:|---:|
+```bash
+./build/clang-release/src/fqc verify reads.fqc
+```
+
+双端：
+
+```bash
+./build/clang-release/src/fqc compress \
+  -i reads_R1.fastq.gz \
+  -2 reads_R2.fastq.gz \
+  -o paired.fqc
+```
+
+更多参数见 `./build/clang-release/src/fqc --help`，格式与字节布局见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
+## 技术栈
+
+| 层级 | 技术 |
+|---|---|
+| 语言 | C++23（GCC 14+ / Clang 18+） |
+| 构建 | CMake 3.28+ + Ninja |
+| 包管理 | Conan 2.x |
+| 压缩 | Zstd |
+| 校验 | xxHash |
+| 测试 | GoogleTest |
+
+## 设计要点
+
+* 顺序 frame：独立自校验 frame，一个引擎完成压缩、解压、校验。
+* 紧凑编码：大写 A/C/G/T 用 2-bit 打包，其它 IUPAC 字符和小写碱基作为精确位置异常保留。
+* 内存有界：默认 16 GiB 预算，最小 64 MiB；逐 frame 做保守峰值估算。
+* 管道友好：支持 stdin/stdout；常规文件输出先写临时文件，成功后原子替换。
+* 双端保持相邻：R1/R2 成对存储，frame 不会拆开 pair。
+* 多层校验：全局头、每个逻辑 frame、结尾 footer 都带 XXH64。
+
+完整说明见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
+## 性能参考
+
+环境：AMD Ryzen 7 5800H（WSL2，8 核 16 线程），Clang 21 Release，64 MiB 内存预算，随机合成数据，3 次重复 median。
+
+| 场景 | 压缩 | 解压 | 峰值 RSS |
+|---|---|---:|---:|
 | 随机 Illumina-like 150 bp | 53.15 MiB/s | 182.40 MiB/s | 31.4 MiB |
 | 随机 ONT-like 20 kbp | 55.66 MiB/s | 215.22 MiB/s | 25.5 MiB |
 
-这些数字来自 WSL2 环境的三次中位数，计入了解析、校验、frame 构建、I/O 和逐字节比对。它们不是真实生物数据的压缩率承诺，也不能当作所有平台的稳定保证。当前版本已在 x86_64（Linux glibc/musl、macOS Intel）上完成测试和发布。
+说明：WSL2 的 wall-clock 绝对值受噪声影响，以上数字更适合同一机器横向比较。完整数据见 [performance/INDEX.md](performance/INDEX.md)。
 
-本地复现：
+## 使用场景
 
-```bash
-FQC_BIN=build/clang-release/src/fqc \
-FQC_PERF_SIZES="64 256" \
-FQC_PERF_DATA=random \
-FQC_PERF_ENFORCE_SLA=1 \
-bash tests/e2e/test_performance.sh
-```
+适合：
 
-更完整的性能记录见 [`performance/INDEX.md`](performance/INDEX.md)。
+* 需要一个顺序 FASTQ 归档/还原工具，且对内存敏感。
+* 希望压缩、解压、校验走同一套格式和同一批边界。
+* 需要接入管道或批处理流程。
 
-## 适用范围
+不适合：
 
-正式发布的产品只有 `fqc` 命令行可执行文件。`include/fqc` 下的头文件以及 `fqc_core`/`fqc_cli` CMake target 是源码构建和测试用的内部模块边界，**不构成受支持的 C++ API、ABI 或 CMake 包**，也不保证兼容性。
+* 随机访问或按区间提取 reads。
+* 有损压缩、原始顺序重排。
+* 非 FASTQ 数据格式。
 
-当前发布包覆盖 x86_64：Linux glibc、静态 Linux musl、macOS Intel。
+## 构建要求
 
-## 开发与验证
+* C++23 编译器：**GCC 14+** 或 **Clang 18+**
+* **CMake 3.28+**
+* **Conan 2.x**
+* Linux / macOS；Windows 建议 WSL 或 Docker
 
-```bash
-./scripts/test.sh clang-debug
-./scripts/lint.sh format-check
-```
+## 质量
 
-测试覆盖 FQC 字节格式、损坏/截断、内存准入、parser/I/O、单端/双端往返、stdin/stdout 和真实 CLI 进程边界。
+CI 包含：
+
+* 格式：clang-format
+* 静态分析：clang-tidy
+* 编译：GCC Release、Clang Release
+* 动态检查：ASan、TSan、UBSan
+* 测试：单元、集成、端到端
+
+## 文档
+
+| 想做的事 | 看这里 |
+|---|---|
+| 构建与首次运行 | 本文件 |
+| 命令参数 | `./build/clang-release/src/fqc --help` |
+| 架构与格式 | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| 性能数据 | [performance/INDEX.md](performance/INDEX.md) |
+| 变更记录 | [CHANGELOG.md](CHANGELOG.md) |
 
 ## 许可证
 
-MIT，见 [`LICENSE`](LICENSE)。
+[MIT License](LICENSE)。
