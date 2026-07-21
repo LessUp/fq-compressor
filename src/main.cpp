@@ -2,10 +2,10 @@
 // fq-compressor - FQC v2 Command-Line Interface
 // =============================================================================
 
-#include "fqc/commands/v2_archive_engine.h"
+#include "fqc/commands/archive_engine.h"
 #include "fqc/common/error.h"
 #include "fqc/common/logger.h"
-#include "fqc/format/v2_archive.h"
+#include "fqc/format/archive.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -59,20 +59,18 @@ struct VerifyOptions {
 }
 
 [[nodiscard]] auto resolveProfile(std::string_view value)
-    -> fqc::Result<std::optional<fqc::format::v2::DatasetProfile>> {
+    -> fqc::Result<std::optional<fqc::format::DatasetProfile>> {
     if (value == "auto") {
-        return std::optional<fqc::format::v2::DatasetProfile>{};
+        return std::optional<fqc::format::DatasetProfile>{};
     }
-    auto profile = fqc::format::v2::parseProfile(value);
+    auto profile = fqc::format::parseProfile(value);
     if (!profile) {
-        return fqc::makeError<std::optional<fqc::format::v2::DatasetProfile>>(profile.error());
+        return fqc::makeError<std::optional<fqc::format::DatasetProfile>>(profile.error());
     }
-    return std::optional<fqc::format::v2::DatasetProfile>(*profile);
+    return std::optional<fqc::format::DatasetProfile>(*profile);
 }
 
-void logStats(std::string_view operation,
-              const fqc::commands::v2::OperationStats& stats,
-              bool quiet) {
+void logStats(std::string_view operation, const fqc::commands::OperationStats& stats, bool quiet) {
     if (quiet) {
         return;
     }
@@ -80,7 +78,7 @@ void logStats(std::string_view operation,
         "{} complete: profile={}, paired={}, frames={}, records={}, bases={}, input={} "
         "bytes, output={} bytes",
         operation,
-        fqc::format::v2::profileToString(stats.profile),
+        fqc::format::profileToString(stats.profile),
         stats.paired,
         stats.frameCount,
         stats.recordCount,
@@ -164,7 +162,7 @@ int main(int argc, char* argv[]) {
             return reportError(memoryLimit);
         }
 
-        const fqc::commands::v2::ArchiveEngine engine;
+        const fqc::commands::ArchiveEngine engine;
         if (*compressCommand) {
             auto targetFrameBytes = checkedMiB(compress.frameMiB, "--frame-mib");
             if (!targetFrameBytes) {

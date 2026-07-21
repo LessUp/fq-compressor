@@ -7,7 +7,7 @@
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
-#include "fqc/format/v2_archive.h"
+#include "fqc/format/archive.h"
 #include "fqc/io/stream_factory.h"
 
 #include <cstddef>
@@ -17,9 +17,9 @@
 #include <optional>
 #include <span>
 
-namespace fqc::commands::v2 {
+namespace fqc::commands {
 
-inline constexpr std::size_t kDefaultMemoryLimitBytes = format::v2::kDefaultMemoryLimitBytes;
+inline constexpr std::size_t kDefaultMemoryLimitBytes = format::kDefaultMemoryLimitBytes;
 inline constexpr std::size_t kProfileSampleMaxRecords = 50'000;
 inline constexpr std::size_t kProfileSampleMaxBases = 512ULL * 1024ULL * 1024ULL;
 
@@ -27,9 +27,9 @@ struct CompressionRequest {
     std::filesystem::path inputPath;
     std::filesystem::path matePath;
     std::filesystem::path outputPath;
-    std::optional<format::v2::DatasetProfile> profile;
+    std::optional<format::DatasetProfile> profile;
     std::size_t memoryLimitBytes = kDefaultMemoryLimitBytes;
-    std::size_t targetFrameBytes = format::v2::kDefaultTargetFrameBytes;
+    std::size_t targetFrameBytes = format::kDefaultTargetFrameBytes;
     bool forceOverwrite = false;
 
     [[nodiscard]] auto paired() const noexcept -> bool {
@@ -45,7 +45,7 @@ struct DecompressionRequest {
 };
 
 struct OperationStats {
-    format::v2::DatasetProfile profile = format::v2::DatasetProfile::kIllumina;
+    format::DatasetProfile profile = format::DatasetProfile::kIllumina;
     bool paired = false;
     std::uint64_t frameCount = 0;
     std::uint64_t recordCount = 0;
@@ -55,7 +55,7 @@ struct OperationStats {
 };
 
 [[nodiscard]] auto detectProfile(std::span<const ReadRecord> records)
-    -> Result<format::v2::DatasetProfile>;
+    -> Result<format::DatasetProfile>;
 
 class ArchiveEngine {
 public:
@@ -73,6 +73,6 @@ private:
     std::shared_ptr<io::StreamFactory> streamFactory_;
 };
 
-}  // namespace fqc::commands::v2
+}  // namespace fqc::commands
 
 #endif  // FQC_COMMANDS_V2_ARCHIVE_ENGINE_H

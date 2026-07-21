@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-namespace fqc::format::v2 {
+namespace fqc::format {
 
 inline constexpr std::uint16_t kArchiveVersion = 2;
 inline constexpr std::size_t kDefaultTargetFrameBytes = std::size_t{64} * 1024 * 1024;
@@ -112,6 +112,6 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace fqc::format::v2
+}  // namespace fqc::format
 
 #endif  // FQC_FORMAT_V2_ARCHIVE_H

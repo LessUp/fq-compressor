@@ -16,7 +16,7 @@
 set(FQC_CORE_SOURCES
     common/error.cpp
     common/logger.cpp
-    format/v2_archive.cpp
+    format/archive.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
     io/stream_factory.cpp
@@ -24,7 +24,7 @@ set(FQC_CORE_SOURCES
 
 # Command sources
 set(FQC_COMMAND_SOURCES
-    commands/v2_archive_engine.cpp
+    commands/archive_engine.cpp
 )
 
 # Create the core library

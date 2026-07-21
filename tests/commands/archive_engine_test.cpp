@@ -1,4 +1,4 @@
-#include "fqc/commands/v2_archive_engine.h"
+#include "fqc/commands/archive_engine.h"
 
 #include "fqc/io/fastq_parser.h"
 
@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-namespace fqc::commands::v2::test {
+namespace fqc::commands::test {
 
 namespace {
 
@@ -22,7 +22,7 @@ constexpr std::string_view kShortFastq =
 
 }  // namespace
 
-TEST(V2ArchiveEngineTest, CompressesAndDecompressesCanonicalFastq) {
+TEST(ArchiveEngineTest, CompressesAndDecompressesCanonicalFastq) {
     auto factory = makeFactory();
     factory->setFileContent("reads.fastq", kShortFastq);
     ArchiveEngine engine(factory);
@@ -30,7 +30,7 @@ TEST(V2ArchiveEngineTest, CompressesAndDecompressesCanonicalFastq) {
     auto compressed = engine.compress({.inputPath = "reads.fastq",
                                        .matePath = {},
                                        .outputPath = "reads.fqc",
-                                       .profile = format::v2::DatasetProfile::kIllumina,
+                                       .profile = format::DatasetProfile::kIllumina,
                                        .memoryLimitBytes = 64 * 1024 * 1024,
                                        .targetFrameBytes = 64,
                                        .forceOverwrite = true});
@@ -50,7 +50,7 @@ TEST(V2ArchiveEngineTest, CompressesAndDecompressesCanonicalFastq) {
     EXPECT_EQ(verified->recordCount, 2U);
 }
 
-TEST(V2ArchiveEngineTest, InterleavesPairedFilesAndKeepsPairsAtomic) {
+TEST(ArchiveEngineTest, InterleavesPairedFilesAndKeepsPairsAtomic) {
     auto factory = makeFactory();
     factory->setFileContent("r1.fastq", "@pair/1\nACGT\n+\nIIII\n");
     factory->setFileContent("r2.fastq", "@pair/2\nTGCA\n+\nJJJJ\n");
@@ -59,7 +59,7 @@ TEST(V2ArchiveEngineTest, InterleavesPairedFilesAndKeepsPairsAtomic) {
     auto compressed = engine.compress({.inputPath = "r1.fastq",
                                        .matePath = "r2.fastq",
                                        .outputPath = "paired.fqc",
-                                       .profile = format::v2::DatasetProfile::kIllumina,
+                                       .profile = format::DatasetProfile::kIllumina,
                                        .memoryLimitBytes = 64 * 1024 * 1024,
                                        .targetFrameBytes = 1,
                                        .forceOverwrite = true});
@@ -76,28 +76,28 @@ TEST(V2ArchiveEngineTest, InterleavesPairedFilesAndKeepsPairsAtomic) {
               "@pair/1\nACGT\n+\nIIII\n@pair/2\nTGCA\n+\nJJJJ\n");
 }
 
-TEST(V2ArchiveEngineTest, DetectsAllProfilesAndRejectsAmbiguousLongReads) {
+TEST(ArchiveEngineTest, DetectsAllProfilesAndRejectsAmbiguousLongReads) {
     std::vector<ReadRecord> shortReads = {
         {"read", "", "ACGT", "IIII"},
     };
     auto shortProfile = detectProfile(shortReads);
     ASSERT_TRUE(shortProfile);
-    EXPECT_EQ(*shortProfile, format::v2::DatasetProfile::kIllumina);
+    EXPECT_EQ(*shortProfile, format::DatasetProfile::kIllumina);
 
     std::vector<ReadRecord> ontReads = {
         {"abc", "runid=123 ch=7", std::string(2'000, 'A'), std::string(2'000, 'I')},
     };
-    ASSERT_EQ(detectProfile(ontReads).value(), format::v2::DatasetProfile::kOnt);
+    ASSERT_EQ(detectProfile(ontReads).value(), format::DatasetProfile::kOnt);
 
     std::vector<ReadRecord> hifiReads = {
         {"m64011_220101_010101/42/ccs", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
     };
-    ASSERT_EQ(detectProfile(hifiReads).value(), format::v2::DatasetProfile::kPacBioHiFi);
+    ASSERT_EQ(detectProfile(hifiReads).value(), format::DatasetProfile::kPacBioHiFi);
 
     std::vector<ReadRecord> clrReads = {
         {"m64011_220101_010101/42/0_2000", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
     };
-    ASSERT_EQ(detectProfile(clrReads).value(), format::v2::DatasetProfile::kPacBioClr);
+    ASSERT_EQ(detectProfile(clrReads).value(), format::DatasetProfile::kPacBioClr);
 
     std::vector<ReadRecord> ambiguous = {
         {"unknown", "", std::string(2'000, 'A'), std::string(2'000, 'I')},
@@ -107,7 +107,7 @@ TEST(V2ArchiveEngineTest, DetectsAllProfilesAndRejectsAmbiguousLongReads) {
     EXPECT_EQ(ambiguousProfile.error().code(), ErrorCode::kUsageError);
 }
 
-TEST(V2ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
+TEST(ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
     auto factory = makeFactory();
     factory->setFileContent("r1.fastq", "@a/1\nACGT\n+\nIIII\n@b/1\nACGT\n+\nIIII\n");
     factory->setFileContent("r2.fastq", "@a/2\nTGCA\n+\nJJJJ\n");
@@ -116,7 +116,7 @@ TEST(V2ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
     auto mismatch = engine.compress({.inputPath = "r1.fastq",
                                      .matePath = "r2.fastq",
                                      .outputPath = "bad.fqc",
-                                     .profile = format::v2::DatasetProfile::kIllumina,
+                                     .profile = format::DatasetProfile::kIllumina,
                                      .memoryLimitBytes = 64 * 1024 * 1024,
                                      .forceOverwrite = true});
     ASSERT_FALSE(mismatch);
@@ -125,11 +125,11 @@ TEST(V2ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
     auto tinyMemory = engine.compress({.inputPath = "r1.fastq",
                                        .matePath = {},
                                        .outputPath = "tiny.fqc",
-                                       .profile = format::v2::DatasetProfile::kIllumina,
+                                       .profile = format::DatasetProfile::kIllumina,
                                        .memoryLimitBytes = 1024,
                                        .forceOverwrite = true});
     ASSERT_FALSE(tinyMemory);
     EXPECT_EQ(tinyMemory.error().code(), ErrorCode::kUsageError);
 }
 
-}  // namespace fqc::commands::v2::test
+}  // namespace fqc::commands::test

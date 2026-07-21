@@ -371,26 +371,6 @@ private:
     std::optional<ParseError> lastError_;
 };
 
-/// @brief Check if a character is a valid DNA base.
-[[nodiscard]] constexpr bool isValidBase(char c) noexcept {
-    return std::string_view{"ACGTRYSWKMBDHVNacgtryswkmbdhvn"}.contains(c);
-}
-
-/// @brief Check if a character is a valid quality score.
-[[nodiscard]] constexpr bool isValidQuality(char c) noexcept {
-    return c >= '!' && c <= '~';  // Phred+33: 0-93
-}
-
-/// @brief Convert quality character to Phred score.
-[[nodiscard]] constexpr std::uint8_t qualityToPhred(char c) noexcept {
-    return static_cast<std::uint8_t>(c - '!');
-}
-
-/// @brief Convert Phred score to quality character.
-[[nodiscard]] constexpr char phredToQuality(std::uint8_t phred) noexcept {
-    return static_cast<char>('!' + phred);
-}
-
 }  // namespace fqc::io
 
 #endif  // FQC_IO_FASTQ_PARSER_H

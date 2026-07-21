@@ -79,8 +79,8 @@ fqc_add_test(error_test
 )
 
 # FQC v2 sequential archive tests
-fqc_add_test(v2_archive_test
-    SOURCES format/v2_archive_test.cpp
+fqc_add_test(archive_test
+    SOURCES format/archive_test.cpp
 )
 
 # Stream factory tests
@@ -99,8 +99,8 @@ fqc_add_test(compressed_stream_test
 )
 
 # V2 end-to-end archive engine tests
-fqc_add_test(v2_archive_engine_test
-    SOURCES commands/v2_archive_engine_test.cpp
+fqc_add_test(archive_engine_test
+    SOURCES commands/archive_engine_test.cpp
     LIBRARIES fqc_cli
 )
 

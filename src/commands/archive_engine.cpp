@@ -2,7 +2,7 @@
 // fq-compressor - V2 Sequential Archive Engine
 // =============================================================================
 
-#include "fqc/commands/v2_archive_engine.h"
+#include "fqc/commands/archive_engine.h"
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace fqc::commands::v2 {
+namespace fqc::commands {
 
 namespace {
 
@@ -133,7 +133,7 @@ private:
 }
 
 [[nodiscard]] auto maxFrameBytesFor(std::size_t memoryLimitBytes) noexcept -> std::size_t {
-    return std::min(format::v2::kDefaultMaxFrameBytes,
+    return std::min(format::kDefaultMaxFrameBytes,
                     (memoryLimitBytes - kEngineMemoryReserveBytes) / 4);
 }
 
@@ -160,7 +160,7 @@ private:
 
 class FrameAccumulator {
 public:
-    FrameAccumulator(format::v2::ArchiveWriter& writer, std::size_t targetBytes, bool paired)
+    FrameAccumulator(format::ArchiveWriter& writer, std::size_t targetBytes, bool paired)
         : writer_(writer), targetBytes_(targetBytes), paired_(paired) {}
 
     [[nodiscard]] auto add(ReadRecord record) -> VoidResult {
@@ -186,7 +186,7 @@ public:
     }
 
 private:
-    format::v2::ArchiveWriter& writer_;
+    format::ArchiveWriter& writer_;
     std::size_t targetBytes_;
     bool paired_;
     std::vector<ReadRecord> records_;
@@ -205,8 +205,8 @@ private:
     return makeVoidSuccess();
 }
 
-[[nodiscard]] auto toOperationStats(const format::v2::ArchiveMetadata& metadata,
-                                    const format::v2::ArchiveStats& archiveStats,
+[[nodiscard]] auto toOperationStats(const format::ArchiveMetadata& metadata,
+                                    const format::ArchiveStats& archiveStats,
                                     bool compressing,
                                     std::uint64_t logicalBytes) -> OperationStats {
     return {
@@ -226,9 +226,9 @@ private:
 
 }  // namespace
 
-auto detectProfile(std::span<const ReadRecord> records) -> Result<format::v2::DatasetProfile> {
+auto detectProfile(std::span<const ReadRecord> records) -> Result<format::DatasetProfile> {
     if (records.empty()) {
-        return format::v2::DatasetProfile::kIllumina;
+        return format::DatasetProfile::kIllumina;
     }
 
     std::size_t ontHeaders = 0;
@@ -252,19 +252,19 @@ auto detectProfile(std::span<const ReadRecord> records) -> Result<format::v2::Da
 
     const auto majority = (records.size() + 1) / 2;
     if (hifiHeaders >= majority) {
-        return format::v2::DatasetProfile::kPacBioHiFi;
+        return format::DatasetProfile::kPacBioHiFi;
     }
     if (ontHeaders >= majority) {
-        return format::v2::DatasetProfile::kOnt;
+        return format::DatasetProfile::kOnt;
     }
     if (clrHeaders >= majority) {
-        return format::v2::DatasetProfile::kPacBioClr;
+        return format::DatasetProfile::kPacBioClr;
     }
     const auto averageLength = totalBases / records.size();
     if (maxLength <= 1'000 && averageLength <= 500) {
-        return format::v2::DatasetProfile::kIllumina;
+        return format::DatasetProfile::kIllumina;
     }
-    return makeError<format::v2::DatasetProfile>(
+    return makeError<format::DatasetProfile>(
         ErrorCode::kUsageError,
         "dataset profile is ambiguous; specify illumina, ont, pacbio-hifi, or pacbio-clr");
 }
@@ -333,7 +333,7 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
         }
 
         auto resolvedProfile = request.profile.has_value()
-            ? Result<format::v2::DatasetProfile>(*request.profile)
+            ? Result<format::DatasetProfile>(*request.profile)
             : detectProfile(sample);
         if (!resolvedProfile) {
             return makeError<OperationStats>(resolvedProfile.error());
@@ -341,12 +341,11 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
 
         OutputTransaction outputTransaction(request.outputPath, streamFactory_->isFileStream());
         auto output = streamFactory_->createOutputStream(outputTransaction.path());
-        format::v2::ArchiveWriter writer(
-            *output,
-            {.profile = *resolvedProfile,
-             .paired = request.paired(),
-             .maxFrameBytes = maxFrameBytesFor(request.memoryLimitBytes),
-             .memoryLimitBytes = request.memoryLimitBytes});
+        format::ArchiveWriter writer(*output,
+                                     {.profile = *resolvedProfile,
+                                      .paired = request.paired(),
+                                      .maxFrameBytes = maxFrameBytesFor(request.memoryLimitBytes),
+                                      .memoryLimitBytes = request.memoryLimitBytes});
         FrameAccumulator accumulator(writer, targetFrameBytesFor(request), request.paired());
         std::uint64_t logicalBytes = 0;
         auto addRecord = [&](ReadRecord record) -> VoidResult {
@@ -414,7 +413,7 @@ auto ArchiveEngine::decompress(const DecompressionRequest& request) const
         auto input = streamFactory_->createInputStream(request.inputPath);
         OutputTransaction outputTransaction(request.outputPath, streamFactory_->isFileStream());
         auto output = streamFactory_->createOutputStream(outputTransaction.path());
-        format::v2::ArchiveReader reader(
+        format::ArchiveReader reader(
             *input, maxFrameBytesFor(request.memoryLimitBytes), request.memoryLimitBytes);
         auto metadata = reader.open();
         if (!metadata) {
@@ -460,8 +459,7 @@ auto ArchiveEngine::verify(const std::filesystem::path& inputPath,
             return makeError<OperationStats>(result.error());
         }
         auto input = streamFactory_->createInputStream(inputPath);
-        format::v2::ArchiveReader reader(
-            *input, maxFrameBytesFor(memoryLimitBytes), memoryLimitBytes);
+        format::ArchiveReader reader(*input, maxFrameBytesFor(memoryLimitBytes), memoryLimitBytes);
         auto metadata = reader.open();
         if (!metadata) {
             return makeError<OperationStats>(metadata.error());
@@ -487,4 +485,4 @@ auto ArchiveEngine::verify(const std::filesystem::path& inputPath,
     }
 }
 
-}  // namespace fqc::commands::v2
+}  // namespace fqc::commands

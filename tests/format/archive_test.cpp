@@ -1,4 +1,4 @@
-#include "fqc/format/v2_archive.h"
+#include "fqc/format/archive.h"
 
 #include <algorithm>
 #include <array>
@@ -15,7 +15,7 @@
 
 #include <gtest/gtest.h>
 
-namespace fqc::format::v2::test {
+namespace fqc::format::test {
 
 namespace {
 
@@ -194,7 +194,7 @@ void writeU64(std::string& bytes, std::size_t offset, std::uint64_t value) {
 
 }  // namespace
 
-TEST(V2ArchiveTest, RoundTripsAllRecordFieldsAndFooter) {
+TEST(ArchiveTest, RoundTripsAllRecordFieldsAndFooter) {
     const auto records = makeRecords();
     const auto archive = writeArchive(
         {.profile = DatasetProfile::kOnt, .paired = true, .maxFrameBytes = 1024 * 1024}, records);
@@ -220,7 +220,7 @@ TEST(V2ArchiveTest, RoundTripsAllRecordFieldsAndFooter) {
     EXPECT_EQ(reader.stats().recordCount, records.size());
 }
 
-TEST(V2ArchiveTest, SupportsMultipleFramesAndEmptyArchive) {
+TEST(ArchiveTest, SupportsMultipleFramesAndEmptyArchive) {
     const auto records = makeRecords();
     std::ostringstream output(std::ios::binary);
     ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina});
@@ -247,7 +247,7 @@ TEST(V2ArchiveTest, SupportsMultipleFramesAndEmptyArchive) {
     EXPECT_FALSE(emptyEnd->has_value());
 }
 
-TEST(V2ArchiveTest, RejectsIncompletePair) {
+TEST(ArchiveTest, RejectsIncompletePair) {
     const auto records = makeRecords();
     std::ostringstream output(std::ios::binary);
     ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina, .paired = true});
@@ -256,7 +256,7 @@ TEST(V2ArchiveTest, RejectsIncompletePair) {
     EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
 }
 
-TEST(V2ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
+TEST(ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
     std::ostringstream invalidProfileOutput(std::ios::binary);
     ArchiveWriter invalidProfileWriter(invalidProfileOutput,
                                        {.profile = static_cast<DatasetProfile>(0)});
@@ -280,7 +280,7 @@ TEST(V2ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
     }
 }
 
-TEST(V2ArchiveTest, DetectsCorruptionAndTruncation) {
+TEST(ArchiveTest, DetectsCorruptionAndTruncation) {
     const auto records = makeRecords();
     auto archive = writeArchive({.profile = DatasetProfile::kPacBioClr}, records);
     archive[archive.size() / 2] ^= 0x5A;
@@ -303,7 +303,7 @@ TEST(V2ArchiveTest, DetectsCorruptionAndTruncation) {
     EXPECT_EQ(truncatedFooter.error().code(), ErrorCode::kFormatError);
 }
 
-TEST(V2ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
+TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     const auto valid = writeArchive({.profile = DatasetProfile::kIllumina}, makeRecords());
 
     auto globalHeader = valid;
@@ -346,7 +346,7 @@ TEST(V2ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     EXPECT_EQ(footerResult.error().code(), ErrorCode::kChecksumError);
 }
 
-TEST(V2ArchiveTest, RejectsHostileFrameMetadata) {
+TEST(ArchiveTest, RejectsHostileFrameMetadata) {
     const auto valid = writeArchive({.profile = DatasetProfile::kIllumina}, makeRecords());
     const auto expectFormatError = [](std::string archive, std::size_t maxFrameBytes) {
         std::istringstream input(std::move(archive), std::ios::binary);
@@ -379,7 +379,7 @@ TEST(V2ArchiveTest, RejectsHostileFrameMetadata) {
     expectFormatError(std::move(paired), kDefaultMaxFrameBytes);
 }
 
-TEST(V2ArchiveTest, RejectsTruncatedVarintInAuthenticatedLogicalStream) {
+TEST(ArchiveTest, RejectsTruncatedVarintInAuthenticatedLogicalStream) {
     const std::vector<ReadRecord> records = {
         {"read", "", "ACGT", "!!!!"},
     };
@@ -395,7 +395,7 @@ TEST(V2ArchiveTest, RejectsTruncatedVarintInAuthenticatedLogicalStream) {
     EXPECT_EQ(result.error().code(), ErrorCode::kFormatError);
 }
 
-TEST(V2ArchiveTest, SeededPairedRoundTripIsDeterministicAcrossFrames) {
+TEST(ArchiveTest, SeededPairedRoundTripIsDeterministicAcrossFrames) {
     constexpr std::string_view kIupac = "ACGTRYSWKMBDHVNacgtryswkmbdhvn";
     std::mt19937 random(0xF0C2026U);
     std::uniform_int_distribution<std::size_t> lengthDistribution(1, 2'048);
@@ -455,7 +455,7 @@ TEST(V2ArchiveTest, SeededPairedRoundTripIsDeterministicAcrossFrames) {
     EXPECT_EQ(restored, records);
 }
 
-TEST(V2ArchiveTest, RejectsBytesAfterFooter) {
+TEST(ArchiveTest, RejectsBytesAfterFooter) {
     const auto records = makeRecords();
     auto archive = writeArchive({.profile = DatasetProfile::kIllumina}, records);
     archive.append("trailing");
@@ -469,7 +469,7 @@ TEST(V2ArchiveTest, RejectsBytesAfterFooter) {
     EXPECT_EQ(footer.error().code(), ErrorCode::kFormatError);
 }
 
-TEST(V2ArchiveTest, RejectsLegacyOrUnknownInput) {
+TEST(ArchiveTest, RejectsLegacyOrUnknownInput) {
     std::istringstream input("FQC1 legacy bytes", std::ios::binary);
     ArchiveReader reader(input);
     auto result = reader.open();
@@ -486,7 +486,7 @@ TEST(V2ArchiveTest, RejectsLegacyOrUnknownInput) {
     EXPECT_EQ(unsupportedResult.error().code(), ErrorCode::kUnsupportedCodec);
 }
 
-TEST(V2ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
+TEST(ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
     std::vector<ReadRecord> records = {
         {"large", "", std::string(4 * 1024, 'n'), std::string(4 * 1024, 'I')},
     };
@@ -507,7 +507,7 @@ TEST(V2ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
     EXPECT_EQ(readResult.error().code(), ErrorCode::kFormatError);
 }
 
-TEST(V2ArchiveTest, ParsesProfilesStrictly) {
+TEST(ArchiveTest, ParsesProfilesStrictly) {
     EXPECT_EQ(parseProfile("illumina").value(), DatasetProfile::kIllumina);
     EXPECT_EQ(parseProfile("ont").value(), DatasetProfile::kOnt);
     EXPECT_EQ(parseProfile("pacbio-hifi").value(), DatasetProfile::kPacBioHiFi);
@@ -515,4 +515,4 @@ TEST(V2ArchiveTest, ParsesProfilesStrictly) {
     EXPECT_FALSE(parseProfile("auto"));
 }
 
-}  // namespace fqc::format::v2::test
+}  // namespace fqc::format::test

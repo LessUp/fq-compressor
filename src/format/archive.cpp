@@ -2,7 +2,7 @@
 // fq-compressor - FQC v2 Sequential Archive
 // =============================================================================
 
-#include "fqc/format/v2_archive.h"
+#include "fqc/format/archive.h"
 
 #include <algorithm>
 #include <array>
@@ -16,7 +16,7 @@
 #include <xxhash.h>
 #include <zstd.h>
 
-namespace fqc::format::v2 {
+namespace fqc::format {
 
 namespace {
 
@@ -1026,4 +1026,4 @@ auto ArchiveReader::finished() const noexcept -> bool {
     return impl_->finished_;
 }
 
-}  // namespace fqc::format::v2
+}  // namespace fqc::format
