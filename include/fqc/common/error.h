@@ -47,13 +47,17 @@ namespace fqc {
 // =============================================================================
 
 /// @brief Error codes matching CLI exit codes.
-/// @note These values are used as process exit codes.
+/// @note These values are used as process exit codes. The enumeration is
+///       intentionally small: detailed sub-categories are folded into the
+///       five user-facing exit code buckets (0-5) plus kInternalError for
+///       unreachable invariant violations.
 enum class ErrorCode : std::uint8_t {
     /// @brief Operation completed successfully.
     kSuccess = 0,
 
     /// @brief Usage or argument error.
-    /// @note Invalid command-line arguments, missing required options, etc.
+    /// @note Invalid command-line arguments, missing required options,
+    ///       invalid API parameters, etc.
     kUsageError = 1,
 
     /// @brief I/O error.
@@ -61,7 +65,8 @@ enum class ErrorCode : std::uint8_t {
     kIOError = 2,
 
     /// @brief Format error or version incompatibility.
-    /// @note Invalid file format, unsupported version, corrupted header, etc.
+    /// @note Invalid file format, unsupported version, corrupted header,
+    ///       truncated archive, bad record shape, etc.
     kFormatError = 3,
 
     /// @brief Checksum verification failure.
@@ -72,93 +77,32 @@ enum class ErrorCode : std::uint8_t {
     /// @note Unknown codec family, incompatible compression algorithm.
     kUnsupportedCodec = 5,
 
-    /// @brief Invalid argument value.
-    kInvalidArgument = 6,
-
-    /// @brief File not found.
-    kFileNotFound = 7,
-
-    /// @brief File already exists.
-    kFileExists = 8,
-
-    /// @brief Failed to open file.
-    kFileOpenFailed = 9,
-
-    /// @brief Seek operation failed.
-    kSeekFailed = 10,
-
-    /// @brief Invalid file format.
-    kInvalidFormat = 11,
-
-    /// @brief Invalid state for operation.
-    kInvalidState = 12,
-
-    /// @brief Operation was cancelled.
-    kCancelled = 13,
-
-    /// @brief Decompression failed.
-    kDecompressionFailed = 14,
-
-    /// @brief Unsupported format.
-    kUnsupportedFormat = 15,
-
-    /// @brief Corrupted data detected.
-    kCorruptedData = 16,
-
     /// @brief Internal error.
-    kInternalError = 17,
-
-    /// @brief Compression failed.
-    kCompressionFailed = 18,
-
-    /// @brief Decompression error.
-    kDecompressionError = 19,
-
-    /// @brief Checksum mismatch.
-    kChecksumMismatch = 20
+    /// @note Unreachable invariant violation. Should never be observed by
+    ///       callers; surfacing it indicates a bug.
+    kInternalError = 17
 };
 
 /// @brief Convert ErrorCode to its integer exit code value.
 /// @param code The error code.
 /// @return Integer exit code (0-5) suitable for process exit.
-/// @note Maps detailed error codes (6-20) back to the 5 exit code categories.
 [[nodiscard]] constexpr int toExitCode(ErrorCode code) noexcept {
     switch (code) {
         case ErrorCode::kSuccess:
             return 0;
-        // Category 1: Usage/argument errors
         case ErrorCode::kUsageError:
-        case ErrorCode::kInvalidArgument:
-        case ErrorCode::kCancelled:
             return 1;
-        // Category 2: I/O errors
         case ErrorCode::kIOError:
-        case ErrorCode::kFileNotFound:
-        case ErrorCode::kFileExists:
-        case ErrorCode::kFileOpenFailed:
-        case ErrorCode::kSeekFailed:
             return 2;
-        // Category 3: Format errors
         case ErrorCode::kFormatError:
-        case ErrorCode::kInvalidFormat:
-        case ErrorCode::kInvalidState:
-        case ErrorCode::kUnsupportedFormat:
-        case ErrorCode::kCorruptedData:
         case ErrorCode::kInternalError:
             return 3;
-        // Category 4: Checksum errors
         case ErrorCode::kChecksumError:
-        case ErrorCode::kChecksumMismatch:
             return 4;
-        // Category 5: Unsupported codec/algorithm errors
         case ErrorCode::kUnsupportedCodec:
-        case ErrorCode::kCompressionFailed:
-        case ErrorCode::kDecompressionFailed:
-        case ErrorCode::kDecompressionError:
             return 5;
-        default:
-            return 1;  // Unknown errors default to usage error category
     }
+    return 1;  // Unreachable: exhaustive switch over uint8_t enumeration
 }
 
 /// @brief Convert ErrorCode to string representation.
@@ -178,39 +122,10 @@ enum class ErrorCode : std::uint8_t {
             return "checksum error";
         case ErrorCode::kUnsupportedCodec:
             return "unsupported codec";
-        case ErrorCode::kInvalidArgument:
-            return "invalid argument";
-        case ErrorCode::kFileNotFound:
-            return "file not found";
-        case ErrorCode::kFileExists:
-            return "file exists";
-        case ErrorCode::kFileOpenFailed:
-            return "file open failed";
-        case ErrorCode::kSeekFailed:
-            return "seek failed";
-        case ErrorCode::kInvalidFormat:
-            return "invalid format";
-        case ErrorCode::kInvalidState:
-            return "invalid state";
-        case ErrorCode::kCancelled:
-            return "cancelled";
-        case ErrorCode::kDecompressionFailed:
-            return "decompression failed";
-        case ErrorCode::kUnsupportedFormat:
-            return "unsupported format";
-        case ErrorCode::kCorruptedData:
-            return "corrupted data";
         case ErrorCode::kInternalError:
             return "internal error";
-        case ErrorCode::kCompressionFailed:
-            return "compression failed";
-        case ErrorCode::kDecompressionError:
-            return "decompression error";
-        case ErrorCode::kChecksumMismatch:
-            return "checksum mismatch";
-        default:
-            return "unknown error";
     }
+    return "unknown error";
 }
 
 /// @brief Check if an error code represents success.
@@ -374,171 +289,6 @@ protected:
     std::string message_;
     std::optional<ErrorContext> context_;
     std::string what_;
-};
-
-// =============================================================================
-// Specific Exception Classes
-// =============================================================================
-
-/// @brief Exception for usage and argument errors (exit code 1).
-/// @note Thrown for invalid command-line arguments, missing required options,
-///       invalid parameter values, etc.
-class UsageError : public FQCException {
-public:
-    /// @brief Construct with message.
-    /// @param message Descriptive error message.
-    explicit UsageError(std::string message)
-        : FQCException(ErrorCode::kUsageError, std::move(message)) {}
-
-    /// @brief Construct with message and context.
-    /// @param message Descriptive error message.
-    /// @param context Additional error context.
-    UsageError(std::string message, ErrorContext context)
-        : FQCException(ErrorCode::kUsageError, std::move(message), std::move(context)) {}
-};
-
-/// @brief Alias for UsageError (for argument parsing errors).
-using ArgumentError = UsageError;
-
-/// @brief Exception for I/O errors (exit code 2).
-/// @note Thrown for file not found, read/write failures, permission denied,
-///       disk full, etc.
-class IOError : public FQCException {
-public:
-    /// @brief Construct with message.
-    /// @param message Descriptive error message.
-    explicit IOError(std::string message) : FQCException(ErrorCode::kIOError, std::move(message)) {}
-
-    /// @brief Construct with message and context.
-    /// @param message Descriptive error message.
-    /// @param context Additional error context.
-    IOError(std::string message, ErrorContext context)
-        : FQCException(ErrorCode::kIOError, std::move(message), std::move(context)) {}
-
-    /// @brief Construct from system error code.
-    /// @param message Descriptive error message.
-    /// @param ec System error code.
-    IOError(std::string message, std::error_code ec)
-        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec)), systemError_(ec) {}
-
-    /// @brief Construct from system error code with context.
-    /// @param message Descriptive error message.
-    /// @param ec System error code.
-    /// @param context Additional error context.
-    IOError(std::string message, std::error_code ec, ErrorContext context)
-        : FQCException(ErrorCode::kIOError, formatWithSystemError(message, ec), std::move(context)),
-          systemError_(ec) {}
-
-    /// @brief Get the system error code (if available).
-    /// @return Optional system error code.
-    [[nodiscard]] const std::optional<std::error_code>& systemError() const noexcept {
-        return systemError_;
-    }
-
-private:
-    static std::string formatWithSystemError(const std::string& message, std::error_code ec);
-
-    std::optional<std::error_code> systemError_;
-};
-
-/// @brief Exception for format errors (exit code 3).
-/// @note Thrown for invalid file format, unsupported version, corrupted header,
-///       invalid magic number, etc.
-class FormatError : public FQCException {
-public:
-    /// @brief Construct with message.
-    /// @param message Descriptive error message.
-    explicit FormatError(std::string message)
-        : FQCException(ErrorCode::kFormatError, std::move(message)) {}
-
-    /// @brief Construct with message and context.
-    /// @param message Descriptive error message.
-    /// @param context Additional error context.
-    FormatError(std::string message, ErrorContext context)
-        : FQCException(ErrorCode::kFormatError, std::move(message), std::move(context)) {}
-};
-
-/// @brief Exception for checksum verification failures (exit code 4).
-/// @note Thrown when block or global checksum doesn't match, indicating
-///       data corruption.
-class ChecksumError : public FQCException {
-public:
-    /// @brief Construct with message.
-    /// @param message Descriptive error message.
-    explicit ChecksumError(std::string message)
-        : FQCException(ErrorCode::kChecksumError, std::move(message)) {}
-
-    /// @brief Construct with message and context.
-    /// @param message Descriptive error message.
-    /// @param context Additional error context.
-    ChecksumError(std::string message, ErrorContext context)
-        : FQCException(ErrorCode::kChecksumError, std::move(message), std::move(context)) {}
-
-    /// @brief Construct with expected and actual checksum values.
-    /// @param expected Expected checksum value.
-    /// @param actual Actual checksum value.
-    /// @param context Additional error context.
-    ChecksumError(std::uint64_t expected, std::uint64_t actual, ErrorContext context)
-        : FQCException(ErrorCode::kChecksumError,
-                       formatChecksumMismatch(expected, actual),
-                       std::move(context)),
-          expected_(expected),
-          actual_(actual) {}
-
-    /// @brief Get the expected checksum value (if available).
-    /// @return Optional expected checksum.
-    [[nodiscard]] std::optional<std::uint64_t> expected() const noexcept {
-        return expected_;
-    }
-
-    /// @brief Get the actual checksum value (if available).
-    /// @return Optional actual checksum.
-    [[nodiscard]] std::optional<std::uint64_t> actual() const noexcept {
-        return actual_;
-    }
-
-private:
-    static std::string formatChecksumMismatch(std::uint64_t expected, std::uint64_t actual);
-
-    std::optional<std::uint64_t> expected_;
-    std::optional<std::uint64_t> actual_;
-};
-
-/// @brief Exception for unsupported codec errors (exit code 5).
-/// @note Thrown when encountering an unknown codec family or incompatible
-///       compression algorithm.
-class UnsupportedCodecError : public FQCException {
-public:
-    /// @brief Construct with message.
-    /// @param message Descriptive error message.
-    explicit UnsupportedCodecError(std::string message)
-        : FQCException(ErrorCode::kUnsupportedCodec, std::move(message)) {}
-
-    /// @brief Construct with message and context.
-    /// @param message Descriptive error message.
-    /// @param context Additional error context.
-    UnsupportedCodecError(std::string message, ErrorContext context)
-        : FQCException(ErrorCode::kUnsupportedCodec, std::move(message), std::move(context)) {}
-
-    /// @brief Construct with codec family ID.
-    /// @param codecFamily The unsupported codec family ID.
-    /// @param context Additional error context.
-    UnsupportedCodecError(std::uint8_t codecFamily, ErrorContext context)
-        : FQCException(ErrorCode::kUnsupportedCodec,
-                       formatUnsupportedCodec(codecFamily),
-                       std::move(context)),
-          codecFamily_(codecFamily) {}
-
-    /// @brief Get the unsupported codec family ID (if available).
-    /// @return Optional codec family ID.
-    [[nodiscard]] std::optional<std::uint8_t> codecFamily() const noexcept {
-        return codecFamily_;
-    }
-
-private:
-    static std::string formatUnsupportedCodec(std::uint8_t codecFamily);
-
-    std::optional<std::uint8_t> codecFamily_;
 };
 
 // =============================================================================

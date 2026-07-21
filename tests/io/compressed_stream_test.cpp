@@ -379,7 +379,7 @@ TEST_F(CompressedStreamTest, LargeFile) {
 }
 
 TEST_F(CompressedStreamTest, NonexistentFile) {
-    EXPECT_THROW(CompressedInputStream stream(tempDir_ / "nonexistent.txt"), IOError);
+    EXPECT_THROW(CompressedInputStream stream(tempDir_ / "nonexistent.txt"), FQCException);
 }
 
 TEST_F(CompressedStreamTest, InvalidGzipData) {

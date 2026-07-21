@@ -253,7 +253,7 @@ TEST(V2ArchiveTest, RejectsIncompletePair) {
     ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina, .paired = true});
     auto result = writer.writeFrame(std::span(records).first(1));
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code(), ErrorCode::kInvalidArgument);
+    EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
 }
 
 TEST(V2ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
@@ -262,7 +262,7 @@ TEST(V2ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
                                        {.profile = static_cast<DatasetProfile>(0)});
     auto profileResult = invalidProfileWriter.finish();
     ASSERT_FALSE(profileResult);
-    EXPECT_EQ(profileResult.error().code(), ErrorCode::kInvalidArgument);
+    EXPECT_EQ(profileResult.error().code(), ErrorCode::kUsageError);
 
     const std::vector<ReadRecord> invalidRecords = {
         {"", "", "ACGT", "IIII"},
@@ -276,7 +276,7 @@ TEST(V2ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
         ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina});
         auto result = writer.writeFrame(std::span(&record, 1));
         ASSERT_FALSE(result);
-        EXPECT_EQ(result.error().code(), ErrorCode::kInvalidArgument);
+        EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
     }
 }
 
@@ -290,8 +290,8 @@ TEST(V2ArchiveTest, DetectsCorruptionAndTruncation) {
     ASSERT_TRUE(corruptReader.open());
     auto corruptFrame = corruptReader.readFrame();
     ASSERT_FALSE(corruptFrame);
-    EXPECT_TRUE(corruptFrame.error().code() == ErrorCode::kDecompressionFailed ||
-                corruptFrame.error().code() == ErrorCode::kChecksumMismatch);
+    EXPECT_TRUE(corruptFrame.error().code() == ErrorCode::kFormatError ||
+                corruptFrame.error().code() == ErrorCode::kChecksumError);
 
     const auto valid = writeArchive({.profile = DatasetProfile::kOnt}, records);
     std::istringstream truncatedInput(valid.substr(0, valid.size() - 5), std::ios::binary);
@@ -312,7 +312,7 @@ TEST(V2ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ArchiveReader globalReader(globalInput);
     auto globalResult = globalReader.open();
     ASSERT_FALSE(globalResult);
-    EXPECT_EQ(globalResult.error().code(), ErrorCode::kChecksumMismatch);
+    EXPECT_EQ(globalResult.error().code(), ErrorCode::kChecksumError);
 
     auto frameHeader = valid;
     writeU32(frameHeader, kFrameIdOffset, 1);
@@ -333,7 +333,7 @@ TEST(V2ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ASSERT_TRUE(payloadReader.open());
     auto payloadResult = payloadReader.readFrame();
     ASSERT_FALSE(payloadResult);
-    EXPECT_EQ(payloadResult.error().code(), ErrorCode::kChecksumMismatch);
+    EXPECT_EQ(payloadResult.error().code(), ErrorCode::kChecksumError);
 
     auto footer = valid;
     footer.back() ^= 0x01;
@@ -343,7 +343,7 @@ TEST(V2ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ASSERT_TRUE(footerReader.readFrame());
     auto footerResult = footerReader.readFrame();
     ASSERT_FALSE(footerResult);
-    EXPECT_EQ(footerResult.error().code(), ErrorCode::kChecksumMismatch);
+    EXPECT_EQ(footerResult.error().code(), ErrorCode::kChecksumError);
 }
 
 TEST(V2ArchiveTest, RejectsHostileFrameMetadata) {
@@ -474,7 +474,7 @@ TEST(V2ArchiveTest, RejectsLegacyOrUnknownInput) {
     ArchiveReader reader(input);
     auto result = reader.open();
     ASSERT_FALSE(result);
-    EXPECT_TRUE(result.error().code() == ErrorCode::kInvalidFormat ||
+    EXPECT_TRUE(result.error().code() == ErrorCode::kFormatError ||
                 result.error().code() == ErrorCode::kFormatError);
 
     auto unsupported = writeArchive({.profile = DatasetProfile::kIllumina}, makeRecords());
@@ -496,7 +496,7 @@ TEST(V2ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
         {.profile = DatasetProfile::kOnt, .memoryLimitBytes = 16 * 1024 * 1024 + 1024});
     auto writeResult = limitedWriter.writeFrame(records);
     ASSERT_FALSE(writeResult);
-    EXPECT_EQ(writeResult.error().code(), ErrorCode::kInvalidArgument);
+    EXPECT_EQ(writeResult.error().code(), ErrorCode::kUsageError);
 
     const auto archive = writeArchive({.profile = DatasetProfile::kOnt}, records);
     std::istringstream limitedInput(archive, std::ios::binary);

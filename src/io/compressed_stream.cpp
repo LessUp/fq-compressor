@@ -170,7 +170,7 @@ std::vector<CompressionFormat> supportedCompressionFormats() {
 GzipStreamBuf::GzipStreamBuf(std::istream& source, std::size_t bufferSize)
     : source_(&source), inputBuffer_(bufferSize), outputBuffer_(bufferSize) {
     if (bufferSize == 0 || bufferSize > std::numeric_limits<uInt>::max()) {
-        throw ArgumentError("gzip buffer size is out of range");
+        throw FQCException(ErrorCode::kUsageError, "gzip buffer size is out of range");
     }
     initZlib();
 }
@@ -223,7 +223,8 @@ void GzipStreamBuf::initZlib() {
     int ret = inflateInit2(stream, 16 + MAX_WBITS);
     if (ret != Z_OK) {
         delete stream;
-        throw IOError("Failed to initialize zlib: " + std::string(zError(ret)));
+        throw FQCException(ErrorCode::kIOError,
+                           "Failed to initialize zlib: " + std::string(zError(ret)));
     }
 
     zlibStream_ = stream;
@@ -289,8 +290,9 @@ std::size_t GzipStreamBuf::decompress() {
             const auto remainingOutputSize = stream->avail_out;
             const auto resetResult = inflateReset(stream);
             if (resetResult != Z_OK) {
-                throw IOError("Failed to reset zlib for a concatenated gzip member: " +
-                              std::string(zError(resetResult)));
+                throw FQCException(ErrorCode::kIOError,
+                                   "Failed to reset zlib for a concatenated gzip member: " +
+                                       std::string(zError(resetResult)));
             }
             stream->next_in = remainingInput;
             stream->avail_in = remainingInputSize;
@@ -299,7 +301,8 @@ std::size_t GzipStreamBuf::decompress() {
 
             if (stream->avail_in == 0 && source_->peek() == std::char_traits<char>::eof()) {
                 if (source_->bad()) {
-                    throw IOError("Failed while reading the end of a gzip stream");
+                    throw FQCException(ErrorCode::kIOError,
+                                       "Failed while reading the end of a gzip stream");
                 }
                 streamEnd_ = true;
                 break;
@@ -308,7 +311,8 @@ std::size_t GzipStreamBuf::decompress() {
         }
 
         if (ret != Z_OK && ret != Z_BUF_ERROR) {
-            throw IOError("Gzip decompression failed: " + std::string(zError(ret)));
+            throw FQCException(ErrorCode::kIOError,
+                               "Gzip decompression failed: " + std::string(zError(ret)));
         }
 
         const bool producedOutput = stream->avail_out < availOutBefore;
@@ -319,7 +323,8 @@ std::size_t GzipStreamBuf::decompress() {
         const bool consumedInput = stream->avail_in < availInBefore;
         const bool inputExhausted = source_->eof() && stream->avail_in == 0;
         if (inputExhausted && !streamEnd_) {
-            throw IOError("Gzip decompression failed: truncated or invalid gzip stream");
+            throw FQCException(ErrorCode::kIOError,
+                               "Gzip decompression failed: truncated or invalid gzip stream");
         }
 
         if (!consumedInput && ret == Z_BUF_ERROR) {
@@ -339,7 +344,7 @@ CompressedInputStream::CompressedInputStream(const std::filesystem::path& path)
     // Open file
     fileStream_ = std::make_unique<std::ifstream>(path, std::ios::binary);
     if (!fileStream_->is_open()) {
-        throw IOError("Failed to open file: " + path.string());
+        throw FQCException(ErrorCode::kIOError, "Failed to open file: " + path.string());
     }
 
     // Detect format from magic bytes
@@ -386,7 +391,7 @@ CompressedInputStream::~CompressedInputStream() = default;
 void CompressedInputStream::setup() {
     std::istream* source = fileStream_ ? fileStream_.get() : sourceStream_.get();
     if (!source) {
-        throw IOError("No source stream available");
+        throw FQCException(ErrorCode::kIOError, "No source stream available");
     }
 
     switch (format_) {
@@ -402,8 +407,9 @@ void CompressedInputStream::setup() {
             break;
 
         default:
-            throw IOError("Unsupported compression format: " +
-                          std::string(compressionFormatName(format_)));
+            throw FQCException(ErrorCode::kIOError,
+                               "Unsupported compression format: " +
+                                   std::string(compressionFormatName(format_)));
     }
 }
 
@@ -522,8 +528,9 @@ std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path) {
 
         // Compressed stdin - need to handle specially
         if (!isCompressionSupported(format)) {
-            throw IOError("Compressed stdin not supported for format: " +
-                          std::string(compressionFormatName(format)));
+            throw FQCException(ErrorCode::kIOError,
+                               "Compressed stdin not supported for format: " +
+                                   std::string(compressionFormatName(format)));
         }
 
         // Preserve the bytes consumed for detection and continue streaming through zlib.

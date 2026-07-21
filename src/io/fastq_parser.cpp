@@ -30,7 +30,7 @@ FastqParser::FastqParser(std::filesystem::path filePath,
       options_(std::move(options)),
       isStdin_(filePath_ == "-") {
     if (!factory_) {
-        throw ArgumentError("StreamFactory cannot be null");
+        throw FQCException(ErrorCode::kUsageError, "StreamFactory cannot be null");
     }
 }
 
@@ -60,7 +60,7 @@ void FastqParser::open() {
     stream_ = factory_->createInputStream(filePath_);
 
     if (!stream_ || !*stream_) {
-        throw IOError("Failed to open FASTQ file: " + filePath_.string());
+        throw FQCException(ErrorCode::kIOError, "Failed to open FASTQ file: " + filePath_.string());
     }
 
     // Check if file is compressed based on extension
@@ -232,7 +232,7 @@ ParserStats FastqParser::sampleRecords(std::size_t maxSamples) {
 
 void FastqParser::reset() {
     if (!canSeek()) {
-        throw IOError("Cannot seek on stdin input");
+        throw FQCException(ErrorCode::kIOError, "Cannot seek on stdin input");
     }
 
     if (stream_) {
@@ -290,8 +290,9 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (idLine[0] != '@') {
         setError("Expected '@' at start of ID line", idLine);
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": expected '@' at start of ID line");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": expected '@' at start of ID line");
     }
 
     // Parse ID and optional comment
@@ -308,48 +309,55 @@ bool FastqParser::parseRecord(FastqRecord& record) {
 
     if (record.id.empty()) {
         setError("Empty read ID", idLine);
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": empty read ID");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": empty read ID");
     }
 
     // Line 2: Sequence
     if (!readLine(record.sequence)) {
         setError("Unexpected EOF: missing sequence line");
-        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
-                          std::to_string(lineNumber_));
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format: unexpected EOF at line " +
+                               std::to_string(lineNumber_));
     }
 
     if (record.sequence.empty()) {
         setError("Empty sequence", record.sequence);
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": empty sequence");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": empty sequence");
     }
 
     // Validate sequence if enabled
     if (options_.validateSequence && !validateSequence(record.sequence)) {
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": invalid sequence characters");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": invalid sequence characters");
     }
 
     // Line 3: Plus line (starts with '+')
     std::string plusLine;
     if (!readLine(plusLine)) {
         setError("Unexpected EOF: missing '+' line");
-        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
-                          std::to_string(lineNumber_));
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format: unexpected EOF at line " +
+                               std::to_string(lineNumber_));
     }
 
     if (plusLine.empty() || plusLine[0] != '+') {
         setError("Expected '+' at start of separator line", plusLine);
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": expected '+' at start of separator line");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": expected '+' at start of separator line");
     }
 
     // Line 4: Quality scores
     if (!readLine(record.quality)) {
         setError("Unexpected EOF: missing quality line");
-        throw FormatError("Invalid FASTQ format: unexpected EOF at line " +
-                          std::to_string(lineNumber_));
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format: unexpected EOF at line " +
+                               std::to_string(lineNumber_));
     }
 
     // Validate quality length matches sequence length
@@ -358,14 +366,16 @@ bool FastqParser::parseRecord(FastqRecord& record) {
                      ") does not match sequence length (" + std::to_string(record.sequence.size()) +
                      ")",
                  record.quality);
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": quality length does not match sequence length");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": quality length does not match sequence length");
     }
 
     // Validate quality scores if enabled
     if (options_.validateQuality && !validateQuality(record.quality)) {
-        throw FormatError("Invalid FASTQ format at line " + std::to_string(lineNumber_) +
-                          ": invalid quality characters");
+        throw FQCException(ErrorCode::kFormatError,
+                           "Invalid FASTQ format at line " + std::to_string(lineNumber_) +
+                               ": invalid quality characters");
     }
 
     return true;

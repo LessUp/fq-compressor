@@ -73,7 +73,7 @@ public:
         }
         if (outputExists) {
             if (!forceOverwrite) {
-                return makeVoidError(ErrorCode::kFileExists,
+                return makeVoidError(ErrorCode::kIOError,
                                      "output already exists: " + finalPath_.string());
             }
         }
@@ -127,7 +127,7 @@ private:
 
 [[nodiscard]] auto validateMemoryLimit(std::size_t memoryLimitBytes) -> VoidResult {
     if (memoryLimitBytes < kMinimumMemoryLimitBytes) {
-        return makeVoidError(ErrorCode::kInvalidArgument, "memory limit must be at least 64 MiB");
+        return makeVoidError(ErrorCode::kUsageError, "memory limit must be at least 64 MiB");
     }
     return makeVoidSuccess();
 }
@@ -147,14 +147,13 @@ private:
                                   bool forceOverwrite,
                                   const std::shared_ptr<io::StreamFactory>& factory) -> VoidResult {
     if (inputPath.empty() || outputPath.empty()) {
-        return makeVoidError(ErrorCode::kInvalidArgument, "input and output paths are required");
+        return makeVoidError(ErrorCode::kUsageError, "input and output paths are required");
     }
     if (inputPath != "-" && outputPath != "-" && inputPath == outputPath) {
-        return makeVoidError(ErrorCode::kInvalidArgument, "input and output paths must differ");
+        return makeVoidError(ErrorCode::kUsageError, "input and output paths must differ");
     }
     if (!forceOverwrite && outputPath != "-" && factory->outputExists(outputPath)) {
-        return makeVoidError(ErrorCode::kFileExists,
-                             "output already exists: " + outputPath.string());
+        return makeVoidError(ErrorCode::kIOError, "output already exists: " + outputPath.string());
     }
     return makeVoidSuccess();
 }
@@ -266,14 +265,14 @@ auto detectProfile(std::span<const ReadRecord> records) -> Result<format::v2::Da
         return format::v2::DatasetProfile::kIllumina;
     }
     return makeError<format::v2::DatasetProfile>(
-        ErrorCode::kInvalidArgument,
+        ErrorCode::kUsageError,
         "dataset profile is ambiguous; specify illumina, ont, pacbio-hifi, or pacbio-clr");
 }
 
 ArchiveEngine::ArchiveEngine(std::shared_ptr<io::StreamFactory> streamFactory)
     : streamFactory_(std::move(streamFactory)) {
     if (!streamFactory_) {
-        throw ArgumentError("StreamFactory cannot be null");
+        throw FQCException(ErrorCode::kUsageError, "StreamFactory cannot be null");
     }
 }
 
@@ -283,7 +282,7 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
             return makeError<OperationStats>(result.error());
         }
         if (request.targetFrameBytes == 0) {
-            return makeError<OperationStats>(ErrorCode::kInvalidArgument,
+            return makeError<OperationStats>(ErrorCode::kUsageError,
                                              "target frame size must be positive");
         }
         if (auto result = validateOutput(
@@ -292,7 +291,7 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
             return makeError<OperationStats>(result.error());
         }
         if (request.paired() && request.inputPath == "-" && request.matePath == "-") {
-            return makeError<OperationStats>(ErrorCode::kInvalidArgument,
+            return makeError<OperationStats>(ErrorCode::kUsageError,
                                              "paired inputs cannot both use stdin");
         }
 

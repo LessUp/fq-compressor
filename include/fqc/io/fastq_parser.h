@@ -180,7 +180,7 @@ public:
     /// @param filePath Path to the FASTQ file (or "-" for stdin).
     /// @param factory Stream factory for creating input streams.
     /// @param options Parser configuration options.
-    /// @throws ArgumentError if factory is null.
+    /// @throws FQCException if factory is null.
     explicit FastqParser(std::filesystem::path filePath,
                          std::shared_ptr<StreamFactory> factory,
                          ParserOptions options = {});

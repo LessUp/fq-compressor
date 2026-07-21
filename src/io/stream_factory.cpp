@@ -45,8 +45,9 @@ auto FileStreamFactory::createOutputStream(const std::filesystem::path& path,
     -> std::unique_ptr<std::ostream> {
     FQC_LOG_DEBUG("opening output stream '{}'", path.string());
     if (format != CompressionFormat::kNone && format != CompressionFormat::kUnknown) {
-        throw ArgumentError(fmt::format("compressed output streams are unsupported: {}",
-                                        compressionFormatName(format)));
+        throw FQCException(ErrorCode::kUsageError,
+                           fmt::format("compressed output streams are unsupported: {}",
+                                       compressionFormatName(format)));
     }
     if (path == "-") {
         return std::make_unique<std::ostream>(std::cout.rdbuf());
@@ -54,7 +55,8 @@ auto FileStreamFactory::createOutputStream(const std::filesystem::path& path,
 
     auto stream = std::make_unique<std::ofstream>(path, std::ios::binary);
     if (!stream->is_open()) {
-        throw IOError(fmt::format("cannot create output file: {}", path.string()));
+        throw FQCException(ErrorCode::kIOError,
+                           fmt::format("cannot create output file: {}", path.string()));
     }
     return stream;
 }
@@ -73,7 +75,8 @@ auto MemoryStreamFactory::createInputStream(const std::filesystem::path& path)
     std::lock_guard lock(mutex_);
     const auto entry = files_.find(path);
     if (entry == files_.end()) {
-        throw IOError(fmt::format("memory file not found: {}", path.string()));
+        throw FQCException(ErrorCode::kIOError,
+                           fmt::format("memory file not found: {}", path.string()));
     }
     std::string content(reinterpret_cast<const char*>(entry->second.data()), entry->second.size());
     return std::make_unique<std::istringstream>(std::move(content));

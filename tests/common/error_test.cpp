@@ -1,7 +1,7 @@
 // =============================================================================
 // fq-compressor - Error Handling Unit Tests
 // =============================================================================
-// Unit tests for ErrorCode, FQCException hierarchy, and Result types.
+// Unit tests for ErrorCode, FQCException, and Result types.
 // =============================================================================
 
 #include "fqc/common/error.h"
@@ -26,37 +26,23 @@ TEST(ErrorCodeTest, ToExitCodeSuccess) {
 
 TEST(ErrorCodeTest, ToExitCodeUsageError) {
     EXPECT_EQ(toExitCode(ErrorCode::kUsageError), 1);
-    EXPECT_EQ(toExitCode(ErrorCode::kInvalidArgument), 1);
-    EXPECT_EQ(toExitCode(ErrorCode::kCancelled), 1);
 }
 
 TEST(ErrorCodeTest, ToExitCodeIOError) {
     EXPECT_EQ(toExitCode(ErrorCode::kIOError), 2);
-    EXPECT_EQ(toExitCode(ErrorCode::kFileNotFound), 2);
-    EXPECT_EQ(toExitCode(ErrorCode::kFileExists), 2);
-    EXPECT_EQ(toExitCode(ErrorCode::kFileOpenFailed), 2);
-    EXPECT_EQ(toExitCode(ErrorCode::kSeekFailed), 2);
 }
 
 TEST(ErrorCodeTest, ToExitCodeFormatError) {
     EXPECT_EQ(toExitCode(ErrorCode::kFormatError), 3);
-    EXPECT_EQ(toExitCode(ErrorCode::kInvalidFormat), 3);
-    EXPECT_EQ(toExitCode(ErrorCode::kInvalidState), 3);
-    EXPECT_EQ(toExitCode(ErrorCode::kUnsupportedFormat), 3);
-    EXPECT_EQ(toExitCode(ErrorCode::kCorruptedData), 3);
     EXPECT_EQ(toExitCode(ErrorCode::kInternalError), 3);
 }
 
 TEST(ErrorCodeTest, ToExitCodeChecksumError) {
     EXPECT_EQ(toExitCode(ErrorCode::kChecksumError), 4);
-    EXPECT_EQ(toExitCode(ErrorCode::kChecksumMismatch), 4);
 }
 
 TEST(ErrorCodeTest, ToExitCodeCodecError) {
     EXPECT_EQ(toExitCode(ErrorCode::kUnsupportedCodec), 5);
-    EXPECT_EQ(toExitCode(ErrorCode::kCompressionFailed), 5);
-    EXPECT_EQ(toExitCode(ErrorCode::kDecompressionFailed), 5);
-    EXPECT_EQ(toExitCode(ErrorCode::kDecompressionError), 5);
 }
 
 TEST(ErrorCodeTest, ErrorCodeToString) {
@@ -66,9 +52,7 @@ TEST(ErrorCodeTest, ErrorCodeToString) {
     EXPECT_EQ(errorCodeToString(ErrorCode::kFormatError), "format error");
     EXPECT_EQ(errorCodeToString(ErrorCode::kChecksumError), "checksum error");
     EXPECT_EQ(errorCodeToString(ErrorCode::kUnsupportedCodec), "unsupported codec");
-    EXPECT_EQ(errorCodeToString(ErrorCode::kFileNotFound), "file not found");
-    EXPECT_EQ(errorCodeToString(ErrorCode::kInvalidFormat), "invalid format");
-    EXPECT_EQ(errorCodeToString(ErrorCode::kCorruptedData), "corrupted data");
+    EXPECT_EQ(errorCodeToString(ErrorCode::kInternalError), "internal error");
 }
 
 TEST(ErrorCodeTest, IsSuccessAndIsError) {
@@ -143,7 +127,7 @@ TEST(ErrorContextTest, Format) {
 }
 
 // =============================================================================
-// FQCException Base Tests
+// FQCException Tests
 // =============================================================================
 
 TEST(FQCExceptionTest, BasicConstruction) {
@@ -174,20 +158,16 @@ TEST(FQCExceptionTest, WithContext) {
 TEST(FQCExceptionTest, CopyAndMove) {
     FQCException ex1(ErrorCode::kIOError, "Test error");
 
-    // Copy construct
     FQCException ex2(ex1);
     EXPECT_EQ(ex2.code(), ErrorCode::kIOError);
     EXPECT_EQ(ex2.message(), "Test error");
 
-    // Move construct
     FQCException ex3(std::move(ex2));
     EXPECT_EQ(ex3.code(), ErrorCode::kIOError);
 
-    // Copy assign
     FQCException ex4 = ex3;
     EXPECT_EQ(ex4.code(), ErrorCode::kIOError);
 
-    // Move assign
     FQCException ex5 = std::move(ex4);
     EXPECT_EQ(ex5.code(), ErrorCode::kIOError);
 }
@@ -200,148 +180,13 @@ TEST(FQCExceptionTest, CanBeCaughtAsStdException) {
     }
 }
 
-// =============================================================================
-// UsageError Tests
-// =============================================================================
-
-TEST(UsageErrorTest, BasicConstruction) {
-    UsageError ex("Invalid argument");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kUsageError);
-    EXPECT_EQ(ex.exitCode(), 1);
-    EXPECT_EQ(ex.message(), "Invalid argument");
-}
-
-TEST(UsageErrorTest, WithContext) {
-    ErrorContext ctx;
-    ctx.withFile("config.txt");
-
-    UsageError ex("Invalid option value", ctx);
-    EXPECT_TRUE(ex.hasContext());
-    EXPECT_EQ(ex.context()->filePath, "config.txt");
-}
-
-TEST(ArgumentErrorAliasTest, IsUsageError) {
-    ArgumentError ex("Missing required argument");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kUsageError);
-    EXPECT_EQ(ex.exitCode(), 1);
-}
-
-// =============================================================================
-// IOError Tests
-// =============================================================================
-
-TEST(IOErrorTest, BasicConstruction) {
-    IOError ex("Failed to open file");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kIOError);
-    EXPECT_EQ(ex.exitCode(), 2);
-    EXPECT_EQ(ex.message(), "Failed to open file");
-    EXPECT_FALSE(ex.systemError().has_value());
-}
-
-TEST(IOErrorTest, WithSystemError) {
-    std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
-    IOError ex("Failed to open file", ec);
-
-    EXPECT_EQ(ex.code(), ErrorCode::kIOError);
-    EXPECT_TRUE(ex.systemError().has_value());
-    EXPECT_EQ(ex.systemError()->value(), static_cast<int>(std::errc::no_such_file_or_directory));
-
-    std::string what = ex.what();
-    EXPECT_TRUE(what.find("Failed to open file") != std::string::npos);
-}
-
-TEST(IOErrorTest, WithContextAndSystemError) {
-    std::error_code ec = std::make_error_code(std::errc::permission_denied);
-    ErrorContext ctx;
-    ctx.withFile("/root/secret.txt");
-
-    IOError ex("Permission denied", ec, ctx);
-
-    EXPECT_TRUE(ex.hasContext());
-    EXPECT_TRUE(ex.systemError().has_value());
-    EXPECT_EQ(ex.context()->filePath, "/root/secret.txt");
-}
-
-// =============================================================================
-// FormatError Tests
-// =============================================================================
-
-TEST(FormatErrorTest, BasicConstruction) {
-    FormatError ex("Invalid file format");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kFormatError);
-    EXPECT_EQ(ex.exitCode(), 3);
-    EXPECT_EQ(ex.message(), "Invalid file format");
-}
-
-TEST(FormatErrorTest, WithContext) {
-    ErrorContext ctx;
-    ctx.withFile("corrupt.fqc").withOffset(1024);
-
-    FormatError ex("Corrupted header", ctx);
-    EXPECT_TRUE(ex.hasContext());
-    EXPECT_EQ(ex.context()->filePath, "corrupt.fqc");
-    EXPECT_EQ(ex.context()->byteOffset.value(), 1024);
-}
-
-// =============================================================================
-// ChecksumError Tests
-// =============================================================================
-
-TEST(ChecksumErrorTest, BasicConstruction) {
-    ChecksumError ex("Checksum mismatch");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kChecksumError);
-    EXPECT_EQ(ex.exitCode(), 4);
-    EXPECT_EQ(ex.message(), "Checksum mismatch");
-    EXPECT_FALSE(ex.expected().has_value());
-    EXPECT_FALSE(ex.actual().has_value());
-}
-
-TEST(ChecksumErrorTest, WithValues) {
-    ErrorContext ctx;
-    ctx.withBlock(5);
-
-    ChecksumError ex(0xDEADBEEF, 0xCAFEBABE, ctx);
-
-    EXPECT_EQ(ex.code(), ErrorCode::kChecksumError);
-    EXPECT_TRUE(ex.expected().has_value());
-    EXPECT_TRUE(ex.actual().has_value());
-    EXPECT_EQ(ex.expected().value(), 0xDEADBEEF);
-    EXPECT_EQ(ex.actual().value(), 0xCAFEBABE);
-
-    std::string what = ex.what();
-    // Message should contain the values
-    EXPECT_TRUE(what.find("deadbeef") != std::string::npos ||
-                what.find("DEADBEEF") != std::string::npos ||
-                what.find("3735928559") != std::string::npos);
-}
-
-// =============================================================================
-// UnsupportedCodecError Tests
-// =============================================================================
-
-TEST(UnsupportedCodecErrorTest, BasicConstruction) {
-    UnsupportedCodecError ex("Unknown codec family");
-
-    EXPECT_EQ(ex.code(), ErrorCode::kUnsupportedCodec);
-    EXPECT_EQ(ex.exitCode(), 5);
-    EXPECT_EQ(ex.message(), "Unknown codec family");
-    EXPECT_FALSE(ex.codecFamily().has_value());
-}
-
-TEST(UnsupportedCodecErrorTest, WithCodecFamily) {
-    ErrorContext ctx;
-    ctx.withBlock(10);
-
-    UnsupportedCodecError ex(0x42, ctx);
-
-    EXPECT_EQ(ex.code(), ErrorCode::kUnsupportedCodec);
-    EXPECT_TRUE(ex.codecFamily().has_value());
-    EXPECT_EQ(ex.codecFamily().value(), 0x42);
+TEST(FQCExceptionTest, AllExitCodes) {
+    EXPECT_EQ(FQCException(ErrorCode::kUsageError, "").exitCode(), 1);
+    EXPECT_EQ(FQCException(ErrorCode::kIOError, "").exitCode(), 2);
+    EXPECT_EQ(FQCException(ErrorCode::kFormatError, "").exitCode(), 3);
+    EXPECT_EQ(FQCException(ErrorCode::kInternalError, "").exitCode(), 3);
+    EXPECT_EQ(FQCException(ErrorCode::kChecksumError, "").exitCode(), 4);
+    EXPECT_EQ(FQCException(ErrorCode::kUnsupportedCodec, "").exitCode(), 5);
 }
 
 // =============================================================================
@@ -357,7 +202,7 @@ TEST(ErrorTest, BasicConstruction) {
 }
 
 TEST(ErrorTest, FromException) {
-    IOError ex("File not found");
+    FQCException ex(ErrorCode::kIOError, "File not found");
     Error err(ex);
 
     EXPECT_EQ(err.code(), ErrorCode::kIOError);
@@ -378,10 +223,9 @@ TEST(ErrorTest, ThrowException) {
     try {
         err.throwException();
         FAIL() << "Expected exception to be thrown";
-    } catch (const IOError& e) {
+    } catch (const FQCException& e) {
+        EXPECT_EQ(e.code(), ErrorCode::kIOError);
         EXPECT_EQ(e.message(), "Test throw");
-    } catch (...) {
-        FAIL() << "Expected IOError";
     }
 }
 
@@ -403,43 +247,13 @@ TEST(VoidResultTest, ErrorValue) {
 }
 
 TEST(VoidResultTest, ThrowOnError) {
-    VoidResult result = std::unexpected(Error(ErrorCode::kFileNotFound, "Not found"));
+    VoidResult result = std::unexpected(Error(ErrorCode::kIOError, "Not found"));
 
     try {
         result.error().throwException();
         FAIL() << "Expected exception";
-    } catch (const IOError& e) {
-        EXPECT_TRUE(std::string(e.what()).find("Not found") != std::string::npos);
-    }
-}
-
-// =============================================================================
-// Exception Hierarchy Tests
-// =============================================================================
-
-TEST(ExceptionHierarchyTest, AllDeriveFromFQCException) {
-    EXPECT_TRUE((std::is_base_of_v<FQCException, UsageError>));
-    EXPECT_TRUE((std::is_base_of_v<FQCException, IOError>));
-    EXPECT_TRUE((std::is_base_of_v<FQCException, FormatError>));
-    EXPECT_TRUE((std::is_base_of_v<FQCException, ChecksumError>));
-    EXPECT_TRUE((std::is_base_of_v<FQCException, UnsupportedCodecError>));
-}
-
-TEST(ExceptionHierarchyTest, CanCatchBaseClass) {
-    try {
-        throw FormatError("Test error");
     } catch (const FQCException& e) {
-        EXPECT_EQ(e.code(), ErrorCode::kFormatError);
-    }
-}
-
-TEST(ExceptionHierarchyTest, CanCatchDerivedClass) {
-    try {
-        throw IOError("File error");
-    } catch (const IOError& e) {
-        EXPECT_EQ(e.code(), ErrorCode::kIOError);
-    } catch (...) {
-        FAIL() << "Should have caught IOError";
+        EXPECT_TRUE(std::string(e.what()).find("Not found") != std::string::npos);
     }
 }
 
@@ -448,17 +262,12 @@ TEST(ExceptionHierarchyTest, CanCatchDerivedClass) {
 // =============================================================================
 
 TEST(ErrorIntegrationTest, FullErrorFlow) {
-    // Simulate a typical error flow
-
-    // Create context
     ErrorContext ctx;
     ctx.withFile("test.fqc").withBlock(42).withRead(1234);
 
-    // Throw exception
     try {
-        throw FormatError("Invalid block header", ctx);
+        throw FQCException(ErrorCode::kFormatError, "Invalid block header", ctx);
     } catch (const FQCException& e) {
-        // Verify all properties
         EXPECT_EQ(e.code(), ErrorCode::kFormatError);
         EXPECT_EQ(e.exitCode(), 3);
         EXPECT_TRUE(e.hasContext());
@@ -466,7 +275,6 @@ TEST(ErrorIntegrationTest, FullErrorFlow) {
         EXPECT_EQ(e.context()->blockId.value(), 42);
         EXPECT_EQ(e.context()->readId.value(), 1234);
 
-        // Create Error from exception
         Error err(e);
         EXPECT_EQ(err.code(), ErrorCode::kFormatError);
         EXPECT_EQ(err.exitCode(), 3);
@@ -474,22 +282,19 @@ TEST(ErrorIntegrationTest, FullErrorFlow) {
 }
 
 TEST(ErrorIntegrationTest, ResultPattern) {
-    // Function that returns a result
     auto readFile = [](bool success) -> VoidResult {
         if (success) {
             return {};
         }
-        return std::unexpected(Error(ErrorCode::kFileNotFound, "File does not exist"));
+        return std::unexpected(Error(ErrorCode::kIOError, "File does not exist"));
     };
 
-    // Success case
     auto result1 = readFile(true);
     EXPECT_TRUE(result1.has_value());
 
-    // Failure case
     auto result2 = readFile(false);
     EXPECT_FALSE(result2.has_value());
-    EXPECT_EQ(result2.error().code(), ErrorCode::kFileNotFound);
+    EXPECT_EQ(result2.error().code(), ErrorCode::kIOError);
     EXPECT_EQ(result2.error().exitCode(), 2);
 }
 

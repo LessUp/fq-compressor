@@ -84,7 +84,7 @@ void appendString(Bytes& output, std::string_view value) {
 
 [[nodiscard]] auto checkedU32(std::size_t value, std::string_view field) -> Result<std::uint32_t> {
     if (value > std::numeric_limits<std::uint32_t>::max()) {
-        return makeError<std::uint32_t>(ErrorCode::kInvalidArgument,
+        return makeError<std::uint32_t>(ErrorCode::kUsageError,
                                         std::string(field) + " exceeds uint32");
     }
     return static_cast<std::uint32_t>(value);
@@ -337,7 +337,7 @@ void appendPackedSequence(Bytes& output, std::string_view sequence) {
     Bytes output(ZSTD_compressBound(input.size()));
     const auto result = ZSTD_compress(output.data(), output.size(), input.data(), input.size(), 1);
     if (ZSTD_isError(result) != 0U) {
-        return makeError<Bytes>(ErrorCode::kCompressionFailed,
+        return makeError<Bytes>(ErrorCode::kInternalError,
                                 std::string("Zstd compression failed: ") +
                                     ZSTD_getErrorName(result));
     }
@@ -350,8 +350,7 @@ void appendPackedSequence(Bytes& output, std::string_view sequence) {
     Bytes output(outputSize);
     const auto result = ZSTD_decompress(output.data(), output.size(), input.data(), input.size());
     if (ZSTD_isError(result) != 0U || result != outputSize) {
-        return makeError<Bytes>(ErrorCode::kDecompressionFailed,
-                                "FQC v2 Zstd stream failed to decompress");
+        return makeError<Bytes>(ErrorCode::kFormatError, "FQC v2 Zstd stream failed to decompress");
     }
     return output;
 }
@@ -395,7 +394,7 @@ struct RawStreamSizes {
     };
     for (const auto& record : records) {
         if (!validRecordShape(record)) {
-            return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
+            return makeError<RawStreamSizes>(ErrorCode::kUsageError,
                                              "invalid logical FASTQ record");
         }
         if (!checkedAdd(sizes.ids, varintSize(record.id.size())) ||
@@ -406,15 +405,14 @@ struct RawStreamSizes {
             !checkedAdd(sizes.qualities, record.quality.size()) ||
             !checkedAdd(sizes.sequences, varintSize(record.sequence.size())) ||
             !checkedAdd(sizes.sequences, packedSequenceSize(record.sequence.size()))) {
-            return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
-                                             "FQC v2 frame size overflow");
+            return makeError<RawStreamSizes>(ErrorCode::kUsageError, "FQC v2 frame size overflow");
         }
 
         std::size_t exceptionCount = 0;
         std::size_t previous = 0;
         for (std::size_t position = 0; position < record.sequence.size(); ++position) {
             if (!validIupacBase(record.sequence[position])) {
-                return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
+                return makeError<RawStreamSizes>(ErrorCode::kUsageError,
                                                  "invalid logical FASTQ record");
             }
             bool exceptional = false;
@@ -422,7 +420,7 @@ struct RawStreamSizes {
             if (exceptional) {
                 const auto delta = exceptionCount == 0 ? position : position - previous;
                 if (!checkedAdd(sizes.sequences, varintSize(delta) + 1)) {
-                    return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
+                    return makeError<RawStreamSizes>(ErrorCode::kUsageError,
                                                      "FQC v2 frame size overflow");
                 }
                 previous = position;
@@ -430,13 +428,12 @@ struct RawStreamSizes {
             }
         }
         if (!std::ranges::all_of(record.quality, validQuality)) {
-            return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
+            return makeError<RawStreamSizes>(ErrorCode::kUsageError,
                                              "invalid logical FASTQ record");
         }
         if (!checkedAdd(sizes.sequences, varintSize(exceptionCount)) ||
             record.sequence.size() > std::numeric_limits<std::uint64_t>::max() - sizes.totalBases) {
-            return makeError<RawStreamSizes>(ErrorCode::kInvalidArgument,
-                                             "FQC v2 frame size overflow");
+            return makeError<RawStreamSizes>(ErrorCode::kUsageError, "FQC v2 frame size overflow");
         }
         sizes.totalBases += record.sequence.size();
     }
@@ -448,7 +445,7 @@ struct RawStreamSizes {
     std::size_t peak = kCodecMemoryReserve;
     if (records.size() > std::numeric_limits<std::size_t>::max() / (sizeof(ReadRecord) * 2) ||
         !checkedAdd(peak, records.size() * sizeof(ReadRecord) * 2)) {
-        return makeError<std::size_t>(ErrorCode::kInvalidArgument,
+        return makeError<std::size_t>(ErrorCode::kUsageError,
                                       "FQC v2 frame memory estimate overflow");
     }
     for (const auto& record : records) {
@@ -458,7 +455,7 @@ struct RawStreamSizes {
                                     record.quality.capacity()}) {
             if (capacity == std::numeric_limits<std::size_t>::max() ||
                 !checkedAdd(peak, capacity + 1)) {
-                return makeError<std::size_t>(ErrorCode::kInvalidArgument,
+                return makeError<std::size_t>(ErrorCode::kUsageError,
                                               "FQC v2 frame memory estimate overflow");
             }
         }
@@ -466,7 +463,7 @@ struct RawStreamSizes {
     for (const auto rawSize : {sizes.ids, sizes.sequences, sizes.qualities}) {
         const auto compressedBound = ZSTD_compressBound(rawSize);
         if (!checkedAdd(peak, rawSize) || !checkedAdd(peak, compressedBound)) {
-            return makeError<std::size_t>(ErrorCode::kInvalidArgument,
+            return makeError<std::size_t>(ErrorCode::kUsageError,
                                           "FQC v2 frame memory estimate overflow");
         }
     }
@@ -588,7 +585,7 @@ auto parseProfile(std::string_view value) -> Result<DatasetProfile> {
     if (value == "pacbio-clr") {
         return DatasetProfile::kPacBioClr;
     }
-    return makeError<DatasetProfile>(ErrorCode::kInvalidArgument,
+    return makeError<DatasetProfile>(ErrorCode::kUsageError,
                                      "unknown dataset profile: " + std::string(value));
 }
 
@@ -605,11 +602,11 @@ public:
             return makeVoidSuccess();
         }
         if (options_.maxFrameBytes == 0 || options_.memoryLimitBytes <= kCodecMemoryReserve) {
-            return makeVoidError(ErrorCode::kInvalidArgument,
+            return makeVoidError(ErrorCode::kUsageError,
                                  "FQC v2 frame and memory limits must be positive");
         }
         if (!validProfile(static_cast<std::uint8_t>(metadata_.profile))) {
-            return makeVoidError(ErrorCode::kInvalidArgument, "invalid FQC v2 dataset profile");
+            return makeVoidError(ErrorCode::kUsageError, "invalid FQC v2 dataset profile");
         }
 
         Bytes header;
@@ -634,13 +631,13 @@ public:
 
     [[nodiscard]] auto writeFrame(std::span<const ReadRecord> records) -> VoidResult {
         if (finished_) {
-            return makeVoidError(ErrorCode::kInvalidState, "FQC v2 writer is already finished");
+            return makeVoidError(ErrorCode::kFormatError, "FQC v2 writer is already finished");
         }
         if (records.empty()) {
-            return makeVoidError(ErrorCode::kInvalidArgument, "FQC v2 frame cannot be empty");
+            return makeVoidError(ErrorCode::kUsageError, "FQC v2 frame cannot be empty");
         }
         if (metadata_.paired && records.size() % 2 != 0) {
-            return makeVoidError(ErrorCode::kInvalidArgument,
+            return makeVoidError(ErrorCode::kUsageError,
                                  "paired FQC v2 frame must contain complete pairs");
         }
         auto recordCount = checkedU32(records.size(), "frame record count");
@@ -658,7 +655,7 @@ public:
         if (rawSizes->ids > options_.maxFrameBytes ||
             rawSizes->sequences > options_.maxFrameBytes ||
             rawSizes->qualities > options_.maxFrameBytes) {
-            return makeVoidError(ErrorCode::kInvalidArgument,
+            return makeVoidError(ErrorCode::kUsageError,
                                  "FQC v2 frame exceeds configured raw stream limit");
         }
         auto peakMemory = estimateCompressionPeak(records, *rawSizes);
@@ -666,7 +663,7 @@ public:
             return makeVoidError(peakMemory.error().code(), peakMemory.error().message());
         }
         if (*peakMemory > options_.memoryLimitBytes) {
-            return makeVoidError(ErrorCode::kInvalidArgument,
+            return makeVoidError(ErrorCode::kUsageError,
                                  "FQC v2 frame exceeds configured memory limit");
         }
         auto raw = encodeRawStreams(records, *rawSizes);
@@ -781,7 +778,7 @@ public:
             return metadata_;
         }
         if (maxFrameBytes_ == 0 || memoryLimitBytes_ <= kCodecMemoryReserve) {
-            return makeError<ArchiveMetadata>(ErrorCode::kInvalidArgument,
+            return makeError<ArchiveMetadata>(ErrorCode::kUsageError,
                                               "FQC v2 frame and memory limits must be positive");
         }
         std::array<std::uint8_t, kGlobalHeaderSize> header{};
@@ -789,7 +786,7 @@ public:
             return makeError<ArchiveMetadata>(result.error());
         }
         if (!std::equal(kArchiveMagic.begin(), kArchiveMagic.end(), header.begin())) {
-            return makeError<ArchiveMetadata>(ErrorCode::kInvalidFormat, "not an FQC v2 archive");
+            return makeError<ArchiveMetadata>(ErrorCode::kFormatError, "not an FQC v2 archive");
         }
         Cursor cursor(header);
         auto magic = cursor.readBytes(kArchiveMagic.size());
@@ -809,7 +806,7 @@ public:
                                               "invalid FQC v2 global header");
         }
         if (*version != kArchiveVersion || *headerSize != kGlobalHeaderSize) {
-            return makeError<ArchiveMetadata>(ErrorCode::kUnsupportedFormat,
+            return makeError<ArchiveMetadata>(ErrorCode::kUnsupportedCodec,
                                               "unsupported FQC archive version");
         }
         if ((*flags & ~kFlagPaired) != 0U || *reserved != 0U || !validProfile(*profile) ||
@@ -820,7 +817,7 @@ public:
         }
         const auto actualChecksum = XXH64(header.data(), kGlobalHeaderSize - 8, 0);
         if (actualChecksum != *storedChecksum) {
-            return makeError<ArchiveMetadata>(ErrorCode::kChecksumMismatch,
+            return makeError<ArchiveMetadata>(ErrorCode::kChecksumError,
                                               "FQC v2 global header checksum mismatch");
         }
         metadata_ = {.version = *version,
@@ -926,7 +923,7 @@ public:
         const auto checksum = logicalChecksum(*ids, *sequences, *qualities);
         if (checksum != *storedChecksum) {
             return makeError<std::optional<std::vector<ReadRecord>>>(
-                ErrorCode::kChecksumMismatch, "FQC v2 frame checksum mismatch");
+                ErrorCode::kChecksumError, "FQC v2 frame checksum mismatch");
         }
         auto records = decodeRawStreams(*ids, *sequences, *qualities, *recordCount);
         if (!records) {
@@ -975,7 +972,7 @@ public:
         }
         if (*checksum != globalChecksum_) {
             return makeError<std::optional<std::vector<ReadRecord>>>(
-                ErrorCode::kChecksumMismatch, "FQC v2 global checksum mismatch");
+                ErrorCode::kChecksumError, "FQC v2 global checksum mismatch");
         }
         if (input_.peek() != std::char_traits<char>::eof()) {
             return makeError<std::optional<std::vector<ReadRecord>>>(

@@ -24,7 +24,7 @@ TEST(FastqParserTest, LastErrorUsesOneBasedRecordNumberForFailingRecord) {
     FastqParser parser("broken.fastq", factory);
     parser.open();
 
-    EXPECT_THROW(static_cast<void>(parser.readRecord()), FormatError);
+    EXPECT_THROW(static_cast<void>(parser.readRecord()), FQCException);
     ASSERT_TRUE(parser.lastError().has_value());
     EXPECT_EQ(parser.lastError()->lineNumber, 3u);
     EXPECT_EQ(parser.lastError()->recordNumber, 1u);
@@ -58,7 +58,7 @@ TEST(FastqParserTest, TrailingSpacesInSequenceAndQualityRemainFormatErrors) {
     FastqParser parser("broken.fastq", factory);
     parser.open();
 
-    EXPECT_THROW(static_cast<void>(parser.readRecord()), FormatError);
+    EXPECT_THROW(static_cast<void>(parser.readRecord()), FQCException);
 }
 
 TEST(FastqParserTest, AcceptsUpperAndLowerCaseIupacSequenceSymbols) {

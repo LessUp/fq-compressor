@@ -80,101 +80,15 @@ void FQCException::formatWhat() {
 }
 
 // =============================================================================
-// IOError Implementation
-// =============================================================================
-
-std::string IOError::formatWithSystemError(const std::string& message, std::error_code ec) {
-    return fmt::format("{}: {} (error code: {})", message, ec.message(), ec.value());
-}
-
-// =============================================================================
-// ChecksumError Implementation
-// =============================================================================
-
-std::string ChecksumError::formatChecksumMismatch(std::uint64_t expected, std::uint64_t actual) {
-    return fmt::format("checksum mismatch: expected 0x{:016x}, got 0x{:016x}", expected, actual);
-}
-
-// =============================================================================
-// UnsupportedCodecError Implementation
-// =============================================================================
-
-std::string UnsupportedCodecError::formatUnsupportedCodec(std::uint8_t codecFamily) {
-    return fmt::format("unsupported codec family: 0x{:02x}", codecFamily);
-}
-
-// =============================================================================
 // Error Implementation
 // =============================================================================
 
 FQCException Error::toException() const {
-    switch (code_) {
-        case ErrorCode::kUsageError:
-            return UsageError(message_);
-        case ErrorCode::kIOError:
-        case ErrorCode::kFileNotFound:
-        case ErrorCode::kFileExists:
-        case ErrorCode::kFileOpenFailed:
-        case ErrorCode::kSeekFailed:
-            return IOError(message_);
-        case ErrorCode::kFormatError:
-        case ErrorCode::kInvalidFormat:
-        case ErrorCode::kInvalidArgument:
-        case ErrorCode::kInvalidState:
-        case ErrorCode::kCorruptedData:
-            return FormatError(message_);
-        case ErrorCode::kChecksumError:
-        case ErrorCode::kChecksumMismatch:
-            return ChecksumError(message_);
-        case ErrorCode::kUnsupportedCodec:
-        case ErrorCode::kUnsupportedFormat:
-            return UnsupportedCodecError(message_);
-        case ErrorCode::kSuccess:
-        case ErrorCode::kCancelled:
-        case ErrorCode::kDecompressionFailed:
-        case ErrorCode::kInternalError:
-        case ErrorCode::kCompressionFailed:
-        case ErrorCode::kDecompressionError:
-            // Handle gracefully with base exception
-            return FQCException(code_, message_);
-    }
-    // Fallback for unknown error codes
     return FQCException(code_, message_);
 }
 
 [[noreturn]] void Error::throwException() const {
-    switch (code_) {
-        case ErrorCode::kUsageError:
-            throw UsageError(message_);
-        case ErrorCode::kIOError:
-        case ErrorCode::kFileNotFound:
-        case ErrorCode::kFileExists:
-        case ErrorCode::kFileOpenFailed:
-        case ErrorCode::kSeekFailed:
-            throw IOError(message_);
-        case ErrorCode::kFormatError:
-        case ErrorCode::kInvalidFormat:
-        case ErrorCode::kInvalidArgument:
-        case ErrorCode::kInvalidState:
-        case ErrorCode::kCorruptedData:
-            throw FormatError(message_);
-        case ErrorCode::kChecksumError:
-        case ErrorCode::kChecksumMismatch:
-            throw ChecksumError(message_);
-        case ErrorCode::kUnsupportedCodec:
-        case ErrorCode::kUnsupportedFormat:
-            throw UnsupportedCodecError(message_);
-        case ErrorCode::kSuccess:
-        case ErrorCode::kCancelled:
-        case ErrorCode::kDecompressionFailed:
-        case ErrorCode::kInternalError:
-        case ErrorCode::kCompressionFailed:
-        case ErrorCode::kDecompressionError:
-            // Handle gracefully with base exception
-            throw FQCException(code_, message_);
-    }
-    // Fallback for unknown error codes
-    throw FQCException(code_, message_);
+    throw toException();
 }
 
 }  // namespace fqc

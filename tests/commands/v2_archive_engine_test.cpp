@@ -104,7 +104,7 @@ TEST(V2ArchiveEngineTest, DetectsAllProfilesAndRejectsAmbiguousLongReads) {
     };
     auto ambiguousProfile = detectProfile(ambiguous);
     ASSERT_FALSE(ambiguousProfile);
-    EXPECT_EQ(ambiguousProfile.error().code(), ErrorCode::kInvalidArgument);
+    EXPECT_EQ(ambiguousProfile.error().code(), ErrorCode::kUsageError);
 }
 
 TEST(V2ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
@@ -129,7 +129,7 @@ TEST(V2ArchiveEngineTest, RejectsPairedCountMismatchAndTinyMemoryLimit) {
                                        .memoryLimitBytes = 1024,
                                        .forceOverwrite = true});
     ASSERT_FALSE(tinyMemory);
-    EXPECT_EQ(tinyMemory.error().code(), ErrorCode::kInvalidArgument);
+    EXPECT_EQ(tinyMemory.error().code(), ErrorCode::kUsageError);
 }
 
 }  // namespace fqc::commands::v2::test
