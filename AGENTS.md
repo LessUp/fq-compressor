@@ -40,3 +40,13 @@ cli11、fmt、zlib-ng、zstd、xxhash、gtest（仅测试）
 
 - 提交信息使用中文
 - 格式：`<类型>: <简述>`，如 `refactor: 移除 Quill 依赖`、`feat: 添加 SPSC 并发流水线`
+
+## 已知权衡
+
+### CI 与本地 clang 版本差异（2026-07）
+
+- CI（`.github/workflows/ci.yml`）用 clang-18 + 内联 `-s compiler.version=18`
+- 本地 conan profile 用 clang-21
+- 差异影响有限：项目未使用 21 独有的 C++23 特性（`<print>`、ranges 补全等），libc++ 18/21 在已用特性上行为一致
+- 暂不统一：升级 CI 到 21 需引入 apt.llvm.org 源，镜像变重；降本地到 18 放弃 23 改进。当前权衡可接受
+- 触发升级的条件：项目开始用 21 独有特性，或 sanitizer 行为出现跨版本差异
