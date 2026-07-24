@@ -75,7 +75,7 @@ class FQCompressorConan(ConanFile):
         # Testing Frameworks
         # =========================================================================
         # GTest: Google Test framework for unit testing
-        self.test_requires("gtest/1.12.1")
+        self.test_requires("gtest/1.17.0")
 
     def generate(self):
         """Generate CMake toolchain and dependency files."""

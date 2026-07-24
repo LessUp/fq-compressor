@@ -42,14 +42,6 @@ function(fqc_add_test test_name)
             ${ARG_LIBRARIES}
     )
 
-    # Workaround for GTest built with libstdc++ when using libc++
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_FLAGS MATCHES "-stdlib=libc\\+\\+")
-        target_link_libraries(${test_name}
-            PRIVATE
-                stdc++
-        )
-    endif()
-
     # Register with CTest
     add_test(NAME ${test_name} COMMAND ${test_name})
 
