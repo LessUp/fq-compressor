@@ -41,6 +41,13 @@ cli11、fmt、zlib-ng、zstd、xxhash、gtest（仅测试）
 - 提交信息使用中文
 - 格式：`<类型>: <简述>`，如 `refactor: 移除 Quill 依赖`、`feat: 添加 SPSC 并发流水线`
 
+## 复盘
+
+非平凡问题（竞态、难复现 bug、架构权衡变更）写复盘，不入 CHANGELOG 正文。
+- 目录：`docs/postmortems/`，索引与约定见 `docs/postmortems/README.md`
+- 文件名：`YYYY-MM-DD-slug.md`，六节：症状 / 复现 / 根因 / 修复 / 验证 / 教训
+- CHANGELOG 对应"修复"条目末尾加 `→ 详见 docs/postmortems/...`
+
 ## 已知权衡
 
 ### CI 与本地 clang 版本差异（2026-07）
