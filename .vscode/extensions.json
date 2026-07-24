@@ -15,10 +15,6 @@
         "eamodio.gitlens",
         "mhutchie.git-graph",
 
-        // Docker & 容器
-        "ms-azuretools.vscode-docker",
-        "ms-vscode-remote.remote-containers",
-
         // 实用工具
         "yzhang.markdown-all-in-one",
         "redhat.vscode-yaml",

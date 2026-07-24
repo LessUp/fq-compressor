@@ -119,6 +119,7 @@ docs/.site/
 .amazonq/
 .augment/
 .bob/
+.claude/
 .cline/
 .clinerules/
 .codebuddy/
