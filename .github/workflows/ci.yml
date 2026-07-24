@@ -28,6 +28,12 @@ jobs:
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
           pip install conan --quiet
 
+      - name: Cache Conan
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-${{ hashFiles('conanfile.py') }}
+
       - name: Conan install
         run: |
           conan profile detect --force
