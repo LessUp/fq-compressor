@@ -2,8 +2,7 @@
 // fq-compressor - V2 Sequential Archive Engine
 // =============================================================================
 
-#ifndef FQC_COMMANDS_V2_ARCHIVE_ENGINE_H
-#define FQC_COMMANDS_V2_ARCHIVE_ENGINE_H
+#pragma once
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
@@ -68,5 +67,3 @@ public:
 };
 
 }  // namespace fqc::commands
-
-#endif  // FQC_COMMANDS_V2_ARCHIVE_ENGINE_H

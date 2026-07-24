@@ -98,7 +98,7 @@ CheckOptions:
   - key:             readability-identifier-naming.TemplateParameterCase
     value:           CamelCase
   - key:             bugprone-assert-side-effect.AssertMacros
-    value:           'assert,FQC_ASSERT'
+    value:           'assert'
   - key:             bugprone-assert-side-effect.CheckFunctionCalls
     value:           '0'
   - key:             bugprone-dangling-handle.HandleClasses
@@ -125,5 +125,3 @@ CheckOptions:
     value:           true
   - key:             readability-magic-numbers.IgnoreAllFloatingPointValues
     value:           false
-  - key:             cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
-    value:           '0;1;2;4;8;16;32;64;128;256;512;1024'

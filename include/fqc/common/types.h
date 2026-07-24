@@ -2,8 +2,7 @@
 // fq-compressor - Shared FASTQ Record Type
 // =============================================================================
 
-#ifndef FQC_COMMON_TYPES_H
-#define FQC_COMMON_TYPES_H
+#pragma once
 
 #include <cstddef>
 #include <string>
@@ -60,5 +59,3 @@ struct ReadRecord {
 };
 
 }  // namespace fqc
-
-#endif  // FQC_COMMON_TYPES_H

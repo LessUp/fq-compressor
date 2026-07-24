@@ -10,7 +10,7 @@
 #
 # Dependencies are organized by purpose:
 #   - CLI parsing: CLI11
-#   - Logging: Quill (with fmt)
+#   - Formatting / Logging: fmt
 #   - Compression: zlib-ng, zstd
 #   - Checksums: xxHash
 #   - Testing: GTest
@@ -36,7 +36,7 @@ class FQCompressorConan(ConanFile):
         "zlib-ng/*:zlib_compat": True,
     }
     exports = "VERSION"
-    exports_sources = "VERSION", "CMakeLists.txt", "src/*", "include/*", "cmake/*", "tests/*"
+    exports_sources = "VERSION", "CMakeLists.txt", "src/*", "include/*", "tests/*"
 
     def set_version(self):
         self.version = load(self, os.path.join(self.recipe_folder, "VERSION")).strip()

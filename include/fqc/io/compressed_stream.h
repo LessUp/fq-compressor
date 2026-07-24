@@ -17,8 +17,7 @@
 // Requirements: 1.1.1
 // =============================================================================
 
-#ifndef FQC_IO_COMPRESSED_STREAM_H
-#define FQC_IO_COMPRESSED_STREAM_H
+#pragma once
 
 #include "fqc/common/error.h"
 
@@ -216,5 +215,3 @@ private:
 [[nodiscard]] std::vector<CompressionFormat> supportedCompressionFormats();
 
 }  // namespace fqc::io
-
-#endif  // FQC_IO_COMPRESSED_STREAM_H

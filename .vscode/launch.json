@@ -33,19 +33,6 @@
             "stopOnEntry": false
         },
         {
-            "name": "fqc info",
-            "type": "lldb",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/clang-debug/src/fqc",
-            "args": [
-                "info",
-                "${input:inputFile}"
-            ],
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake: Build clang-debug",
-            "stopOnEntry": false
-        },
-        {
             "name": "fqc verify",
             "type": "lldb",
             "request": "launch",

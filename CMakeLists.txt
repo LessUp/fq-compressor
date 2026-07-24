@@ -112,17 +112,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Portable build option: disable -march=native for distributable binaries
     option(FQC_PORTABLE "Build portable binaries without -march=native" OFF)
 
-    # Build type specific flags
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-g -O0)
-    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-        if(FQC_PORTABLE)
-            add_compile_options(-O3)
-        else()
-            add_compile_options(-O3 -march=native)
-        endif()
-    elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-        add_compile_options(-O2 -g)
+    if(NOT FQC_PORTABLE AND CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-march=native)
     endif()
 endif()
 
@@ -187,7 +178,6 @@ add_subdirectory(src)
 # =============================================================================
 
 include(CTest)
-option(BUILD_TESTING "Build tests" ON)
 
 if(BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)

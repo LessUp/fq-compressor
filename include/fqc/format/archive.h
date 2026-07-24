@@ -2,8 +2,7 @@
 // fq-compressor - FQC v2 Sequential Archive
 // =============================================================================
 
-#ifndef FQC_FORMAT_V2_ARCHIVE_H
-#define FQC_FORMAT_V2_ARCHIVE_H
+#pragma once
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
@@ -137,5 +136,3 @@ private:
 };
 
 }  // namespace fqc::format
-
-#endif  // FQC_FORMAT_V2_ARCHIVE_H

@@ -2,8 +2,7 @@
 // fq-compressor - Concurrent Compression Pipeline
 // =============================================================================
 
-#ifndef FQC_PIPELINE_COMPRESS_PIPELINE_H
-#define FQC_PIPELINE_COMPRESS_PIPELINE_H
+#pragma once
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
@@ -47,5 +46,3 @@ private:
 };
 
 }  // namespace fqc::pipeline
-
-#endif  // FQC_PIPELINE_COMPRESS_PIPELINE_H

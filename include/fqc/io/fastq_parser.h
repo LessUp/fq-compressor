@@ -2,8 +2,7 @@
 // fq-compressor - FASTQ Parser
 // =============================================================================
 
-#ifndef FQC_IO_FASTQ_PARSER_H
-#define FQC_IO_FASTQ_PARSER_H
+#pragma once
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
@@ -43,5 +42,3 @@ private:
 };
 
 }  // namespace fqc::io
-
-#endif  // FQC_IO_FASTQ_PARSER_H
