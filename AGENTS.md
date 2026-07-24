@@ -44,8 +44,8 @@ cli11、fmt、zlib-ng、zstd、xxhash、gtest（仅测试）
 ## 复盘
 
 非平凡问题（竞态、难复现 bug、架构权衡变更）写复盘，不入 CHANGELOG 正文。
-- 目录：`docs/postmortems/`，索引与约定见 `docs/postmortems/README.md`
-- 文件名：`YYYY-MM-DD-slug.md`，六节：症状 / 复现 / 根因 / 修复 / 验证 / 教训
+- 目录：`docs/postmortems/`，索引与约定见 `docs/postmortems/README.md`，模板见 `TEMPLATE.md`
+- 文件名：`YYYY-MM-DD-slug.md`，七节：症状 / 复现 / 调查 / 根因 / 修复 / 验证 / 后续与教训
 - CHANGELOG 对应"修复"条目末尾加 `→ 详见 docs/postmortems/...`
 
 ## 已知权衡
