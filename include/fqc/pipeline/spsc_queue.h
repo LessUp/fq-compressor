@@ -45,6 +45,14 @@ public:
 
     /// Dequeue an next item, or `std::nullopt` if the queue is empty and has
     /// been closed or aborted.
+    ///
+    /// `head_` and `closed_`/`aborted_` are distinct atomics, so the initial
+    /// `head_` load may observe a stale value even after `closed_` becomes
+    /// visible (acquire on `closed_` only orders writes sequenced-before the
+    /// matching release store, not the earlier `head_` load in this loop). The
+    /// re-check below relies on that acquire edge: once `closed_`/`aborted_` is
+    /// observed, every prior producer write — including `head_` — is visible,
+    /// so the second `head_` load cannot miss a just-pushed item.
     [[nodiscard]] auto pop() -> std::optional<T> {
         while (true) {
             const auto tail = tail_.load(std::memory_order_relaxed);
@@ -55,6 +63,11 @@ public:
             }
             if (aborted_.load(std::memory_order_acquire) ||
                 closed_.load(std::memory_order_acquire)) {
+                if (tail != head_.load(std::memory_order_acquire)) {
+                    T item = std::move(storage_[tail]);
+                    tail_.store((tail + 1) & kMask, std::memory_order_release);
+                    return item;
+                }
                 return std::nullopt;
             }
             std::this_thread::yield();
