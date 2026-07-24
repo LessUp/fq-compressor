@@ -8,6 +8,7 @@
 #include "fqc/common/types.h"
 #include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
+#include "fqc/pipeline/compress_pipeline.h"
 
 #include <algorithm>
 #include <atomic>
@@ -21,6 +22,7 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -122,11 +124,6 @@ private:
         record.quality.size() + kCanonicalFastqFramingBytes + (record.comment.empty() ? 0 : 1);
 }
 
-[[nodiscard]] auto retainedRecordBytes(const ReadRecord& record) noexcept -> std::size_t {
-    return sizeof(ReadRecord) + record.id.capacity() + 1 + record.comment.capacity() + 1 +
-        record.sequence.capacity() + 1 + record.quality.capacity() + 1;
-}
-
 [[nodiscard]] auto validateMemoryLimit(std::size_t memoryLimitBytes) -> VoidResult {
     if (memoryLimitBytes < kMinimumMemoryLimitBytes) {
         return makeVoidError(ErrorCode::kUsageError, "memory limit must be at least 64 MiB");
@@ -171,41 +168,6 @@ private:
     }
     return std::unique_ptr<std::ostream>(std::move(stream));
 }
-
-class FrameAccumulator {
-public:
-    FrameAccumulator(format::ArchiveWriter& writer, std::size_t targetBytes, bool paired)
-        : writer_(writer), targetBytes_(targetBytes), paired_(paired) {}
-
-    [[nodiscard]] auto add(ReadRecord record) -> VoidResult {
-        retainedBytes_ += retainedRecordBytes(record);
-        records_.push_back(std::move(record));
-        if (retainedBytes_ >= targetBytes_ && (!paired_ || records_.size() % 2 == 0)) {
-            return flush();
-        }
-        return {};
-    }
-
-    [[nodiscard]] auto flush() -> VoidResult {
-        if (records_.empty()) {
-            return {};
-        }
-        auto result = writer_.writeFrame(records_);
-        if (!result) {
-            return result;
-        }
-        records_.clear();
-        retainedBytes_ = 0;
-        return {};
-    }
-
-private:
-    format::ArchiveWriter& writer_;
-    std::size_t targetBytes_;
-    bool paired_;
-    std::vector<ReadRecord> records_;
-    std::size_t retainedBytes_ = 0;
-};
 
 [[nodiscard]] auto writeFastqRecord(std::ostream& output, const ReadRecord& record) -> VoidResult {
     output << '@' << record.id;
@@ -370,55 +332,12 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
                                   .paired = request.paired(),
                                   .maxFrameBytes = maxFrameBytesFor(request.memoryLimitBytes),
                                   .memoryLimitBytes = request.memoryLimitBytes});
-    FrameAccumulator accumulator(writer, targetFrameBytesFor(request), request.paired());
-    std::uint64_t logicalBytes = 0;
-    auto addRecord = [&](ReadRecord record) -> VoidResult {
-        logicalBytes += canonicalFastqBytes(record);
-        return accumulator.add(std::move(record));
-    };
-
-    for (auto& record : sample) {
-        if (auto result = addRecord(std::move(record)); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-    }
-    while (true) {
-        auto first = primary.readRecord();
-        if (!first) {
-            return makeError<OperationStats>(first.error());
-        }
-        if (!first->has_value()) {
-            if (mate) {
-                auto second = mate->readRecord();
-                if (!second) {
-                    return makeError<OperationStats>(second.error());
-                }
-                if (second->has_value()) {
-                    return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                     "paired inputs have different record counts");
-                }
-            }
-            break;
-        }
-        if (auto result = addRecord(std::move(**first)); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        if (mate) {
-            auto second = mate->readRecord();
-            if (!second) {
-                return makeError<OperationStats>(second.error());
-            }
-            if (!second->has_value()) {
-                return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                 "paired inputs have different record counts");
-            }
-            if (auto result = addRecord(std::move(**second)); !result) {
-                return makeError<OperationStats>(result.error());
-            }
-        }
-    }
-    if (auto result = accumulator.flush(); !result) {
-        return makeError<OperationStats>(result.error());
+    pipeline::CompressPipeline pipelineEngine(targetFrameBytesFor(request), request.paired());
+    std::istream* mateStream = mateStreamPtr ? mateStreamPtr.get() : nullptr;
+    auto pipelineResult = pipelineEngine.run(
+        **primaryStream, mateStream, std::span<const ReadRecord>{sample}, writer);
+    if (!pipelineResult) {
+        return makeError<OperationStats>(pipelineResult.error());
     }
     if (auto result = writer.finish(); !result) {
         return makeError<OperationStats>(result.error());
@@ -427,7 +346,7 @@ auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<
     if (auto result = outputTransaction.commit(request.forceOverwrite); !result) {
         return makeError<OperationStats>(result.error());
     }
-    return toOperationStats(writer.metadata(), writer.stats(), true, logicalBytes);
+    return toOperationStats(writer.metadata(), writer.stats(), true, pipelineResult->logicalBytes);
 }
 
 auto ArchiveEngine::decompress(const DecompressionRequest& request) const

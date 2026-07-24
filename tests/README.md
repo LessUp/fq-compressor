@@ -31,21 +31,3 @@ This directory contains focused unit and end-to-end tests for FQC v2.
 ctest --test-dir build/clang-debug --output-on-failure
 ```
 
-## Release acceptance
-
-Use the single acceptance runner for the validated release loop:
-
-```bash
-./scripts/acceptance.sh
-```
-
-Blocking release-check command surface (kept in sync with the acceptance runner):
-
-```bash
-./scripts/lint.sh format-check
-./scripts/test.sh clang-debug
-bash tests/e2e/cli_smoke_test.sh
-bash tests/e2e/benchmark_v2_smoke_test.sh
-```
-
-Benchmark smoke is a local validation path, not a public performance claim.

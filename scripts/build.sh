@@ -54,8 +54,9 @@ echo ""
 # Conan 2.x 生成的 toolchain 文件位于嵌套路径 build/<preset>/build/<BuildType>/generators/
 BUILD_DIR="build/$PRESET"
 if ! find "$BUILD_DIR" -name "conan_toolchain.cmake" -print -quit 2>/dev/null | grep -q .; then
-    echo "Installing Conan dependencies..."
-    ./scripts/install_deps.sh "$PRESET"
+    echo "Error: Conan toolchain not found in $BUILD_DIR." >&2
+    echo "Run 'conan install' to generate it (see conan/profiles/README.md)." >&2
+    exit 1
 fi
 
 # 配置

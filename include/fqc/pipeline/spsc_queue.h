@@ -9,6 +9,12 @@
 
 namespace fqc::pipeline {
 
+/// Single-producer single-consumer bounded ring buffer.
+///
+/// `close()` signals normal end-of-production: a consumer blocked on `pop()`
+/// returns `std::nullopt` once the queue drains. `abort()` signals abnormal
+/// shutdown: a producer blocked on a full `push()` returns `false` so it can
+/// stop without deadlocking when the consumer has already failed.
 template <typename T, std::size_t Capacity>
 requires(Capacity > 0 && (Capacity & (Capacity - 1)) == 0)
 class SpscQueue {
@@ -18,31 +24,56 @@ public:
     SpscQueue(const SpscQueue&) = delete;
     SpscQueue& operator=(const SpscQueue&) = delete;
 
-    void push(T item) {
-        const auto head = head_.load(std::memory_order_relaxed);
-        const auto next = (head + 1) & kMask;
-        while (next == tail_.load(std::memory_order_acquire)) {
-            std::this_thread::yield();
+    /// Enqueue an item. Returns false if the queue was aborted (item dropped);
+    /// otherwise blocks until space is available and returns true.
+    auto push(T item) -> bool {
+        while (true) {
+            if (aborted_.load(std::memory_order_acquire)) {
+                return false;
+            }
+            const auto head = head_.load(std::memory_order_relaxed);
+            const auto next = (head + 1) & kMask;
+            if (next == tail_.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+                continue;
+            }
+            storage_[head] = std::move(item);
+            head_.store(next, std::memory_order_release);
+            return true;
         }
-        storage_[head] = std::move(item);
-        head_.store(next, std::memory_order_release);
     }
 
+    /// Dequeue an next item, or `std::nullopt` if the queue is empty and has
+    /// been closed or aborted.
     [[nodiscard]] auto pop() -> std::optional<T> {
-        const auto tail = tail_.load(std::memory_order_relaxed);
-        while (tail == head_.load(std::memory_order_acquire)) {
-            if (closed_.load(std::memory_order_acquire)) {
+        while (true) {
+            const auto tail = tail_.load(std::memory_order_relaxed);
+            if (tail != head_.load(std::memory_order_acquire)) {
+                T item = std::move(storage_[tail]);
+                tail_.store((tail + 1) & kMask, std::memory_order_release);
+                return item;
+            }
+            if (aborted_.load(std::memory_order_acquire) ||
+                closed_.load(std::memory_order_acquire)) {
                 return std::nullopt;
             }
             std::this_thread::yield();
         }
-        T item = std::move(storage_[tail]);
-        tail_.store((tail + 1) & kMask, std::memory_order_release);
-        return item;
     }
 
+    /// Signal that production is complete (no more items will be pushed).
     void close() {
         closed_.store(true, std::memory_order_release);
+    }
+
+    /// Signal abnormal shutdown: unblock a producer blocked on a full push and
+    /// a consumer blocked on an empty pop.
+    void abort() {
+        aborted_.store(true, std::memory_order_release);
+    }
+
+    [[nodiscard]] auto isAborted() const noexcept -> bool {
+        return aborted_.load(std::memory_order_acquire);
     }
 
 private:
@@ -50,7 +81,8 @@ private:
 
     alignas(64) std::atomic<std::size_t> head_{0};
     alignas(64) std::atomic<std::size_t> tail_{0};
-    std::atomic<bool> closed_{false};
+    alignas(64) std::atomic<bool> closed_{false};
+    alignas(64) std::atomic<bool> aborted_{false};
     std::array<T, Capacity> storage_;
 };
 

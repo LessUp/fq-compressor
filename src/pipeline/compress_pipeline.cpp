@@ -8,8 +8,10 @@
 #include "fqc/pipeline/spsc_queue.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <istream>
 #include <optional>
+#include <span>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -18,9 +20,17 @@ namespace fqc::pipeline {
 
 namespace {
 
+// FASTQ framing bytes: '@' id [' ' comment] '\n' seq '\n' '+' '\n' qual '\n'.
+constexpr std::size_t kCanonicalFastqFramingBytes = 6;
+
 [[nodiscard]] auto retainedRecordBytes(const ReadRecord& record) noexcept -> std::size_t {
     return sizeof(ReadRecord) + record.id.capacity() + 1 + record.comment.capacity() + 1 +
         record.sequence.capacity() + 1 + record.quality.capacity() + 1;
+}
+
+[[nodiscard]] auto canonicalFastqBytes(const ReadRecord& record) noexcept -> std::size_t {
+    return record.id.size() + record.comment.size() + record.sequence.size() +
+        record.quality.size() + kCanonicalFastqFramingBytes + (record.comment.empty() ? 0 : 1);
 }
 
 }  // namespace
@@ -28,43 +38,103 @@ namespace {
 CompressPipeline::CompressPipeline(std::size_t targetFrameBytes, bool paired)
     : targetFrameBytes_(targetFrameBytes), paired_(paired) {}
 
-auto CompressPipeline::run(std::istream& input, format::ArchiveWriter& writer)
-    -> Result<PipelineStats> {
+auto CompressPipeline::run(std::istream& primary,
+                           std::istream* mate,
+                           std::span<const ReadRecord> initialRecords,
+                           format::ArchiveWriter& writer) -> Result<PipelineStats> {
     SpscQueue<std::vector<ReadRecord>, kDefaultQueueDepth> queue;
     std::optional<Error> readerError;
     std::optional<Error> writerError;
     PipelineStats stats;
+    std::uint64_t logicalBytes = 0;
 
     std::thread reader([&] {
-        io::FastqParser parser(input);
+        io::FastqParser parser(primary);
+        std::optional<io::FastqParser> mateParser;
+        if (mate != nullptr) {
+            mateParser.emplace(*mate);
+        }
+
         std::vector<ReadRecord> frame;
         std::size_t retainedBytes = 0;
 
-        auto pushFrame = [&] {
-            if (!frame.empty()) {
-                queue.push(std::move(frame));
-                frame.clear();
-                retainedBytes = 0;
-            }
+        auto frameFull = [&] {
+            return retainedBytes >= targetFrameBytes_ && (!paired_ || frame.size() % 2 == 0);
         };
 
-        while (true) {
-            auto result = parser.readRecord();
-            if (!result) {
-                readerError = result.error();
-                break;
+        auto pushFrame = [&] -> bool {
+            if (frame.empty()) {
+                return true;
             }
-            if (!result->has_value()) {
-                break;
-            }
-            auto& record = **result;
+            bool ok = queue.push(std::move(frame));
+            frame.clear();
+            retainedBytes = 0;
+            return ok;
+        };
+
+        auto append = [&](ReadRecord record) -> bool {
+            logicalBytes += canonicalFastqBytes(record);
             retainedBytes += retainedRecordBytes(record);
             frame.push_back(std::move(record));
-            if (retainedBytes >= targetFrameBytes_ && (!paired_ || frame.size() % 2 == 0)) {
-                pushFrame();
+            if (frameFull()) {
+                return pushFrame();
+            }
+            return true;
+        };
+
+        for (auto& record : initialRecords) {
+            if (queue.isAborted()) {
+                break;
+            }
+            if (!append(std::move(record))) {
+                break;
             }
         }
-        pushFrame();
+
+        while (!queue.isAborted()) {
+            auto first = parser.readRecord();
+            if (!first) {
+                readerError = first.error();
+                break;
+            }
+            if (!first->has_value()) {
+                if (mateParser) {
+                    auto second = mateParser->readRecord();
+                    if (!second) {
+                        readerError = second.error();
+                        break;
+                    }
+                    if (second->has_value()) {
+                        readerError = Error{ErrorCode::kFormatError,
+                                            "paired inputs have different record counts"};
+                        break;
+                    }
+                }
+                break;
+            }
+            if (!append(std::move(**first))) {
+                break;
+            }
+            if (mateParser) {
+                auto second = mateParser->readRecord();
+                if (!second) {
+                    readerError = second.error();
+                    break;
+                }
+                if (!second->has_value()) {
+                    readerError = Error{ErrorCode::kFormatError,
+                                        "paired inputs have different record counts"};
+                    break;
+                }
+                if (!append(std::move(**second))) {
+                    break;
+                }
+            }
+        }
+
+        if (!queue.isAborted()) {
+            pushFrame();
+        }
         queue.close();
     });
 
@@ -79,6 +149,7 @@ auto CompressPipeline::run(std::istream& input, format::ArchiveWriter& writer)
             auto result = writer.writeFrame(*frame);
             if (!result) {
                 writerError = result.error();
+                queue.abort();
                 break;
             }
         }
@@ -86,6 +157,8 @@ auto CompressPipeline::run(std::istream& input, format::ArchiveWriter& writer)
 
     reader.join();
     writerThread.join();
+
+    stats.logicalBytes = logicalBytes;
 
     if (writerError.has_value()) {
         return makeError<PipelineStats>(std::move(*writerError));

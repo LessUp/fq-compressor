@@ -15,7 +15,7 @@ using fqc::pipeline::SpscQueue;
 
 TEST(SpscQueueTest, PushPopSingleItem) {
     SpscQueue<int, 4> queue;
-    queue.push(42);
+    EXPECT_TRUE(queue.push(42));
     auto item = queue.pop();
     ASSERT_TRUE(item.has_value());
     EXPECT_EQ(*item, 42);
@@ -38,7 +38,7 @@ TEST(SpscQueueTest, BackpressureUnblocksOnPop) {
 
     bool pushed = false;
     std::thread producer([&] {
-        queue.push(2);
+        EXPECT_TRUE(queue.push(2));
         pushed = true;
     });
 
@@ -62,6 +62,23 @@ TEST(SpscQueueTest, CloseReturnsNulloptAfterDrain) {
 TEST(SpscQueueTest, CloseOnEmptyReturnsNullopt) {
     SpscQueue<int, 4> queue;
     queue.close();
+    EXPECT_FALSE(queue.pop().has_value());
+}
+
+TEST(SpscQueueTest, AbortUnblocksFullPush) {
+    // capacity 2 holds one item (ring leaves one slot empty to separate
+    // full from empty). After one push the next push would block; abort
+    // must make it return false instead of hanging.
+    SpscQueue<int, 2> queue;
+    EXPECT_TRUE(queue.push(1));
+    queue.abort();
+    EXPECT_FALSE(queue.push(2));
+    EXPECT_TRUE(queue.isAborted());
+}
+
+TEST(SpscQueueTest, AbortReturnsNulloptFromEmptyPop) {
+    SpscQueue<int, 4> queue;
+    queue.abort();
     EXPECT_FALSE(queue.pop().has_value());
 }
 
