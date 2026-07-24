@@ -4,8 +4,8 @@
 
 #include "fqc/commands/archive_engine.h"
 #include "fqc/common/error.h"
-#include "fqc/common/logger.h"
 #include "fqc/format/archive.h"
+#include "fqc/log.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -89,10 +89,8 @@ void logStats(std::string_view operation, const fqc::commands::OperationStats& s
 
 template <typename T>
 [[nodiscard]] auto reportError(const fqc::Result<T>& result) -> int {
-    FQC_LOG_ERROR("{}", result.error().message());
-    fqc::log::flush();
-    fqc::log::shutdown();
-    return fqc::toExitCode(result.error().code());
+    FQC_LOG_ERROR("{}", result.error().message);
+    return fqc::toExitCode(result.error().code);
 }
 
 }  // namespace
@@ -156,7 +154,7 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        fqc::log::init("", global.quiet ? fqc::log::Level::kError : fqc::log::Level::kInfo);
+        fqc::log::threshold = global.quiet ? fqc::log::Level::kError : fqc::log::Level::kInfo;
         auto memoryLimit = checkedMiB(global.memoryLimitMiB, "--memory-limit");
         if (!memoryLimit) {
             return reportError(memoryLimit);
@@ -199,18 +197,9 @@ int main(int argc, char* argv[]) {
             }
             logStats("verification", *result, global.quiet);
         }
-        fqc::log::flush();
-        fqc::log::shutdown();
         return 0;
-    } catch (const fqc::FQCException& error) {
-        FQC_LOG_ERROR("{}", error.what());
-        fqc::log::flush();
-        fqc::log::shutdown();
-        return fqc::toExitCode(error.code());
     } catch (const std::exception& error) {
         FQC_LOG_ERROR("unexpected error: {}", error.what());
-        fqc::log::flush();
-        fqc::log::shutdown();
         return 3;
     }
 }

@@ -6,6 +6,7 @@
 
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
+#include "fqc/io/compressed_stream.h"
 #include "fqc/io/fastq_parser.h"
 
 #include <algorithm>
@@ -15,7 +16,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <initializer_list>
+#include <iostream>
+#include <memory>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -62,7 +66,7 @@ public:
     [[nodiscard]] auto commit(bool forceOverwrite) -> VoidResult {
         if (stagingPath_ == finalPath_) {
             committed_ = true;
-            return makeVoidSuccess();
+            return {};
         }
 
         std::error_code error;
@@ -79,8 +83,6 @@ public:
         }
         std::filesystem::rename(stagingPath_, finalPath_, error);
         if (error && forceOverwrite && outputExists) {
-            // POSIX rename replaces atomically. Some platforms reject an existing destination;
-            // retain a portable fallback there after the atomic attempt has failed.
             error.clear();
             std::filesystem::remove(finalPath_, error);
             if (!error) {
@@ -92,7 +94,7 @@ public:
                                  "failed to publish output: " + error.message());
         }
         committed_ = true;
-        return makeVoidSuccess();
+        return {};
     }
 
 private:
@@ -129,7 +131,7 @@ private:
     if (memoryLimitBytes < kMinimumMemoryLimitBytes) {
         return makeVoidError(ErrorCode::kUsageError, "memory limit must be at least 64 MiB");
     }
-    return makeVoidSuccess();
+    return {};
 }
 
 [[nodiscard]] auto maxFrameBytesFor(std::size_t memoryLimitBytes) noexcept -> std::size_t {
@@ -144,18 +146,30 @@ private:
 
 [[nodiscard]] auto validateOutput(const std::filesystem::path& inputPath,
                                   const std::filesystem::path& outputPath,
-                                  bool forceOverwrite,
-                                  const std::shared_ptr<io::StreamFactory>& factory) -> VoidResult {
+                                  bool forceOverwrite) -> VoidResult {
     if (inputPath.empty() || outputPath.empty()) {
         return makeVoidError(ErrorCode::kUsageError, "input and output paths are required");
     }
     if (inputPath != "-" && outputPath != "-" && inputPath == outputPath) {
         return makeVoidError(ErrorCode::kUsageError, "input and output paths must differ");
     }
-    if (!forceOverwrite && outputPath != "-" && factory->outputExists(outputPath)) {
+    if (!forceOverwrite && outputPath != "-" && std::filesystem::exists(outputPath)) {
         return makeVoidError(ErrorCode::kIOError, "output already exists: " + outputPath.string());
     }
-    return makeVoidSuccess();
+    return {};
+}
+
+[[nodiscard]] auto openOutput(const std::filesystem::path& path)
+    -> Result<std::unique_ptr<std::ostream>> {
+    if (path == "-") {
+        return std::unique_ptr<std::ostream>(std::make_unique<std::ostream>(std::cout.rdbuf()));
+    }
+    auto stream = std::make_unique<std::ofstream>(path, std::ios::binary);
+    if (!stream->is_open()) {
+        return makeError<std::unique_ptr<std::ostream>>(
+            ErrorCode::kIOError, "cannot create output file: " + path.string());
+    }
+    return std::unique_ptr<std::ostream>(std::move(stream));
 }
 
 class FrameAccumulator {
@@ -169,12 +183,12 @@ public:
         if (retainedBytes_ >= targetBytes_ && (!paired_ || records_.size() % 2 == 0)) {
             return flush();
         }
-        return makeVoidSuccess();
+        return {};
     }
 
     [[nodiscard]] auto flush() -> VoidResult {
         if (records_.empty()) {
-            return makeVoidSuccess();
+            return {};
         }
         auto result = writer_.writeFrame(records_);
         if (!result) {
@@ -182,7 +196,7 @@ public:
         }
         records_.clear();
         retainedBytes_ = 0;
-        return makeVoidSuccess();
+        return {};
     }
 
 private:
@@ -202,7 +216,7 @@ private:
     if (!output) {
         return makeVoidError(ErrorCode::kIOError, "failed to write decompressed FASTQ");
     }
-    return makeVoidSuccess();
+    return {};
 }
 
 [[nodiscard]] auto toOperationStats(const format::ArchiveMetadata& metadata,
@@ -269,220 +283,232 @@ auto detectProfile(std::span<const ReadRecord> records) -> Result<format::Datase
         "dataset profile is ambiguous; specify illumina, ont, pacbio-hifi, or pacbio-clr");
 }
 
-ArchiveEngine::ArchiveEngine(std::shared_ptr<io::StreamFactory> streamFactory)
-    : streamFactory_(std::move(streamFactory)) {
-    if (!streamFactory_) {
-        throw FQCException(ErrorCode::kUsageError, "StreamFactory cannot be null");
-    }
-}
-
 auto ArchiveEngine::compress(const CompressionRequest& request) const -> Result<OperationStats> {
-    try {
-        if (auto result = validateMemoryLimit(request.memoryLimitBytes); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        if (request.targetFrameBytes == 0) {
-            return makeError<OperationStats>(ErrorCode::kUsageError,
-                                             "target frame size must be positive");
-        }
-        if (auto result = validateOutput(
-                request.inputPath, request.outputPath, request.forceOverwrite, streamFactory_);
-            !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        if (request.paired() && request.inputPath == "-" && request.matePath == "-") {
-            return makeError<OperationStats>(ErrorCode::kUsageError,
-                                             "paired inputs cannot both use stdin");
-        }
-
-        const io::ParserOptions parserOptions{
-            .validateSequence = false,
-            .validateQuality = false,
-        };
-        io::FastqParser primary(request.inputPath, streamFactory_, parserOptions);
-        primary.open();
-        std::optional<io::FastqParser> mate;
-        if (request.paired()) {
-            mate.emplace(request.matePath, streamFactory_, parserOptions);
-            mate->open();
-        }
-
-        std::vector<ReadRecord> sample;
-        const auto maxSampleBytes = sampleLimitBytes(request.memoryLimitBytes);
-        std::size_t sampledBases = 0;
-        while (sample.size() < kProfileSampleMaxRecords && sampledBases < maxSampleBytes) {
-            auto first = primary.readRecord();
-            if (!first) {
-                if (mate && mate->readRecord()) {
-                    return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                     "paired inputs have different record counts");
-                }
-                break;
-            }
-            sampledBases += first->sequence.size();
-            sample.push_back(std::move(*first));
-            if (mate) {
-                auto second = mate->readRecord();
-                if (!second) {
-                    return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                     "paired inputs have different record counts");
-                }
-                sampledBases += second->sequence.size();
-                sample.push_back(std::move(*second));
-            }
-        }
-
-        auto resolvedProfile = request.profile.has_value()
-            ? Result<format::DatasetProfile>(*request.profile)
-            : detectProfile(sample);
-        if (!resolvedProfile) {
-            return makeError<OperationStats>(resolvedProfile.error());
-        }
-
-        OutputTransaction outputTransaction(request.outputPath, streamFactory_->isFileStream());
-        auto output = streamFactory_->createOutputStream(outputTransaction.path());
-        format::ArchiveWriter writer(*output,
-                                     {.profile = *resolvedProfile,
-                                      .paired = request.paired(),
-                                      .maxFrameBytes = maxFrameBytesFor(request.memoryLimitBytes),
-                                      .memoryLimitBytes = request.memoryLimitBytes});
-        FrameAccumulator accumulator(writer, targetFrameBytesFor(request), request.paired());
-        std::uint64_t logicalBytes = 0;
-        auto addRecord = [&](ReadRecord record) -> VoidResult {
-            logicalBytes += canonicalFastqBytes(record);
-            return accumulator.add(std::move(record));
-        };
-
-        for (auto& record : sample) {
-            if (auto result = addRecord(std::move(record)); !result) {
-                return makeError<OperationStats>(result.error());
-            }
-        }
-        while (true) {
-            auto first = primary.readRecord();
-            if (!first) {
-                if (mate && mate->readRecord()) {
-                    return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                     "paired inputs have different record counts");
-                }
-                break;
-            }
-            if (auto result = addRecord(std::move(*first)); !result) {
-                return makeError<OperationStats>(result.error());
-            }
-            if (mate) {
-                auto second = mate->readRecord();
-                if (!second) {
-                    return makeError<OperationStats>(ErrorCode::kFormatError,
-                                                     "paired inputs have different record counts");
-                }
-                if (auto result = addRecord(std::move(*second)); !result) {
-                    return makeError<OperationStats>(result.error());
-                }
-            }
-        }
-        if (auto result = accumulator.flush(); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        if (auto result = writer.finish(); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        output.reset();
-        if (auto result = outputTransaction.commit(request.forceOverwrite); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        return toOperationStats(writer.metadata(), writer.stats(), true, logicalBytes);
-    } catch (const FQCException& error) {
-        return makeError<OperationStats>(error);
-    } catch (const std::exception& error) {
-        return makeError<OperationStats>(ErrorCode::kIOError, error.what());
+    if (auto result = validateMemoryLimit(request.memoryLimitBytes); !result) {
+        return makeError<OperationStats>(result.error());
     }
+    if (request.targetFrameBytes == 0) {
+        return makeError<OperationStats>(ErrorCode::kUsageError,
+                                         "target frame size must be positive");
+    }
+    if (auto result = validateOutput(request.inputPath, request.outputPath, request.forceOverwrite);
+        !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    if (request.paired() && request.inputPath == "-" && request.matePath == "-") {
+        return makeError<OperationStats>(ErrorCode::kUsageError,
+                                         "paired inputs cannot both use stdin");
+    }
+
+    auto primaryStream = io::openInputFile(request.inputPath);
+    if (!primaryStream) {
+        return makeError<OperationStats>(primaryStream.error());
+    }
+    io::FastqParser primary(**primaryStream);
+    std::unique_ptr<std::istream> mateStreamPtr;
+    std::optional<io::FastqParser> mate;
+    if (request.paired()) {
+        auto mateStream = io::openInputFile(request.matePath);
+        if (!mateStream) {
+            return makeError<OperationStats>(mateStream.error());
+        }
+        mateStreamPtr = std::move(*mateStream);
+        mate.emplace(*mateStreamPtr);
+    }
+
+    std::vector<ReadRecord> sample;
+    const auto maxSampleBytes = sampleLimitBytes(request.memoryLimitBytes);
+    std::size_t sampledBases = 0;
+    while (sample.size() < kProfileSampleMaxRecords && sampledBases < maxSampleBytes) {
+        auto first = primary.readRecord();
+        if (!first) {
+            return makeError<OperationStats>(first.error());
+        }
+        if (!first->has_value()) {
+            if (mate) {
+                auto second = mate->readRecord();
+                if (!second) {
+                    return makeError<OperationStats>(second.error());
+                }
+                if (second->has_value()) {
+                    return makeError<OperationStats>(ErrorCode::kFormatError,
+                                                     "paired inputs have different record counts");
+                }
+            }
+            break;
+        }
+        sampledBases += (*first)->sequence.size();
+        sample.push_back(std::move(**first));
+        if (mate) {
+            auto second = mate->readRecord();
+            if (!second) {
+                return makeError<OperationStats>(second.error());
+            }
+            if (!second->has_value()) {
+                return makeError<OperationStats>(ErrorCode::kFormatError,
+                                                 "paired inputs have different record counts");
+            }
+            sampledBases += (*second)->sequence.size();
+            sample.push_back(std::move(**second));
+        }
+    }
+
+    auto resolvedProfile = request.profile.has_value()
+        ? Result<format::DatasetProfile>(*request.profile)
+        : detectProfile(sample);
+    if (!resolvedProfile) {
+        return makeError<OperationStats>(resolvedProfile.error());
+    }
+
+    OutputTransaction outputTransaction(request.outputPath, request.outputPath != "-");
+    auto output = openOutput(outputTransaction.path());
+    if (!output) {
+        return makeError<OperationStats>(output.error());
+    }
+    format::ArchiveWriter writer(**output,
+                                 {.profile = *resolvedProfile,
+                                  .paired = request.paired(),
+                                  .maxFrameBytes = maxFrameBytesFor(request.memoryLimitBytes),
+                                  .memoryLimitBytes = request.memoryLimitBytes});
+    FrameAccumulator accumulator(writer, targetFrameBytesFor(request), request.paired());
+    std::uint64_t logicalBytes = 0;
+    auto addRecord = [&](ReadRecord record) -> VoidResult {
+        logicalBytes += canonicalFastqBytes(record);
+        return accumulator.add(std::move(record));
+    };
+
+    for (auto& record : sample) {
+        if (auto result = addRecord(std::move(record)); !result) {
+            return makeError<OperationStats>(result.error());
+        }
+    }
+    while (true) {
+        auto first = primary.readRecord();
+        if (!first) {
+            return makeError<OperationStats>(first.error());
+        }
+        if (!first->has_value()) {
+            if (mate) {
+                auto second = mate->readRecord();
+                if (!second) {
+                    return makeError<OperationStats>(second.error());
+                }
+                if (second->has_value()) {
+                    return makeError<OperationStats>(ErrorCode::kFormatError,
+                                                     "paired inputs have different record counts");
+                }
+            }
+            break;
+        }
+        if (auto result = addRecord(std::move(**first)); !result) {
+            return makeError<OperationStats>(result.error());
+        }
+        if (mate) {
+            auto second = mate->readRecord();
+            if (!second) {
+                return makeError<OperationStats>(second.error());
+            }
+            if (!second->has_value()) {
+                return makeError<OperationStats>(ErrorCode::kFormatError,
+                                                 "paired inputs have different record counts");
+            }
+            if (auto result = addRecord(std::move(**second)); !result) {
+                return makeError<OperationStats>(result.error());
+            }
+        }
+    }
+    if (auto result = accumulator.flush(); !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    if (auto result = writer.finish(); !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    output->reset();
+    if (auto result = outputTransaction.commit(request.forceOverwrite); !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    return toOperationStats(writer.metadata(), writer.stats(), true, logicalBytes);
 }
 
 auto ArchiveEngine::decompress(const DecompressionRequest& request) const
     -> Result<OperationStats> {
-    try {
-        if (auto result = validateMemoryLimit(request.memoryLimitBytes); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        if (auto result = validateOutput(
-                request.inputPath, request.outputPath, request.forceOverwrite, streamFactory_);
-            !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        auto input = streamFactory_->createInputStream(request.inputPath);
-        OutputTransaction outputTransaction(request.outputPath, streamFactory_->isFileStream());
-        auto output = streamFactory_->createOutputStream(outputTransaction.path());
-        format::ArchiveReader reader(
-            *input, maxFrameBytesFor(request.memoryLimitBytes), request.memoryLimitBytes);
-        auto metadata = reader.open();
-        if (!metadata) {
-            return makeError<OperationStats>(metadata.error());
-        }
-        std::uint64_t logicalBytes = 0;
-        while (true) {
-            auto frame = reader.readFrame();
-            if (!frame) {
-                return makeError<OperationStats>(frame.error());
-            }
-            if (!frame->has_value()) {
-                break;
-            }
-            for (const auto& record : **frame) {
-                logicalBytes += canonicalFastqBytes(record);
-                if (auto result = writeFastqRecord(*output, record); !result) {
-                    return makeError<OperationStats>(result.error());
-                }
-            }
-        }
-        output->flush();
-        if (!*output) {
-            return makeError<OperationStats>(ErrorCode::kIOError,
-                                             "failed to flush decompressed FASTQ");
-        }
-        output.reset();
-        if (auto result = outputTransaction.commit(request.forceOverwrite); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        return toOperationStats(*metadata, reader.stats(), false, logicalBytes);
-    } catch (const FQCException& error) {
-        return makeError<OperationStats>(error);
-    } catch (const std::exception& error) {
-        return makeError<OperationStats>(ErrorCode::kIOError, error.what());
+    if (auto result = validateMemoryLimit(request.memoryLimitBytes); !result) {
+        return makeError<OperationStats>(result.error());
     }
+    if (auto result = validateOutput(request.inputPath, request.outputPath, request.forceOverwrite);
+        !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    auto input = io::openInputFile(request.inputPath);
+    if (!input) {
+        return makeError<OperationStats>(input.error());
+    }
+    OutputTransaction outputTransaction(request.outputPath, request.outputPath != "-");
+    auto output = openOutput(outputTransaction.path());
+    if (!output) {
+        return makeError<OperationStats>(output.error());
+    }
+    format::ArchiveReader reader(
+        **input, maxFrameBytesFor(request.memoryLimitBytes), request.memoryLimitBytes);
+    auto metadata = reader.open();
+    if (!metadata) {
+        return makeError<OperationStats>(metadata.error());
+    }
+    std::uint64_t logicalBytes = 0;
+    while (true) {
+        auto frame = reader.readFrame();
+        if (!frame) {
+            return makeError<OperationStats>(frame.error());
+        }
+        if (!frame->has_value()) {
+            break;
+        }
+        for (const auto& record : **frame) {
+            logicalBytes += canonicalFastqBytes(record);
+            if (auto result = writeFastqRecord(**output, record); !result) {
+                return makeError<OperationStats>(result.error());
+            }
+        }
+    }
+    (*output)->flush();
+    if (!**output) {
+        return makeError<OperationStats>(ErrorCode::kIOError, "failed to flush decompressed FASTQ");
+    }
+    output->reset();
+    if (auto result = outputTransaction.commit(request.forceOverwrite); !result) {
+        return makeError<OperationStats>(result.error());
+    }
+    return toOperationStats(*metadata, reader.stats(), false, logicalBytes);
 }
 
 auto ArchiveEngine::verify(const std::filesystem::path& inputPath,
                            std::size_t memoryLimitBytes) const -> Result<OperationStats> {
-    try {
-        if (auto result = validateMemoryLimit(memoryLimitBytes); !result) {
-            return makeError<OperationStats>(result.error());
-        }
-        auto input = streamFactory_->createInputStream(inputPath);
-        format::ArchiveReader reader(*input, maxFrameBytesFor(memoryLimitBytes), memoryLimitBytes);
-        auto metadata = reader.open();
-        if (!metadata) {
-            return makeError<OperationStats>(metadata.error());
-        }
-        std::uint64_t logicalBytes = 0;
-        while (true) {
-            auto frame = reader.readFrame();
-            if (!frame) {
-                return makeError<OperationStats>(frame.error());
-            }
-            if (!frame->has_value()) {
-                break;
-            }
-            for (const auto& record : **frame) {
-                logicalBytes += canonicalFastqBytes(record);
-            }
-        }
-        return toOperationStats(*metadata, reader.stats(), false, logicalBytes);
-    } catch (const FQCException& error) {
-        return makeError<OperationStats>(error);
-    } catch (const std::exception& error) {
-        return makeError<OperationStats>(ErrorCode::kIOError, error.what());
+    if (auto result = validateMemoryLimit(memoryLimitBytes); !result) {
+        return makeError<OperationStats>(result.error());
     }
+    auto input = io::openInputFile(inputPath);
+    if (!input) {
+        return makeError<OperationStats>(input.error());
+    }
+    format::ArchiveReader reader(**input, maxFrameBytesFor(memoryLimitBytes), memoryLimitBytes);
+    auto metadata = reader.open();
+    if (!metadata) {
+        return makeError<OperationStats>(metadata.error());
+    }
+    std::uint64_t logicalBytes = 0;
+    while (true) {
+        auto frame = reader.readFrame();
+        if (!frame) {
+            return makeError<OperationStats>(frame.error());
+        }
+        if (!frame->has_value()) {
+            break;
+        }
+        for (const auto& record : **frame) {
+            logicalBytes += canonicalFastqBytes(record);
+        }
+    }
+    return toOperationStats(*metadata, reader.stats(), false, logicalBytes);
 }
 
 }  // namespace fqc::commands

@@ -8,12 +8,10 @@
 #include "fqc/common/error.h"
 #include "fqc/common/types.h"
 #include "fqc/format/archive.h"
-#include "fqc/io/stream_factory.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 #include <optional>
 #include <span>
 
@@ -59,8 +57,7 @@ struct OperationStats {
 
 class ArchiveEngine {
 public:
-    explicit ArchiveEngine(std::shared_ptr<io::StreamFactory> streamFactory =
-                               std::make_shared<io::FileStreamFactory>());
+    ArchiveEngine() = default;
 
     [[nodiscard]] auto compress(const CompressionRequest& request) const -> Result<OperationStats>;
     [[nodiscard]] auto decompress(const DecompressionRequest& request) const
@@ -68,9 +65,6 @@ public:
     [[nodiscard]] auto verify(const std::filesystem::path& inputPath,
                               std::size_t memoryLimitBytes = kDefaultMemoryLimitBytes) const
         -> Result<OperationStats>;
-
-private:
-    std::shared_ptr<io::StreamFactory> streamFactory_;
 };
 
 }  // namespace fqc::commands

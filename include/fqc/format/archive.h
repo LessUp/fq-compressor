@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iosfwd>
-#include <memory>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -70,22 +69,31 @@ struct ArchiveStats {
 class ArchiveWriter {
 public:
     ArchiveWriter(std::ostream& output, ArchiveOptions options);
-    ~ArchiveWriter();
 
     ArchiveWriter(const ArchiveWriter&) = delete;
     ArchiveWriter& operator=(const ArchiveWriter&) = delete;
-    ArchiveWriter(ArchiveWriter&&) noexcept;
-    ArchiveWriter& operator=(ArchiveWriter&&) noexcept;
 
     [[nodiscard]] auto writeFrame(std::span<const ReadRecord> records) -> VoidResult;
     [[nodiscard]] auto finish() -> VoidResult;
 
-    [[nodiscard]] auto metadata() const noexcept -> const ArchiveMetadata&;
-    [[nodiscard]] auto stats() const noexcept -> const ArchiveStats&;
+    [[nodiscard]] auto metadata() const noexcept -> const ArchiveMetadata& {
+        return metadata_;
+    }
+
+    [[nodiscard]] auto stats() const noexcept -> const ArchiveStats& {
+        return stats_;
+    }
 
 private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    [[nodiscard]] auto ensureHeader() -> VoidResult;
+
+    std::ostream& output_;
+    ArchiveOptions options_;
+    ArchiveMetadata metadata_;
+    ArchiveStats stats_;
+    std::uint64_t globalChecksum_ = 0;
+    bool headerWritten_ = false;
+    bool finished_ = false;
 };
 
 class ArchiveReader {
@@ -93,23 +101,39 @@ public:
     explicit ArchiveReader(std::istream& input,
                            std::size_t maxFrameBytes = kDefaultMaxFrameBytes,
                            std::size_t memoryLimitBytes = kDefaultMemoryLimitBytes);
-    ~ArchiveReader();
 
     ArchiveReader(const ArchiveReader&) = delete;
     ArchiveReader& operator=(const ArchiveReader&) = delete;
-    ArchiveReader(ArchiveReader&&) noexcept;
-    ArchiveReader& operator=(ArchiveReader&&) noexcept;
 
     [[nodiscard]] auto open() -> Result<ArchiveMetadata>;
     [[nodiscard]] auto readFrame() -> Result<std::optional<std::vector<ReadRecord>>>;
 
-    [[nodiscard]] auto metadata() const noexcept -> const ArchiveMetadata&;
-    [[nodiscard]] auto stats() const noexcept -> const ArchiveStats&;
-    [[nodiscard]] auto finished() const noexcept -> bool;
+    [[nodiscard]] auto metadata() const noexcept -> const ArchiveMetadata& {
+        return metadata_;
+    }
+
+    [[nodiscard]] auto stats() const noexcept -> const ArchiveStats& {
+        return stats_;
+    }
+
+    [[nodiscard]] auto finished() const noexcept -> bool {
+        return finished_;
+    }
 
 private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    [[nodiscard]] auto readCompressed(std::uint64_t compressedSize, std::uint64_t rawSize)
+        -> Result<std::vector<std::uint8_t>>;
+    [[nodiscard]] auto readFooter(std::span<const std::uint8_t> magicBytes)
+        -> Result<std::optional<std::vector<ReadRecord>>>;
+
+    std::istream& input_;
+    std::size_t maxFrameBytes_;
+    std::size_t memoryLimitBytes_;
+    ArchiveMetadata metadata_;
+    ArchiveStats stats_;
+    std::uint64_t globalChecksum_ = 0;
+    bool opened_ = false;
+    bool finished_ = false;
 };
 
 }  // namespace fqc::format

@@ -253,7 +253,7 @@ TEST(ArchiveTest, RejectsIncompletePair) {
     ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina, .paired = true});
     auto result = writer.writeFrame(std::span(records).first(1));
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
+    EXPECT_EQ(result.error().code, ErrorCode::kUsageError);
 }
 
 TEST(ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
@@ -262,7 +262,7 @@ TEST(ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
                                        {.profile = static_cast<DatasetProfile>(0)});
     auto profileResult = invalidProfileWriter.finish();
     ASSERT_FALSE(profileResult);
-    EXPECT_EQ(profileResult.error().code(), ErrorCode::kUsageError);
+    EXPECT_EQ(profileResult.error().code, ErrorCode::kUsageError);
 
     const std::vector<ReadRecord> invalidRecords = {
         {"", "", "ACGT", "IIII"},
@@ -276,7 +276,7 @@ TEST(ArchiveTest, RejectsInvalidProfileAndLogicalRecords) {
         ArchiveWriter writer(output, {.profile = DatasetProfile::kIllumina});
         auto result = writer.writeFrame(std::span(&record, 1));
         ASSERT_FALSE(result);
-        EXPECT_EQ(result.error().code(), ErrorCode::kUsageError);
+        EXPECT_EQ(result.error().code, ErrorCode::kUsageError);
     }
 }
 
@@ -290,8 +290,8 @@ TEST(ArchiveTest, DetectsCorruptionAndTruncation) {
     ASSERT_TRUE(corruptReader.open());
     auto corruptFrame = corruptReader.readFrame();
     ASSERT_FALSE(corruptFrame);
-    EXPECT_TRUE(corruptFrame.error().code() == ErrorCode::kFormatError ||
-                corruptFrame.error().code() == ErrorCode::kChecksumError);
+    EXPECT_TRUE(corruptFrame.error().code == ErrorCode::kFormatError ||
+                corruptFrame.error().code == ErrorCode::kChecksumError);
 
     const auto valid = writeArchive({.profile = DatasetProfile::kOnt}, records);
     std::istringstream truncatedInput(valid.substr(0, valid.size() - 5), std::ios::binary);
@@ -300,7 +300,7 @@ TEST(ArchiveTest, DetectsCorruptionAndTruncation) {
     ASSERT_TRUE(truncatedReader.readFrame());
     auto truncatedFooter = truncatedReader.readFrame();
     ASSERT_FALSE(truncatedFooter);
-    EXPECT_EQ(truncatedFooter.error().code(), ErrorCode::kFormatError);
+    EXPECT_EQ(truncatedFooter.error().code, ErrorCode::kFormatError);
 }
 
 TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
@@ -312,7 +312,7 @@ TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ArchiveReader globalReader(globalInput);
     auto globalResult = globalReader.open();
     ASSERT_FALSE(globalResult);
-    EXPECT_EQ(globalResult.error().code(), ErrorCode::kChecksumError);
+    EXPECT_EQ(globalResult.error().code, ErrorCode::kChecksumError);
 
     auto frameHeader = valid;
     writeU32(frameHeader, kFrameIdOffset, 1);
@@ -321,7 +321,7 @@ TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ASSERT_TRUE(frameReader.open());
     auto frameResult = frameReader.readFrame();
     ASSERT_FALSE(frameResult);
-    EXPECT_EQ(frameResult.error().code(), ErrorCode::kFormatError);
+    EXPECT_EQ(frameResult.error().code, ErrorCode::kFormatError);
 
     const auto layout = frameLayout(valid);
     auto rawIds = decompressStream(valid, layout.idsOffset, layout.idsSize, layout.rawIdsSize);
@@ -333,7 +333,7 @@ TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ASSERT_TRUE(payloadReader.open());
     auto payloadResult = payloadReader.readFrame();
     ASSERT_FALSE(payloadResult);
-    EXPECT_EQ(payloadResult.error().code(), ErrorCode::kChecksumError);
+    EXPECT_EQ(payloadResult.error().code, ErrorCode::kChecksumError);
 
     auto footer = valid;
     footer.back() ^= 0x01;
@@ -343,7 +343,7 @@ TEST(ArchiveTest, ClassifiesCorruptionInEachArchiveRegion) {
     ASSERT_TRUE(footerReader.readFrame());
     auto footerResult = footerReader.readFrame();
     ASSERT_FALSE(footerResult);
-    EXPECT_EQ(footerResult.error().code(), ErrorCode::kChecksumError);
+    EXPECT_EQ(footerResult.error().code, ErrorCode::kChecksumError);
 }
 
 TEST(ArchiveTest, RejectsHostileFrameMetadata) {
@@ -354,7 +354,7 @@ TEST(ArchiveTest, RejectsHostileFrameMetadata) {
         EXPECT_TRUE(reader.open());
         auto result = reader.readFrame();
         ASSERT_FALSE(result);
-        EXPECT_EQ(result.error().code(), ErrorCode::kFormatError);
+        EXPECT_EQ(result.error().code, ErrorCode::kFormatError);
     };
 
     auto oversizedRaw = valid;
@@ -392,7 +392,7 @@ TEST(ArchiveTest, RejectsTruncatedVarintInAuthenticatedLogicalStream) {
     ASSERT_TRUE(reader.open());
     auto result = reader.readFrame();
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code(), ErrorCode::kFormatError);
+    EXPECT_EQ(result.error().code, ErrorCode::kFormatError);
 }
 
 TEST(ArchiveTest, SeededPairedRoundTripIsDeterministicAcrossFrames) {
@@ -466,7 +466,7 @@ TEST(ArchiveTest, RejectsBytesAfterFooter) {
     ASSERT_TRUE(reader.readFrame());
     auto footer = reader.readFrame();
     ASSERT_FALSE(footer);
-    EXPECT_EQ(footer.error().code(), ErrorCode::kFormatError);
+    EXPECT_EQ(footer.error().code, ErrorCode::kFormatError);
 }
 
 TEST(ArchiveTest, RejectsLegacyOrUnknownInput) {
@@ -474,8 +474,8 @@ TEST(ArchiveTest, RejectsLegacyOrUnknownInput) {
     ArchiveReader reader(input);
     auto result = reader.open();
     ASSERT_FALSE(result);
-    EXPECT_TRUE(result.error().code() == ErrorCode::kFormatError ||
-                result.error().code() == ErrorCode::kFormatError);
+    EXPECT_TRUE(result.error().code == ErrorCode::kFormatError ||
+                result.error().code == ErrorCode::kFormatError);
 
     auto unsupported = writeArchive({.profile = DatasetProfile::kIllumina}, makeRecords());
     unsupported[17] = 0x7F;
@@ -483,7 +483,7 @@ TEST(ArchiveTest, RejectsLegacyOrUnknownInput) {
     ArchiveReader unsupportedReader(unsupportedInput);
     auto unsupportedResult = unsupportedReader.open();
     ASSERT_FALSE(unsupportedResult);
-    EXPECT_EQ(unsupportedResult.error().code(), ErrorCode::kUnsupportedCodec);
+    EXPECT_EQ(unsupportedResult.error().code, ErrorCode::kUnsupportedCodec);
 }
 
 TEST(ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
@@ -496,7 +496,7 @@ TEST(ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
         {.profile = DatasetProfile::kOnt, .memoryLimitBytes = 16 * 1024 * 1024 + 1024});
     auto writeResult = limitedWriter.writeFrame(records);
     ASSERT_FALSE(writeResult);
-    EXPECT_EQ(writeResult.error().code(), ErrorCode::kUsageError);
+    EXPECT_EQ(writeResult.error().code, ErrorCode::kUsageError);
 
     const auto archive = writeArchive({.profile = DatasetProfile::kOnt}, records);
     std::istringstream limitedInput(archive, std::ios::binary);
@@ -504,7 +504,7 @@ TEST(ArchiveTest, RejectsFramesThatExceedCompressionOrDecodeMemoryBudget) {
     ASSERT_TRUE(limitedReader.open());
     auto readResult = limitedReader.readFrame();
     ASSERT_FALSE(readResult);
-    EXPECT_EQ(readResult.error().code(), ErrorCode::kFormatError);
+    EXPECT_EQ(readResult.error().code, ErrorCode::kFormatError);
 }
 
 TEST(ArchiveTest, ParsesProfilesStrictly) {

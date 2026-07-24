@@ -192,15 +192,15 @@ private:
 
 /// @brief Open a file with automatic decompression.
 /// @param path File path.
-/// @return Input stream (decompressing if needed).
-/// @throws IOError if file cannot be opened.
-[[nodiscard]] std::unique_ptr<std::istream> openCompressedFile(const std::filesystem::path& path);
+/// @return Input stream (decompressing if needed), or error.
+[[nodiscard]] auto openCompressedFile(const std::filesystem::path& path)
+    -> Result<std::unique_ptr<std::istream>>;
 
 /// @brief Open a file or stdin with automatic decompression.
 /// @param path File path (or "-" for stdin).
-/// @return Input stream (decompressing if needed).
-/// @throws IOError if file cannot be opened.
-[[nodiscard]] std::unique_ptr<std::istream> openInputFile(const std::filesystem::path& path);
+/// @return Input stream (decompressing if needed), or error.
+[[nodiscard]] auto openInputFile(const std::filesystem::path& path)
+    -> Result<std::unique_ptr<std::istream>>;
 
 // =============================================================================
 // Compression Support Query

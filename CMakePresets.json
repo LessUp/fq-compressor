@@ -1,136 +1,36 @@
 {
     "version": 6,
-    "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 28,
-        "patch": 0
-    },
+    "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
     "configurePresets": [
         {
             "name": "base",
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-            "installDir": "${sourceDir}/install/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_STANDARD": "23",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_COLOR_DIAGNOSTICS": "ON"
-            },
-            "condition": {
-                "type": "notEquals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            }
-        },
-        {
-            "name": "ci-base",
-            "hidden": true,
-            "inherits": "base",
-            "displayName": "CI Base",
-            "description": "Base configuration for CI environments",
-            "cacheVariables": {
-                "CMAKE_COLOR_DIAGNOSTICS": "OFF"
-            },
-            "environment": {
-                "CTEST_OUTPUT_ON_FAILURE": "1"
-            }
-        },
-        {
-            "name": "gcc-base",
-            "hidden": true,
-            "inherits": "base",
-            "displayName": "GCC Base",
-            "description": "Base configuration for GCC compiler",
-            "cacheVariables": {
-                "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++"
-            },
-            "environment": {
-                "CC": "gcc",
-                "CXX": "g++"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
             }
         },
         {
             "name": "clang-base",
             "hidden": true,
             "inherits": "base",
-            "displayName": "Clang Base",
-            "description": "Base configuration for Clang compiler with libc++",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_CXX_FLAGS": "-stdlib=libc++",
                 "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++ -lc++abi",
                 "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++ -lc++abi"
-            },
-            "environment": {
-                "CC": "clang",
-                "CXX": "clang++"
-            }
-        },
-        {
-            "name": "conan-gcc-debug-base",
-            "hidden": true,
-            "inherits": "gcc-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
-        },
-        {
-            "name": "conan-gcc-release-base",
-            "hidden": true,
-            "inherits": "gcc-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/build/Release/generators/conan_toolchain.cmake"
-        },
-        {
-            "name": "conan-clang-debug-base",
-            "hidden": true,
-            "inherits": "clang-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake"
-        },
-        {
-            "name": "conan-clang-release-base",
-            "hidden": true,
-            "inherits": "clang-base",
-            "toolchainFile": "${sourceDir}/build/${presetName}/build/Release/generators/conan_toolchain.cmake"
-        },
-        {
-            "name": "gcc-debug",
-            "displayName": "GCC Debug",
-            "description": "Debug build with GCC",
-            "inherits": "conan-gcc-debug-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
-            }
-        },
-        {
-            "name": "gcc-release",
-            "displayName": "GCC Release",
-            "description": "Release build with GCC (recommended for production)",
-            "inherits": "conan-gcc-release-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto",
-                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
-            }
-        },
-        {
-            "name": "gcc-relwithdebinfo",
-            "displayName": "GCC RelWithDebInfo",
-            "description": "Release build with debug info using GCC",
-            "inherits": "conan-gcc-release-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g -DNDEBUG"
             }
         },
         {
             "name": "clang-debug",
             "displayName": "Clang Debug",
-            "description": "Debug build with Clang",
-            "inherits": "conan-clang-debug-base",
+            "inherits": "clang-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
@@ -139,8 +39,8 @@
         {
             "name": "clang-release",
             "displayName": "Clang Release",
-            "description": "Release build with Clang",
-            "inherits": "conan-clang-release-base",
+            "inherits": "clang-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Release/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG -march=native -flto=thin",
@@ -149,226 +49,59 @@
         },
         {
             "name": "clang-asan",
-            "displayName": "Clang AddressSanitizer",
-            "description": "Debug build with AddressSanitizer for memory error detection",
-            "inherits": "conan-clang-debug-base",
+            "displayName": "Clang ASan+UBSan",
+            "inherits": "clang-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -fsanitize=address,undefined -fno-sanitize=vptr -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined",
-                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=address,undefined"
+                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=address,undefined",
+                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=address,undefined"
             }
         },
         {
             "name": "clang-tsan",
-            "displayName": "Clang ThreadSanitizer",
-            "description": "Debug build with ThreadSanitizer for data race detection",
-            "inherits": "conan-clang-debug-base",
+            "displayName": "Clang TSan",
+            "inherits": "clang-base",
+            "toolchainFile": "${sourceDir}/build/${presetName}/build/Debug/generators/conan_toolchain.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -DDEBUG -fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-fsanitize=thread",
-                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-fsanitize=thread"
+                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=thread",
+                "CMAKE_SHARED_LINKER_FLAGS_DEBUG": "-stdlib=libc++ -lc++abi -fsanitize=thread"
             }
-        },
-        {
-            "name": "coverage",
-            "displayName": "Coverage (GCC)",
-            "description": "Debug build with coverage analysis using GCC",
-            "inherits": "gcc-debug",
-            "cacheVariables": {
-                "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG --coverage",
-                "CMAKE_EXE_LINKER_FLAGS_DEBUG": "--coverage",
-                "ENABLE_COVERAGE": "ON"
-            }
-        },
-        {
-            "name": "ci-gcc-release",
-            "displayName": "CI GCC Release",
-            "description": "Release build for CI with GCC",
-            "inherits": [
-                "ci-base",
-                "gcc-release"
-            ]
-        },
-        {
-            "name": "ci-clang-release",
-            "displayName": "CI Clang Release",
-            "description": "Release build for CI with Clang",
-            "inherits": [
-                "ci-base",
-                "clang-release"
-            ]
-        },
-        {
-            "name": "ci-clang-debug",
-            "displayName": "CI Clang Debug",
-            "description": "Debug build for CI with Clang (for linting)",
-            "inherits": [
-                "ci-base",
-                "clang-debug"
-            ]
         }
     ],
     "buildPresets": [
-        {
-            "name": "gcc-debug",
-            "configurePreset": "gcc-debug",
-            "displayName": "GCC Debug Build"
-        },
-        {
-            "name": "gcc-release",
-            "configurePreset": "gcc-release",
-            "displayName": "GCC Release Build"
-        },
-        {
-            "name": "gcc-relwithdebinfo",
-            "configurePreset": "gcc-relwithdebinfo",
-            "displayName": "GCC RelWithDebInfo Build"
-        },
+        { "name": "clang-debug", "configurePreset": "clang-debug" },
+        { "name": "clang-release", "configurePreset": "clang-release" },
+        { "name": "clang-asan", "configurePreset": "clang-asan" },
+        { "name": "clang-tsan", "configurePreset": "clang-tsan" }
+    ],
+    "testPresets": [
         {
             "name": "clang-debug",
             "configurePreset": "clang-debug",
-            "displayName": "Clang Debug Build"
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error" }
         },
         {
             "name": "clang-release",
             "configurePreset": "clang-release",
-            "displayName": "Clang Release Build"
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error" }
         },
         {
             "name": "clang-asan",
             "configurePreset": "clang-asan",
-            "displayName": "Clang ASan Build"
+            "output": { "outputOnFailure": true, "verbosity": "verbose" },
+            "execution": { "noTestsAction": "error", "stopOnFailure": true }
         },
         {
             "name": "clang-tsan",
             "configurePreset": "clang-tsan",
-            "displayName": "Clang TSan Build"
-        },
-        {
-            "name": "coverage",
-            "configurePreset": "coverage",
-            "displayName": "Coverage Build"
-        },
-        {
-            "name": "ci-gcc-release",
-            "configurePreset": "ci-gcc-release",
-            "displayName": "CI GCC Release Build"
-        },
-        {
-            "name": "ci-clang-release",
-            "configurePreset": "ci-clang-release",
-            "displayName": "CI Clang Release Build"
-        },
-        {
-            "name": "ci-clang-debug",
-            "configurePreset": "ci-clang-debug",
-            "displayName": "CI Clang Debug Build"
-        }
-    ],
-    "testPresets": [
-        {
-            "name": "gcc-debug",
-            "configurePreset": "gcc-debug",
-            "displayName": "GCC Debug Tests",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        },
-        {
-            "name": "gcc-release",
-            "configurePreset": "gcc-release",
-            "displayName": "GCC Release Tests",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        },
-        {
-            "name": "clang-debug",
-            "configurePreset": "clang-debug",
-            "displayName": "Clang Debug Tests",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        },
-        {
-            "name": "clang-asan",
-            "configurePreset": "clang-asan",
-            "displayName": "Clang ASan Tests",
-            "output": {
-                "outputOnFailure": true,
-                "verbosity": "verbose"
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": true
-            }
-        },
-        {
-            "name": "clang-tsan",
-            "configurePreset": "clang-tsan",
-            "displayName": "Clang TSan Tests",
-            "output": {
-                "outputOnFailure": true,
-                "verbosity": "verbose"
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": true
-            }
-        },
-        {
-            "name": "coverage",
-            "configurePreset": "coverage",
-            "displayName": "Coverage Tests",
-            "output": {
-                "outputOnFailure": true,
-                "verbosity": "verbose"
-            }
-        },
-        {
-            "name": "ci-gcc-release",
-            "configurePreset": "ci-gcc-release",
-            "displayName": "CI GCC Release Tests",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        },
-        {
-            "name": "ci-clang-release",
-            "configurePreset": "ci-clang-release",
-            "displayName": "CI Clang Release Tests",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "stopOnFailure": false
-            }
-        }
-    ],
-    "packagePresets": [
-        {
-            "name": "gcc-release",
-            "configurePreset": "gcc-release",
-            "displayName": "Release Package (GCC)"
+            "output": { "outputOnFailure": true, "verbosity": "verbose" },
+            "execution": { "noTestsAction": "error", "stopOnFailure": true }
         }
     ]
 }

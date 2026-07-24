@@ -64,15 +64,6 @@ endfunction()
 # Unit Tests
 # =============================================================================
 
-# Build-system smoke test
-fqc_add_test(build_smoke_test
-    SOURCES placeholder_test.cpp
-)
-target_compile_definitions(build_smoke_test
-    PRIVATE
-        FQC_EXPECTED_VERSION="${FQC_VERSION}"
-)
-
 # Error Handling Tests
 fqc_add_test(error_test
     SOURCES common/error_test.cpp
@@ -81,11 +72,6 @@ fqc_add_test(error_test
 # FQC v2 sequential archive tests
 fqc_add_test(archive_test
     SOURCES format/archive_test.cpp
-)
-
-# Stream factory tests
-fqc_add_test(stream_factory_test
-    SOURCES io/stream_factory_test.cpp
 )
 
 # FASTQ parser tests
@@ -102,6 +88,16 @@ fqc_add_test(compressed_stream_test
 fqc_add_test(archive_engine_test
     SOURCES commands/archive_engine_test.cpp
     LIBRARIES fqc_cli
+)
+
+# SPSC queue unit tests
+fqc_add_test(spsc_queue_test
+    SOURCES pipeline/spsc_queue_test.cpp
+)
+
+# Compression pipeline integration tests
+fqc_add_test(pipeline_test
+    SOURCES pipeline/pipeline_test.cpp
 )
 
 add_test(

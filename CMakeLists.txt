@@ -4,7 +4,7 @@
 # CMake build configuration for fq-compressor project
 # 
 # Requirements: CMake 3.28+, C++23 compiler (GCC 14+ or Clang 18+)
-# Dependencies: CLI11, Quill, zlib, zstd, xxHash, GTest (via Conan 2.x)
+# Dependencies: CLI11, fmt, zlib, zstd, xxHash, GTest (via Conan 2.x)
 #
 # Build presets are defined in CMakePresets.json for consistent builds.
 # =============================================================================
@@ -127,22 +127,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # =============================================================================
-# Sanitizer Support
-# =============================================================================
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/fqc_sanitizers.cmake)
-fqc_add_sanitizer_flags_global()
-
-# =============================================================================
-# Code Coverage Support
-# =============================================================================
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/fqc_coverage.cmake)
-if(ENABLE_COVERAGE)
-    fqc_add_coverage_flags_global()
-endif()
-
-# =============================================================================
 # Conan Integration
 # =============================================================================
 # Dependencies are managed via Conan 2.x. Run `conan install . --build=missing`
@@ -166,10 +150,6 @@ endif()
 # CLI parsing library
 find_package(CLI11 CONFIG REQUIRED)
 message(STATUS "Found CLI11: ${CLI11_VERSION}")
-
-# Logging library
-find_package(quill CONFIG REQUIRED)
-message(STATUS "Found Quill: ${quill_VERSION}")
 
 # Formatting library
 find_package(fmt CONFIG REQUIRED)

@@ -52,11 +52,8 @@ class FQCompressorConan(ConanFile):
         self.requires("cli11/2.4.2")
 
         # =========================================================================
-        # Logging (Requirement 4.2)
+        # Logging / Formatting
         # =========================================================================
-        # Quill: Low-latency asynchronous logging library
-        self.requires("quill/11.0.2")
-        # fmt: Modern formatting library (required by Quill)
         self.requires("fmt/12.1.0")
 
         # =========================================================================

@@ -5,8 +5,8 @@
 #include "fqc/io/fastq_parser.h"
 
 #include "fqc/common/types.h"
-#include "fqc/io/stream_factory.h"
 
+#include <sstream>
 #include <type_traits>
 
 #include <gtest/gtest.h>
@@ -17,62 +17,83 @@ TEST(FastqParserTest, FastqRecordUsesSharedReadRecordType) {
     EXPECT_TRUE((std::is_same_v<FastqRecord, ReadRecord>));
 }
 
-TEST(FastqParserTest, LastErrorUsesOneBasedRecordNumberForFailingRecord) {
-    auto factory = std::make_shared<MemoryStreamFactory>();
-    factory->setFileContent("broken.fastq", "@read1\nACGT\n-\nIIII\n");
+TEST(FastqParserTest, ParsesValidRecord) {
+    std::istringstream input("@read1 comment\nACGT\n+\nIIII\n");
+    FastqParser parser(input);
 
-    FastqParser parser("broken.fastq", factory);
-    parser.open();
-
-    EXPECT_THROW(static_cast<void>(parser.readRecord()), FQCException);
-    ASSERT_TRUE(parser.lastError().has_value());
-    EXPECT_EQ(parser.lastError()->lineNumber, 3u);
-    EXPECT_EQ(parser.lastError()->recordNumber, 1u);
+    auto result = parser.readRecord();
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->has_value());
+    EXPECT_EQ((**result).id, "read1");
+    EXPECT_EQ((**result).comment, "comment");
+    EXPECT_EQ((**result).sequence, "ACGT");
+    EXPECT_EQ((**result).quality, "IIII");
 }
 
-TEST(FastqParserTest, SampleRecordsPreservesCurrentReadPosition) {
-    auto factory = std::make_shared<MemoryStreamFactory>();
-    factory->setFileContent("reads.fastq",
-                            "@read1\nACGT\n+\nFFFF\n"
-                            "@read2\nTGCA\n+\nHHHH\n");
-
-    FastqParser parser("reads.fastq", factory);
-    parser.open();
+TEST(FastqParserTest, ReturnsNulloptAtEof) {
+    std::istringstream input("@read1\nACGT\n+\nIIII\n");
+    FastqParser parser(input);
 
     auto first = parser.readRecord();
     ASSERT_TRUE(first.has_value());
-    EXPECT_EQ(first->id, "read1");
+    ASSERT_TRUE(first->has_value());
 
-    const auto sample = parser.sampleRecords(1);
-    EXPECT_EQ(sample.totalRecords, 1u);
-
-    auto next = parser.readRecord();
-    ASSERT_TRUE(next.has_value());
-    EXPECT_EQ(next->id, "read2");
+    auto second = parser.readRecord();
+    ASSERT_TRUE(second.has_value());
+    EXPECT_FALSE(second->has_value());
 }
 
-TEST(FastqParserTest, TrailingSpacesInSequenceAndQualityRemainFormatErrors) {
-    auto factory = std::make_shared<MemoryStreamFactory>();
-    factory->setFileContent("broken.fastq", "@read1\nACGT \n+\nFFFF \n");
+TEST(FastqParserTest, RejectsMissingAtSign) {
+    std::istringstream input("read1\nACGT\n+\nIIII\n");
+    FastqParser parser(input);
 
-    FastqParser parser("broken.fastq", factory);
-    parser.open();
+    auto result = parser.readRecord();
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ErrorCode::kFormatError);
+}
 
-    EXPECT_THROW(static_cast<void>(parser.readRecord()), FQCException);
+TEST(FastqParserTest, RejectsQualityLengthMismatch) {
+    std::istringstream input("@read1\nACGT\n+\nII\n");
+    FastqParser parser(input);
+
+    auto result = parser.readRecord();
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error().code, ErrorCode::kFormatError);
 }
 
 TEST(FastqParserTest, AcceptsUpperAndLowerCaseIupacSequenceSymbols) {
-    auto factory = std::make_shared<MemoryStreamFactory>();
-    factory->setFileContent("iupac.fastq",
-                            "@read1\nACGTRYSWKMBDHVNacgtryswkmbdhvn\n+\n"
-                            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
+    std::istringstream input(
+        "@read1\nACGTRYSWKMBDHVNacgtryswkmbdhvn\n+\n"
+        "IIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
+    FastqParser parser(input);
 
-    FastqParser parser("iupac.fastq", factory);
-    parser.open();
+    auto result = parser.readRecord();
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->has_value());
+    EXPECT_EQ((**result).sequence, "ACGTRYSWKMBDHVNacgtryswkmbdhvn");
+}
 
-    auto record = parser.readRecord();
-    ASSERT_TRUE(record.has_value());
-    EXPECT_EQ(record->sequence, "ACGTRYSWKMBDHVNacgtryswkmbdhvn");
+TEST(FastqParserTest, SkipsLeadingEmptyLines) {
+    std::istringstream input("\n\n@read1\nACGT\n+\nIIII\n");
+    FastqParser parser(input);
+
+    auto result = parser.readRecord();
+    ASSERT_TRUE(result.has_value());
+    ASSERT_TRUE(result->has_value());
+    EXPECT_EQ((**result).id, "read1");
+}
+
+TEST(FastqParserTest, TracksLineAndRecordNumbers) {
+    std::istringstream input("@r1\nACGT\n+\nIIII\n@r2\nTGCA\n+\nJJJJ\n");
+    FastqParser parser(input);
+
+    auto first = parser.readRecord();
+    ASSERT_TRUE(first.has_value());
+    EXPECT_EQ(parser.recordNumber(), 1U);
+
+    auto second = parser.readRecord();
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(parser.recordNumber(), 2U);
 }
 
 }  // namespace fqc::io::test

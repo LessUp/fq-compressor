@@ -1,21 +1,49 @@
 #!/usr/bin/env bash
-# scripts/test.sh - 测试运行脚本（简化入口，委托给 run_tests.sh）
-#
-# Usage:
-#   ./scripts/test.sh [preset] [filter]
-#
-# For advanced options (--label, --verbose, --build-only), use run_tests.sh directly.
+# Usage: ./scripts/test.sh [preset] [filter]
+#        ./scripts/test.sh -p clang-asan -f 'Archive*' -v
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PRESET="clang-debug"
+FILTER=""
+LABEL=""
+VERBOSE=""
+BUILD_ONLY=false
 
-PRESET="${1:-clang-debug}"
-FILTER="${2:-}"
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--preset) PRESET="$2"; shift 2 ;;
+        -f|--filter) FILTER="$2"; shift 2 ;;
+        -l|--label) LABEL="$2"; shift 2 ;;
+        -v|--verbose) VERBOSE="--verbose"; shift ;;
+        -b|--build-only) BUILD_ONLY=true; shift ;;
+        -*) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) if [[ -z "$FILTER" && "$PRESET" == "clang-debug" ]]; then PRESET="$1"; else FILTER="$1"; fi; shift ;;
+    esac
+done
 
-ARGS=(-p "$PRESET")
-if [ -n "$FILTER" ]; then
-    ARGS+=(-f "$FILTER")
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_DIR="$PROJECT_DIR/build/$PRESET"
+
+cd "$PROJECT_DIR"
+
+if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+    cmake --preset "$PRESET"
 fi
 
-exec "$SCRIPT_DIR/run_tests.sh" "${ARGS[@]}"
+echo "=== Building ($PRESET) ==="
+cmake --build --preset "$PRESET" 2>&1 | tail -5
+
+if [[ "$BUILD_ONLY" == true ]]; then
+    echo "Build-only mode: done."
+    exit 0
+fi
+
+CTEST_ARGS=(--test-dir "$BUILD_DIR" --output-on-failure)
+[[ -n "$VERBOSE" ]] && CTEST_ARGS+=("$VERBOSE")
+[[ -n "$FILTER" ]] && CTEST_ARGS+=(-R "$FILTER")
+[[ -n "$LABEL" ]] && CTEST_ARGS+=(-L "$LABEL")
+
+echo ""
+echo "=== Running tests ($PRESET) ==="
+ctest "${CTEST_ARGS[@]}"

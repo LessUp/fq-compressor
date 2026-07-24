@@ -14,12 +14,10 @@
 
 # Collect source files for the core library
 set(FQC_CORE_SOURCES
-    common/error.cpp
-    common/logger.cpp
     format/archive.cpp
     io/fastq_parser.cpp
     io/compressed_stream.cpp
-    io/stream_factory.cpp
+    pipeline/compress_pipeline.cpp
 )
 
 # Command sources
@@ -41,7 +39,6 @@ target_compile_features(fqc_core PUBLIC cxx_std_23)
 target_link_libraries(fqc_core
     PUBLIC
         fmt::fmt
-        quill::quill
         ZLIB::ZLIB
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_shared>
         $<TARGET_NAME_IF_EXISTS:zstd::libzstd_static>

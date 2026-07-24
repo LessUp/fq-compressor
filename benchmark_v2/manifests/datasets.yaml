@@ -23,7 +23,7 @@ datasets:
       - "bzip2"
       - "spring"
     preparation:
-      - "./scripts/benchmark.sh --dataset err091571-local-supported --prepare-only"
+      - "./scripts/benchmark_v2.sh --dataset err091571-local-supported --prepare-only"
     notes:
       - "The tracked benchmark artifact uses the first 2,000 records streamed from the public ERR091571 read 1 FASTQ so the evidence chain stays public and reproducible while still completing in the local closeout validation loop."
       - "Read 2 is prepared alongside read 1 to preserve paired-end provenance, but the current tracked local-supported comparison uses the read 1 subset as a single-input workload because generic compressors do not consume paired FASTQ pairs directly."

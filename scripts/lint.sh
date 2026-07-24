@@ -5,8 +5,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
+
+resolve_cmake_build_dir() {
+    local build_dir="$PROJECT_DIR/build/$2"
+    if [ -f "$build_dir/$3" ]; then echo "$build_dir"
+    elif [ -f "$build_dir/build/Debug/$3" ]; then echo "$build_dir/build/Debug"
+    elif [ -f "$build_dir/build/Release/$3" ]; then echo "$build_dir/build/Release"
+    else echo "$build_dir"; fi
+}
 
 ACTION="${1:-lint}"
 PRESET="${2:-clang-debug}"

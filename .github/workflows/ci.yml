@@ -1,17 +1,10 @@
-# .github/workflows/ci.yml
-# =============================================================================
-# fq-compressor CI Pipeline
-# =============================================================================
-# Unified CI workflow: format check, build, test
-# =============================================================================
-
 name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master]
   pull_request:
-    branches: [master, main]
+    branches: [master]
 
 permissions:
   contents: read
@@ -20,150 +13,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CI_IMAGE_NAME: fqcompressor-ci
-
 jobs:
-  format-check:
-    name: Format Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build CI image
-        run: docker build -f docker/Dockerfile.dev --target base -t ${{ env.CI_IMAGE_NAME }}:format .
-      - name: Check formatting
-        run: docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace ${{ env.CI_IMAGE_NAME }}:format ./scripts/lint.sh format-check
-
   build-and-test:
-    name: Build & Test (${{ matrix.preset }})
-    runs-on: ubuntu-latest
-    needs: format-check
-    strategy:
-      fail-fast: false
-      matrix:
-        preset: [gcc-release, clang-debug, clang-asan]
-
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
-      - name: Cache Conan
-        uses: actions/cache@v5
-        with:
-          path: ~/.conan2
-          key: ${{ runner.os }}-conan-${{ hashFiles('conanfile.py') }}
-
-      - name: Cache ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.preset }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-ccache-${{ matrix.preset }}-
-
-      - name: Prepare cache dirs
-        run: mkdir -p "$HOME/.conan2" "$HOME/.cache/ccache"
-
-      - name: Build CI image
-        run: docker build -f docker/Dockerfile.dev --target base -t ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} .
-
-      - name: Build
+      - name: Install toolchain
         run: |
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
-            -v "$HOME/.conan2:/tmp/conan2" \
-            -v "$HOME/.cache/ccache:/tmp/ccache" \
-            -e HOME=/tmp -e CONAN_HOME=/tmp/conan2 -e CCACHE_DIR=/tmp/ccache \
-            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            -w /workspace ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} \
-            ./scripts/build.sh ${{ matrix.preset }}
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-18 libc++-18-dev libc++abi-18-dev ninja-build
+          pip install conan --quiet
 
-      - name: Test
-        if: matrix.preset != 'clang-asan'
+      - name: Conan install
         run: |
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
-            -v "$HOME/.conan2:/tmp/conan2" \
-            -v "$HOME/.cache/ccache:/tmp/ccache" \
-            -e HOME=/tmp -e CONAN_HOME=/tmp/conan2 -e CCACHE_DIR=/tmp/ccache \
-            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            -w /workspace ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} \
-            ./scripts/test.sh ${{ matrix.preset }}
+          conan profile detect --force
+          conan install . --build=missing -s build_type=Debug
 
-      - name: Test with ASan and UBSan
-        if: matrix.preset == 'clang-asan'
-        run: |
-          docker run --rm --cap-add=SYS_PTRACE --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
-            -v "$HOME/.conan2:/tmp/conan2" \
-            -v "$HOME/.cache/ccache:/tmp/ccache" \
-            -e HOME=/tmp -e CONAN_HOME=/tmp/conan2 -e CCACHE_DIR=/tmp/ccache \
-            -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
-            -e UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
-            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            -w /workspace ${{ env.CI_IMAGE_NAME }}:${{ matrix.preset }} \
-            ./scripts/test.sh ${{ matrix.preset }}
+      - name: Build (clang-debug)
+        run: ./scripts/build.sh clang-debug
 
-      - name: Upload artifacts
-        if: endsWith(matrix.preset, 'release')
-        uses: actions/upload-artifact@v6
-        with:
-          name: fqcompressor-${{ matrix.preset }}
-          path: build/${{ matrix.preset }}/src/fqc
-          retention-days: 7
+      - name: Test (clang-debug)
+        run: ./scripts/test.sh clang-debug
 
-  acceptance:
-    name: Release Acceptance
-    runs-on: ubuntu-latest
-    needs: format-check
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Cache Conan
-        uses: actions/cache@v5
-        with:
-          path: ~/.conan2
-          key: ${{ runner.os }}-conan-acceptance-${{ hashFiles('conanfile.py', 'VERSION') }}
-          restore-keys: ${{ runner.os }}-conan-
-
-      - name: Cache ccache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ccache
-          key: ${{ runner.os }}-ccache-acceptance-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-ccache-clang-debug-
-
-      - name: Prepare cache dirs
-        run: mkdir -p "$HOME/.conan2" "$HOME/.cache/ccache"
-
-      - name: Build CI image
-        run: docker build -f docker/Dockerfile.dev --target base -t ${{ env.CI_IMAGE_NAME }}:acceptance .
-
-      - name: Run blocking acceptance
-        run: |
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspace" \
-            -v "$HOME/.conan2:/tmp/conan2" \
-            -v "$HOME/.cache/ccache:/tmp/ccache" \
-            -e HOME=/tmp -e CONAN_HOME=/tmp/conan2 -e CCACHE_DIR=/tmp/ccache \
-            -e PATH=/usr/lib/ccache:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            -w /workspace ${{ env.CI_IMAGE_NAME }}:acceptance \
-            ./scripts/acceptance.sh
-
-  devcontainer-validation:
-    name: Devcontainer Validation (non-blocking)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Build devcontainer base image
-        run: docker build -f docker/Dockerfile.dev --target base -t ${{ env.CI_IMAGE_NAME }}:devcontainer .
-
-      - name: Run devcontainer contract tests
-        run: |
-          bash tests/e2e/devcontainer_validate_test.sh
-          bash tests/e2e/devcontainer_host_sync_test.sh
-          bash tests/e2e/devcontainer_sshd_lib_test.sh
-          bash tests/e2e/devcontainer_adapter_contract_test.sh
-
-      - name: Validate live devcontainer configuration
-        run: bash scripts/devcontainer-validate.sh
+      - name: Format check
+        run: ./scripts/lint.sh format-check

@@ -48,15 +48,4 @@ bash tests/e2e/cli_smoke_test.sh
 bash tests/e2e/benchmark_v2_smoke_test.sh
 ```
 
-Devcontainer validation is a separate, non-blocking CI concern because live validation requires
-Docker and npx. Run its contract and live configuration checks explicitly on a prepared host:
-
-```bash
-bash tests/e2e/devcontainer_validate_test.sh
-bash tests/e2e/devcontainer_host_sync_test.sh
-bash tests/e2e/devcontainer_sshd_lib_test.sh
-bash tests/e2e/devcontainer_adapter_contract_test.sh
-bash scripts/devcontainer-validate.sh
-```
-
 Benchmark smoke is a local validation path, not a public performance claim.

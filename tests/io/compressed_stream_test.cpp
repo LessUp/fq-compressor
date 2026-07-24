@@ -11,6 +11,7 @@
 #include <fstream>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include <unistd.h>
@@ -141,9 +142,10 @@ TEST_F(CompressedStreamTest, OpenCompressedFileUncompressed) {
     auto path = tempDir_ / "test.txt";
     writeTestFile(path, testData_);
 
-    auto stream = openCompressedFile(path);
+    auto result = openCompressedFile(path);
+    ASSERT_TRUE(result.has_value());
     std::stringstream buffer;
-    buffer << stream->rdbuf();
+    buffer << (*result)->rdbuf();
     EXPECT_EQ(buffer.str(), testData_);
 }
 
@@ -181,9 +183,10 @@ TEST_F(CompressedStreamTest, OpenCompressedFileGzip) {
         ASSERT_EQ(system(cmd.c_str()), 0);
     }
 
-    auto stream = openCompressedFile(compressedPath);
+    auto result = openCompressedFile(compressedPath);
+    ASSERT_TRUE(result.has_value());
     std::stringstream buffer;
-    buffer << stream->rdbuf();
+    buffer << (*result)->rdbuf();
     EXPECT_EQ(buffer.str(), testData_);
 }
 
@@ -379,7 +382,7 @@ TEST_F(CompressedStreamTest, LargeFile) {
 }
 
 TEST_F(CompressedStreamTest, NonexistentFile) {
-    EXPECT_THROW(CompressedInputStream stream(tempDir_ / "nonexistent.txt"), FQCException);
+    EXPECT_THROW(CompressedInputStream stream(tempDir_ / "nonexistent.txt"), std::runtime_error);
 }
 
 TEST_F(CompressedStreamTest, InvalidGzipData) {
@@ -419,9 +422,10 @@ TEST_F(CompressedStreamTest, RoundTripGzip) {
             ASSERT_EQ(system(cmd.c_str()), 0);
         }
 
-        auto stream = openCompressedFile(compressedPath);
+        auto result = openCompressedFile(compressedPath);
+        ASSERT_TRUE(result.has_value());
         std::stringstream buffer;
-        buffer << stream->rdbuf();
+        buffer << (*result)->rdbuf();
         EXPECT_EQ(buffer.str(), testData_) << "Failed for format: " << formatName;
     }
 }
