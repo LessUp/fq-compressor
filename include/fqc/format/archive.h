@@ -120,8 +120,8 @@ public:
     }
 
 private:
-    [[nodiscard]] auto readCompressed(std::uint64_t compressedSize, std::uint64_t rawSize)
-        -> Result<std::vector<std::uint8_t>>;
+    [[nodiscard]] auto readCompressed(std::uint64_t compressedSize,
+                                      std::uint64_t rawSize) -> Result<std::vector<std::uint8_t>>;
     [[nodiscard]] auto readFooter(std::span<const std::uint8_t> magicBytes)
         -> Result<std::optional<std::vector<ReadRecord>>>;
 

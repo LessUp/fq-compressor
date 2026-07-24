@@ -29,10 +29,12 @@ find_lint_sources() {
     find "$PROJECT_DIR/src" -name "*.cpp" -not -path "*/build/*" 2>/dev/null || true
 }
 
-# 检测 clang-format 版本（优先项目标准版本）
+# 检测 clang-format 版本
+# 固定使用 clang-format-18 以与 CI（.github/workflows/ci.yml 装的是 clang-format-18）
+# 保持一致；18 与 21 在部分返回类型换行策略上输出不同，混用会导致 CI 反复失败。
 detect_clang_format() {
-    if command -v clang-format-21 &> /dev/null; then
-        echo "clang-format-21"
+    if command -v clang-format-18 &> /dev/null; then
+        echo "clang-format-18"
     elif command -v clang-format &> /dev/null; then
         echo "clang-format"
     else

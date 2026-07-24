@@ -49,8 +49,8 @@ struct VerifyOptions {
     std::string input;
 };
 
-[[nodiscard]] auto checkedMiB(std::uint64_t value, std::string_view option)
-    -> fqc::Result<std::size_t> {
+[[nodiscard]] auto checkedMiB(std::uint64_t value,
+                              std::string_view option) -> fqc::Result<std::size_t> {
     if (value == 0 || value > std::numeric_limits<std::size_t>::max() / kBytesPerMiB) {
         return fqc::makeError<std::size_t>(fqc::ErrorCode::kUsageError,
                                            std::string(option) + " is out of range");

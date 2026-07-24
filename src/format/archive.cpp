@@ -90,8 +90,8 @@ void appendString(Bytes& output, std::string_view value) {
     return static_cast<std::uint32_t>(value);
 }
 
-[[nodiscard]] auto writeBytes(std::ostream& output, std::span<const std::uint8_t> bytes)
-    -> VoidResult {
+[[nodiscard]] auto writeBytes(std::ostream& output,
+                              std::span<const std::uint8_t> bytes) -> VoidResult {
     output.write(reinterpret_cast<const char*>(bytes.data()),
                  static_cast<std::streamsize>(bytes.size()));
     if (!output) {
@@ -345,8 +345,8 @@ void appendPackedSequence(Bytes& output, std::string_view sequence) {
     return output;
 }
 
-[[nodiscard]] auto decompress(std::span<const std::uint8_t> input, std::size_t outputSize)
-    -> Result<Bytes> {
+[[nodiscard]] auto decompress(std::span<const std::uint8_t> input,
+                              std::size_t outputSize) -> Result<Bytes> {
     Bytes output(outputSize);
     const auto result = ZSTD_decompress(output.data(), output.size(), input.data(), input.size());
     if (ZSTD_isError(result) != 0U || result != outputSize) {
@@ -363,8 +363,8 @@ void appendPackedSequence(Bytes& output, std::string_view sequence) {
     return XXH64(qualities.data(), qualities.size(), checksum);
 }
 
-[[nodiscard]] auto advanceGlobalChecksum(std::uint64_t current, std::uint64_t frameChecksum)
-    -> std::uint64_t {
+[[nodiscard]] auto advanceGlobalChecksum(std::uint64_t current,
+                                         std::uint64_t frameChecksum) -> std::uint64_t {
     Bytes encoded;
     encoded.reserve(8);
     appendU64(encoded, frameChecksum);
@@ -909,8 +909,8 @@ auto ArchiveReader::readFrame() -> Result<std::optional<std::vector<ReadRecord>>
     return std::optional<std::vector<ReadRecord>>(std::move(*records));
 }
 
-auto ArchiveReader::readCompressed(std::uint64_t compressedSize, std::uint64_t rawSize)
-    -> Result<Bytes> {
+auto ArchiveReader::readCompressed(std::uint64_t compressedSize,
+                                   std::uint64_t rawSize) -> Result<Bytes> {
     Bytes encoded(static_cast<std::size_t>(compressedSize));
     if (auto result = readExact(input_, encoded); !result) {
         return makeError<Bytes>(result.error());
