@@ -117,6 +117,7 @@ CI 覆盖：clang-format、clang-tidy、GCC/Clang Release 构建、ASan/TSan/UBS
 |---|---|
 | 构建与首次运行 | 本文件 |
 | 命令参数 | `$fqc --help` |
+| 压缩算法与原理 | [ALGORITHM.md](ALGORITHM.md) |
 | 架构与字节布局 | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | 性能数据 | [performance/INDEX.md](performance/INDEX.md) |
 | 变更记录 | [CHANGELOG.md](CHANGELOG.md) |
