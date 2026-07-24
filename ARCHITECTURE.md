@@ -1,142 +1,122 @@
-# FQC v2 architecture
+# FQC v2 架构
 
-FQC v2 is a sequential framed archive. The design optimises for bounded memory, process pipelines,
-simple failure boundaries, and measured throughput. It deliberately does not provide v1
-compatibility, an index, random access, global read reordering, or a second parallel engine.
+FQC v2 是一种顺序帧归档格式，围绕四个目标设计：内存有界、管道友好、故障边界清晰、吞吐量可量化。
+v1 兼容、索引、随机访问、全局 read 重排序、第二套并行引擎——一概不做。
 
-The supported product boundary is the `fqc` CLI. Targets named `fqc_core` and `fqc_cli` and headers
-under `include/fqc` organise the source tree and tests only; they are not installed and carry no
-source or ABI compatibility promise.
+对外产品形态只有 `fqc` CLI。`fqc_core`、`fqc_cli` 这两个构建目标以及 `include/fqc` 下的头文件，
+纯粹是为了组织源码和测试，不对外安装，也没有任何源码或 ABI 兼容承诺。
 
-## Data flow
+## 数据流
 
 ```text
 FASTQ/.gz/stdin
     -> FastqParser
-    -> profile sample and resolution
-    -> retained-byte frame accumulator
-    -> three logical stream encoders
-    -> checked FQC v2 frame
-    -> file/stdout
+    -> profile 采样与判定
+    -> 保留字节帧累积器
+    -> 三路逻辑流编码器
+    -> 带校验的 FQC v2 帧
+    -> 文件/stdout
 
-FQC v2/file/stdin
-    -> checked header
-    -> bounded frame decode
-    -> logical checksum
-    -> canonical FASTQ writer
-    -> file/stdout
+FQC v2/文件/stdin
+    -> 校验头部
+    -> 有界帧解码
+    -> 逻辑校验和
+    -> 规范 FASTQ 写出
+    -> 文件/stdout
 ```
 
-The internal orchestration boundary is
-`include/fqc/commands/v2_archive_engine.h`. The CLI in `src/main.cpp` only parses arguments,
-constructs requests, and reports structured errors.
+内部编排的入口是 `include/fqc/commands/v2_archive_engine.h`。`src/main.cpp` 里的 CLI 只做三件事：
+解析参数、构造请求、报告结构化错误。
 
-## Archive layout
+## 归档布局
 
-All integers are little-endian. Sizes needed for allocation are stored before the corresponding
-payload and are checked before memory is allocated.
+所有整数均为小端序。凡是分配内存要用的大小字段，都写在对应载荷前面，先校验再分配。
 
-| Region | Contents | Integrity/bounds |
+| 区域 | 内容 | 完整性/边界 |
 |---|---|---|
-| 32-byte global header | magic, version, flags, profile, stream codec IDs | XXH64 header checksum; strict version/codec IDs |
-| Repeated 72-byte frame header | frame ID, record count, raw and encoded stream sizes | monotonic frame IDs; complete-pair invariant; per-field and aggregate memory limits |
-| ID payload | record count, ID/comment lengths and bytes | Zstd level 1 |
-| Sequence payload | record count, length, 2-bit A/C/G/T, exact exceptions | Zstd level 1 |
-| Quality payload | record count, quality lengths and bytes | Zstd level 1 |
-| 40-byte footer | frame/read/base totals and rolling checksum | totals must match decoded state |
+| 32 字节全局头 | magic、版本、标志位、profile、流编解码器 ID | XXH64 头部校验和；严格校验版本/编解码器 ID |
+| 重复的 72 字节帧头 | 帧 ID、记录数、原始/编码流大小 | 帧 ID 单调递增；成对完整性不变量；逐字段及总量内存限制 |
+| ID 载荷 | 记录数、ID/注释长度及字节 | Zstd level 1 |
+| 序列载荷 | 记录数、长度、2-bit A/C/G/T、精确异常 | Zstd level 1 |
+| 质量载荷 | 记录数、质量值长度及字节 | Zstd level 1 |
+| 40 字节 footer | 帧/read/碱基总计及滚动校验和 | 总计必须与解码状态一致 |
 
-The logical frame checksum covers the three uncompressed streams. The footer checksum advances
-over each frame checksum, so reordering, omission, duplication, payload corruption, and inconsistent
-totals are detected.
+逻辑帧校验和覆盖三路未压缩流。footer 校验和逐帧滚动累积，因此重排序、丢帧、重复帧、载荷损坏、
+总计对不上，都能被检测到。
 
-## Sequence representation
+## 序列表示
 
-Uppercase A/C/G/T use two bits each. Every other accepted IUPAC symbol, including lowercase bases,
-is stored as an exact byte plus a delta-coded position. Encoding makes one packing pass and only
-makes a second positional pass when exceptions exist; it emits exceptions directly and does not
-allocate an exception object per base. This matters for lowercase or ambiguity-heavy long reads,
-where the legacy temporary vector could dwarf the input.
+大写 A/C/G/T 各占 2 bit。其余合法 IUPAC 符号（包括小写碱基）按原始字节存储，位置用增量编码记录。
+编码只做一趟打包；只有存在异常碱基时才跑第二趟定位遍历，异常直接写出，不会为每个碱基单独分配
+异常对象。这一点对小写碱基多或简并碱基多的长读长尤为关键——旧版实现里的临时 vector 可能比
+输入数据本身还大。
 
-The v2 admission preflight validates the full upper/lower-case IUPAC alphabet while measuring the
-same stream, avoiding a duplicate parser scan. Archive decode validates exception bytes and quality
-scores before emitting a record. Sequence and quality lengths must match in both directions.
+v2 的准入预检在测量流的同时顺便校验完整的大小写 IUPAC 字母表，省掉一次重复的解析扫描。
+解码侧在输出每条记录之前，会校验异常字节和质量值的合法性。序列长度和质量长度必须双向一致。
 
-## Profiles
+## Profile
 
-`auto` samples at most 50,000 records or 512 MiB of bases, further capped by one eighth of the
-available operation budget.
+`auto` 模式最多采样 50,000 条记录或 512 MiB 碱基，且不超过可用操作预算的八分之一。
 
-- Illumina: short reads (maximum at most 1,000 bp and average at most 500 bp).
-- ONT: majority header evidence such as `runid=` or channel tags.
-- PacBio HiFi: majority `/ccs` or `hifi` header evidence.
-- PacBio CLR: majority PacBio/subread or movie/ZMW/subread-style header evidence.
+- Illumina：短读长（最长不超过 1,000 bp，平均不超过 500 bp）。
+- ONT：多数 read 头部含 `runid=` 或 channel 标签等特征。
+- PacBio HiFi：多数头部含 `/ccs` 或 `hifi` 标记。
+- PacBio CLR：多数头部含 PacBio/subread 或 movie/ZMW/subread 风格标记。
 
-Ambiguous long-read input is rejected with an instruction to pass `--profile`; it is not silently
-misclassified. Profiles are recorded in the archive but currently share fallback coding. This is
-intentional: no specialised Illumina, HiFi, ONT, or CLR codec has yet passed the size and throughput
-admission gate on an adequate real-data corpus.
+如果长读长输入的特征模糊、无法明确判定，会直接拒绝并提示用户传 `--profile`，不会静默猜错。
+Profile 会写入归档，但目前所有 profile 共用同一套回退编码。这是有意为之——还没有哪个专门的
+Illumina、HiFi、ONT 或 CLR 编解码器能在足够大的真实语料上同时通过体积和吞吐量的准入门槛。
 
-## Memory model
+## 内存模型
 
-The CLI default is 16 GiB and the supported minimum is 64 MiB. The codec uses no scratch files;
-regular-file output is staged beside the destination and published only after the archive is
-complete.
+CLI 默认预算 16 GiB，最低支持 64 MiB。编解码器不写临时文件；输出到普通文件时，先写到目标旁边
+的临时文件，整个归档完成后再原子替换。
 
-Compression applies three levels of control:
+压缩侧有三道防线：
 
-1. Profile sampling is capped by bytes and record count.
-2. Frame accumulation charges the actual capacities of retained record strings and closes a frame
-   at the smaller of the requested target and the budget-derived target.
-3. Before encoding, the writer exactly measures all raw stream sizes, adds retained record
-   capacities, Zstd output bounds, vector metadata, and a fixed codec/runtime reserve, then rejects
-   a frame whose conservative peak exceeds the operation budget.
+1. Profile 采样有字节数和记录数双重上限。
+2. 帧累积器按保留记录字符串的实际容量计入开销，达到请求目标或预算推导目标中较小者时关帧。
+3. 编码前，写入器精确测量所有原始流大小，加上保留记录容量、Zstd 输出上界、vector 元数据
+   和固定的编解码器/运行时预留，保守峰值超出操作预算的帧直接拒绝。
 
-Decompression validates each individual raw/encoded size and also an aggregate conservative peak:
-encoded bytes + two copies of raw logical bytes + decoded record metadata + runtime reserve. A
-hostile header therefore cannot allocate three individually legal streams whose sum violates the
-budget.
+解压侧同样校验每个原始/编码大小，并额外校验聚合保守峰值：编码字节 + 两份原始逻辑字节 +
+解码记录元数据 + 运行时预留。这样，即使恶意头部让三路流各自看起来合法，总和也过不了预算关。
 
-The max frame size is derived from `(memory limit - runtime reserve) / 4`; the accumulation target
-uses `/ 8`. At a 64 MiB configured limit, measured release-process RSS was 25--32 MiB for randomised
-short- and long-read fixtures.
+最大帧大小 = `(内存限制 - 运行时预留) / 4`；累积目标用 `/ 8`。在 64 MiB 限制下，发布流程实测
+RSS 为 25–32 MiB（随机化短读长和长读长 fixture）。
 
-## Execution architecture
+## 执行架构
 
-The engine is intentionally sequential. Pinned three-run medians on the available 8-core x86_64
-WSL2 host reached 53.15/182.40 MiB/s for randomised 150 bp data and 55.66/215.22 MiB/s for
-randomised 20 kbp data (compress/decompress). WSL2 reruns can fall below the 50 MiB/s compression
-floor, so a non-WSL2 release machine remains the qualification gate. Adding a TBB DAG without a
-demonstrated bottleneck would restore duplicate state, output ordering, and in-flight-memory risks
-that v2 removed.
+引擎有意保持纯顺序执行。在 8 核 x86_64 WSL2 主机上，取三次运行的中位数：随机化 150 bp 数据
+压缩/解压 53.15/182.40 MiB/s，随机化 20 kbp 数据 55.66/215.22 MiB/s。WSL2 上重跑有时会
+跌破 50 MiB/s 的压缩下限，所以发布鉴定仍以非 WSL2 机器为准。在尚未证实存在瓶颈的前提下引入
+TBB DAG，只会把 v2 已经干掉的重复状态、输出排序和在途内存风险重新请回来。
 
-Independent frame boundaries remain the concurrency seam. If a release machine later misses the
-floor, parallel work should be added as one ordered frame pipeline with byte-budget admission—not as
-a separate compression implementation. Codec state must remain frame-local or worker-local.
+帧边界天然独立，这就是将来并发化的切分点。如果发布机器真的跑不到下限，应该加一条有序帧流水线、
+配上字节预算准入——而不是另起一套压缩实现。编解码器状态必须保持帧内局部或 worker 内局部。
 
-## Paired reads
+## 双端 reads
 
-Two input files are read in lockstep and stored R1, R2, R1, R2. Different record counts are a hard
-format error. A paired frame must contain an even number of records, so a pair never crosses a frame
-boundary. Decompression produces one canonical interleaved FASTQ stream.
+两个输入文件锁步读取，按 R1、R2、R1、R2 交替存储。两端记录数不一致直接报格式错误。双端帧
+的记录数必须是偶数，保证配对不会跨帧。解压时输出一个标准的交错 FASTQ 流。
 
-## Failure behaviour
+## 故障行为
 
-- Output overwrite requires `--force`.
-- Input and output paths may not be the same file.
-- Truncation, unknown format/version/codec, checksum mismatch, impossible stream lengths, trailing
-  logical-stream or post-footer bytes, pair-count disagreement, and memory-limit violations fail
-  closed.
-- `verify` performs the same full frame decode and checks as decompression but emits no FASTQ.
-- v1 input is rejected; there is no partial or heuristic compatibility path.
+- 覆盖已有输出必须加 `--force`。
+- 输入和输出不允许是同一个文件。
+- 截断、未知格式/版本/编解码器、校验和不匹配、不可能的流长度、逻辑流尾部或 footer 之后
+  出现多余字节、配对数对不上、内存超限——一律 fail closed，直接报错终止。
+- `verify` 走和解压完全相同的帧解码与校验流程，只是不写 FASTQ 输出。
+- v1 输入直接拒绝，没有任何部分兼容或启发式猜测的路径。
 
-## Modules
+## 模块
 
-| Namespace | Responsibility |
+| 命名空间 | 职责 |
 |---|---|
-| `fqc::format::v2` | wire format, stream coding, checksums, memory preflight |
-| `fqc::commands::v2` | profile resolution and single bounded engine |
-| `fqc::io` | FASTQ parsing, gzip input, file/stdin/stdout stream factories |
-| `fqc::common` | records, structured errors, logging |
+| `fqc::format::v2` | 线上格式、流编码、校验和、内存预检 |
+| `fqc::commands::v2` | profile 判定与单引擎有界执行 |
+| `fqc::io` | FASTQ 解析、gzip 输入、文件/stdin/stdout 流工厂 |
+| `fqc::common` | 记录、结构化错误、日志 |
 
-Legacy ABC, SCM, v1 format/index/reorder map, async-I/O island, paired parser, and TBB pipeline
-modules were deleted rather than retained as unreachable compatibility code.
+旧版的 ABC、SCM、v1 格式/索引/重排序映射、异步 I/O 孤岛、双端解析器、TBB 流水线——
+全部删干净了，没有留一行死代码。

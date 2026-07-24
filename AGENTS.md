@@ -1,40 +1,40 @@
 # AGENTS.md - fq-compressor
 
-Personal practice project: high-performance C++23 concurrent pipeline for FASTQ compression.
+个人练习项目：基于 C++23 的高性能 FASTQ 压缩并发流水线。
 
-## Build & Test
+## 构建与测试
 
 ```bash
-./scripts/build.sh clang-debug      # build
-./scripts/test.sh clang-debug       # run all tests
-./scripts/test.sh clang-asan        # sanitizer build + test
-./scripts/lint.sh format-check      # check formatting
-./scripts/lint.sh format            # auto-format
+./scripts/build.sh clang-debug      # 构建
+./scripts/test.sh clang-debug       # 运行全部测试
+./scripts/test.sh clang-asan        # sanitizer 构建 + 测试
+./scripts/lint.sh format-check      # 检查格式
+./scripts/lint.sh format            # 自动格式化
 ```
 
-## Code Style
+## 代码风格
 
-- C++23, clang + libc++, 4-space indent, 100 col limit
-- Naming: PascalCase types, camelCase functions/variables, `trailing_` members, `kPascal` constants
-- Error handling: `Result<T>` (alias for `std::expected<T, Error>`). No exceptions in library code.
-- Logging: `FQC_LOG_INFO(...)` etc. from `fqc/log.h` (fmt-based, stderr)
-- Includes: project headers first, then stdlib, then third-party
+- C++23，clang + libc++，4 空格缩进，100 列限制
+- 命名：类型 PascalCase，函数/变量 camelCase，成员变量 `trailing_` 后缀，常量 `kPascal`
+- 错误处理：`Result<T>`（即 `std::expected<T, Error>` 的别名），库代码里不用异常
+- 日志：`fqc/log.h` 中的 `FQC_LOG_INFO(...)` 等宏（基于 fmt，输出到 stderr）
+- 头文件顺序：项目头文件优先，其次标准库，最后第三方库
 
-## Architecture
+## 架构
 
 ```
-FASTQ input → FastqParser → [SPSC queue] → ArchiveWriter (encode + zstd + xxh64) → output
+FASTQ 输入 → FastqParser → [SPSC 队列] → ArchiveWriter（编码 + zstd + xxh64）→ 输出
 ```
 
-Key modules:
-- `include/fqc/pipeline/` — SPSC queue + pipeline orchestration (the learning core)
-- `src/format/archive.cpp` — binary format: varint, 2-bit DNA packing, zstd frames, XXH64
-- `src/io/` — FASTQ parsing, gzip transparent input
-- `src/commands/` — CLI orchestration (compress/decompress/verify)
+核心模块：
+- `include/fqc/pipeline/` — SPSC 队列 + 流水线编排（核心学习点）
+- `src/format/archive.cpp` — 二进制格式：varint、2-bit DNA 打包、zstd 帧、XXH64
+- `src/io/` — FASTQ 解析、gzip 透明输入
+- `src/commands/` — CLI 编排（compress/decompress/verify）
 
-## Dependencies (Conan)
+## 依赖（Conan）
 
-cli11, fmt, zlib-ng, zstd, xxhash, gtest (test only)
+cli11、fmt、zlib-ng、zstd、xxhash、gtest（仅测试）
 
 ## Git
 
