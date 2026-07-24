@@ -35,6 +35,11 @@ jobs:
           key: conan-${{ hashFiles('conanfile.py') }}
 
       - name: Conan install
+        env:
+          # 让 Conan 在 --build=missing 从源码构建依赖时，CMake 选用 clang 而非
+          # 系统默认的 gcc；否则 libc++ 工具链会把 -stdlib=libc++ 传给 gcc 而报错
+          CC: clang
+          CXX: clang++
         run: |
           conan profile detect --force
           conan install . --output-folder=build/clang-debug --build=missing \
